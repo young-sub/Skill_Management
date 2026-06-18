@@ -22,9 +22,13 @@ $work-packet run <work-packet-id-or-issue-ref>
 $work-packet pr <work-packet-id-or-issue-ref>
 $work-packet close <work-packet-id-or-issue-ref>
 $work-packet next <work-packet-id-or-issue-ref>
+$work-packet publish            # human-triggered; OUTSIDE auto
 ```
 
-`$work-packet auto <goal-or-active-goal>` may run phases sequentially only while all gates pass.
+The skill body works on local documents only. `issue`/`pr` produce `local_pending` records; the
+tracker is touched only by `publish`, which is human-triggered, batches pending Issue/PR records, and
+moves published ones to the archive. `$work-packet auto <goal-or-active-goal>` may run phases
+sequentially only while all gates pass, but `auto` never publishes — run `publish` separately.
 
 ## Intake Modes
 
@@ -64,7 +68,7 @@ Use `architecture_first` when runtime boundaries, persistence, context policy, p
 
 Do not hide broad architecture rewrites inside feature implementation.
 
-## Codex `/goal` Contract
+## Agent Implementation Contract (tool-neutral, e.g. Codex `/goal`)
 
 `$work-packet run` should prepare a self-contained contract with:
 
@@ -96,9 +100,9 @@ Every GitHub/GitLab issue or PR/MR created or updated by Work Packet should incl
 > This Korean summary is for review speed only. If it conflicts with the English canonical sections, linked source-of-truth docs, or repository rules, the English canonical sections and source-of-truth docs prevail.
 ```
 
-Use closing keywords only when the PR/MR fully resolves the issue and targets the default branch. Otherwise use `Related to` or `Part of`.
+Use closing keywords only when the PR/MR fully resolves the issue and targets the resolved base branch (never auto-merge into a protected branch). Otherwise use `Related to` or `Part of`.
 
-If `gh`/`glab` is unavailable, output the exact command, title, labels, and body instead of claiming the issue or PR/MR was created.
+When the resolved tracker channel is `handoff` or unreachable, output the exact command, title, labels, and body, set `handoff_pending`, and do not claim the issue or PR/MR was created; do not retry a live call in a loop.
 
 ## Auto Gates
 
@@ -112,12 +116,17 @@ If `gh`/`glab` is unavailable, output the exact command, title, labels, and body
 - unrelated dirty changes;
 - delegated skill failure with no safe fallback;
 - verification failure without a clear next diagnostic step;
-- inability to create/update issues or PRs and no configured local fallback;
-- PR merge/close, issue close, or user review required.
+- base/integration branch cannot be resolved (no `origin/HEAD` and no env-profile `integration_branch`);
+- reflecting into a protected branch (auto must never auto-merge/auto-push there);
+- PR merge/close, issue close, publish, or user review required.
+
+`auto` does not publish: it stops with `local_pending` records and leaves `publish` to the owner.
 
 ## Branch and PR/MR Convention
 
 - Default branch: <branch>
+- Base/integration branch: <branch> — resolved from `git symbolic-ref refs/remotes/origin/HEAD` or the env-profile `integration_branch`; never assumed to be `main`.
+- Protected branches: <list, e.g. main> — never auto-merge or auto-push into these; reflecting requires explicit human action. Work shuttles only between the implementation branch and the base.
 - Implementation branch if no repo convention exists: `wp-<work-packet-id>-<slug>` or `issue-<issue-number>-<slug>`
 - Do not introduce `/` in branch-name examples unless the repo already requires slash-separated branch names.
 - Draft PR/MR policy: <policy>

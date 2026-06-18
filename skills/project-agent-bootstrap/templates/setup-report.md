@@ -29,8 +29,11 @@
 - `docs/agents/issue-tracker.md`: <status>
 - `docs/agents/domain.md`: <status>
 - `docs/agents/triage-labels.md`: <status or not used>
-- `.scratch/work-packets/`: <status or not used>
-- `.scratch/archive/`: <status or not used>
+- Active local Work Packet tracker (e.g. `docs/work-packets/`): <status or not used>
+- Published archive (e.g. `docs/archive/work-packets/`): <status or not used>
+- `.scratch/` (ephemeral only): <status or not used>
+- `/agent-env.*.md` gitignored: <yes/no>
+- Tracker-channel routing documented: <yes/no>
 
 ## Work Packet Compatibility
 
@@ -39,6 +42,10 @@
 | Root AGENTS under 100 lines | <status> | <status> | <notes> |
 | Required docs/agents config | <status> | <status> | <notes> |
 | Tracker mode defined | <status> | <status> | <notes> |
+| Tracker-channel + env profile | <status> | <status> | <notes> |
+| Active/archive durable split | <status> | <status> | <notes> |
+| Publish outside auto | <status> | <status> | <notes> |
+| Base/protected-branch policy | <status> | <status> | <notes> |
 | Durable record policy | <status> | <status> | <notes> |
 | Korean Summary policy | <status> | <status> | <notes> |
 | CLI fallback policy | <status> | <status> | <notes> |

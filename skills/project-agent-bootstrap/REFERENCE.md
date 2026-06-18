@@ -67,7 +67,9 @@ Define exactly one configured tracker mode:
 - `local_markdown`: tracked markdown files are durable; `.scratch/` may still hold drafts.
 - `existing`: the repo already has another durable tracker; document how Work Packets map to it.
 
-Durable knowledge must live in the configured tracker, PR/MR body, tracked docs, ADRs, or implementation plan. `.scratch/` is local operating state unless the repo intentionally tracks it. If a local Work Packet path is gitignored, mirror durable summaries into tracked docs or the PR/MR body once one exists.
+Durable knowledge must live in the configured tracker, PR/MR body, tracked docs, ADRs, or implementation plan. Distinguish three surfaces: an **active** durable local Work Packet path (e.g. `docs/work-packets/`) holding `local_pending` records before publish; a **published archive** (e.g. `docs/archive/work-packets/`) where `publish` moves published records so a later batch never re-publishes them; and `.scratch/` for ephemeral drafts only. Do not point durable records at `.scratch/`. If the active path is gitignored, mirror durable summaries into tracked docs or the PR/MR body once one exists.
+
+Tracker access is a declared **tracker channel**, not a try-and-fail behavior. The gitignored env profile `agent-env.<slug>.md` (created by `$work-packet init`) binds each repo — matched by SSH alias or HTTPS host/org from `git remote -v` — to a channel per orchestrator tool (Claude or Codex): `gh`, `mcp_pat`, `connector`, `handoff`, or `none`. The channel is resolved statically, never by probing the network. The code channel (git push/pull over SSH) is always available and is not governed by the tracker mode. Live Issue/PR writes happen only in the `publish` step, which is outside `auto`, batches pending records, and archives published ones. Track publish state on two axes: `git_publish_state` and `tracker_publish_state` (`local_pending` -> `issue_published`/`pr_published`, or `handoff_pending`). Ensure `/agent-env.*.md` is gitignored.
 
 Never silently migrate tracker modes. Ask for approval or follow a tracked migration doc.
 
@@ -124,7 +126,9 @@ Record the repo's existing branch convention when evidence exists. If no convent
 
 Do not introduce `/` in generated branch-name examples or default branch recommendations unless the repo already has a working convention that explicitly requires slash-separated branch names.
 
-Use closing keywords only when the PR/MR fully resolves the issue and targets the default branch. Otherwise use `Related to` or `Part of`.
+Record the base/integration branch explicitly: resolve it from `git symbolic-ref refs/remotes/origin/HEAD` when set, else the env-profile `integration_branch`, else stop and ask. Never assume `main` or the default branch as the base merely because it exists. Record protected branches; the skill must never auto-merge or auto-push into them, and work shuttles only between the implementation branch and the base. Reflecting into a protected branch requires explicit human action.
+
+Use closing keywords only when the PR/MR fully resolves the issue and targets the resolved base branch. Otherwise use `Related to` or `Part of`.
 
 ## 7. Local markdown Work Packet format
 
@@ -192,9 +196,9 @@ Use `architecture_first` when runtime boundaries, persistence, context policy, p
 
 Do not hide broad architecture rewrites inside feature implementation.
 
-## 10. Codex `/goal` contract support
+## 10. Agent implementation contract support (tool-neutral, e.g. Codex `/goal`)
 
-`docs/agents/workflow.md` should make it possible to create a self-contained `/goal` contract with:
+`docs/agents/workflow.md` should make it possible to create a self-contained implementation contract (for example a Codex `/goal`) with:
 
 - objective;
 - Work Packet or issue reference;
@@ -222,8 +226,11 @@ Work Packet `auto` must stop on:
 - unrelated dirty changes;
 - delegated skill failure with no safe fallback;
 - verification failure without a clear next diagnostic step;
-- inability to create/update issues or PRs and no configured local fallback;
-- PR merge/close, issue close, or user review required.
+- base/integration branch cannot be resolved (no `origin/HEAD` and no env-profile `integration_branch`);
+- reflecting into a protected branch (auto must never auto-merge or auto-push there);
+- PR merge/close, issue close, publish, or user review required.
+
+`auto` never publishes: it stops with `local_pending` records and leaves the human-triggered `publish` step (and its archive step) to the owner.
 
 ## 12. Delegated Matt skill routing
 
@@ -283,7 +290,9 @@ Keep active plans separate from stale proposals and completed plans. Archive com
 
 - `AGENTS.md` line counts;
 - required `docs/agents` files;
-- `gh`/`glab` availability;
+- `/agent-env.*.md` is gitignored, and the durable active vs published-archive vs `.scratch/` surfaces are distinguished;
+- tracker-channel routing and `publish`-outside-`auto` are documented;
+- base/integration-branch and protected-branch policy is recorded;
 - git dirty state;
 - legacy agent docs;
 - obvious wrapper prompt files;
