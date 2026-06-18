@@ -28,8 +28,8 @@ This file records pointers for agent setup. It should not duplicate full domain 
 
 - Active implementation plan: <path or not configured>
 - Roadmap/backlog: <path or not configured>
-- Completed/stale plan archive: <path or not configured>
-- Source-of-truth index: <path or not configured>
+- Completed/stale plan + design-doc archive: <e.g. docs/archive/, or not configured> (move completed/superseded PRD, plan, and design docs here at close; keep active plans out)
+- Source-of-truth index: <path or not configured> (shared index: prefer derived/regenerable or append-only one-line-per-entry to avoid merge conflicts)
 
 ## Product Surfaces / Bounded Contexts
 

@@ -8,7 +8,7 @@ This mode replaces old pasted post-implementation router prompts. `next` is orch
 ## Required reads
 
 - Precondition (before any tracker action): resolve the access path via the `Access path resolution` reference section — read the env profile, match the git remote, detect the orchestrator, decide the tracker channel. STOP if the profile is absent.
-- Always read: this file, the `Phase handoff capsule` if present, completed close report, linked issue/PR metadata/needed sections, and these sections via `scripts/read-reference-section.py`: `Access path resolution`, `Context budget and search hygiene`, `Metadata-first Tracker I/O`, `Base reflection and protected-branch policy`, and `Final active-branch refresh policy`.
+- Always read: this file, the `Phase handoff capsule` if present, completed close report, linked issue/PR metadata/needed sections, and these sections via `scripts/read-reference-section.py`: `Access path resolution`, `Context budget and search hygiene`, `Metadata-first Tracker I/O`, `Document layout and merge safety`, `Base reflection and protected-branch policy`, and `Final active-branch refresh policy`.
 - Read if needed: unresolved Proposed Shared Doc Updates, recent commits, ADRs, CONTEXT docs, or roadmap/index docs that decide candidate ordering.
 - Templates: none by default.
 ## Process
@@ -17,7 +17,7 @@ This mode replaces old pasted post-implementation router prompts. `next` is orch
 2. Inspect recent commits, tests, docs changed, implementation plan, roadmap, AGENTS, CONTEXT docs, or ADRs only when the close report and active status pointers cannot decide the next bottleneck. Full docs or full `REFERENCE.md` reads are escalation, not default.
 3. Identify what business or operational capability became possible.
 4. Reflect this turn's implementation onto the resolved base/integration branch per the `Base reflection and protected-branch policy`. Work shuttles only between the implementation branch and the base. If the base is protected (for example base equals the default branch), do NOT auto-merge or auto-push into it: report the implementation branch, the intended base, the exact reflection command, and hand off for explicit human action. Never reflect into `main` or any protected branch autonomously.
-5. Reconcile deferred roadmap, queue, implementation-plan, and index updates from completed Work Packets serially.
+5. Reconcile deferred roadmap, queue, implementation-plan, and index updates from completed Work Packets serially, in the orchestration lane only, per the `Document layout and merge safety` reference section: regenerate a derived index when possible, else append one stably-ordered entry per line without reflowing the shared file. Never edit shared indexes from parallel `init`/`run`.
 6. Identify the current highest-value bottleneck. Prefer metadata-only `ready-for-agent` issue inspection first. If no ready issue exists, inspect only metadata for open `needs-info` issues and recommend the candidate most directly connected to the just-completed flow by linked issue/PR, parent/dependency, title keywords, or recent tracker adjacency. Treat a `needs-info` candidate as a next intake/ready target, not as runnable implementation work. Stop with `no ready issue found` only when neither ready issues nor a narrowly related `needs-info` candidate can be identified without broad doc scanning.
 7. Propose at most 3 next Work Packet candidates.
 8. Do not interview, implement, or write a full Codex goal prompt.

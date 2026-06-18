@@ -28,7 +28,7 @@ $work-packet publish            # human-triggered; OUTSIDE auto
 The skill body works on local documents only. `issue`/`pr` produce `local_pending` records; the
 tracker is touched only by `publish`, which is human-triggered, batches pending Issue/PR records, and
 moves published ones to the archive. `$work-packet auto <goal-or-active-goal>` may run phases
-sequentially only while all gates pass, but `auto` never publishes — run `publish` separately.
+sequentially only while all gates pass, but `auto` never publishes - run `publish` separately.
 
 ## Intake Modes
 
@@ -125,8 +125,8 @@ When the resolved tracker channel is `handoff` or unreachable, output the exact 
 ## Branch and PR/MR Convention
 
 - Default branch: <branch>
-- Base/integration branch: <branch> — resolved from `git symbolic-ref refs/remotes/origin/HEAD` or the env-profile `integration_branch`; never assumed to be `main`.
-- Protected branches: <list, e.g. main> — never auto-merge or auto-push into these; reflecting requires explicit human action. Work shuttles only between the implementation branch and the base.
+- Base/integration branch: <branch> - resolved from `git symbolic-ref refs/remotes/origin/HEAD` or the env-profile `integration_branch`; never assumed to be `main`.
+- Protected branches: <list, e.g. main> - never auto-merge or auto-push into these; reflecting requires explicit human action. Work shuttles only between the implementation branch and the base.
 - Implementation branch if no repo convention exists: `wp-<work-packet-id>-<slug>` or `issue-<issue-number>-<slug>`
 - Do not introduce `/` in branch-name examples unless the repo already requires slash-separated branch names.
 - Draft PR/MR policy: <policy>
@@ -138,7 +138,7 @@ Each completion report should include commands run, result, relevant output summ
 
 ## Archive Hygiene
 
-Keep active plans separate from stale proposals and completed plans. Archive completed/stale plans with decision history and verification evidence. Update indexes and source-of-truth pointers when docs move.
+Keep active plans separate from stale proposals and completed plans. When a design or planning doc (PRD, implementation plan, design notes, decision records) is completed or superseded by the implemented result, move it to `docs/archive/...` with decision history and verification evidence; do not leave completed design docs mixed with active plans. Published Work Packet records archive under `docs/archive/work-packets/<owner-slug>/`. Update indexes and source-of-truth pointers when docs move, in the serialized orchestration lane only, using the merge-safe index convention: prefer a derived/regenerable index, else append-only one entry per line by an immutable key, never reflowing the shared file.
 
 ## Subagents and Worktrees
 

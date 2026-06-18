@@ -19,7 +19,7 @@ record carries `tracker_publish_state: local_pending`.
 ## Required reads
 
 - Precondition (before any tracker action): resolve the access path via the `Access path resolution` reference section — read the env profile, match the git remote, detect the orchestrator, decide the tracker channel. STOP if the profile is absent.
-- Always read: this file, the `Phase handoff capsule` if present, the ready Work Packet or tracker issue sections needed for publishing, and these sections via `scripts/read-reference-section.py`: `Access path resolution`, `Metadata-first Tracker I/O`, `Tracker and durable record policy`, `Korean reporting and summary policy`, `Implementation confirmation gate`, and `Context budget and search hygiene`.
+- Always read: this file, the `Phase handoff capsule` if present, the ready Work Packet or tracker issue sections needed for publishing, and these sections via `scripts/read-reference-section.py`: `Access path resolution`, `Metadata-first Tracker I/O`, `Tracker and durable record policy`, `Document layout and merge safety`, `Korean reporting and summary policy`, `Implementation confirmation gate`, and `Context budget and search hygiene`.
 - Read if needed: `docs/agents/issue-tracker.md`, root/local `AGENTS.md`, GitHub issue templates or label evidence, and `Bounded auto approval policy` via `scripts/read-reference-section.py` when running under `auto`.
 - Template: `templates/issue-body.md`.
 ## Parallel rules
@@ -33,7 +33,7 @@ Local markdown issue creation may be parallel only when local markdown is explic
 1. Read the Required reads above, tracker config, `templates/issue-body.md`, and the confirmation brief with metadata-first reads and section-only body access. Do not read `REFERENCE.md` end-to-end.
 2. Determine the configured tracker from `docs/agents/issue-tracker.md` and root/local `AGENTS.md`; do not infer local markdown tracking only because `.scratch/` exists.
 3. Note the resolved tracker channel from the access-path precondition, but do not act on it here. `issue` mode never calls `gh`, the connector, or `mcp_pat`; all live tracker writes are deferred to `publish`.
-4. Finalize exactly one parent issue body as a local **body file** at a durable local Work Packet path (a tracked path, or the configured local tracker — not `.scratch/`). Mark the record `tracker_publish_state: local_pending` and record the local body-file ref. Do not create or update a remote issue here.
+4. Finalize exactly one parent issue body as a local **body file** at the durable active Work Packet path from the `Document layout and merge safety` reference section — `docs/work-packets/<owner-slug>/` (per-owner, not `.scratch/`, not a shared file). Mark the record `tracker_publish_state: local_pending` and record the local body-file ref. Do not create or update a remote issue here.
 5. When GitHub Issues are the configured tracker, the parent issue becomes the durable tracker only after `publish` runs. Before that, the local Work Packet doc is durable and `run` proceeds from its local ref; do not stop merely because no remote issue exists yet.
 6. Keep the body publishable: exact title, labels, and a body file ready for batch `publish`, so the later live call is mechanical.
 7. Do not satisfy `issue` mode by writing only to `.scratch/` when GitHub Issues are configured; use the durable local Work Packet path so the `local_pending` record survives review.

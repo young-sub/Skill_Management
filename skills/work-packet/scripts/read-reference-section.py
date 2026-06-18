@@ -6,6 +6,13 @@ import re
 import sys
 from pathlib import Path
 
+# Force UTF-8 stdout so non-ASCII section content (em-dashes, Korean, etc.) prints on
+# consoles with a legacy code page (e.g. cp949 on Korean Windows) instead of crashing.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
 ROOT = Path(__file__).resolve().parents[1]
 REFERENCE = ROOT / "REFERENCE.md"
 

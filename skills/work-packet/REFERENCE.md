@@ -384,6 +384,43 @@ When local markdown tracking is explicitly configured or the repo is not yet con
 - If that path is gitignored, mirror durable summaries into GitHub Issues, tracked docs, implementation plan, or PR body once a durable surface exists.
 - Do not silently migrate trackers. Ask or follow the repo migration doc.
 
+## Document layout and merge safety
+
+Use one consistent repository document layout so personal records, shared source-of-truth, and agent
+control-plane docs stay separated, and so collaboration does not cause merge conflicts. Adapt to repo
+evidence; never assume a path exists without checking.
+
+Canonical layout:
+
+- `docs/agents/` - agent control-plane / reference docs (`workflow.md`, `issue-tracker.md`,
+  `triage-labels.md`, `domain.md`, setup report). Shared-mutable; edited only in the orchestration lane.
+- `docs/work-packets/<owner-slug>/` - ACTIVE personal Work Packet records (`local_pending` Issue/PR
+  body files), namespaced per owner so collaborators never touch the same file.
+- `docs/archive/work-packets/<owner-slug>/` - published/completed Work Packet records moved here by
+  `publish`; append-only and immutable.
+- `docs/archive/` - completed or superseded design and planning docs (PRD, implementation plan,
+  design notes, decision records) moved here when their work is done, preserving decision history and
+  verification evidence; append-only and immutable. Active plans stay out of the archive.
+- `docs/adr/`, `docs/architecture*`, `docs/implementation-plan.md` - overall architecture and
+  source-of-truth docs.
+- other `docs/*` - remaining project docs.
+- `.scratch/` - ephemeral drafts and operating state only; never durable.
+
+Merge-safety rules for SHARED documents (index/navigation/roadmap/queue/status such as
+`docs/index.md`):
+
+- Keep personal records in per-owner subdirectories, never in one shared file, so concurrent work
+  produces no conflicts.
+- Prefer a shared index that is DERIVED/regenerable from the per-record files over a hand-maintained
+  list; regenerate rather than hand-merge when possible.
+- When an index must be hand-maintained, make it append-only with one entry per line, stably ordered
+  by an immutable key (e.g. issue number). Each owner appends only their own line(s); do not reflow,
+  reorder, or rewrite the whole file.
+- Edit shared indexes only in the serialized orchestration lane, never from parallel `init` or `run`;
+  defer roadmap/queue/index updates to `close`/`next` in that lane.
+- If two owners must change the same shared doc, term, interface, or index region, stop and reconcile
+  serially before either proceeds.
+
 ## Korean reporting and summary policy
 
 User-facing result reports from this skill should be Korean. Keep technical/professional terms in English when that is the clearer canonical form, including Work Packet, Implementation Contract, Scoped Overrides, Proposed Shared Doc Updates, verification evidence, architecture review, PR, Issue, command names, file paths, code identifiers, labels, API/library/model names, and section names.

@@ -25,10 +25,15 @@ policy (not a tool-sandbox behavior) and applied equally to a Claude or Codex or
 
 ## Durable Records
 
-- Active local Work Packet tracker: <durable tracked path, e.g. docs/work-packets/> — holds
-  `local_pending` Issue/PR records before `publish`. The durable tracker until published. Not `.scratch/`.
-- Published archive: <tracked path, e.g. docs/archive/work-packets/> — `publish` moves published
+- Active local Work Packet tracker: <durable tracked path, e.g. docs/work-packets/<owner-slug>/> - holds
+  `local_pending` Issue/PR records before `publish`, namespaced per owner so collaborators never touch
+  the same file. The durable tracker until published. Not `.scratch/`, not one shared file.
+- Published archive: <tracked path, e.g. docs/archive/work-packets/<owner-slug>/> - `publish` moves published
   Issue/PR body files here so a later batch never re-publishes them; archived records are immutable.
+- Completed design/planning archive: <e.g. docs/archive/> - move completed/superseded PRD, implementation
+  plan, and design docs here at close; keep active plans out.
+- Shared index/roadmap (e.g. docs/index.md): minimize merge conflicts - prefer a derived/regenerable index,
+  else append-only one entry per line by immutable key, edited only in the orchestration lane.
 - Work Packet planning/spec: <active local path / issue/PR once published / tracked docs>
 - PR/MR review knowledge: <PR/MR body or tracker>
 - Decisions: <ADRs/docs/issue/PR>
@@ -93,8 +98,8 @@ Close report placeholder or final report
 
 ## Local Markdown Work Packets
 
-- Active path (durable, `local_pending` records): <e.g. docs/work-packets/, or not used>
-- Published archive path: <e.g. docs/archive/work-packets/, or not used>
+- Active path (durable, `local_pending` records, per owner): <e.g. docs/work-packets/<owner-slug>/, or not used>
+- Published archive path (per owner): <e.g. docs/archive/work-packets/<owner-slug>/, or not used>
 - Tracked by git: <yes/no>
 - Required frontmatter:
 

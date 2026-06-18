@@ -67,9 +67,18 @@ Define exactly one configured tracker mode:
 - `local_markdown`: tracked markdown files are durable; `.scratch/` may still hold drafts.
 - `existing`: the repo already has another durable tracker; document how Work Packets map to it.
 
-Durable knowledge must live in the configured tracker, PR/MR body, tracked docs, ADRs, or implementation plan. Distinguish three surfaces: an **active** durable local Work Packet path (e.g. `docs/work-packets/`) holding `local_pending` records before publish; a **published archive** (e.g. `docs/archive/work-packets/`) where `publish` moves published records so a later batch never re-publishes them; and `.scratch/` for ephemeral drafts only. Do not point durable records at `.scratch/`. If the active path is gitignored, mirror durable summaries into tracked docs or the PR/MR body once one exists.
+Durable knowledge must live in the configured tracker, PR/MR body, tracked docs, ADRs, or implementation plan. Distinguish these surfaces and namespace personal records per owner so collaboration does not cause merge conflicts:
 
-Tracker access is a declared **tracker channel**, not a try-and-fail behavior. The gitignored env profile `agent-env.<slug>.md` (created by `$work-packet init`) binds each repo — matched by SSH alias or HTTPS host/org from `git remote -v` — to a channel per orchestrator tool (Claude or Codex): `gh`, `mcp_pat`, `connector`, `handoff`, or `none`. The channel is resolved statically, never by probing the network. The code channel (git push/pull over SSH) is always available and is not governed by the tracker mode. Live Issue/PR writes happen only in the `publish` step, which is outside `auto`, batches pending records, and archives published ones. Track publish state on two axes: `git_publish_state` and `tracker_publish_state` (`local_pending` -> `issue_published`/`pr_published`, or `handoff_pending`). Ensure `/agent-env.*.md` is gitignored.
+- `docs/agents/` - agent control-plane/reference docs (shared-mutable, edited only in the orchestration lane);
+- `docs/work-packets/<owner-slug>/` - **active** personal `local_pending` Work Packet records (per owner, never one shared file, never `.scratch/`);
+- `docs/archive/work-packets/<owner-slug>/` - **published archive** where `publish` moves published records so a later batch never re-publishes them; append-only and immutable;
+- `docs/archive/` - completed or superseded design/planning docs (PRD, implementation plan, design notes, decision records), moved here when done; active plans stay out;
+- `docs/adr/`, `docs/architecture*`, `docs/implementation-plan.md`, other `docs/*` - source-of-truth and other project docs;
+- `.scratch/` - ephemeral drafts and operating state only; never durable.
+
+For SHARED index/navigation/roadmap docs (e.g. `docs/index.md`), minimize merge conflicts: prefer a derived/regenerable index over a hand-maintained list; when hand-maintained, keep it append-only, one entry per line, stably ordered by an immutable key, with each owner appending only their own line(s) and never reflowing the whole file; edit it only in the serialized orchestration lane, never from parallel `init`/`run`. If the active path is gitignored, mirror durable summaries into tracked docs or the PR/MR body once one exists.
+
+Tracker access is a declared **tracker channel**, not a try-and-fail behavior. The gitignored env profile `agent-env.<slug>.md` (created by `$work-packet init`) binds each repo - matched by SSH alias or HTTPS host/org from `git remote -v` - to a channel per orchestrator tool (Claude or Codex): `gh`, `mcp_pat`, `connector`, `handoff`, or `none`. The channel is resolved statically, never by probing the network. The code channel (git push/pull over SSH) is always available and is not governed by the tracker mode. Live Issue/PR writes happen only in the `publish` step, which is outside `auto`, batches pending records, and archives published ones. Track publish state on two axes: `git_publish_state` and `tracker_publish_state` (`local_pending` -> `issue_published`/`pr_published`, or `handoff_pending`). Ensure `/agent-env.*.md` is gitignored.
 
 Never silently migrate tracker modes. Ask for approval or follow a tracked migration doc.
 
@@ -282,7 +291,7 @@ Do not claim completion without fresh evidence.
 
 ## 16. Archive hygiene
 
-Keep active plans separate from stale proposals and completed plans. Archive completed/stale plans with decision history and verification evidence. Update indexes and source-of-truth pointers when docs move.
+Keep active plans separate from stale proposals and completed plans. When a design or planning doc (PRD, implementation plan, design notes, decision records) is completed or superseded by the implemented result, move it to `docs/archive/...` with decision history and verification evidence; do not leave completed design docs mixed with active plans. Update indexes and source-of-truth pointers when docs move, in the serialized orchestration lane and using the merge-safe index convention (derived/regenerable, or append-only one-line-per-entry without reflowing the shared file).
 
 ## 17. Optional audit helper
 
