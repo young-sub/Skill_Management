@@ -18,8 +18,10 @@ REQUIRED_FILES = [
     "modes/pr.md",
     "modes/close.md",
     "modes/next.md",
+    "modes/publish.md",
     "modes/auto.md",
     "scripts/read-reference-section.py",
+    "templates/agent-env.template.md",
     "templates/korean-summary.md",
     "templates/local-work-packet.md",
     "templates/implementation-confirmation.md",
@@ -129,6 +131,18 @@ REQUIRED_TEXT = [
     "no ready issue found",
     "full-grill bias",
     "delegate command execution by default",
+    # Upgrade invariants: tool-neutral access path, local-doc mode, publish, base reflection
+    "Access path resolution",
+    "agent-env.<slug>.md",
+    "Owner gate",
+    "tracker_publish_state",
+    "git_publish_state",
+    "local_pending",
+    "handoff_pending",
+    "mcp_pat",
+    "never performs live tracker writes",
+    "Base reflection and protected-branch policy",
+    "git push/pull over SSH",
 ]
 
 

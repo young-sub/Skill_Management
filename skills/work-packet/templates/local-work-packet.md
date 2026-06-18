@@ -44,6 +44,10 @@ created_at:
 - files read:
 - files changed:
 - tracker/PR/doc mutations:
+- tracker_channel: <gh | mcp_pat | connector | handoff | none>
+- git_publish_state: <local_only | committed | branch_pushed>
+- tracker_publish_state: <local_pending | issue_published | pr_published | handoff_pending>
+- published_body_ref: <durable url + version, empty until publish>
 - verification evidence:
 - delegated evidence:
 - risks:

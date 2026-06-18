@@ -7,7 +7,8 @@ Close a completed Work Packet after implementation evidence and PR review surfac
 
 ## Required reads
 
-- Always read: this file, the `Phase handoff capsule` if present, linked issue/Work Packet and PR metadata/needed sections, final changed-file stats or commits, and these sections via `scripts/read-reference-section.py`: `Metadata-first Tracker I/O`, `Durable Body Ownership`, `Verification evidence`, `Final active-branch refresh policy`, `Korean reporting and summary policy`, and `Tracker and durable record policy`.
+- Precondition (before any tracker action): resolve the access path via the `Access path resolution` reference section — read the env profile, match the git remote, detect the orchestrator, decide the tracker channel. STOP if the profile is absent.
+- Always read: this file, the `Phase handoff capsule` if present, linked issue/Work Packet and PR metadata/needed sections, final changed-file stats or commits, and these sections via `scripts/read-reference-section.py`: `Access path resolution`, `Metadata-first Tracker I/O`, `Durable Body Ownership`, `Verification evidence`, `Base reflection and protected-branch policy`, `Final active-branch refresh policy`, `Korean reporting and summary policy`, and `Tracker and durable record policy`.
 - Read if needed: shared-doc update targets, `Bounded auto approval policy` via `scripts/read-reference-section.py` when merge/issue closure is attempted under `auto`, and source files needed for scoped architecture review.
 - Templates: `templates/close-report.md` for the detailed owner-surface close
   report and `templates/issue-close-capsule.md` for the short Issue close
@@ -24,7 +25,7 @@ Close a completed Work Packet after implementation evidence and PR review surfac
 8. Treat a full close report in an Issue close comment as a duplication error. Issue close comments should follow `templates/issue-close-capsule.md`: `Closed by`, `Outcome`, `Verification`, `Remaining risk`, and `Next`.
 9. Do not leave durable review knowledge only in `.scratch/`.
 10. Reconcile artifact states: parent issue labels/status, PR draft/ready/merged/closed state, local seed draft status if any, and whether the linked issue is fully satisfied, partially satisfied, or blocked.
-11. In manual mode, do not merge PRs, close PRs, or close issues unless the user explicitly approves or repo automation rules allow it.
+11. In manual mode, do not merge PRs, close PRs, or close issues unless the user explicitly approves or repo automation rules allow it. Per the `Base reflection and protected-branch policy`, never auto-merge, auto-rebase, or auto-push the implementation into a protected branch (for example `main`); reflecting into a protected base requires explicit human permission or a human action, even at close.
 12. In `auto`, merge or close only under the bounded auto approval reference section and auto-merge conditions.
 13. If the session cannot continue safely, use `handoff` to produce a compact handoff.
 14. If `close` is the terminal command, run final active-branch refresh from the reference section as the last step. If `next` will run afterward, defer refresh to `next`.

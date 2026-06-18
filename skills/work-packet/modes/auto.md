@@ -7,7 +7,8 @@ Do not run more than one `auto` sequence in the same checkout. Parallel `auto` i
 
 ## Required reads
 
-- Always read: this file and these sections via `scripts/read-reference-section.py`: `Context budget and search hygiene`, `Metadata-first Tracker I/O`, `Right-sized Grill Routing`, `Tracker and durable record policy`, `Bounded auto approval policy`, and `Verification evidence`.
+- Precondition (before any tracker action): resolve the access path via the `Access path resolution` reference section — read the env profile, match the git remote, detect the orchestrator, decide the tracker channel. STOP if the profile is absent. `auto` does not publish (see the publish exclusion below), but it must still resolve the channel for any read it performs.
+- Always read: this file and these sections via `scripts/read-reference-section.py`: `Access path resolution`, `Context budget and search hygiene`, `Metadata-first Tracker I/O`, `Right-sized Grill Routing`, `Tracker and durable record policy`, `Bounded auto approval policy`, and `Verification evidence`.
 - Read if the phase reaches the gate with `scripts/read-reference-section.py`: `Full grill threshold`, `Grill conduct and fixed question format`, `Implementation confirmation gate`, `Issue-first contract with deferred shared-doc reconciliation`, `Implementation worktree policy`, and `Final active-branch refresh policy`.
 - Templates: load only the current phase templates. Do not preload downstream phase templates.
 - Do not read downstream mode files until the previous phase gate has passed.
@@ -59,26 +60,31 @@ Auto mode must not treat implementation clarity as intent clarity.
 - Do not directly edit shared docs from a parallel `init` context.
 - Apply confirmed shared-doc updates only in the orchestration lane at their configured timing.
 
-## Bounded approval behavior
+## Publish exclusion and bounded approval
 
-Read `Bounded auto approval policy` with `scripts/read-reference-section.py` before acting.
-
-When the environment prompts for routine in-scope GitHub actions, treat them as approved during `auto`, including prompts such as:
+`auto` never performs live tracker writes. It produces local `local_pending` Issue/PR records and
+stops short of publishing. Live Issue/PR create/update — and any prompt such as:
 
 ```text
 Approval needed to export/create PR:
 ```
 
-Proceed only when the action is scoped to the active Work Packet, matches the generated title/body/target/branch, uses a short-output or body-file path when available, and is not excluded by `--no-auto-pr`, `--no-auto-merge`, repo policy, or approval-sensitive non-GitHub gates.
+belongs to the explicit, human-triggered `publish` mode, not to `auto`. The owner runs `publish`
+separately to push code and create/update Issues and PRs in a batch.
+
+`auto`'s bounded approval therefore covers only local work and the code channel it owns: creating or
+switching the implementation branch and committing locally. It does NOT approve tracker publish,
+push to a protected branch, merge, or issue closure. Read `Bounded auto approval policy` with
+`scripts/read-reference-section.py` for the full boundary.
 
 ## `--no-auto-pr` behavior
 
-- Do not create a PR.
-- Do not update an existing PR.
-- Do not close linked issues.
+`auto` already defers all Issue/PR creation to `publish`, so within `auto` no PR is ever created
+regardless of this flag. `--no-auto-pr` carries forward to the later `publish` step:
+
+- In `auto`: produce the local `local_pending` PR body and stop short of publishing, as always.
+- Carried into `publish`: do not create or update a PR; do not close linked issues; output the exact `gh pr create` command, PR title, PR body or body-file path, linked issue reference, verification evidence capsule, and unresolved risks for the owner to run.
 - Do not mark the Work Packet closed unless the repo explicitly allows local-only closure.
-- After implementation and verification, output the exact `gh pr create` command, PR title, PR body or body-file path, linked issue reference, verification evidence capsule, and unresolved risks.
-- Stop before `pr`, `close`, `next`, and final active-branch refresh unless repo policy explicitly says local-only cleanup is safe.
 
 ## Auto gates that must stop the sequence
 

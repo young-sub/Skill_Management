@@ -84,16 +84,15 @@
 
 ## Logging, Diagnostics, And Operability
 
-- When runtime or operator-facing behavior is in scope, design diagnostics as part of the feature, not as an afterthought.
-- Use a structured event taxonomy for important product surfaces.
-- Separate user-facing status, operator or developer output, and retained diagnostic state.
-- Prefer structured snapshots and reports over scraped console text.
-- Keep logs high-signal and avoid noisy success chatter.
-- Use warnings and errors only when operator attention is required.
-- Provide a fallback diagnostics export path when the primary path fails.
+- Design diagnostics as part of any runtime/operator-facing feature: a structured event taxonomy, separation of user-facing status vs operator/developer output vs retained diagnostic state, and structured snapshots over scraped console text.
+- Keep logs high-signal: warnings/errors only when operator attention is required, avoid noisy success chatter, and provide a fallback diagnostics export path when the primary path fails.
 
 ## Approval And Done Criteria
 
 - Require explicit approval before destructive actions, security-sensitive changes, irreversible migrations, secret handling, or costly external operations.
 - When risk is high, pause and confirm instead of guessing.
 - A task is done only when the intended behavior or root cause is addressed, relevant verification passes, obsolete code is removed, affected docs are updated, completed plans are archived, and remaining risks or follow-up items are reported.
+
+## Repo-local
+
+- The `work-packet` skill under `skills/` governs tracker access (Issue/PR query+publish) as a tool-neutral, profile-driven skill policy; see its `REFERENCE.md` `Access path resolution`. The code channel (git push/pull over SSH) is never gated; resolve the tracker channel from the gitignored `agent-env.<slug>.md` matched to the git remote (run the skill's `init`); the body works on local documents only; `publish` is separate from `auto`; never assume `main`/default as base or auto-merge/auto-push into a protected branch (human action required).

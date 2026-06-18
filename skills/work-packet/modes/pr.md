@@ -1,13 +1,18 @@
 # Mode: pr
 
-Create or update the implementation PR after implementation has produced a diff, unless `--draft-pr-first` already created the PR.
+Finalize the implementation PR record as a local body file after implementation has produced a diff.
+This mode manages the PR as a local document and does NOT call `gh`, the connector, or `mcp_pat`;
+the live PR create/update is deferred to `publish`, which can batch several packets. Until then the
+record carries `tracker_publish_state: local_pending`. The exception is an explicit `--draft-pr-first`
+opt-in already reconciled in `run` when the channel is directly reachable.
 
 Each implementation branch/worktree owns exactly one PR-sized Work Packet. Do not let parallel sessions update the same PR body, linked issue state, labels, or close report.
 
 
 ## Required reads
 
-- Always read: this file, the `Phase handoff capsule` if present, Work Packet or issue sections needed for PR creation, implementation diff/verification evidence summaries, and these sections via `scripts/read-reference-section.py`: `Metadata-first Tracker I/O`, `Tracker and durable record policy`, `Korean reporting and summary policy`, `Branch naming policy`, `Bounded auto approval policy`, and `Verification evidence`.
+- Precondition (before any tracker action): resolve the access path via the `Access path resolution` reference section — read the env profile, match the git remote, detect the orchestrator, decide the tracker channel. STOP if the profile is absent.
+- Always read: this file, the `Phase handoff capsule` if present, Work Packet or issue sections needed for PR creation, implementation diff/verification evidence summaries, and these sections via `scripts/read-reference-section.py`: `Access path resolution`, `Metadata-first Tracker I/O`, `Tracker and durable record policy`, `Korean reporting and summary policy`, `Branch naming policy`, `Bounded auto approval policy`, and `Verification evidence`.
 - Read if needed: PR metadata/comments when updating an existing PR, repo branch/CI policy, and shared-doc update status.
 - Template: `templates/pr-body.md`.
 ## Prerequisites
@@ -28,8 +33,8 @@ Each implementation branch/worktree owns exactly one PR-sized Work Packet. Do no
 7. Use closing keywords only if the PR fully resolves the issue and targets the default branch. Otherwise use `Related to #N` or `Part of #N`.
 8. Include Korean non-normative summary and English canonical sections. Follow the `Korean reporting and summary policy` reference section and `templates/korean-summary.md`; for PRs, emphasize implemented impact, the reviewer decision made easier, and the scope boundary that matters for review. Include `### 핵심 구현 결과` under the Korean summary: leave it empty or `TBD: fill after implementation is complete` for initial/draft PR creation, and fill it when updating the PR after implementation is complete.
 9. Include Implementation Contract summary, scoped overrides used, and shared-doc updates applied/deferred/rejected.
-10. Create or update the PR from a body file or short-output path when possible; retain only PR URL/number/state/head/base refs and `published_body_ref`. If GitHub CLI is unavailable, output the exact command and PR body instead of pretending the PR was created.
-11. In `auto`, treat routine PR create/update prompts as approved under the bounded auto approval policy unless `--no-auto-pr` is present.
+10. Write the PR body to a local **body file** and record `tracker_publish_state: local_pending` plus the local body-file ref. Do not create or update the remote PR here; that is `publish` mode's job. Keep the body file publishable so the later live call is mechanical.
+11. Do not auto-create the PR from `pr` mode, even under `auto`. `auto` produces the local PR record and stops short of publishing; live PR create/update happens only when the owner runs `publish`.
 12. If PR or linked issue state appears stale because another session modified it, stop and ask the orchestration lane to reconcile.
 13. Update the `Phase handoff capsule` with PR URL/state/head ref, `published_body_ref`, tracker/PR mutation metadata, verification evidence pointer, next mode, and next stop condition. Do not fetch the full PR body after creation only to confirm metadata.
 
@@ -40,8 +45,8 @@ Use `templates/pr-body.md`.
 ## Output only
 
 1. Branch
-2. PR URL or exact command to create it
-3. Linked issue/tracker reference
+2. Local PR body-file path and `tracker_publish_state: local_pending`
+3. Linked issue/tracker reference (local ref until published)
 4. Verification status
 5. Shared-doc update status
-6. Next command
+6. Next command (`publish` to create/update the PR, or `close`)

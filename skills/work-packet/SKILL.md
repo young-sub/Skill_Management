@@ -1,17 +1,17 @@
 ---
 name: "work-packet"
-description: "Use when orchestrating issue-first, PR-sized Work Packet workflows: init, ready, issue, run, pr, close, next, or auto. Handles tracker records, verification evidence, PR handoff, close reports, and next-work selection; do not use for ordinary code edits unless the user asks for Work Packet execution."
+description: "Use when orchestrating issue-first, PR-sized Work Packet workflows: init, ready, issue, run, pr, close, next, publish, or auto. Handles local-document tracker records, verification evidence, PR handoff, batched publish, close reports, and next-work selection; do not use for ordinary code edits unless the user asks for Work Packet execution."
 ---
 
 # Work Packet
 
-Use this skill as the repo-local orchestration layer for PR-sized agent-driven implementation. It coordinates repo evidence, intent alignment, Work Packet tracking, delegated Matt Pocock engineering skills, Codex `/goal` execution, PR handling, close reporting, and next-work selection.
+Use this skill as the repo-local orchestration layer for PR-sized agent-driven implementation. It works for either orchestrator tool (Claude or Codex). It coordinates repo evidence, intent alignment, local-document Work Packet tracking, delegated Matt Pocock engineering skills, agent implementation execution (for example Codex `/goal`), local PR handling, batched publish, close reporting, and next-work selection.
 
 Do not ask the user to paste long wrapper prompts. Read the matching mode file, route to delegated skills when useful, and ask only blocking or confirmation questions.
 
 ## Default Flow
 
-Use `init -> intent alignment -> confirmation -> ready -> issue -> run -> pr -> close -> next`; `auto` runs the same phases sequentially with gates.
+Use `init -> intent alignment -> confirmation -> ready -> issue -> run -> pr -> close -> next`; `auto` runs the same phases sequentially with gates but never publishes. The skill body works on local documents only and does not touch the tracker channel (gh/connector/mcp_pat). `publish` is a separate, human-triggered step OUTSIDE `auto` that batches pending local Issue/PR records to the tracker and isolates published ones into an archive surface; run it when you are ready to push code and create/update Issues and PRs together. The code channel (git push/pull over SSH) is never gated by this skill.
 
 ## Direct Fix Lane
 
@@ -35,7 +35,7 @@ Before reading tracker bodies, PR bodies, large docs, raw diffs, or raw logs, re
 
 The canonical capsule lives in the Work Packet or durable tracker issue. Adjacent `.scratch` capsule files are convenience caches only. The capsule is an index, not a conclusion: raw source, exact verification evidence, tracker/PR state, and source-of-truth docs win on conflict. If a capsule claim affects architecture, API, security, persistence, verification sufficiency, or close, inspect raw evidence directly and update the capsule.
 
-Each capsule includes `updated_at`, `source_ref`, `updated_by`, `phase`, `scope`, `current gate`, `accepted decisions`, `open decisions`, `files read`, `files changed`, `tracker/PR/doc mutations`, `published_body_ref`, `grill_route`, `grill_route_reason`, `verification evidence`, `delegated evidence`, `risks`, `next mode`, and `next stop condition`.
+Each capsule includes `updated_at`, `source_ref`, `updated_by`, `phase`, `scope`, `current gate`, `accepted decisions`, `open decisions`, `files read`, `files changed`, `tracker/PR/doc mutations`, `tracker_channel`, `git_publish_state`, `tracker_publish_state`, `published_body_ref`, `grill_route`, `grill_route_reason`, `verification evidence`, `delegated evidence`, `risks`, `next mode`, and `next stop condition`. `git_publish_state` (code channel: `local_only`/`committed`/`branch_pushed`) and `tracker_publish_state` (tracker channel: `local_pending`/`issue_published`/`pr_published`/`handoff_pending`) are independent axes.
 
 ## Context I/O Invariant
 
@@ -43,11 +43,12 @@ Default to `metadata-first, body-once, capsule-only` retention. Prefer metadata/
 
 ## Required First Step
 
-1. Read only the matching file under `modes/`: `init`, `ready`, `issue`, `run`, `pr`, `close`, `next`, or `auto`.
-2. Read listed reference sections with `scripts/read-reference-section.py <anchor>`. Do not read `REFERENCE.md` end-to-end during cold start.
-3. Read only the templates listed by that mode and only when their preconditions are met.
-4. Read repo-local context only until the current gate can be decided. Referenced docs are read only when already-read evidence cannot decide that gate.
-5. If repo control-plane docs are missing or drifted, `init` may draft an isolated seed, but substantial `ready`, `run`, or `auto` must stop for bootstrap or explicit scoped fallback.
+1. Read only the matching file under `modes/`: `init`, `ready`, `issue`, `run`, `pr`, `close`, `next`, `publish`, or `auto`.
+2. Resolve the access path before any tracker-touching action. Read the env profile (`agent-env.<slug>.md`), match the git remote, detect the orchestrator tool, and decide the tracker channel per the `Access path resolution` reference section. If the profile is absent in any non-`init` mode, STOP and tell the owner to run `init`. The code channel (git push/pull over SSH) is never gated by this step.
+3. Read listed reference sections with `scripts/read-reference-section.py <anchor>`. Do not read `REFERENCE.md` end-to-end during cold start.
+4. Read only the templates listed by that mode and only when their preconditions are met.
+5. Read repo-local context only until the current gate can be decided. Referenced docs are read only when already-read evidence cannot decide that gate.
+6. If repo control-plane docs are missing or drifted, `init` may draft an isolated seed, but substantial `ready`, `run`, or `auto` must stop for bootstrap or explicit scoped fallback.
 
 ## Model Routing
 
@@ -76,7 +77,7 @@ Do not use fast/small implementation unless the write scope is explicit, semanti
 - Treat `.scratch/` as local operating state unless the repo explicitly tracks it.
 - Keep durable planning and review knowledge in the configured tracker, PR body, tracked docs, ADRs, or implementation plan.
 - Use branch-name examples without `/`; prefer `wp-<work-packet-id>-<slug>` or `issue-<issue-number>-<slug>` unless repo evidence requires another convention.
-- In Codex sandboxed environments, request the required sandbox escalation before mutating Git, GitHub, or tracker state, including commit, push, branch update, PR create/update, issue publish/update/close, merge, or release actions. Bounded auto approval does not replace sandbox/tool approval.
+- Tracker query/publish is governed by the env profile's resolved channel as a skill policy, independent of which tool is the orchestrator (Claude or Codex). Before mutating Git, GitHub, or tracker state, satisfy that channel's requirements; for example, request sandbox escalation in Codex sandboxed environments, or use the PAT-backed `mcp_pat` channel. This applies to commit, push, branch update, PR create/update, issue publish/update/close, merge, or release actions. Bounded auto approval does not replace platform, tool, or sandbox approval.
 - Do not claim completion without exact verification evidence.
 - Report user-facing results in Korean while preserving technical/professional terms, commands, identifiers, file paths, section names, and GitHub/PR/Issue terms in English.
 - Keep outputs concise and action-oriented.

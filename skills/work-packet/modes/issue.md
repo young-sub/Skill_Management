@@ -1,6 +1,10 @@
 # Mode: issue
 
-Publish or update the durable issue surface for a ready Work Packet.
+Finalize the durable issue record for a ready Work Packet as a local body file, pending batch
+publish. This mode manages the issue as a local document and does NOT call `gh`, the connector, or
+any tracker channel. Actual GitHub Issue creation/update happens later in `publish` mode, which can
+batch several packets at once. Until then the local Work Packet doc is the durable tracker and the
+record carries `tracker_publish_state: local_pending`.
 
 ## Prerequisites
 
@@ -14,7 +18,8 @@ Publish or update the durable issue surface for a ready Work Packet.
 
 ## Required reads
 
-- Always read: this file, the `Phase handoff capsule` if present, the ready Work Packet or tracker issue sections needed for publishing, and these sections via `scripts/read-reference-section.py`: `Metadata-first Tracker I/O`, `Tracker and durable record policy`, `Korean reporting and summary policy`, `Implementation confirmation gate`, and `Context budget and search hygiene`.
+- Precondition (before any tracker action): resolve the access path via the `Access path resolution` reference section — read the env profile, match the git remote, detect the orchestrator, decide the tracker channel. STOP if the profile is absent.
+- Always read: this file, the `Phase handoff capsule` if present, the ready Work Packet or tracker issue sections needed for publishing, and these sections via `scripts/read-reference-section.py`: `Access path resolution`, `Metadata-first Tracker I/O`, `Tracker and durable record policy`, `Korean reporting and summary policy`, `Implementation confirmation gate`, and `Context budget and search hygiene`.
 - Read if needed: `docs/agents/issue-tracker.md`, root/local `AGENTS.md`, GitHub issue templates or label evidence, and `Bounded auto approval policy` via `scripts/read-reference-section.py` when running under `auto`.
 - Template: `templates/issue-body.md`.
 ## Parallel rules
@@ -27,17 +32,17 @@ Local markdown issue creation may be parallel only when local markdown is explic
 
 1. Read the Required reads above, tracker config, `templates/issue-body.md`, and the confirmation brief with metadata-first reads and section-only body access. Do not read `REFERENCE.md` end-to-end.
 2. Determine the configured tracker from `docs/agents/issue-tracker.md` and root/local `AGENTS.md`; do not infer local markdown tracking only because `.scratch/` exists.
-3. If GitHub Issues are configured, inspect remote, default branch, issue templates, label mapping, and available GitHub interfaces such as MCP tools, `gh`, or API access.
-4. If GitHub Issues are configured, create or update exactly one parent issue from a body file or short-output path when possible, and record only its URL/number/state/labels as the durable tracker reference. Prefer `gh` over connector mutations when connector output would return a full body.
-5. If GitHub Issues are configured but no GitHub interface is available, output the exact issue title, body, labels, and creation command/API payload, then stop before `run`.
-6. On the first GitHub auth, network, connector, or permission failure, emit the exact payload and stop. Do not retry repeatedly or treat `.scratch/` as durable tracking unless local markdown tracking is explicitly configured.
-7. Do not satisfy `issue` mode by writing only to `.scratch/` when GitHub Issues are configured.
+3. Note the resolved tracker channel from the access-path precondition, but do not act on it here. `issue` mode never calls `gh`, the connector, or `mcp_pat`; all live tracker writes are deferred to `publish`.
+4. Finalize exactly one parent issue body as a local **body file** at a durable local Work Packet path (a tracked path, or the configured local tracker — not `.scratch/`). Mark the record `tracker_publish_state: local_pending` and record the local body-file ref. Do not create or update a remote issue here.
+5. When GitHub Issues are the configured tracker, the parent issue becomes the durable tracker only after `publish` runs. Before that, the local Work Packet doc is durable and `run` proceeds from its local ref; do not stop merely because no remote issue exists yet.
+6. Keep the body publishable: exact title, labels, and a body file ready for batch `publish`, so the later live call is mechanical.
+7. Do not satisfy `issue` mode by writing only to `.scratch/` when GitHub Issues are configured; use the durable local Work Packet path so the `local_pending` record survives review.
 8. If local markdown tracking is explicitly configured, create or update the local Work Packet and mirror durable planning to tracked docs when the local path is gitignored and review durability is required.
-9. Publish child issues only when the Work Packet is too large for one PR, requires parallel ownership, or the user/repo asks for issue fan-out.
+9. Prepare child issue bodies as separate `local_pending` records only when the Work Packet is too large for one PR, requires parallel ownership, or the user/repo asks for issue fan-out.
 10. Apply the repo's mapped `ready-for-agent` state only when confirmation, acceptance criteria, verification plan, and shared-doc reconciliation are complete.
 11. Include Korean non-normative summary and English canonical sections. Follow the `Korean reporting and summary policy` reference section and `templates/korean-summary.md`; for issues, emphasize the workflow bottleneck, expected review decision, and unresolved assumptions only as needed.
 12. Ensure the issue body includes Implementation Contract, Scoped Overrides, Proposed Shared Doc Updates, and `Phase handoff capsule` so implementation can proceed without relying on hidden local state.
-13. Update the `Phase handoff capsule` with durable tracker reference, `published_body_ref`, issue mutation metadata, next mode, and next stop condition. Do not refetch the full issue body only to confirm the mutation.
+13. Update the `Phase handoff capsule` with the local body-file ref, `tracker_publish_state: local_pending`, `published_body_ref` left empty until publish, next mode, and next stop condition.
 
 ## Issue body must include
 
@@ -45,9 +50,9 @@ Use `templates/issue-body.md`.
 
 ## Output only
 
-1. Issue URL/path or exact creation command
-2. State/labels
+1. Local issue body-file path and `tracker_publish_state: local_pending`
+2. Title/labels prepared
 3. Confirmation status
 4. Shared-doc reconciliation status
-5. Child issues created, if any
-6. Next command
+5. Child issue bodies prepared, if any
+6. Next command (`run`, or `publish` when batching pending records)

@@ -50,6 +50,49 @@ Required fields: `updated_at`, `source_ref`, `updated_by`, `phase`, `scope`, `cu
 
 `grill_route` records `skipped`, `docs_grill_preflight`, `targeted_grill`, or `full_grill_with_docs`; `grill_route_reason` names triggers present, triggers ruled out, and remaining questions.
 
+## Access path resolution
+
+Resolve the tracker channel before ANY tracker-touching action (`issue`, `run`, `pr`, `close`,
+`next`, `publish`). This is a skill policy, not a tool-sandbox behavior, and it applies equally to a
+Claude orchestrator and a Codex orchestrator. The goal is to remove runtime guessing about which
+GitHub path applies to which repo: the channel is **declared in the env profile and matched against
+the actual git remote**, never discovered by trying a live call and seeing whether it fails.
+
+Two channels, only one of which this skill gates:
+
+- **Code channel** (git push/pull/fetch over SSH): available for every repo and orchestrator. NOT
+  gated by this skill. Do not remove or special-case it.
+- **Tracker channel** (GitHub Issue/PR query + create/update): the only governed surface. Routed
+  per `(repo, orchestrator tool)` by the env profile.
+
+Resolution steps at mode entry:
+
+1. Read the env profile (`agent-env.<slug>.md`). If absent in a non-`init` mode, STOP and tell the
+   owner to run `init`. `init` creates it.
+2. Read the git remote with `git remote -v` and compute `remote_match`:
+   - SSH `git@<alias>:<org>/<repo>` -> the `<alias>` token before the colon.
+   - HTTPS `https://<host>/<org>/<repo>` -> `<host>/<org>`.
+   - Any other remote form, or no matching binding row -> STOP and ask the owner to add a binding.
+3. If the matched binding's `expected_remote_match` differs from the live remote, STOP (drift): do
+   not trust either side silently.
+4. Detect the current orchestrator tool (Claude or Codex) and read the matching channel column:
+   `gh`, `mcp_pat`, `connector`, `handoff`, or `none`.
+5. Carry the resolved channel in the phase capsule. Never probe the network to decide the channel.
+
+Channel handling:
+
+- `gh`: `gh` CLI with explicit `--repo <org>/<repo>`; apply sandbox escalation per the profile.
+- `mcp_pat`: GitHub MCP server with a static PAT from that repo's `.mcp.json` (Claude orchestrator on
+  an external account where `gh` login is unreliable).
+- `connector`: Codex git connector (Codex orchestrator on an external account).
+- `handoff`: no direct channel for this `(repo, orchestrator)`; produce the exact payload + command
+  and hand off. Record `tracker_publish_state: handoff_pending` in the capsule so later turns do not
+  re-attempt and loop.
+- `none`: tracker disabled; manage Issue/PR purely as local documents.
+
+A `handoff` or unreachable tracker never blocks the code channel: pushing the branch and producing a
+publish payload can both succeed while tracker publish stays pending.
+
 ## Metadata-first Tracker I/O
 
 Use this section before tracker-heavy `ready`, `issue`, `pr`, `close`, or `next` work.
@@ -73,6 +116,8 @@ Use owner surfaces to avoid duplicating long records. Link secondary surfaces to
 | PR body | Implemented slices, changed files summary, final verification capsule, architecture review, docs updated, remaining risks | Full pre-run issue body, unrelated roadmap history |
 | Issue close comment | Closure capsule: PR URL, outcome, verification summary plus durable evidence pointer, remaining risk, next pointer | Duplicate full PR body or close report |
 | Tracked docs/ADRs | Durable architecture, domain, source-of-truth, and policy decisions | Tracker operation transcripts |
+| Active local Work Packet record (`local_pending`) | Durable pre-publish Issue/PR body and tracker state while unpublished or unreachable; the durable tracker until `publish` runs | Final published URL/state once published |
+| Archive surface (published records) | Immutable copies of Issue/PR body files already published in `publish`, isolated so a later batch never re-publishes them | Active editing; archived records are history, not a working surface |
 | Local body/log files | Temporary body/log cache and short-term reproducibility aid | Durable review evidence unless tracked or uploaded |
 
 ## Right-sized Grill Routing
@@ -366,6 +411,13 @@ issue-<issue-number>-<slug>
 
 Do not introduce `/` in branch-name examples unless repo evidence already requires that convention.
 
+Owner slug normalization (collaboration): the owner slug from the env profile is lowercase
+alphanumeric only (`a-z0-9`), with spaces and non-alphanumerics removed. Use the slug, never the
+display name, in any branch prefix or folder name, to avoid case, space, or non-ASCII breakage. When
+the repo already uses owner-less branches such as `issue-<issue-number>-<slug>`, keep that convention
+and do not force an owner prefix; add an owner prefix like `<owner-slug>-issue-<issue-number>-<slug>`
+(slash-free) only when collaborators share branch namespace and the repo has no other disambiguator.
+
 ## Implementation worktree policy
 
 Parallel implementation is conditional, not the default. It is allowed only when:
@@ -377,6 +429,25 @@ Parallel implementation is conditional, not the default. It is allowed only when
 - PR order does not matter.
 
 `run` is the first mode that may create or switch implementation branches or worktrees.
+
+## Base reflection and protected-branch policy
+
+Work shuttles only between the implementation branch and the resolved base/integration branch. Never
+auto-merge, auto-rebase, or auto-push the implementation into a protected branch.
+
+- Resolve the base branch as in `run`: `git symbolic-ref --quiet refs/remotes/origin/HEAD` when it is
+  set and reachable; else the env profile `integration_branch`; else STOP and ask. Do not assume the
+  default branch or `main` merely because it exists.
+- Determine protected branches from the env profile `protected_branches` (default `[main, master]`).
+- If the resolved base is itself protected (common when base equals the default branch), `next` and
+  `close` MUST NOT auto-merge, auto-rebase, or auto-push the implementation into it. Hand off instead:
+  report the implementation branch, the intended base, the exact reflection command, and stop.
+  Reflecting into a protected branch requires explicit human permission or a human action.
+- If the resolved base is NOT protected, reflecting the implementation into the base may proceed only
+  when the owner authorizes it and verification evidence exists. Even then, never touch a protected
+  branch.
+- Never merge, rebase, or pull a protected or default branch INTO the active implementation branch as
+  cleanup. The active branch only takes fast-forward updates from its own upstream.
 
 ## Final active-branch refresh policy
 
@@ -404,30 +475,37 @@ Do not delete local or remote branches as part of this cleanup unless repo polic
 
 ## Bounded auto approval policy
 
-Invoking `$work-packet auto` with tool permissions set to auto is treated as bounded approval for routine, skill-scoped GitHub and git operations needed to complete the Work Packet flow.
+Invoking `$work-packet auto` with tool permissions set to auto is treated as bounded approval for routine, skill-scoped LOCAL and code-channel git operations needed to complete the local-document Work Packet flow. It is not an approval to publish.
 
-This bounded approval is workflow intent only. It never overrides platform or tool approval prompts, sandbox escalation requirements, connector permission failures, destructive-operation approval, secret or credential handling, live provider calls, force-push, branch deletion, repository deletion, irreversible migrations, external data export beyond issue/PR/tracker updates, or costly/security-sensitive operations.
+This bounded approval is workflow intent only. It never overrides platform or tool approval prompts, sandbox/credential escalation requirements, connector permission failures, destructive-operation approval, secret or credential handling, live provider calls, force-push, branch deletion, repository deletion, irreversible migrations, external data export beyond issue/PR/tracker updates, or costly/security-sensitive operations.
 
-In Codex sandboxed environments, request sandbox escalation before mutating Git, GitHub, or tracker state. This includes commit, push, branch update, PR create/update, issue publish/update/close, merge, and release actions, even when the action is routine and in scope for `$work-packet auto`.
+Satisfy the resolved tracker channel's own requirements before any tracker write, independent of which tool is the orchestrator; for example, request sandbox escalation in Codex sandboxed environments, or use the PAT-backed `mcp_pat` channel. This applies to PR create/update, issue publish/update/close, merge, and release actions, which happen in `publish`, not in `auto`.
 
-This bounded approval includes, when scoped to the active Work Packet:
+Under `auto`, bounded approval covers only, when scoped to the active Work Packet:
+
+- creating, switching to, and committing on the implementation branch;
+- preparing local `local_pending` Issue/PR body files;
+- final active-branch refresh after `next`.
+
+Under `auto`, bounded approval does NOT cover tracker publish, push to a protected branch, PR merge, or issue closure. Those are deferred to the human-triggered `publish` mode and to explicit human action.
+
+`publish` is never blanket-auto-approved: the owner authorizes each batch. When the owner runs `publish`, the in-scope tracker writes it may perform are:
 
 - creating or updating the parent issue;
 - applying or updating tracker labels/statuses configured for this flow;
-- creating, switching to, committing on, pushing, and updating the implementation branch;
+- creating, switching to, committing on, and pushing the implementation branch;
 - creating or updating a draft or normal PR;
-- answering tool prompts such as `Approval needed to export/create PR:` as approved when the PR body, title, target, and linked Work Packet are in scope;
-- marking the PR ready for review when verification evidence exists and repo policy permits it;
-- merging the PR only when all auto-merge conditions below pass;
-- closing the linked issue only when the PR fully satisfies it and repo policy or closing keywords make closure unambiguous;
-- final active-branch refresh after `next`.
+- answering tool prompts such as `Approval needed to export/create PR:` as approved when the PR body, title, target, and linked Work Packet are in scope and the owner authorized the batch;
+- marking the PR ready for review when verification evidence exists and repo policy permits it.
+
+Merging a PR and closing the linked issue are NOT auto-approved. Reflecting into the base, default, or any protected branch always requires explicit human permission or a human action per the `Base reflection and protected-branch policy`. The conditions below are necessary but not sufficient; even when they all hold, the skill never performs the merge into a protected branch on its own.
 
 Auto-merge conditions:
 
 - The PR was created or updated for the active Work Packet.
 - The user did not pass `--no-auto-merge`.
-- Repo policy does not prohibit auto merge.
-- The PR targets the repo default branch.
+- Repo policy does not prohibit merge.
+- The target branch is not protected, or the owner has explicitly authorized the merge.
 - Required verification evidence is recorded.
 - Required CI checks are passing, or the repo explicitly has no CI requirement.
 - Required branch-protection reviews, merge queue requirements, or repository policy gates are satisfied.
@@ -437,7 +515,7 @@ Auto-merge conditions:
 
 This bounded approval does not apply to work outside this skill's scope and does not approve destructive operations, secret or credential handling, irreversible migrations, live provider calls, external data export beyond issue/PR/tracker updates, costly external operations, security-sensitive changes, tracker migration, repository deletion, branch deletion, force-push, or history rewrite.
 
-`--no-auto-pr` overrides all PR creation/update behavior. `--no-auto-merge` allows PR creation/update but prevents merge and issue closure.
+`--no-auto-pr` overrides all PR creation/update behavior in `publish`. `--no-auto-merge` allows PR creation/update but prevents merge and issue closure.
 
 ## Verification delegation policy
 

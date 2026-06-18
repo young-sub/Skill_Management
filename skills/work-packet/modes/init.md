@@ -7,7 +7,8 @@ Create the smallest useful Work Packet ideation draft for the requested goal, bu
 
 ## Required reads
 
-- Always read: this file, `templates/grill-decision-map.md`, and these sections via `scripts/read-reference-section.py`: `Context budget and search hygiene`, `Workspace and lane policy`, `Issue-first contract with deferred shared-doc reconciliation`, `Right-sized Grill Routing`, and `Tracker and durable record policy`.
+- Owner/profile precondition (blocking, runs first): ensure the env profile exists before ideation. If `agent-env.<slug>.md` is missing, run the Owner gate below to create it. This is the one place that may create the profile; every other mode STOPs when it is absent.
+- Always read: this file, `templates/agent-env.template.md` (only when the profile must be created), `templates/grill-decision-map.md`, and these sections via `scripts/read-reference-section.py`: `Access path resolution`, `Context budget and search hygiene`, `Workspace and lane policy`, `Issue-first contract with deferred shared-doc reconciliation`, `Right-sized Grill Routing`, and `Tracker and durable record policy`.
 - Read if needed by the selected intake path with `scripts/read-reference-section.py`: `Intake modes`, `Full grill threshold`, `Grill conduct and fixed question format`, `Implementation confirmation gate`, and `Delegated Matt Pocock skill routing`.
 - Templates after alignment closure only: `templates/local-work-packet.md`, `templates/issue-body.md`, and `templates/implementation-confirmation.md`.
 - Do not read `REFERENCE.md` end-to-end or load PR/close templates during unresolved grill/preflight alignment.
@@ -30,11 +31,34 @@ Not allowed during `init` unless the session is explicitly serialized in the orc
 
 If no tracker/local path is configured and ideation should still proceed, create a unique seed draft under `.scratch/work-packets/` or output a draft without writing. Use an ID like `wp-<yyyymmddhhmmss>-<slug>`; if a collision is possible, append a short random or content hash suffix.
 
+## Owner gate
+
+Run this before ideation when `agent-env.<slug>.md` does not exist. It is a blocking precondition:
+downstream modes STOP without a profile, so `init` must produce one.
+
+1. Ask the owner once for a display name. Ask only this; do not bundle it with grill questions.
+2. Derive a slug: lowercase, keep `a-z0-9` only, drop spaces and non-alphanumerics. Example:
+   `Jane Doe` -> `janedoe`; the owner may shorten it (e.g. `jane`). Confirm the slug. The slug
+   is used only for the gitignored filename `agent-env.<slug>.md` and for branch prefixes — never as
+   a display name.
+3. Clone `templates/agent-env.template.md` to `agent-env.<slug>.md` at the repo root.
+4. Fill it from evidence: run `git remote -v`, compute `remote_match` (SSH alias token, or HTTPS
+   `host/org`), set `expected_remote_match`, and add a per-repo block. Detect the integration branch
+   with `git symbolic-ref --quiet refs/remotes/origin/HEAD`; if unset, leave `integration_branch`
+   for the owner to set. Pre-fill `protected_branches: [main]` and the tracker-channel binding for
+   the current `(remote_match, orchestrator)` using the `Access path resolution` reference section.
+5. Ask the owner to confirm the tracker-channel binding and protected branches. Do not invent a
+   channel: if the correct channel is unknown, record `handoff` and note the open setup question.
+6. Confirm `agent-env.*.md` is gitignored at the repo root before writing anything sensitive. The
+   profile is local-only and must never be committed.
+
+After the profile exists and the binding is confirmed, continue with ideation.
+
 ## Process
 
 Grill language rule: in `init`, write every direct user-facing grill question block in Korean (`ko-KR`) for `full_grill_with_docs`, `docs_grill_preflight`, and `targeted_grill`. The Decision Map may also be Korean; keep canonical section names and repo terms in English only when that improves clarity.
 
-1. Start from the Cold Start Context Budget in `SKILL.md`, then read only this mode file and the Required reads above. Do not read `REFERENCE.md` end-to-end. Read `templates/local-work-packet.md`, `templates/issue-body.md`, and `templates/implementation-confirmation.md` only after every direct grill/preflight question has an explicit user answer, evidence-backed closure, or recorded removal from the Decision Map.
+1. Run the Owner gate first when `agent-env.<slug>.md` is missing, then start from the Cold Start Context Budget in `SKILL.md`, then read only this mode file and the Required reads above. Do not read `REFERENCE.md` end-to-end. Read `templates/local-work-packet.md`, `templates/issue-body.md`, and `templates/implementation-confirmation.md` only after every direct grill/preflight question has an explicit user answer, evidence-backed closure, or recorded removal from the Decision Map.
 2. Before repo exploration, write short Context Intake Notes: `Known from prompt`, `Must verify from repo`, `Do not read yet`, `Delegation candidates`, direct reads used, searches used, and whether subagent delegation is available.
 3. Inspect `git status --short` to detect whether shared-file writes would be unsafe. Dirty state does not block isolated `init`, but it forbids shared-doc edits.
 4. Resolve `active-goal` from the repo's active implementation plan, usually `docs/implementation-plan.md`, when requested.
