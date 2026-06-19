@@ -1,0 +1,4 @@
+interface:
+  display_name: "Multi-Agent Review"
+  short_description: "Evidence-based multi-agent reviews."
+  default_prompt: "Use $multi-agent-review --subagents allowed to review this plan with researchers and challengers."
