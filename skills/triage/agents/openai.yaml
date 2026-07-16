@@ -1,0 +1,7 @@
+interface:
+  display_name: "Triage"
+  short_description: "Explicit-only triage workflow."
+  default_prompt: "Use $triage for this task."
+
+policy:
+  allow_implicit_invocation: false

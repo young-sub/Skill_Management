@@ -1,0 +1,7 @@
+interface:
+  display_name: "Setup Matt Pocock Skills"
+  short_description: "Explicit-only setup-matt-pocock-skills workflow."
+  default_prompt: "Use $setup-matt-pocock-skills for this task."
+
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,7 @@
+interface:
+  display_name: "Zoom Out"
+  short_description: "Explicit-only broader-context review"
+  default_prompt: "Use $zoom-out to explain the broader codebase context."
+
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,7 @@
+interface:
+  display_name: "To Spec"
+  short_description: "Explicit-only to-spec workflow."
+  default_prompt: "Use $to-spec for this task."
+
+policy:
+  allow_implicit_invocation: false

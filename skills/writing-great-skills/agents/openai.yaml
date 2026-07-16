@@ -1,0 +1,7 @@
+interface:
+  display_name: "Writing Great Skills"
+  short_description: "Explicit-only skill authoring workflow"
+  default_prompt: "Use $writing-great-skills to create or revise an agent skill."
+
+policy:
+  allow_implicit_invocation: false

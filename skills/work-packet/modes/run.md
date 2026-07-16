@@ -38,7 +38,7 @@ This mode delegates implementation discipline to `tdd` and uses other Matt skill
     - GREEN uses the same focused command when possible, then the relevant broader repo checks, normally executed by a verification subagent with capsule-only results;
     - no broad refactor while tests are red;
     - commit slice completion locally per repo convention; do not push or open a PR mid-flow. Pushing the branch and any PR/issue creation are batched in `publish`, with `git_publish_state` and `tracker_publish_state` tracked in the capsule.
-18. If unexpected verification failures, flaky behavior, slow tests, noisy output, or performance regressions occur, capture bounded evidence, redirect raw logs to an artifact when practical, retain only the verification capsule in the main session, stop unbounded reruns, and delegate to `diagnose` before changing more code.
+18. If unexpected verification failures, flaky behavior, slow tests, noisy output, or performance regressions occur, capture bounded evidence, redirect raw logs to an artifact when practical, retain only the verification capsule in the main session, stop unbounded reruns, and delegate to `diagnosing-bugs` before changing more code.
 19. Near the end, use `improve-codebase-architecture` semantics only for a scoped review of touched modules, interfaces, seams, adapters, tests, diagnostics, and docs.
 20. Update affected docs and final evidence according to the Proposed Shared Doc Updates timing.
 21. Do not claim completion without exact verification evidence.

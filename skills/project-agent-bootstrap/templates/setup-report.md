@@ -29,8 +29,9 @@
 - `docs/agents/issue-tracker.md`: <status>
 - `docs/agents/domain.md`: <status>
 - `docs/agents/triage-labels.md`: <status or not used>
-- Active local Work Packet tracker (e.g. `docs/work-packets/`): <status or not used>
-- Published archive (e.g. `docs/archive/work-packets/`): <status or not used>
+- Local plan root (e.g. ignored `docs/plans/`): <status or not used>
+- Remote-publish pending/archive surfaces: <status or not used>
+- Ignored-plan close/handoff mirror policy: <status or not used>
 - `.scratch/` (ephemeral only): <status or not used>
 - `/agent-env.*.md` gitignored: <yes/no>
 - Tracker-channel routing documented: <yes/no>
@@ -84,10 +85,10 @@
 |---|---|---|---|
 | setup-matt-pocock-skills | <status> | <paths> | <fallback> |
 | triage | <status> | <paths> | <fallback> |
-| diagnose | <status> | <paths> | <fallback> |
+| diagnosing-bugs | <status> | <paths> | <fallback> |
 | grill-with-docs | <status> | <paths> | <fallback> |
-| to-prd | <status> | <paths> | <fallback> |
-| to-issues | <status> | <paths> | <fallback> |
+| to-spec | <status> | <paths> | <fallback> |
+| to-tickets | <status> | <paths> | <fallback> |
 | tdd | <status> | <paths> | <fallback> |
 | prototype | <status> | <paths> | <fallback> |
 | improve-codebase-architecture | <status> | <paths> | <fallback> |

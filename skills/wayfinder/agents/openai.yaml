@@ -1,0 +1,7 @@
+interface:
+  display_name: "Wayfinder"
+  short_description: "Explicit-only wayfinder workflow."
+  default_prompt: "Use $wayfinder for this task."
+
+policy:
+  allow_implicit_invocation: false

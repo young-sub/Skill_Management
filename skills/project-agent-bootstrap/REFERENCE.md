@@ -64,14 +64,18 @@ Define exactly one configured tracker mode:
 
 - `github`: GitHub Issues/PRs are durable planning and review surfaces.
 - `gitlab`: GitLab Issues/MRs are durable planning and review surfaces.
-- `local_markdown`: tracked markdown files are durable; `.scratch/` may still hold drafts.
+- `local_markdown`: repo-configured markdown files are the local tracker. The plan tree may be
+  gitignored when repo policy prioritizes parallel personal planning, but then close/handoff must
+  mirror settled shared decisions and verification evidence into tracked source-of-truth docs.
 - `existing`: the repo already has another durable tracker; document how Work Packets map to it.
 
 Durable knowledge must live in the configured tracker, PR/MR body, tracked docs, ADRs, or implementation plan. Distinguish these surfaces and namespace personal records per owner so collaboration does not cause merge conflicts:
 
 - `docs/agents/` - agent control-plane/reference docs (shared-mutable, edited only in the orchestration lane);
-- `docs/work-packets/<owner-slug>/` - **active** personal `local_pending` Work Packet records (per owner, never one shared file, never `.scratch/`);
-- `docs/archive/work-packets/<owner-slug>/` - **published archive** where `publish` moves published records so a later batch never re-publishes them; append-only and immutable;
+- configured local plan root (for example `docs/plans/<owner-slug>/<feature-slug>/`) - personal
+  Work Packet/spec/tickets/issues; may be gitignored by explicit repo policy;
+- `docs/work-packets/<owner-slug>/` and `docs/archive/work-packets/<owner-slug>/` - tracked
+  pending/published records only when a remote tracker publish workflow is configured;
 - `docs/archive/` - completed or superseded design/planning docs (PRD, implementation plan, design notes, decision records), moved here when done; active plans stay out;
 - `docs/adr/`, `docs/architecture*`, `docs/implementation-plan.md`, other `docs/*` - source-of-truth and other project docs;
 - `.scratch/` - ephemeral drafts and operating state only; never durable.
@@ -249,10 +253,10 @@ Record availability and fallback policy for these methods when relevant:
 |---|---|---|
 | Missing tracker/label/domain config | `setup-matt-pocock-skills` | Do local equivalent and record fallback |
 | Raw issue/backlog/conflicting labels | `triage` | Minimal triage recommendation |
-| Bug/failing verification/flaky/perf | `diagnose` | Establish deterministic feedback loop |
+| Bug/failing verification/flaky/perf | `diagnosing-bugs` | Establish deterministic feedback loop |
 | Domain/product ambiguity | `grill-with-docs` | Ask only blocking domain/product questions |
-| Requirements synthesis | `to-prd` | Create concise PRD summary |
-| Slice validation | `to-issues` | Validate one PR-sized packet; avoid issue fan-out unless needed |
+| Requirements synthesis | `to-spec` | Create a settled spec in the configured tracker surface |
+| Slice validation | `to-tickets` | Validate one PR-sized packet; avoid issue fan-out unless needed |
 | Behavior implementation | `tdd` | Failing test or documented verification per slice |
 | Throwaway uncertainty resolution | `prototype` | Capture durable decision |
 | Boundary-blocking architecture | `improve-codebase-architecture` | Bounded architecture discovery |
@@ -291,17 +295,16 @@ Do not claim completion without fresh evidence.
 
 ## 16. Archive hygiene
 
-Keep active plans separate from stale proposals and completed plans. When a design or planning doc (PRD, implementation plan, design notes, decision records) is completed or superseded by the implemented result, move it to `docs/archive/...` with decision history and verification evidence; do not leave completed design docs mixed with active plans. Update indexes and source-of-truth pointers when docs move, in the serialized orchestration lane and using the merge-safe index convention (derived/regenerable, or append-only one-line-per-entry without reflowing the shared file).
+For a repo-approved gitignored personal plan tree, keep Work Packet/spec/ticket details local and mirror settled shared decisions plus verification evidence into tracked source-of-truth docs or a PR body before close or cross-clone handoff. Only remote-publish pending records move to the configured tracked archive after publication. Update shared indexes in the serialized orchestration lane using the merge-safe index convention.
 
-## 17. Optional audit helper
+## 17. Audit evidence
 
-`scripts/audit-agent-bootstrap.py` is a read-only helper. It can check:
-
-- `AGENTS.md` line counts;
-- required `docs/agents` files;
-- `/agent-env.*.md` is gitignored, and the durable active vs published-archive vs `.scratch/` surfaces are distinguished;
-- tracker-channel routing and `publish`-outside-`auto` are documented;
-- base/integration-branch and protected-branch policy is recorded;
+Use repository-supported read-only checks and record the exact commands. Do not require or invent a
+bootstrap-specific helper program. At minimum verify `AGENTS.md` line counts, required
+`docs/agents` files, `/agent-env.*.md` and any configured personal plan root are gitignored,
+local-plan vs remote pending/archive vs `.scratch/` roles are distinct, ignored-plan mirror policy
+is explicit, tracker-channel routing keeps `publish` outside `auto`, and base/protected-branch
+policy is recorded.
 - git dirty state;
 - legacy agent docs;
 - obvious wrapper prompt files;

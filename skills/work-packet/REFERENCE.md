@@ -116,7 +116,7 @@ Use owner surfaces to avoid duplicating long records. Link secondary surfaces to
 | PR body | Implemented slices, changed files summary, final verification capsule, architecture review, docs updated, remaining risks | Full pre-run issue body, unrelated roadmap history |
 | Issue close comment | Closure capsule: PR URL, outcome, verification summary plus durable evidence pointer, remaining risk, next pointer | Duplicate full PR body or close report |
 | Tracked docs/ADRs | Durable architecture, domain, source-of-truth, and policy decisions | Tracker operation transcripts |
-| Active local Work Packet record (`local_pending`) | Durable pre-publish Issue/PR body and tracker state while unpublished or unreachable; the durable tracker until `publish` runs | Final published URL/state once published |
+| Active local Work Packet record (`local_pending`) | Personal working tracker in the configured path; when that path is gitignored, shared decisions and verification must be mirrored to a tracked owner surface before close or cross-clone handoff | Final published URL/state once published |
 | Archive surface (published records) | Immutable copies of Issue/PR body files already published in `publish`, isolated so a later batch never re-publishes them | Active editing; archived records are history, not a working surface |
 | Local body/log files | Temporary body/log cache and short-term reproducibility aid | Durable review evidence unless tracked or uploaded |
 
@@ -195,11 +195,11 @@ Use these skills as delegated methods, not ceremony.
 |---|---|---|
 | Repo lacks issue tracker, triage-label, or domain-doc config | `setup-matt-pocock-skills` or `$project-agent-bootstrap` | Before substantial implementation; `init` may still draft ideation locally |
 | Raw idea, bug report, unclassified backlog, conflicting labels | `triage` | Before `init`, or inside `init` |
-| Bug, broken behavior, failing verification, flaky test, performance regression | `diagnose` | `init` as `diagnose_first`, or `run` when failures appear |
+| Bug, broken behavior, failing verification, flaky test, performance regression | `diagnosing-bugs` | `init` as `diagnose_first`, or `run` when failures appear |
 | Existing codebase feature touches domain language, user-facing behavior, workflow semantics, state, lifecycle, persistence, export/import, submission, permissions, or multi-context behavior | `grill-with-docs` | `init` as `docs_grill_preflight` or `full_grill_with_docs` |
 | General non-code brainstorming | `grill-me` | Outside this repo implementation flow |
-| Enough context exists to synthesize requirements after alignment and confirmation | `to-prd` | `init` after decisions are closed or auto-closed |
-| PRD/plan must become vertical implementation units | `to-issues` | `ready`, to validate slices |
+| Enough context exists to synthesize requirements after alignment and confirmation | `to-spec` | `init` after decisions are closed or auto-closed |
+| Spec/plan must become vertical implementation units | `to-tickets` | `ready`, to validate slices |
 | Behavior implementation | `tdd` | `run`, one vertical slice at a time |
 | Product/state/UI/logic uncertainty is best answered by throwaway code | `prototype` | `init` or `ready`; capture the durable decision |
 | Codebase boundary blocks implementation | `improve-codebase-architecture` | `init` as `architecture_first`, or end of `run` as scoped review |
@@ -380,8 +380,13 @@ Preferred durable structure when GitHub Issues are configured:
 When local markdown tracking is explicitly configured or the repo is not yet configured:
 
 - Create one unique Work Packet draft under the configured local path.
+- The configured path may be a gitignored personal plan tree such as
+  `docs/plans/<owner-slug>/<feature-slug>/`; when so configured, keep Work Packet, spec, tickets,
+  child issues, and notes inside that tree so parallel agents never share mutable planning files.
 - If no local path is configured and `init` is only ideation, use `.scratch/work-packets/` as a safe local fallback with a unique file name.
-- If that path is gitignored, mirror durable summaries into GitHub Issues, tracked docs, implementation plan, or PR body once a durable surface exists.
+- If that path is gitignored, mirror settled shared decisions and verification evidence into tracked
+  source-of-truth docs or a PR body before close or cross-clone handoff. The ignored plan remains
+  local operating state and must not be the only cross-clone record.
 - Do not silently migrate trackers. Ask or follow the repo migration doc.
 
 ## Document layout and merge safety
@@ -394,8 +399,11 @@ Canonical layout:
 
 - `docs/agents/` - agent control-plane / reference docs (`workflow.md`, `issue-tracker.md`,
   `triage-labels.md`, `domain.md`, setup report). Shared-mutable; edited only in the orchestration lane.
-- `docs/work-packets/<owner-slug>/` - ACTIVE personal Work Packet records (`local_pending` Issue/PR
-  body files), namespaced per owner so collaborators never touch the same file.
+- Configured local-markdown plan root (for example
+  `docs/plans/<owner-slug>/<feature-slug>/`) - agent-local Work Packet, spec, tickets, child issues,
+  and notes. It may be gitignored when repo policy prioritizes conflict-free parallel planning.
+- `docs/work-packets/<owner-slug>/` - tracked `local_pending` Issue/PR body files only when a remote
+  tracker publish workflow requires them.
 - `docs/archive/work-packets/<owner-slug>/` - published/completed Work Packet records moved here by
   `publish`; append-only and immutable.
 - `docs/archive/` - completed or superseded design and planning docs (PRD, implementation plan,
@@ -404,7 +412,7 @@ Canonical layout:
 - `docs/adr/`, `docs/architecture*`, `docs/implementation-plan.md` - overall architecture and
   source-of-truth docs.
 - other `docs/*` - remaining project docs.
-- `.scratch/` - ephemeral drafts and operating state only; never durable.
+- `.scratch/` - ephemeral drafts and operating state only; never the configured plan root.
 
 Merge-safety rules for SHARED documents (index/navigation/roadmap/queue/status such as
 `docs/index.md`):
@@ -564,7 +572,7 @@ Use this policy whenever `run` needs test, lint, type, build, CI log review, or 
 - Before delegation, record the expected signal: slice/test intent, cwd or worktree, branch/ref, command, relevant env gates, expected RED/GREEN/other result, rerun budget, and stop condition. The subagent must not broaden commands unless explicitly asked. Redirect raw output to a log artifact when noisy output is expected, and retain only the verification capsule in the main session.
 - The main agent should run verification locally only when no subagent mechanism is available, the command is a tiny smoke check whose full output is already bounded, the subagent lacks required local access, or ambiguous evidence must be rerun for final interpretation. Record the reason when main runs tests directly.
 - A delegated RED is valid only when a new or changed test fails through the expected behavior/assertion. Collection, import, environment, fixture setup, syntax, or unrelated failures are blockers, not RED evidence.
-- If delegated evidence is ambiguous, rerun the focused command locally or inspect enough raw output to decide. Unexpected failures, flaky behavior, slow tests, or performance regressions should route to `diagnose` after bounded evidence capture, not repeated unbounded reruns.
+- If delegated evidence is ambiguous, rerun the focused command locally or inspect enough raw output to decide. Unexpected failures, flaky behavior, slow tests, or performance regressions should route to `diagnosing-bugs` after bounded evidence capture, not repeated unbounded reruns.
 - Return a verification capsule instead of raw logs: `agent`, `scope`, `cwd`, `branch/ref`, `git status`, `command`, `relevant env gates`, `exit code`, `duration`, `expected result`, `actual summary`, `pass/fail/skip counts when known`, `changed fixtures or generated artifacts`, `known noisy diagnostic note`, `notable diagnostics`, `expected/unexpected`, `failure signature`, `file:line`, `artifacts/log path`, `checks not run`, `main-agent interpretation`, `confidence`, `recommended next action`, `uncertainty`, and `rerun trigger`.
 
 ## Verification evidence

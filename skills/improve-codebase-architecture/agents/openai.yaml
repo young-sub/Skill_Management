@@ -1,0 +1,7 @@
+interface:
+  display_name: "Improve Codebase Architecture"
+  short_description: "Explicit-only improve-codebase-architecture workflow."
+  default_prompt: "Use $improve-codebase-architecture for this task."
+
+policy:
+  allow_implicit_invocation: false

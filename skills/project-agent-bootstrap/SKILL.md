@@ -13,7 +13,8 @@ Output a minimal, evidence-backed repo control plane:
 - root `AGENTS.md` as the repo-specific operating index;
 - nested `AGENTS.md` only for materially different package/path deltas;
 - `docs/agents/workflow.md`, `issue-tracker.md`, `triage-labels.md`, and `domain.md` for Work Packet-compatible config;
-- a durable local Work Packet tracker surface and a separate published-records archive (for example `docs/work-packets/` for `local_pending` Issue/PR records and `docs/archive/work-packets/` for published ones), with `.scratch/` reserved for ephemeral drafts only;
+- a configured Work Packet surface: either a repo-approved gitignored personal plan tree for
+  `local_markdown`, or tracked pending/archive surfaces when remote Issue/PR publish is used;
 - a gitignored agent env profile convention: ensure `/agent-env.*.md` is in `.gitignore` and document that `$work-packet init` creates `agent-env.<slug>.md` and that tracker-channel routing lives in `issue-tracker.md`;
 - setup report with evidence, verification, changes, risks, and unverified assumptions.
 
@@ -58,7 +59,11 @@ Required for Work Packet compatibility:
 - `docs/agents/triage-labels.md`
 - `docs/agents/domain.md`
 
-Conditional: nested `AGENTS.md`, a durable local Work Packet tracker path (e.g. `docs/work-packets/`), a published-records archive (e.g. `docs/archive/work-packets/`), `.scratch/` for ephemeral drafts, ADRs, verification docs, implementation-plan docs, and source-of-truth indexes only when repo evidence requires them. Do not point durable `local_pending` records at `.scratch/`; that is ephemeral only.
+Conditional: nested `AGENTS.md`, a configured local plan path, tracked pending/archive paths for a
+remote publish workflow, `.scratch/` for ephemeral drafts, ADRs, verification docs,
+implementation-plan docs, and source-of-truth indexes only when repo evidence requires them. A
+gitignored local plan path needs an explicit close/handoff mirror policy; do not silently substitute
+`.scratch/` for it.
 
 Do not create broad documentation sets. Prefer thin config docs plus pointers to existing source-of-truth docs.
 
@@ -80,7 +85,11 @@ Keep legacy agent docs only as concise compatibility pointers unless a specific 
 
 Use templates for `workflow.md`, `issue-tracker.md`, `triage-labels.md`, and `domain.md`.
 
-Capture Work Packet flow (including the `publish` step, which runs outside `auto` and batches/archives Issue/PR records), intake modes, delegated skill routing, architecture triggers, agent implementation execution contract (tool-neutral, for example Codex `/goal`), issue/PR/MR conventions, Korean Summary policy, auto gates, tracker-channel routing and access-path resolution (gh/mcp_pat/connector/handoff via the env profile, not network probing), the gitignored env profile convention, tracker mode, durable records with the active/archive split and `local_pending`/`handoff_pending` states, labels/states, domain/source-of-truth pointers, base/integration-branch and protected-branch policy, branch/PR conventions, archive hygiene, and verification evidence format.
+Capture Work Packet flow (including `publish` outside `auto` for remote records), intake modes,
+delegated routing, architecture triggers, implementation contract, issue/PR conventions, Korean
+Summary policy, auto gates, access-path resolution, env profile convention, tracker mode, configured
+local plan or remote pending/archive surfaces, mirror policy for ignored plans, labels/states,
+domain/source-of-truth pointers, branch policy, archive hygiene, and verification evidence format.
 
 When no repo branch convention exists, recommend slash-free branch names such as `wp-<work-packet-id>-<slug>` or `issue-<issue-number>-<slug>`. Do not introduce `/` in branch-name examples unless repo evidence already requires that convention. Record the base/integration branch explicitly (resolved from `git symbolic-ref refs/remotes/origin/HEAD` or the env profile, never assumed to be `main`) and the protected branches that require explicit human action before any merge/push.
 
@@ -90,7 +99,7 @@ Gate diagnostics, subagent, worktree, migration, deployment, and external-servic
 
 Verify that required control-plane files exist or missing items are justified; `AGENTS.md` files are discoverable and under 100 lines; tracker mode, tracker-channel routing and the env profile convention, durable-record policy with the active vs archive vs `.scratch/` roles distinguished, the `publish` step being outside `auto`, base/integration-branch and protected-branch policy, Korean Summary policy, verification evidence format, delegated-skill fallback, auto/approval gates, and active/archive doc alignment are explicit.
 
-Run `scripts/audit-agent-bootstrap.py <repo-path>` when available and relevant, then include output or a summary in the setup report.
+Run repository-supported read-only checks and include exact commands plus a summary in the setup report. Do not require or invent a bootstrap-specific audit helper.
 
 ### 7. Report
 

@@ -25,7 +25,7 @@ Finalize an existing Work Packet seed or tracker issue for implementation only a
 11. If multiple packets propose conflicting edits to the same shared doc, domain term, public interface, or verification command, stop and reconcile before marking any affected packet `ready-for-agent`.
 12. Ensure an Implementation Confirmation Brief exists and states purpose, core implementation target, observable changes, non-goals, assumptions/risks, verification signal, grill decision, scoped overrides, and shared-doc update timing.
 13. Require explicit user confirmation, equivalent source confirmation, or `--confirmed`. If missing, set status to `needs-confirmation` and ask the single confirmation question.
-14. Apply `to-issues` semantics to validate the vertical slice breakdown.
+14. Delegate to `to-tickets` to validate the vertical slice breakdown. In `local_markdown` mode it writes only to the configured gitignored `docs/plans/<owner>/<feature>/tickets.md` surface and performs no remote tracker operation.
 15. Decide whether child issue fan-out is needed, but publish child issues only in `issue` mode when the packet is too large for one PR, needs parallel ownership, or the repo explicitly wants issue fan-out.
 16. Ensure acceptance criteria are observable.
 17. Ensure verification commands are explicit and repo-supported.

@@ -48,10 +48,10 @@ Ask at most 3 blocking questions unless the user requests a full interview. Auto
 |---|---|---|---|
 | Missing tracker/label/domain config | `setup-matt-pocock-skills` | <available/unavailable/unknown> | Do local equivalent and record fallback |
 | Raw issue/backlog/conflicting labels | `triage` | <available/unavailable/unknown> | Minimal triage recommendation |
-| Bug/failing verification/flaky/perf | `diagnose` | <available/unavailable/unknown> | Establish deterministic feedback loop |
+| Bug/failing verification/flaky/perf | `diagnosing-bugs` | <available/unavailable/unknown> | Establish deterministic feedback loop |
 | Domain/product ambiguity | `grill-with-docs` | <available/unavailable/unknown> | Ask only blocking domain/product questions |
-| Requirements synthesis | `to-prd` | <available/unavailable/unknown> | Create concise PRD summary |
-| Slice validation | `to-issues` | <available/unavailable/unknown> | Validate one PR-sized packet; avoid issue fan-out unless needed |
+| Requirements synthesis | `to-spec` | <available/unavailable/unknown> | Create a settled spec in the configured tracker surface |
+| Slice validation | `to-tickets` | <available/unavailable/unknown> | Validate one PR-sized packet; avoid issue fan-out unless needed |
 | Behavior implementation | `tdd` | <available/unavailable/unknown> | Failing test or documented verification per slice |
 | Throwaway uncertainty resolution | `prototype` | <available/unavailable/unknown> | Capture durable decision |
 | Boundary-blocking architecture | `improve-codebase-architecture` | <available/unavailable/unknown> | Bounded architecture discovery |
@@ -138,7 +138,7 @@ Each completion report should include commands run, result, relevant output summ
 
 ## Archive Hygiene
 
-Keep active plans separate from stale proposals and completed plans. When a design or planning doc (PRD, implementation plan, design notes, decision records) is completed or superseded by the implemented result, move it to `docs/archive/...` with decision history and verification evidence; do not leave completed design docs mixed with active plans. Published Work Packet records archive under `docs/archive/work-packets/<owner-slug>/`. Update indexes and source-of-truth pointers when docs move, in the serialized orchestration lane only, using the merge-safe index convention: prefer a derived/regenerable index, else append-only one entry per line by an immutable key, never reflowing the shared file.
+If the configured personal plan root is gitignored, keep personal Work Packet/spec/ticket files there and mirror settled shared decisions plus verification evidence into tracked source-of-truth docs or a PR body before close or cross-clone handoff. Only remote-publish pending records use the configured tracked archive after publication. Update shared indexes in the serialized orchestration lane only, using a derived index or stable append-only entries without reflowing the file.
 
 ## Subagents and Worktrees
 

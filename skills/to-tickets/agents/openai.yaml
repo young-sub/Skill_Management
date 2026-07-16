@@ -1,0 +1,7 @@
+interface:
+  display_name: "To Tickets"
+  short_description: "Explicit-only to-tickets workflow."
+  default_prompt: "Use $to-tickets for this task."
+
+policy:
+  allow_implicit_invocation: false

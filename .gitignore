@@ -161,6 +161,13 @@ venv.bak/
 # Root-scoped so the skill's templates/agent-env.template.md stays tracked.
 /agent-env.*.md
 
+# Ephemeral Work Packet drafts, logs, and upstream comparison checkouts.
+/.scratch/
+
+# Agent-local plans, specs, tickets, Work Packets, and implementation notes.
+# The whole tree is ignored so parallel agents never compete over personal planning state.
+/docs/plans/
+
 # Spyder project settings
 .spyderproject
 .spyproject

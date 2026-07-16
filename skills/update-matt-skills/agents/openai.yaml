@@ -1,0 +1,7 @@
+interface:
+  display_name: "Update Matt Skills"
+  short_description: "Review and adopt a pinned Matt skills release"
+  default_prompt: "Use $update-matt-skills to review and safely adopt the latest Matt Pocock skills release."
+
+policy:
+  allow_implicit_invocation: false

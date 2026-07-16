@@ -36,7 +36,11 @@ archive surface so a later batch never re-publishes them.
    - `none`: leave the record as a durable local document; there is no remote to publish to.
 6. Order within a packet: publish the parent Issue first, then the PR, so the PR can link the Issue. Link with `Related to #N`/`Part of #N` unless the PR fully resolves the Issue and targets the resolved base branch, in which case a closing keyword is allowed.
 7. On partial failure, record exactly which axis/record succeeded. If the branch pushed but the Issue create failed, keep `git_publish_state: branch_pushed` and `tracker_publish_state: local_pending`, emit the exact retry command, and stop that record without rolling back the push. Do not loop retries.
-8. On success for a record, move its local Issue/PR body file from the active surface (`docs/work-packets/<owner-slug>/`) into the per-owner archive surface (`docs/archive/work-packets/<owner-slug>/`, or `.scratch/work-packets/archive/` when only local drafts exist), per the `Document layout and merge safety` reference section. Set the record's `tracker_publish_state` to `issue_published`/`pr_published` and store `published_body_ref`. Archiving isolates completed records so the next batch never re-publishes them.
+8. On success for a remote-tracker pending record, move its local Issue/PR body file from the
+   configured tracked pending surface into the configured published archive, per `Document layout
+   and merge safety`. Set `tracker_publish_state` and `published_body_ref`. A `local_markdown`
+   tracker with channel `none` has nothing to publish or archive here; its ignored plan tree remains
+   local and close mirrors only settled shared outcomes.
 9. Never re-publish a record whose body file already lives in the archive surface or that already has a `published_body_ref`. Treat an archived record as immutable history.
 10. Include the Korean non-normative summary and English canonical sections on published Issues/PRs per the `Korean reporting and summary policy`.
 11. Update the `Phase handoff capsule` per record with channel, both publish-state axes, `published_body_ref`, archive destination, and next stop condition. Do not refetch full Issue/PR bodies only to confirm a mutation.

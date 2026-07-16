@@ -1,0 +1,7 @@
+interface:
+  display_name: "Ask Matt"
+  short_description: "Explicit-only ask-matt workflow."
+  default_prompt: "Use $ask-matt for this task."
+
+policy:
+  allow_implicit_invocation: false

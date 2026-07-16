@@ -25,11 +25,11 @@ policy (not a tool-sandbox behavior) and applied equally to a Claude or Codex or
 
 ## Durable Records
 
-- Active local Work Packet tracker: <durable tracked path, e.g. docs/work-packets/<owner-slug>/> - holds
-  `local_pending` Issue/PR records before `publish`, namespaced per owner so collaborators never touch
-  the same file. The durable tracker until published. Not `.scratch/`, not one shared file.
-- Published archive: <tracked path, e.g. docs/archive/work-packets/<owner-slug>/> - `publish` moves published
-  Issue/PR body files here so a later batch never re-publishes them; archived records are immutable.
+- Local markdown plan root: <e.g. gitignored docs/plans/<owner-slug>/<feature-slug>/, or not used> -
+  Work Packet/spec/tickets/issues, namespaced for parallel personal work.
+- Remote-publish pending surface: <tracked path such as docs/work-packets/<owner-slug>/, or not used>.
+- Published archive: <tracked path such as docs/archive/work-packets/<owner-slug>/, or not used>.
+- Ignored-plan mirror policy: <tracked source-of-truth docs/PR body updated before close or handoff>.
 - Completed design/planning archive: <e.g. docs/archive/> - move completed/superseded PRD, implementation
   plan, and design docs here at close; keep active plans out.
 - Shared index/roadmap (e.g. docs/index.md): minimize merge conflicts - prefer a derived/regenerable index,
@@ -98,9 +98,9 @@ Close report placeholder or final report
 
 ## Local Markdown Work Packets
 
-- Active path (durable, `local_pending` records, per owner): <e.g. docs/work-packets/<owner-slug>/, or not used>
-- Published archive path (per owner): <e.g. docs/archive/work-packets/<owner-slug>/, or not used>
-- Tracked by git: <yes/no>
+- Local plan path (per owner/feature): <e.g. docs/plans/<owner-slug>/<feature-slug>/>
+- Gitignored: <yes/no; if yes, record mirror policy>
+- Remote-publish pending/archive paths: <paths or not used>
 - Required frontmatter:
 
 ```yaml
