@@ -161,6 +161,10 @@ venv.bak/
 # Root-scoped so the skill's templates/agent-env.template.md stays tracked.
 /agent-env.*.md
 
+# Agent-local evaluation output and personal planning state.
+/.scratch/
+/docs/plans/
+
 # Spyder project settings
 .spyderproject
 .spyproject
