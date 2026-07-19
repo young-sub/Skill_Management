@@ -12,6 +12,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 RUNTIME = REPO_ROOT / "skills" / "execute-codex-goal" / "scripts" / "goal_runtime.py"
 CONTRACT_ENGINE = REPO_ROOT / "authoring" / "scripts" / "contract_engine.py"
 CONTRACT_FIXTURE = Path(__file__).parent / "fixtures" / "contracts" / "multi"
+SMALL_CONTRACT_FIXTURE = Path(__file__).parent / "fixtures" / "contracts" / "small"
 SOURCE_FIXTURE = Path(__file__).parent / "fixtures" / "runtime" / "source"
 
 
@@ -28,11 +29,11 @@ def tree_snapshot(root: Path) -> dict[str, str]:
 
 
 class RuntimeCase:
-    def __init__(self, parent: Path):
+    def __init__(self, parent: Path, contract_fixture: Path = CONTRACT_FIXTURE):
         self.root = parent
         self.contract = parent / "contract"
         self.source = parent / "source"
-        shutil.copytree(CONTRACT_FIXTURE, self.contract)
+        shutil.copytree(contract_fixture, self.contract)
         shutil.copytree(SOURCE_FIXTURE, self.source)
         approved = subprocess.run(
             [
@@ -52,16 +53,19 @@ class RuntimeCase:
         )
         if approved.returncode:
             raise AssertionError(approved.stdout + approved.stderr)
-        self.contract_hash = json.loads(approved.stdout)["contract_hash"]
+        approved_payload = json.loads(approved.stdout)
+        self.contract_hash = approved_payload["contract_hash"]
+        self.work_id = approved_payload["work_id"]
+        self.contract_document = self.contract / ("SPEC.md" if (self.contract / "SPEC.md").is_file() else "GOAL.md")
         self.state = parent / "goal-state.json"
         self.write_state(active=True)
 
-    def write_state(self, *, active: bool, work_id: str = "W-20260719-102", contract_hash: str | None = None, contract_path: str | None = None) -> None:
+    def write_state(self, *, active: bool, work_id: str | None = None, contract_hash: str | None = None, contract_path: str | None = None) -> None:
         payload = {
             "active": active,
             "objective": {
-                "work_id": work_id,
-                "contract_path": contract_path or str(self.contract.joinpath("GOAL.md").resolve()),
+                "work_id": work_id or self.work_id,
+                "contract_path": contract_path or str(self.contract_document.resolve()),
                 "contract_hash": contract_hash or self.contract_hash,
             },
             "instruction_hashes": {
@@ -92,6 +96,64 @@ class RuntimeCase:
 
 
 class GoalExecutionTests(unittest.TestCase):
+    def test_spec_only_contract_executes_implicit_plan_without_contract_hash_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            runtime = RuntimeCase(Path(temp_dir), SMALL_CONTRACT_FIXTURE)
+            spec_hash = digest(runtime.contract_document)
+            runtime_state = runtime.contract / "runtime-state.json"
+
+            preflight = runtime.run("preflight")
+            selected = runtime.run("next")
+
+            self.assertEqual(preflight.returncode, 0, preflight.stdout)
+            self.assertEqual(json.loads(preflight.stdout)["plan_order"], ["SPEC"])
+            self.assertEqual(selected.returncode, 0, selected.stdout)
+            self.assertEqual(json.loads(selected.stdout)["plan_id"], "SPEC")
+            self.assertFalse(runtime_state.exists())
+
+            started = runtime.run("start")
+            self.assertEqual(started.returncode, 0, started.stdout)
+            self.assertEqual(json.loads(started.stdout)["transition"], "pending->in_progress")
+            self.assertEqual(json.loads(runtime_state.read_text(encoding="utf-8")), {"SPEC": "in_progress"})
+
+            after_start = runtime.run("preflight")
+            completed = runtime.run("complete", "--plan-id", "SPEC")
+
+            self.assertEqual(json.loads(runtime_state.read_text(encoding="utf-8")), {"SPEC": "completed"})
+            self.assertEqual(after_start.returncode, 0, after_start.stdout)
+            self.assertEqual(json.loads(after_start.stdout)["contract_hash"], runtime.contract_hash)
+            self.assertEqual(completed.returncode, 0, completed.stdout)
+            self.assertEqual(digest(runtime.contract_document), spec_hash)
+
+    def test_spec_only_hard_stop_blocks_implicit_plan_and_writes_blocked_document(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            runtime = RuntimeCase(Path(temp_dir), SMALL_CONTRACT_FIXTURE)
+            self.assertEqual(runtime.run("start").returncode, 0)
+
+            blocked = runtime.run(
+                "block",
+                "--plan-id",
+                "SPEC",
+                "--reason",
+                "missing required environment",
+                "--evidence",
+                "targeted test cannot start",
+                "--attempt",
+                "confirmed executable is absent",
+                "--decision",
+                "provide the approved executable",
+                "--alternative",
+                "use an approved fixture with reduced fidelity",
+                "--resume",
+                "rerun preflight then retry SPEC",
+            )
+
+            self.assertEqual(blocked.returncode, 0, blocked.stdout)
+            state = json.loads(runtime.contract.joinpath("runtime-state.json").read_text(encoding="utf-8"))
+            self.assertEqual(state, {"SPEC": "blocked"})
+            document = runtime.contract.joinpath("BLOCKED.md").read_text(encoding="utf-8")
+            self.assertIn("Plan SPEC is blocked", document)
+
     def test_inactive_or_mismatched_goal_preflight_has_zero_mutations(self) -> None:
         cases = (
             ("inactive", {"active": False}),

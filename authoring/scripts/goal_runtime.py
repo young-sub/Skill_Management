@@ -26,6 +26,7 @@ def _load_engine() -> Any:
 
 
 ENGINE = _load_engine()
+RUNTIME_STATUSES = {"pending", "in_progress", "completed", "blocked"}
 
 
 def _digest(path: Path) -> str:
@@ -76,6 +77,23 @@ def _git_status(source_root: Path) -> list[str]:
     return result.stdout.splitlines()
 
 
+def _is_spec_only(documents: list[Any]) -> bool:
+    return any(document.kind == "spec" for document in documents) and not any(
+        document.kind == "plan" for document in documents
+    )
+
+
+def _spec_status(contract_root: Path) -> str:
+    path = contract_root / "runtime-state.json"
+    if not path.exists():
+        return "pending"
+    state = _json(path)
+    status = state.get("SPEC")
+    if set(state) != {"SPEC"} or status not in RUNTIME_STATUSES:
+        raise ValueError("invalid_runtime_state")
+    return status
+
+
 def preflight(contract_root: Path, source_root: Path, goal_state: Path) -> tuple[dict[str, Any], int, list[Any]]:
     errors: list[str] = []
     try:
@@ -114,6 +132,14 @@ def preflight(contract_root: Path, source_root: Path, goal_state: Path) -> tuple
         elif recorded_hashes.get(name) != _digest(path):
             errors.append(f"instruction_hash_drift:{name}")
 
+    plan_order = contract_payload["plan_order"]
+    if _is_spec_only(documents):
+        plan_order = ["SPEC"]
+        try:
+            _spec_status(resolved_contract)
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
+            errors.append(str(error))
+
     if errors:
         payload: dict[str, Any] = {"status": "rejected", "errors": sorted(set(errors))}
         if "inactive_goal" in errors:
@@ -124,7 +150,7 @@ def preflight(contract_root: Path, source_root: Path, goal_state: Path) -> tuple
         "status": "ready",
         "work_id": contract_payload["work_id"],
         "contract_hash": contract_payload["contract_hash"],
-        "plan_order": contract_payload["plan_order"],
+        "plan_order": plan_order,
         "verification_order": ["targeted", "feature", "fast"],
         "live_enabled": False,
         "eval_enabled": False,
@@ -181,6 +207,17 @@ def _transition(plan: Any, expected: str, target: str) -> dict[str, Any]:
             break
     _atomic_text(plan.path, "\n".join(lines).rstrip() + "\n")
     return {"plan_id": plan.metadata["plan_id"], "transition": f"{expected}->{target}"}
+
+
+def _transition_spec(contract_root: Path, expected: str, target: str) -> dict[str, Any]:
+    current = _spec_status(contract_root)
+    if current != expected:
+        raise ValueError(f"invalid_transition:{current}->{target}")
+    _atomic_text(
+        contract_root / "runtime-state.json",
+        json.dumps({"SPEC": target}, sort_keys=True) + "\n",
+    )
+    return {"plan_id": "SPEC", "transition": f"{expected}->{target}"}
 
 
 def _append_evidence(contract_root: Path, record: dict[str, Any]) -> Path:
@@ -270,19 +307,32 @@ def main() -> int:
         return 0
 
     plans = _plans(documents)
+    spec_only = _is_spec_only(documents)
     try:
         if args.command == "next":
-            plan = next_plan(documents, payload["plan_order"])
-            result = {"status": "ready", "plan_id": plan.metadata["plan_id"] if plan else None}
+            if spec_only:
+                result = {
+                    "status": "ready",
+                    "plan_id": "SPEC" if _spec_status(contract_root) == "pending" else None,
+                }
+            else:
+                plan = next_plan(documents, payload["plan_order"])
+                result = {"status": "ready", "plan_id": plan.metadata["plan_id"] if plan else None}
         elif args.command == "start":
-            plan = next_plan(documents, payload["plan_order"])
-            if plan is None:
-                raise ValueError("no_dependency_ready_plan")
-            result = _transition(plan, "pending", "in_progress")
+            if spec_only:
+                result = _transition_spec(contract_root, "pending", "in_progress")
+            else:
+                plan = next_plan(documents, payload["plan_order"])
+                if plan is None:
+                    raise ValueError("no_dependency_ready_plan")
+                result = _transition(plan, "pending", "in_progress")
         elif args.command == "complete":
-            if args.plan_id not in plans:
+            if spec_only and args.plan_id == "SPEC":
+                result = _transition_spec(contract_root, "in_progress", "completed")
+            elif args.plan_id not in plans:
                 raise ValueError(f"unknown_plan:{args.plan_id}")
-            result = _transition(plans[args.plan_id], "in_progress", "completed")
+            else:
+                result = _transition(plans[args.plan_id], "in_progress", "completed")
         elif args.command == "evidence":
             data = json.loads(args.data)
             if not isinstance(data, dict):
@@ -290,10 +340,13 @@ def main() -> int:
             evidence_path = _append_evidence(contract_root, {"kind": args.kind, "data": data})
             result = {"status": "recorded", "path": str(evidence_path)}
         else:
-            if args.plan_id not in plans:
+            if spec_only and args.plan_id == "SPEC":
+                result = _transition_spec(contract_root, "in_progress", "blocked")
+            elif args.plan_id not in plans:
                 raise ValueError(f"unknown_plan:{args.plan_id}")
-            result = _transition(plans[args.plan_id], "in_progress", "blocked")
-            completed = sorted(
+            else:
+                result = _transition(plans[args.plan_id], "in_progress", "blocked")
+            completed = [] if spec_only else sorted(
                 plan_id for plan_id, plan in plans.items() if plan.metadata.get("status") == "completed"
             )
             blocked_path = contract_root / "BLOCKED.md"
