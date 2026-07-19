@@ -47,13 +47,26 @@ foreach ($resource in $resourceMap.resources) {
             Write-Output "ERROR target escapes skills directory: '$target'"
             exit 1
         }
-        $generatedContent = @(
-            '<!-- Generated file. Do not edit directly. -->'
-            "<!-- Source: authoring/$($resource.source) -->"
-            "<!-- Source-SHA256: $sourceHash -->"
-            ''
-            $sourceContent
-        ) -join "`n"
+        $extension = [System.IO.Path]::GetExtension($targetPath).ToLowerInvariant()
+        if ($extension -eq '.json') {
+            # JSON has no comment syntax. Preserve valid JSON byte-for-byte.
+            $generatedContent = $sourceContent
+        } else {
+            $header = if ($extension -eq '.md') {
+                @(
+                    '<!-- Generated file. Do not edit directly. -->'
+                    "<!-- Source: authoring/$($resource.source) -->"
+                    "<!-- Source-SHA256: $sourceHash -->"
+                )
+            } else {
+                @(
+                    '# Generated file. Do not edit directly.'
+                    "# Source: authoring/$($resource.source)"
+                    "# Source-SHA256: $sourceHash"
+                )
+            }
+            $generatedContent = @($header; ''; $sourceContent) -join "`n"
+        }
 
         if ($Check) {
             $targetContent = if (Test-Path -LiteralPath $targetPath -PathType Leaf) {

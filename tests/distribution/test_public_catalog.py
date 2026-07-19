@@ -14,6 +14,7 @@ class PublicCatalogTests(unittest.TestCase):
             "frontend-design",
             "multi-agent-review",
             "prototype",
+            "setup-agent-harness",
             "teach",
             "theme-factory",
             "webapp-testing",

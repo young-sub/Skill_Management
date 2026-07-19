@@ -186,8 +186,8 @@ Stop for destructive deletion, secret/credential handling, live provider calls b
 - published_body_ref: none
 - grill_route: skip_interview
 - grill_route_reason: the user supplied exact remaining WPs, branch/commit/review/merge workflow, and the active plan fixes acceptance criteria
-- verification evidence: branch created from clean `develop` at `f16598a`; no implementation checks yet
-- delegated evidence: requirements and test-surface investigations in progress
+- verification evidence: branch created from clean `develop` at `f16598a`; WP-02 integration passed 34/34 unittests, 4/4 generated-resource drift checks, distribution validation, and `git diff --check`
+- delegated evidence: WP-02 RED `python -m unittest tests.distribution.test_sync_skill_resources.SyncSkillResourcesTests.test_uses_parseable_extension_aware_generated_headers tests.harness.test_setup_agent_harness` failed because generated Python had an HTML header (`SyntaxError`) and the bootstrap helper was absent; GREEN focused suite passed 12/12; full suite passed 32/34 with only the main-session-owned catalog transition missing for `setup-agent-harness`; resource drift check passed; standalone distribution validation reported only `unexpected public skill: 'setup-agent-harness'`; `git diff --check` passed
 - risks: WP-06 real install smoke requires network/external package approval; live GitHub release is not authorized
 - next mode: run
-- next stop condition: implementation or verification gate failure
+- next stop condition: WP-03 implementation or verification gate failure

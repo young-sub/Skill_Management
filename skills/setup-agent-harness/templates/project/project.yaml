@@ -1,0 +1,26 @@
+# Generated file. Do not edit directly.
+# Source: authoring/templates/project/project.yaml
+# Source-SHA256: 03c8e1072d357e9dbfa262cb4c3896c1376318f7b00490228221ad5b39727f23
+
+version: 2
+project:
+  name: {{PROJECT_NAME}}
+  classification: {{CLASSIFICATION}}
+instructions:
+  authoritative: AGENTS.md
+  mirrors:
+    - CLAUDE.md
+  sha256: {{INSTRUCTION_SHA256}}
+work:
+  root: .work
+  retention_days: 90
+  trash_grace_days: 30
+verification:
+  targeted_max_seconds: 30
+  feature_max_seconds: 120
+  fast_suite_max_seconds: 300
+  full_suite_runs_per_goal: 1
+  integration_default: impacted
+  live_default: false
+  eval_default: false
+{{VERIFICATION_COMMANDS}}

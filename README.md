@@ -2,11 +2,12 @@
 
 Source repository for self-contained Agent Skills distributed through the open [`skills` CLI](https://github.com/vercel-labs/skills).
 
-Harness V2 is being rebuilt in Work Packets. WP-01 exposes 11 compatibility, support, and professional skills while preserving replaced workflow skills under non-discoverable `legacy-skills/`. The seven V2 Core Skills are added by later Work Packets; this README does not claim they are available yet.
+Harness V2 is being rebuilt in Work Packets. WP-02 adds the first Core Skill while preserving replaced workflow skills under non-discoverable `legacy-skills/`.
 
 ## Public catalog
 
 - Compatibility/support: `multi-agent-review`, `prototype`, `webapp-testing`, `zoom-out`
+- Harness V2 Core: `setup-agent-harness`
 - Professional/domain: `finance-research`, `find-skills`, `frontend-design`, `teach`, `theme-factory`, `web-artifacts-builder`, `write-a-skill`
 
 Run a read-only catalog check before installation:
@@ -65,7 +66,7 @@ For automation, pass explicit skill names and Agent Providers. Avoid `--all` in 
 1. Run the interactive or non-interactive installation from the target project root without `-g`.
 2. Confirm Codex skills under `.agents/skills/` and Claude Code skills under `.claude/skills/`.
 3. Commit project-scoped copies or symlink metadata only when that target project's policy permits it.
-4. When WP-02 publishes `setup-agent-harness`, run it once per target repository to generate evidence-backed project instructions and verification configuration. Until then, no current public skill should be treated as the V2 bootstrap replacement.
+4. Run `setup-agent-harness` once per target repository. Review its dry-run classification and conflict diffs, then explicitly approve apply to generate evidence-backed project instructions and verification configuration.
 
 The CLI's official supported-agent table documents Codex and Claude Code paths and environment overrides: [Supported Agents](https://www.mintlify.com/vercel-labs/skills/guides/supported-agents).
 

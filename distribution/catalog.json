@@ -6,6 +6,7 @@
     "frontend-design",
     "multi-agent-review",
     "prototype",
+    "setup-agent-harness",
     "teach",
     "theme-factory",
     "webapp-testing",
@@ -28,7 +29,6 @@
     "work-packet"
   ],
   "future_core_skills": [
-    "setup-agent-harness",
     "explore-idea",
     "design-goal",
     "execute-codex-goal",

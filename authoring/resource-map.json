@@ -1,4 +1,29 @@
 {
   "schema_version": 1,
-  "resources": []
+  "resources": [
+    {
+      "source": "scripts/bootstrap_project.py",
+      "targets": [
+        "setup-agent-harness/scripts/bootstrap_project.py"
+      ]
+    },
+    {
+      "source": "templates/project/AGENTS.md",
+      "targets": [
+        "setup-agent-harness/templates/project/AGENTS.md"
+      ]
+    },
+    {
+      "source": "templates/project/TESTING.md",
+      "targets": [
+        "setup-agent-harness/templates/project/TESTING.md"
+      ]
+    },
+    {
+      "source": "templates/project/project.yaml",
+      "targets": [
+        "setup-agent-harness/templates/project/project.yaml"
+      ]
+    }
+  ]
 }

@@ -1,6 +1,7 @@
 from hashlib import sha256
 import json
 from pathlib import Path
+import py_compile
 import subprocess
 import tempfile
 import unittest
@@ -11,6 +12,80 @@ SYNC_SCRIPT = REPO_ROOT / "scripts" / "sync-skill-resources.ps1"
 
 
 class SyncSkillResourcesTests(unittest.TestCase):
+    def test_uses_parseable_extension_aware_generated_headers(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            fixture_root = Path(temp_dir)
+            authoring = fixture_root / "authoring"
+            (authoring / "scripts").mkdir(parents=True)
+            (authoring / "templates").mkdir()
+            sources = {
+                "scripts/helper.py": "VALUE = 2\n",
+                "templates/config.yaml": "version: 2\n",
+                "templates/config.json": '{"version": 2}\n',
+            }
+            for relative_path, content in sources.items():
+                (authoring / relative_path).write_text(
+                    content,
+                    encoding="utf-8",
+                    newline="\n",
+                )
+            (fixture_root / "skills" / "fixture-skill").mkdir(parents=True)
+            resource_map = {
+                "schema_version": 1,
+                "resources": [
+                    {
+                        "source": source,
+                        "targets": [f"fixture-skill/{source}"],
+                    }
+                    for source in sources
+                ],
+            }
+            (authoring / "resource-map.json").write_text(
+                json.dumps(resource_map),
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [
+                    "powershell",
+                    "-NoProfile",
+                    "-File",
+                    str(SYNC_SCRIPT),
+                    "-RepositoryRoot",
+                    str(fixture_root),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            diagnostics = f"{result.stdout}\n{result.stderr}"
+            self.assertEqual(result.returncode, 0, diagnostics)
+            generated_python = (
+                fixture_root / "skills/fixture-skill/scripts/helper.py"
+            )
+            generated_yaml = (
+                fixture_root / "skills/fixture-skill/templates/config.yaml"
+            )
+            generated_json = (
+                fixture_root / "skills/fixture-skill/templates/config.json"
+            )
+            py_compile.compile(str(generated_python), doraise=True)
+            self.assertTrue(
+                generated_python.read_text(encoding="utf-8").startswith(
+                    "# Generated file."
+                )
+            )
+            self.assertTrue(
+                generated_yaml.read_text(encoding="utf-8").startswith(
+                    "# Generated file."
+                )
+            )
+            self.assertEqual(
+                json.loads(generated_json.read_text(encoding="utf-8")),
+                {"version": 2},
+            )
+
     def test_copies_canonical_resource_with_source_hash(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             fixture_root = Path(temp_dir)
