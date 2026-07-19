@@ -1,0 +1,160 @@
+{
+  "candidate_version": "2.0.0",
+  "pilots": [
+    {
+      "active_leftovers": [],
+      "archive_success": true,
+      "design_approved": true,
+      "execution_adapter": "repo-local-helper-simulation",
+      "human_review_artifact": "artifacts/small-spec-bug-fix-completion-review.html",
+      "instruction_drift": false,
+      "interruptions": 0,
+      "live_goal": false,
+      "plans": [
+        "SPEC"
+      ],
+      "question_count": 0,
+      "result_success": true,
+      "timing_mode": "simulated",
+      "type": "small-spec-bug-fix",
+      "verification": [
+        {
+          "count": 1,
+          "duration_seconds": 0.02,
+          "kind": "Targeted",
+          "status": "passed",
+          "timing_mode": "simulated"
+        },
+        {
+          "count": 1,
+          "duration_seconds": 0.04,
+          "kind": "Feature",
+          "status": "passed",
+          "timing_mode": "simulated"
+        },
+        {
+          "count": 1,
+          "duration_seconds": 0.08,
+          "kind": "Fast",
+          "status": "passed",
+          "timing_mode": "simulated"
+        },
+        {
+          "count": 1,
+          "duration_seconds": 0.16,
+          "kind": "Full",
+          "status": "passed",
+          "timing_mode": "simulated"
+        }
+      ],
+      "work_id": "W-PILOT-SMALL",
+      "work_links": [],
+      "worktree_residuals": []
+    },
+    {
+      "active_leftovers": [],
+      "archive_success": true,
+      "design_approved": true,
+      "execution_adapter": "repo-local-helper-simulation",
+      "human_review_artifact": "artifacts/normal-goal-feature-completion-review.html",
+      "instruction_drift": false,
+      "interruptions": 0,
+      "live_goal": false,
+      "plans": [
+        "P-01"
+      ],
+      "question_count": 0,
+      "result_success": true,
+      "timing_mode": "simulated",
+      "type": "normal-goal-feature",
+      "verification": [
+        {
+          "count": 1,
+          "duration_seconds": 0.02,
+          "kind": "Targeted",
+          "status": "passed",
+          "timing_mode": "simulated"
+        },
+        {
+          "count": 1,
+          "duration_seconds": 0.04,
+          "kind": "Feature",
+          "status": "passed",
+          "timing_mode": "simulated"
+        },
+        {
+          "count": 1,
+          "duration_seconds": 0.08,
+          "kind": "Fast",
+          "status": "passed",
+          "timing_mode": "simulated"
+        },
+        {
+          "count": 1,
+          "duration_seconds": 0.16,
+          "kind": "Full",
+          "status": "passed",
+          "timing_mode": "simulated"
+        }
+      ],
+      "work_id": "W-PILOT-NORMAL",
+      "work_links": [],
+      "worktree_residuals": []
+    },
+    {
+      "active_leftovers": [],
+      "archive_success": true,
+      "design_approved": true,
+      "execution_adapter": "repo-local-helper-simulation",
+      "human_review_artifact": "artifacts/multi-plan-dag-feature-completion-review.html",
+      "instruction_drift": false,
+      "interruptions": 0,
+      "live_goal": false,
+      "plans": [
+        "P-01",
+        "P-02",
+        "P-03"
+      ],
+      "question_count": 0,
+      "result_success": true,
+      "timing_mode": "simulated",
+      "type": "multi-plan-dag-feature",
+      "verification": [
+        {
+          "count": 3,
+          "duration_seconds": 0.06,
+          "kind": "Targeted",
+          "status": "passed",
+          "timing_mode": "simulated"
+        },
+        {
+          "count": 3,
+          "duration_seconds": 0.12,
+          "kind": "Feature",
+          "status": "passed",
+          "timing_mode": "simulated"
+        },
+        {
+          "count": 3,
+          "duration_seconds": 0.24,
+          "kind": "Fast",
+          "status": "passed",
+          "timing_mode": "simulated"
+        },
+        {
+          "count": 3,
+          "duration_seconds": 0.48,
+          "kind": "Full",
+          "status": "passed",
+          "timing_mode": "simulated"
+        }
+      ],
+      "work_id": "W-PILOT-DAG",
+      "work_links": [],
+      "worktree_residuals": []
+    }
+  ],
+  "recorded_date": "2026-07-19",
+  "result": "passed",
+  "schema_version": 1
+}

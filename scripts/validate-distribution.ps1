@@ -165,6 +165,36 @@ if (Test-Path -LiteralPath $catalogPath -PathType Leaf) {
     )
 }
 
+$candidatePath = Join-Path $resolvedRoot 'distribution\release-candidate.json'
+if (Test-Path -LiteralPath $candidatePath -PathType Leaf) {
+    try {
+        $candidate = Get-Content -LiteralPath $candidatePath -Raw -Encoding utf8 |
+            ConvertFrom-Json
+        if ($candidate.schema_version -ne 1) {
+            $errors.Add("unsupported release candidate schema: '$($candidate.schema_version)'")
+        }
+        if ($candidate.version -ne '2.0.0' -or $candidate.stage -ne 'release-candidate') {
+            $errors.Add('invalid release candidate identity')
+        }
+        if ($candidate.live_release -ne $false -or $null -ne $candidate.tag) {
+            $errors.Add('release candidate must not claim a live release or tag')
+        }
+        if ($candidate.public_skill_count -ne $expectedPublicSkills.Count) {
+            $errors.Add('release candidate public skill count does not match catalog')
+        }
+        if (@(Compare-Object @($candidate.public_skills) @($expectedPublicSkills)).Count -ne 0) {
+            $errors.Add('release candidate public skills do not match catalog')
+        }
+        if (@($candidate.future_core_skills).Count -ne 0 -or @($catalog.future_core_skills).Count -ne 0) {
+            $errors.Add('release candidate future Core Skill list must be empty')
+        }
+    } catch {
+        $errors.Add("invalid release candidate metadata: $($_.Exception.Message)")
+    }
+} else {
+    $errors.Add('missing required distribution artifact: distribution/release-candidate.json')
+}
+
 $agentsPath = Join-Path $resolvedRoot 'AGENTS.md'
 $claudePath = Join-Path $resolvedRoot 'CLAUDE.md'
 $agentsExists = Test-Path -LiteralPath $agentsPath -PathType Leaf

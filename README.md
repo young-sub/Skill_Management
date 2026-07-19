@@ -2,7 +2,7 @@
 
 Source repository for self-contained Agent Skills distributed through the open [`skills` CLI](https://github.com/vercel-labs/skills).
 
-Harness V2 is being rebuilt in Work Packets. WP-02 through WP-05 provide all seven project bootstrap, design, execution, close, and maintenance Core Skills while preserving replaced workflows under non-discoverable `legacy-skills/`.
+Harness V2 is available as a verified **v2.0.0 release candidate**. This repository metadata is not a live tag or GitHub Release. All seven project bootstrap, design, execution, close, and maintenance Core Skills are public while replaced workflows remain preserved under non-discoverable `legacy-skills/`.
 
 ## Public catalog
 
@@ -51,6 +51,16 @@ npx skills update
 
 For a known project-local installation, the CLI also supports `npx skills update -p -y`. Review the detected scope before using a non-interactive update in a workspace containing unrelated skills.
 
+The repository's offline smoke wrapper can verify both install and update using a supplied local fake CLI:
+
+```powershell
+powershell -NoProfile -File scripts/test-install.ps1 `
+  -SkillsCommand <fake-cli.ps1> `
+  -VerifyUpdate
+```
+
+This path verifies all 18 catalog Skills in project-local Codex and Claude Code targets without network access. The default command still invokes `npx` and therefore requires explicit approval.
+
 ## Uninstall
 
 Use the interactive remover and select only Harness skills:
@@ -90,10 +100,18 @@ powershell -NoProfile -File scripts/validate-distribution.ps1
 git diff --check
 ```
 
-The install wrapper uses an isolated temporary destination but downloads and executes the current third-party `skills` package through `npx`; run it only after reviewing that external execution:
+Reproduce the three isolated Harness V2 pilots and their JSON, Markdown, and Completion Review artifacts:
 
 ```powershell
-powershell -NoProfile -File scripts/test-install.ps1
+python scripts/run-v2-pilots.py
+```
+
+The recorded pilots are deterministic repo-local helper simulations. They execute the real Contract approval, runtime state transition, evidence, close, and archive helpers, but are not live host `/goal` sessions. Simulated timing fields are explicitly labeled; success and residual-state fields are measured from each temporary repository. See `docs/pilots/harness-v2-pilots.md`.
+
+The install wrapper uses an isolated temporary destination but downloads and executes the current third-party `skills` package through `npx`; it requires explicit approval after reviewing that external execution:
+
+```powershell
+powershell -NoProfile -File scripts/test-install.ps1 -VerifyUpdate
 ```
 
 The automated install-wrapper test substitutes a local fake CLI, so it does not prove the current upstream package's runtime behavior. Record a real `npx skills add . --list` and isolated Codex/Claude smoke result before a public release.

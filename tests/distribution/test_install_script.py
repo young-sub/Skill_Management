@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import subprocess
 import tempfile
 import unittest
@@ -18,6 +19,11 @@ class InstallScriptTests(unittest.TestCase):
             (skill_dir / "SKILL.md").write_text(
                 "---\nname: fixture-skill\ndescription: fixture\n---\n",
                 encoding="utf-8",
+            )
+            distribution = fixture_repo / "distribution"
+            distribution.mkdir()
+            (distribution / "catalog.json").write_text(
+                json.dumps({"public_skills": ["fixture-skill"]}), encoding="utf-8"
             )
             install_root = temp_root / "install-root"
             fake_cli = temp_root / "fake-skills-cli.ps1"

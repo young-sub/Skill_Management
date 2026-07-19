@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "version": "2.0.0",
+  "stage": "release-candidate",
+  "candidate_date": "2026-07-19",
+  "live_release": false,
+  "tag": null,
+  "catalog": "catalog.json",
+  "public_skill_count": 18,
+  "public_skills": [
+    "finance-research",
+    "find-skills",
+    "frontend-design",
+    "explore-idea",
+    "design-goal",
+    "execute-codex-goal",
+    "diagnose",
+    "close-goal",
+    "maintain-agent-harness",
+    "multi-agent-review",
+    "prototype",
+    "setup-agent-harness",
+    "teach",
+    "theme-factory",
+    "webapp-testing",
+    "web-artifacts-builder",
+    "write-a-skill",
+    "zoom-out"
+  ],
+  "future_core_skills": [],
+  "external_install_smoke": {
+    "status": "not_run",
+    "reason": "sandbox escalation request for external npx execution was rejected; explicit approval remains required"
+  },
+  "pilot_report": "../docs/pilots/harness-v2-pilots.json"
+}

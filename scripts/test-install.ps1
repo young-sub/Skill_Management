@@ -2,7 +2,8 @@
 param(
     [string]$RepositoryRoot,
     [string]$DestinationRoot,
-    [string]$SkillsCommand = 'npx'
+    [string]$SkillsCommand = 'npx',
+    [switch]$VerifyUpdate
 )
 
 if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
@@ -18,16 +19,23 @@ if ($ownsDestination) {
     ) "harness-install-$([Guid]::NewGuid().ToString('N'))"
 }
 $resolvedDestination = [System.IO.Path]::GetFullPath($DestinationRoot)
-$expectedSkills = Get-ChildItem -LiteralPath (Join-Path $resolvedRoot 'skills') -Directory |
-    Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'SKILL.md') } |
-    Select-Object -ExpandProperty Name
+$catalogPath = Join-Path $resolvedRoot 'distribution\catalog.json'
+if (-not (Test-Path -LiteralPath $catalogPath -PathType Leaf)) {
+    throw "Distribution catalog is missing: $catalogPath"
+}
+$catalog = Get-Content -LiteralPath $catalogPath -Raw -Encoding utf8 | ConvertFrom-Json
+$expectedSkills = @($catalog.public_skills)
 
 New-Item -ItemType Directory -Path $resolvedDestination -Force | Out-Null
 $previousLocation = Get-Location
 
 try {
     Set-Location -LiteralPath $resolvedDestination
-    & $SkillsCommand skills add $resolvedRoot --skill '*' -a codex -a claude-code --copy -y
+    $installArguments = @(
+        'skills', 'add', $resolvedRoot, '--skill', '*',
+        '-a', 'codex', '-a', 'claude-code', '--copy', '-y'
+    )
+    & $SkillsCommand @installArguments
     if ($LASTEXITCODE -ne 0) {
         throw "skills CLI failed with exit code $LASTEXITCODE"
     }
@@ -43,7 +51,38 @@ try {
         }
     }
 
-    Write-Output 'Install smoke test passed for codex and claude-code.'
+    if ($VerifyUpdate) {
+        foreach ($skillName in $expectedSkills) {
+            foreach ($providerRoot in @('.agents\skills', '.claude\skills')) {
+                $installed = Join-Path $resolvedDestination "$providerRoot\$skillName\SKILL.md"
+                Set-Content -LiteralPath $installed -Value '# stale install' -Encoding utf8
+            }
+        }
+
+        $updateArguments = @('skills', 'update', '-p', '-y')
+        & $SkillsCommand @updateArguments
+        if ($LASTEXITCODE -ne 0) {
+            throw "skills CLI update failed with exit code $LASTEXITCODE"
+        }
+
+        foreach ($skillName in $expectedSkills) {
+            $source = Join-Path $resolvedRoot "skills\$skillName\SKILL.md"
+            foreach ($providerRoot in @('.agents\skills', '.claude\skills')) {
+                $installed = Join-Path $resolvedDestination "$providerRoot\$skillName\SKILL.md"
+                if (-not (Test-Path -LiteralPath $installed -PathType Leaf)) {
+                    throw "Update missing skill for $providerRoot`: $skillName"
+                }
+                $sourceHash = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash
+                $installedHash = (Get-FileHash -LiteralPath $installed -Algorithm SHA256).Hash
+                if ($sourceHash -ne $installedHash) {
+                    throw "Update did not refresh $providerRoot skill: $skillName"
+                }
+            }
+        }
+        Write-Output "Install and update smoke test passed for $($expectedSkills.Count) public skills across codex and claude-code."
+    } else {
+        Write-Output "Install smoke test passed for codex and claude-code."
+    }
 } finally {
     Set-Location -LiteralPath $previousLocation
     if ($ownsDestination) {
