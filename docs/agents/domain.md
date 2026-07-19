@@ -6,12 +6,13 @@
 - Parent design and rationale: `skill_recreate_plan.md`.
 - Current implementation surface: distributable skills under `skills/`.
 - Planned boundaries: `authoring/`, `skills/`, `legacy-skills/`, `scripts/`, and `tests/` as defined by WP-01.
-- Architecture and ADR directories are not configured yet; WP-01 decides whether separate records are needed.
+- Distribution architecture and inventory: `docs/architecture/skill-inventory.md`.
+- ADR directory is not configured yet; WP-01 introduces no hard-to-reverse ADR beyond the approved plan.
 
 ## Verification And Operations
 
 - Verification policy is currently specified in sections 10 and WP-01 of `harness_v2_implementation_plan.md`.
-- No implemented repository-wide test command exists yet.
+- Repository test command: `python -m unittest discover -s tests -p "test_*.py"`.
 - Distribution verification must cover skill-directory/name matching, valid frontmatter, self-contained resources, legacy non-discovery, expected catalog, and clean Codex/Claude installation.
 - Runtime diagnostics are out of WP-01 scope.
 

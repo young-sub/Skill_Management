@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "public_skills": [
+    "finance-research",
+    "find-skills",
+    "frontend-design",
+    "multi-agent-review",
+    "prototype",
+    "teach",
+    "theme-factory",
+    "webapp-testing",
+    "web-artifacts-builder",
+    "write-a-skill",
+    "zoom-out"
+  ],
+  "legacy_skills": [
+    "diagnose",
+    "grill-me",
+    "grill-with-docs",
+    "handoff",
+    "improve-codebase-architecture",
+    "project-agent-bootstrap",
+    "setup-matt-pocock-skills",
+    "tdd",
+    "to-issues",
+    "to-prd",
+    "triage",
+    "work-packet"
+  ],
+  "future_core_skills": [
+    "setup-agent-harness",
+    "explore-idea",
+    "design-goal",
+    "execute-codex-goal",
+    "diagnose",
+    "close-goal",
+    "maintain-agent-harness"
+  ],
+  "intentionally_absent": [
+    "caveman",
+    "codex-delegation"
+  ]
+}

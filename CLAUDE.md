@@ -22,12 +22,15 @@
 - Tracker and durable records: `docs/agents/issue-tracker.md`
 - Triage vocabulary: `docs/agents/triage-labels.md`
 - Domain and architecture pointers: `docs/agents/domain.md`
+- Distribution inventory: `docs/architecture/skill-inventory.md`
 
 ## Commands
 
-- No repository-wide install, build, test, typecheck, or lint command is configured yet.
-- WP-01 must add and verify distribution commands before documenting them as supported.
-- Use `git diff --check` as the minimum formatting/syntax-neutral repository check.
+- Test: `python -m unittest discover -s tests -p "test_*.py"`
+- Resource drift: `powershell -NoProfile -File scripts/sync-skill-resources.ps1 -Check`
+- Distribution: `powershell -NoProfile -File scripts/validate-distribution.ps1`
+- Install smoke: `powershell -NoProfile -File scripts/test-install.ps1` (downloads/executes the external `skills` package; requires explicit approval).
+- Formatting: `git diff --check`
 
 ## Work Tracking
 
