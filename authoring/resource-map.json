@@ -24,6 +24,54 @@
       "targets": [
         "setup-agent-harness/templates/project/project.yaml"
       ]
+    },
+    {
+      "source": "scripts/contract_engine.py",
+      "targets": [
+        "design-goal/scripts/contract_engine.py"
+      ]
+    },
+    {
+      "source": "scripts/render_design_review.py",
+      "targets": [
+        "design-goal/scripts/render_design_review.py"
+      ]
+    },
+    {
+      "source": "templates/review/design-review.html",
+      "targets": [
+        "design-goal/templates/design-review.html"
+      ]
+    },
+    {
+      "source": "templates/work/SPEC.md",
+      "targets": [
+        "design-goal/templates/work/SPEC.md"
+      ]
+    },
+    {
+      "source": "templates/work/GOAL.md",
+      "targets": [
+        "design-goal/templates/work/GOAL.md"
+      ]
+    },
+    {
+      "source": "templates/work/PLAN.md",
+      "targets": [
+        "design-goal/templates/work/PLAN.md"
+      ]
+    },
+    {
+      "source": "templates/work/RESULT.md",
+      "targets": [
+        "design-goal/templates/work/RESULT.md"
+      ]
+    },
+    {
+      "source": "templates/work/BLOCKED.md",
+      "targets": [
+        "design-goal/templates/work/BLOCKED.md"
+      ]
     }
   ]
 }

@@ -169,7 +169,7 @@ Stop for destructive deletion, secret/credential handling, live provider calls b
 
 ## Phase Handoff Capsule
 
-- updated_at: 2026-07-19T21:30:00+09:00
+- updated_at: 2026-07-19T23:32:54+09:00
 - source_ref: `harness_v2_implementation_plan.md`
 - updated_by: main session
 - phase: run preparation
@@ -178,7 +178,7 @@ Stop for destructive deletion, secret/credential handling, live provider calls b
 - accepted decisions: self-contained generated resources; Python stdlib helpers; local markdown tracker; five slice commits
 - open decisions: none blocking
 - files read: implementation plan, parent plan excerpts, inventory, workflow, README, authoring resource map, distribution catalog
-- files changed: this Work Packet
+- files changed: Work Packet; WP-02 bootstrap resources; WP-03 contract engine, Design Review renderer, work/review templates, resource mappings, `explore-idea`, `design-goal`, contract fixtures, and tests
 - tracker/PR/doc mutations: local Work Packet created
 - tracker_channel: none
 - git_publish_state: local_only
@@ -186,8 +186,8 @@ Stop for destructive deletion, secret/credential handling, live provider calls b
 - published_body_ref: none
 - grill_route: skip_interview
 - grill_route_reason: the user supplied exact remaining WPs, branch/commit/review/merge workflow, and the active plan fixes acceptance criteria
-- verification evidence: branch created from clean `develop` at `f16598a`; WP-02 integration passed 34/34 unittests, 4/4 generated-resource drift checks, distribution validation, and `git diff --check`
-- delegated evidence: WP-02 RED `python -m unittest tests.distribution.test_sync_skill_resources.SyncSkillResourcesTests.test_uses_parseable_extension_aware_generated_headers tests.harness.test_setup_agent_harness` failed because generated Python had an HTML header (`SyntaxError`) and the bootstrap helper was absent; GREEN focused suite passed 12/12; full suite passed 32/34 with only the main-session-owned catalog transition missing for `setup-agent-harness`; resource drift check passed; standalone distribution validation reported only `unexpected public skill: 'setup-agent-harness'`; `git diff --check` passed
+- verification evidence: branch created from clean `develop` at `f16598a`; WP-02 integration passed 34/34 unittests and 4/4 resource checks; WP-03 integration passed 42/42 unittests and 12/12 resource checks; distribution validation and `git diff --check` passed after both catalog transitions
+- delegated evidence: WP-02 RED `python -m unittest tests.distribution.test_sync_skill_resources.SyncSkillResourcesTests.test_uses_parseable_extension_aware_generated_headers tests.harness.test_setup_agent_harness` failed because generated Python had an HTML header (`SyntaxError`) and the bootstrap helper was absent; WP-03 initial RED `python -m unittest tests.harness.test_design_contract` failed 8/8 because the contract engine, renderer, and Skills were absent; the SPEC-only small-contract RED failed with exit 2 while the engine still required GOAL/plans; the GOAL+plans multi-contract RED failed with `missing_document:SPEC.md`; final focused GREEN passed 8/8; full suite passed 40/42 with only the WP-06 catalog transition missing; resource drift check passed; standalone distribution validation reported only `unexpected public skill: 'design-goal'` and `unexpected public skill: 'explore-idea'`; `git diff --check` passed
 - risks: WP-06 real install smoke requires network/external package approval; live GitHub release is not authorized
 - next mode: run
-- next stop condition: WP-03 implementation or verification gate failure
+- next stop condition: WP-04 implementation or verification gate failure

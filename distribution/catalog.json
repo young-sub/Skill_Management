@@ -4,6 +4,8 @@
     "finance-research",
     "find-skills",
     "frontend-design",
+    "explore-idea",
+    "design-goal",
     "multi-agent-review",
     "prototype",
     "setup-agent-harness",
@@ -29,8 +31,6 @@
     "work-packet"
   ],
   "future_core_skills": [
-    "explore-idea",
-    "design-goal",
     "execute-codex-goal",
     "diagnose",
     "close-goal",

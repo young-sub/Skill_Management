@@ -12,6 +12,8 @@ class PublicCatalogTests(unittest.TestCase):
             "finance-research",
             "find-skills",
             "frontend-design",
+            "explore-idea",
+            "design-goal",
             "multi-agent-review",
             "prototype",
             "setup-agent-harness",
