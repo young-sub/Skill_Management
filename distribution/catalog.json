@@ -6,6 +6,8 @@
     "frontend-design",
     "explore-idea",
     "design-goal",
+    "execute-codex-goal",
+    "diagnose",
     "multi-agent-review",
     "prototype",
     "setup-agent-harness",
@@ -31,8 +33,6 @@
     "work-packet"
   ],
   "future_core_skills": [
-    "execute-codex-goal",
-    "diagnose",
     "close-goal",
     "maintain-agent-harness"
   ],

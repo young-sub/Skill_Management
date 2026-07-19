@@ -11,10 +11,10 @@ These skills remain discoverable under `skills/<name>/SKILL.md` and retain their
 | Class | Skills |
 | --- | --- |
 | Compatibility and support | `multi-agent-review`, `prototype`, `webapp-testing`, `zoom-out` |
-| Harness V2 Core | `setup-agent-harness`, `explore-idea`, `design-goal` |
+| Harness V2 Core | `setup-agent-harness`, `explore-idea`, `design-goal`, `execute-codex-goal`, `diagnose` |
 | Professional and domain | `finance-research`, `find-skills`, `frontend-design`, `teach`, `theme-factory`, `web-artifacts-builder`, `write-a-skill` |
 
-Expected public catalog count: 14.
+Expected public catalog count: 16.
 
 ## Preserved Legacy Skills
 
@@ -31,7 +31,7 @@ Expected preserved legacy count: 12.
 
 ## Future Core Catalog
 
-WP-02 and WP-03 added `setup-agent-harness`, `explore-idea`, and `design-goal`. WP-04 and WP-05 will add `execute-codex-goal`, rewritten `diagnose`, `close-goal`, and `maintain-agent-harness`.
+WP-02 through WP-04 added `setup-agent-harness`, `explore-idea`, `design-goal`, `execute-codex-goal`, and rewritten `diagnose`. WP-05 will add `close-goal` and `maintain-agent-harness`.
 
 ## Distribution Invariants
 

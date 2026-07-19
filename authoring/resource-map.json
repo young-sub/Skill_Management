@@ -28,7 +28,20 @@
     {
       "source": "scripts/contract_engine.py",
       "targets": [
-        "design-goal/scripts/contract_engine.py"
+        "design-goal/scripts/contract_engine.py",
+        "execute-codex-goal/scripts/contract_engine.py"
+      ]
+    },
+    {
+      "source": "scripts/goal_runtime.py",
+      "targets": [
+        "execute-codex-goal/scripts/goal_runtime.py"
+      ]
+    },
+    {
+      "source": "references/goal-execution-policy.md",
+      "targets": [
+        "execute-codex-goal/references/goal-execution-policy.md"
       ]
     },
     {
@@ -64,13 +77,15 @@
     {
       "source": "templates/work/RESULT.md",
       "targets": [
-        "design-goal/templates/work/RESULT.md"
+        "design-goal/templates/work/RESULT.md",
+        "execute-codex-goal/templates/work/RESULT.md"
       ]
     },
     {
       "source": "templates/work/BLOCKED.md",
       "targets": [
-        "design-goal/templates/work/BLOCKED.md"
+        "design-goal/templates/work/BLOCKED.md",
+        "execute-codex-goal/templates/work/BLOCKED.md"
       ]
     }
   ]

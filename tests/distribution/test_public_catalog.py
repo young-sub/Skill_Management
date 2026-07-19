@@ -14,6 +14,8 @@ class PublicCatalogTests(unittest.TestCase):
             "frontend-design",
             "explore-idea",
             "design-goal",
+            "execute-codex-goal",
+            "diagnose",
             "multi-agent-review",
             "prototype",
             "setup-agent-harness",

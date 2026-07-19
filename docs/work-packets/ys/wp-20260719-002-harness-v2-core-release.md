@@ -178,7 +178,7 @@ Stop for destructive deletion, secret/credential handling, live provider calls b
 - accepted decisions: self-contained generated resources; Python stdlib helpers; local markdown tracker; five slice commits
 - open decisions: none blocking
 - files read: implementation plan, parent plan excerpts, inventory, workflow, README, authoring resource map, distribution catalog
-- files changed: Work Packet; WP-02 bootstrap resources; WP-03 contract engine, Design Review renderer, work/review templates, resource mappings, `explore-idea`, `design-goal`, contract fixtures, and tests
+- files changed: Work Packet; WP-02 bootstrap resources; WP-03 contract resources; WP-04 Goal runtime, `execute-codex-goal`, rewritten `diagnose`, runtime fixtures, and tests
 - tracker/PR/doc mutations: local Work Packet created
 - tracker_channel: none
 - git_publish_state: local_only
@@ -186,8 +186,9 @@ Stop for destructive deletion, secret/credential handling, live provider calls b
 - published_body_ref: none
 - grill_route: skip_interview
 - grill_route_reason: the user supplied exact remaining WPs, branch/commit/review/merge workflow, and the active plan fixes acceptance criteria
-- verification evidence: branch created from clean `develop` at `f16598a`; WP-02 integration passed 34/34 unittests and 4/4 resource checks; WP-03 integration passed 42/42 unittests and 12/12 resource checks; distribution validation and `git diff --check` passed after both catalog transitions
+- verification evidence: branch created from clean `develop` at `f16598a`; WP-02 passed 34/34 unittests and 4/4 resource checks; WP-03 passed 42/42 and 12/12; WP-04 integration passed 50/50 unittests and 17/17 resource checks; distribution validation and `git diff --check` pass
 - delegated evidence: WP-02 RED `python -m unittest tests.distribution.test_sync_skill_resources.SyncSkillResourcesTests.test_uses_parseable_extension_aware_generated_headers tests.harness.test_setup_agent_harness` failed because generated Python had an HTML header (`SyntaxError`) and the bootstrap helper was absent; WP-03 initial RED `python -m unittest tests.harness.test_design_contract` failed 8/8 because the contract engine, renderer, and Skills were absent; the SPEC-only small-contract RED failed with exit 2 while the engine still required GOAL/plans; the GOAL+plans multi-contract RED failed with `missing_document:SPEC.md`; final focused GREEN passed 8/8; full suite passed 40/42 with only the WP-06 catalog transition missing; resource drift check passed; standalone distribution validation reported only `unexpected public skill: 'design-goal'` and `unexpected public skill: 'explore-idea'`; `git diff --check` passed
+- delegated evidence WP-04: initial RED `python -m unittest tests.harness.test_goal_execution` failed all 7 tests because `goal_runtime.py`, `execute-codex-goal`, and `diagnose` were absent; the resolved Contract-path RED failed with `contract_path_mismatch` when the Goal objective correctly named `GOAL.md`; final focused GREEN passed 8/8 against the generated installed runtime; harness feature suite passed 22/22; fast suite passed 48/50 with only the deferred WP-06 catalog declarations for `diagnose` and `execute-codex-goal` failing; resource drift check verified 17 generated targets; standalone distribution validation reported only those same two unexpected public Skills; `git diff --check` and Python compilation passed
 - risks: WP-06 real install smoke requires network/external package approval; live GitHub release is not authorized
 - next mode: run
-- next stop condition: WP-04 implementation or verification gate failure
+- next stop condition: WP-05 implementation or verification gate failure
