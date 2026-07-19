@@ -49,7 +49,7 @@ Use the interactive updater and select only skills installed from this repositor
 npx skills update
 ```
 
-For a known project-local installation, the CLI also supports `npx skills update -p -y`. Review the detected scope before using a non-interactive update in a workspace containing unrelated skills.
+For GitHub-backed installations with update hashes, the CLI supports `npx skills update -p -y`. Review the detected scope before using a non-interactive update in a workspace containing unrelated skills. With `skills@1.5.19`, a project installation from a local repository is recorded as `sourceType=local`; native update can exit successfully without refreshing those copies. The smoke wrapper detects that no-op by comparing every installed entrypoint hash and falls back to the same local `skills add ... --copy -y` command as the supported local-source refresh path. This does not verify remote GitHub update behavior.
 
 The repository's offline smoke wrapper can verify both install and update using a supplied local fake CLI:
 
@@ -59,7 +59,7 @@ powershell -NoProfile -File scripts/test-install.ps1 `
   -VerifyUpdate
 ```
 
-This path verifies all 18 catalog Skills in project-local Codex and Claude Code targets without network access. The default command still invokes `npx` and therefore requires explicit approval.
+This path verifies all 18 catalog Skills in project-local Codex and Claude Code targets without network access. Output distinguishes a working native update from an unsupported/no-op local update followed by a successful local-source refresh. The default command still invokes `npx` and therefore requires explicit approval.
 
 ## Uninstall
 
@@ -114,4 +114,4 @@ The install wrapper uses an isolated temporary destination but downloads and exe
 powershell -NoProfile -File scripts/test-install.ps1 -VerifyUpdate
 ```
 
-The automated install-wrapper test substitutes a local fake CLI, so it does not prove the current upstream package's runtime behavior. Record a real `npx skills add . --list` and isolated Codex/Claude smoke result before a public release.
+The automated install-wrapper tests substitute a local fake CLI and cover both a working native update and an exit-0/no-op local update. They do not prove remote GitHub update behavior. Record an explicitly approved real isolated install/local-refresh smoke before release; remote GitHub update verification remains post-release work.

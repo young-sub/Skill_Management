@@ -29,8 +29,28 @@
   ],
   "future_core_skills": [],
   "external_install_smoke": {
-    "status": "not_run",
-    "reason": "sandbox escalation request for external npx execution was rejected; explicit approval remains required"
+    "status": "passed",
+    "cli_version": "skills@1.5.19",
+    "source_type": "local",
+    "install": {
+      "status": "passed",
+      "public_skill_count": 18,
+      "providers": ["codex", "claude-code"]
+    },
+    "native_update": {
+      "status": "unsupported_for_local_source",
+      "evidence": "exit 0 reported no project skills or updates and stale copies remained"
+    },
+    "local_source_refresh": {
+      "status": "passed",
+      "public_skill_count": 18,
+      "provider_entrypoint_count": 36,
+      "evidence": "native local update no-op was detected and local add refresh restored every Codex and Claude Code entrypoint hash"
+    },
+    "remote_github_update": {
+      "status": "not_verified",
+      "scope": "post-release"
+    }
   },
   "pilot_report": "../docs/pilots/harness-v2-pilots.json"
 }
