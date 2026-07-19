@@ -160,6 +160,8 @@ venv.bak/
 # Agent env profiles (local-only, per-owner; created by work-packet init at repo root).
 # Root-scoped so the skill's templates/agent-env.template.md stays tracked.
 /agent-env.*.md
+/.work/
+/.scratch/
 
 # Spyder project settings
 .spyderproject
