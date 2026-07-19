@@ -87,6 +87,48 @@
         "design-goal/templates/work/BLOCKED.md",
         "execute-codex-goal/templates/work/BLOCKED.md"
       ]
+    },
+    {
+      "source": "scripts/close_goal.py",
+      "targets": [
+        "close-goal/scripts/close_goal.py"
+      ]
+    },
+    {
+      "source": "scripts/render_completion_review.py",
+      "targets": [
+        "close-goal/scripts/render_completion_review.py"
+      ]
+    },
+    {
+      "source": "templates/review/completion-review.html",
+      "targets": [
+        "close-goal/templates/completion-review.html"
+      ]
+    },
+    {
+      "source": "templates/work/HANDOFF.md",
+      "targets": [
+        "close-goal/templates/work/HANDOFF.md"
+      ]
+    },
+    {
+      "source": "templates/work/RESULT.md",
+      "targets": [
+        "close-goal/templates/work/RESULT.md"
+      ]
+    },
+    {
+      "source": "references/review-policy.md",
+      "targets": [
+        "close-goal/references/review-policy.md"
+      ]
+    },
+    {
+      "source": "scripts/maintain_harness.py",
+      "targets": [
+        "maintain-agent-harness/scripts/maintain_harness.py"
+      ]
     }
   ]
 }

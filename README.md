@@ -2,12 +2,12 @@
 
 Source repository for self-contained Agent Skills distributed through the open [`skills` CLI](https://github.com/vercel-labs/skills).
 
-Harness V2 is being rebuilt in Work Packets. WP-02 through WP-04 provide project bootstrap, design-contract, and Goal-execution Core Skills while preserving replaced workflows under non-discoverable `legacy-skills/`.
+Harness V2 is being rebuilt in Work Packets. WP-02 through WP-05 provide all seven project bootstrap, design, execution, close, and maintenance Core Skills while preserving replaced workflows under non-discoverable `legacy-skills/`.
 
 ## Public catalog
 
 - Compatibility/support: `multi-agent-review`, `prototype`, `webapp-testing`, `zoom-out`
-- Harness V2 Core: `setup-agent-harness`, `explore-idea`, `design-goal`, `execute-codex-goal`, `diagnose`
+- Harness V2 Core: `setup-agent-harness`, `explore-idea`, `design-goal`, `execute-codex-goal`, `diagnose`, `close-goal`, `maintain-agent-harness`
 - Professional/domain: `finance-research`, `find-skills`, `frontend-design`, `teach`, `theme-factory`, `web-artifacts-builder`, `write-a-skill`
 
 Run a read-only catalog check before installation:

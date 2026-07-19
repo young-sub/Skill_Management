@@ -8,6 +8,8 @@
     "design-goal",
     "execute-codex-goal",
     "diagnose",
+    "close-goal",
+    "maintain-agent-harness",
     "multi-agent-review",
     "prototype",
     "setup-agent-harness",
@@ -32,10 +34,7 @@
     "triage",
     "work-packet"
   ],
-  "future_core_skills": [
-    "close-goal",
-    "maintain-agent-harness"
-  ],
+  "future_core_skills": [],
   "intentionally_absent": [
     "caveman",
     "codex-delegation"
