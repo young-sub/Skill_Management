@@ -293,6 +293,24 @@ class GoalExecutionTests(unittest.TestCase):
             self.assertIn("status: pending", (runtime.contract / "plans" / "P-01.md").read_text(encoding="utf-8"))
             self.assertTrue((runtime.contract / "resolved-blocks" / "P-01.md").is_file())
 
+            marker = runtime.contract / ".resume-transaction.json"
+            marker.write_text(json.dumps({
+                "plan_id": "P-01",
+                "resolution_evidence": "dependency restored",
+            }), encoding="utf-8")
+            evidence_before = (runtime.contract / "evidence.jsonl").read_text(encoding="utf-8")
+
+            recovered_resume = runtime.run(
+                "resume", "--plan-id", "P-01", "--resolution-evidence", "dependency restored",
+                "--approve-resume",
+            )
+
+            self.assertEqual(recovered_resume.returncode, 0, recovered_resume.stdout)
+            self.assertEqual(json.loads(recovered_resume.stdout)["status"], "resumed")
+            self.assertFalse(marker.exists())
+            self.assertEqual((runtime.contract / "evidence.jsonl").read_text(encoding="utf-8"), evidence_before)
+            self.assertIn("status: pending", (runtime.contract / "plans" / "P-01.md").read_text(encoding="utf-8"))
+
     def test_dependency_ready_plan_selection_and_transitions_are_stable(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             runtime = RuntimeCase(Path(temp_dir))

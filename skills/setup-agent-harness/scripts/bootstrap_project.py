@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/bootstrap_project.py
-# Source-SHA256: 2194c5e41847827dd8ca83f469703423e4a26dafbdce7e97e8a3b04a94f900af
+# Source-SHA256: 6e99c137562dd9004b634e83104e6c6bb32e34194c36d19300d8c7dd7d8aff4d
 
 """Deterministic project bootstrap planner, applier, and validator."""
 
@@ -381,7 +381,10 @@ def _public_plan(plan: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in plan.items() if key != "desired"}
 
 
-def apply_plan(root: Path, plan: dict[str, Any]) -> None:
+def apply_plan(root: Path, plan: dict[str, Any], *, containment_check: Any = _unsafe_targets) -> None:
+    unsafe_targets = containment_check(root)
+    if unsafe_targets:
+        raise ValueError("unsafe_target_after_verification:" + json.dumps(unsafe_targets, sort_keys=True))
     for relative_path, content in plan["desired"].items():
         path = root / relative_path
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -492,13 +495,21 @@ def main() -> int:
         print(json.dumps(payload, indent=2))
         return 2
     verification = verify_commands(root, args.verify_command_json)
+    unsafe_targets = _unsafe_targets(root)
+    if unsafe_targets:
+        print(json.dumps({"status": "unsafe_target", "unsafe_targets": unsafe_targets}, indent=2))
+        return 4
     plan = build_plan(root, verification)
     if plan["conflicts"]:
         payload = _public_plan(plan)
         payload["status"] = "conflict"
         print(json.dumps(payload, indent=2))
         return 2
-    apply_plan(root, plan)
+    try:
+        apply_plan(root, plan)
+    except ValueError as error:
+        print(json.dumps({"status": "unsafe_target", "errors": [str(error)]}, indent=2))
+        return 4
     payload = _public_plan(plan)
     payload["status"] = "applied"
     print(json.dumps(payload, indent=2))

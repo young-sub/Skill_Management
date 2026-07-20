@@ -1,4 +1,5 @@
 from hashlib import sha256
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -6,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -16,6 +18,14 @@ BOOTSTRAP = (
     / "scripts"
     / "bootstrap_project.py"
 )
+
+
+def load_bootstrap():
+    spec = importlib.util.spec_from_file_location("bootstrap_toctou_test", BOOTSTRAP)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def run_bootstrap(root: Path, action: str, *extra: str) -> subprocess.CompletedProcess[str]:
@@ -212,6 +222,20 @@ class SetupAgentHarnessTests(unittest.TestCase):
             self.assertEqual(sentinel.read_text(encoding="utf-8"), "unchanged\n")
             self.assertFalse((external / "project.yaml").exists())
             self.assertFalse((root / "AGENTS.md").exists())
+
+    def test_apply_rechecks_containment_immediately_before_writes(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            module = load_bootstrap()
+            plan = module.build_plan(root)
+            unsafe = [{"path": ".harness/project.yaml", "reason": "reparse_component:injected"}]
+            check = mock.Mock(return_value=unsafe)
+
+            with self.assertRaisesRegex(ValueError, "unsafe_target_after_verification"):
+                module.apply_plan(root, plan, containment_check=check)
+
+            check.assert_called_once_with(root)
+            self.assertEqual(list(root.iterdir()), [])
 
     def test_apply_requires_explicit_approval(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

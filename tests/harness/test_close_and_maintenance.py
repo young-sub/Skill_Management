@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 from hashlib import sha256
 from pathlib import Path
@@ -8,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -15,6 +17,18 @@ CLOSE = ROOT / "authoring" / "scripts" / "close_goal.py"
 ENGINE = ROOT / "authoring" / "scripts" / "contract_engine.py"
 FIXTURES = Path(__file__).parent / "fixtures" / "contracts"
 MAINTAIN = ROOT / "authoring" / "scripts" / "maintain_harness.py"
+
+
+def load_script(path: Path, name: str):
+    spec = importlib.util.spec_from_file_location(name, path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.path.insert(0, str(path.parent))
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.path.pop(0)
+    return module
 
 
 class CloseGoalTests(unittest.TestCase):
@@ -144,6 +158,19 @@ class CloseGoalTests(unittest.TestCase):
         self.assertIn("git_ls_files_failed", result.stdout)
         self.assertTrue(self.contract.exists())
 
+    def test_every_close_write_and_move_target_is_contained_and_not_reparse(self) -> None:
+        module = load_script(CLOSE, "close_goal_containment_test")
+        archive = self.root / ".work" / "archive" / "2026-07" / self.contract.name
+        artifact = self.contract / "artifacts" / "completion-review.html"
+
+        with mock.patch.object(module, "_path_is_reparse", side_effect=lambda path: path == artifact.parent):
+            findings = module._unsafe_operation_targets(self.root, self.contract, archive)
+
+        self.assertTrue(any(item["path"].endswith("artifacts") for item in findings))
+        outside = self.root.parent / "outside-archive" / self.contract.name
+        findings = module._unsafe_operation_targets(self.root, self.contract, outside)
+        self.assertTrue(any(item["reason"] == "target_outside_root" for item in findings))
+
 
 class MaintenanceTests(unittest.TestCase):
     def run_maintain(self, root: Path, *extra: str) -> subprocess.CompletedProcess[str]:
@@ -193,6 +220,18 @@ class MaintenanceTests(unittest.TestCase):
             self.assertTrue((root / ".work" / "archive" / "2020-01" / "W-old").exists())
             self.assertTrue((root / ".work" / "trash" / "2020-01-01" / "W-trash").exists())
             self.assertTrue(residual.exists())
+
+    def test_git_ls_files_failure_is_high_and_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+
+            result = self.run_maintain(root)
+
+            self.assertNotEqual(result.returncode, 0)
+            report = json.loads(result.stdout)
+            finding = next(item for item in report["findings"] if item["kind"] == "git_ls_files_failed")
+            self.assertEqual(finding["severity"], "High")
+            self.assertEqual(report["status"], "blocked")
 
     def test_installed_manifest_detects_tampered_body_and_missing_resource(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

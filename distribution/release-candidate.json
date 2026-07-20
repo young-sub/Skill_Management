@@ -52,7 +52,8 @@
       "status": "not_verified",
       "scope": "release_gate_requires_explicit_network_approval",
       "source_package": "young-sub/Skill_Management",
-      "command": "powershell -NoProfile -File scripts/test-install.ps1 -RepositoryRoot . -SourcePackage young-sub/Skill_Management -SourceType github -VerifyUpdate -EvidencePath distribution/evidence/remote-github-update.json",
+      "candidate_source_package": "https://github.com/young-sub/Skill_Management/tree/develop",
+      "command": "powershell -NoProfile -File scripts/test-install.ps1 -RepositoryRoot . -SourcePackage https://github.com/young-sub/Skill_Management/tree/develop -SourceType github -VerifyUpdate -EvidencePath distribution/evidence/remote-github-update.json",
       "evidence_path": "distribution/evidence/remote-github-update.json"
     }
   },

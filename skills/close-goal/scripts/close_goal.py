@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/close_goal.py
-# Source-SHA256: 953851974ce86f18b1d6c0a5af6d8e52db2d73d36bb37edb73f17556833cb356
+# Source-SHA256: 5799b545c1c1ebdcbb879ae1910d8180f5a179828c27777d2cdce5d670c2a7bf
 
 #!/usr/bin/env python3
 """Close an eligible Harness work item and archive it without deletion."""
@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 import re
 import shutil
+import stat
 import subprocess
 import sys
 from typing import Any
@@ -22,6 +23,71 @@ from render_completion_review import render_review, template_path
 
 TEXT_DOCUMENT_SUFFIXES = {".md", ".txt", ".rst", ".adoc", ".html", ".json", ".yaml", ".yml"}
 REQUIRED_CHECKS = {"targeted", "feature", "fast", "full"}
+
+
+def _path_is_reparse(path: Path) -> bool:
+    try:
+        if path.is_symlink():
+            return True
+        is_junction = getattr(path, "is_junction", None)
+        if is_junction is not None and is_junction():
+            return True
+        return bool(getattr(path.lstat(), "st_file_attributes", 0) & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400))
+    except OSError:
+        return False
+
+
+def _within(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
+def _unsafe_target(root: Path, target: Path) -> str | None:
+    root, target = root.absolute(), target.absolute()
+    if not _within(target, root):
+        return "target_outside_root"
+    current = root
+    for part in target.relative_to(root).parts:
+        if _path_is_reparse(current):
+            return f"reparse_component:{current}"
+        current /= part
+        if not current.exists() and not current.is_symlink():
+            break
+    if _path_is_reparse(current):
+        return f"reparse_component:{current}"
+    existing = target
+    while not existing.exists() and not existing.is_symlink() and existing != root:
+        existing = existing.parent
+    try:
+        if not _within(existing.resolve(strict=True), root.resolve(strict=True)):
+            return f"resolved_target_outside_root:{existing}"
+    except OSError:
+        return f"unresolvable_target:{existing}"
+    return None
+
+
+def _unsafe_operation_targets(source_root: Path, contract_root: Path, archive: Path) -> list[dict[str, str]]:
+    targets = (
+        source_root / ".work",
+        source_root / ".work" / "active",
+        source_root / ".work" / "archive",
+        contract_root,
+        contract_root / "RESULT.md",
+        contract_root / "HANDOFF.md",
+        contract_root / "artifacts",
+        contract_root / "artifacts" / "completion-review.html",
+        archive.parent,
+        archive,
+    )
+    findings: list[dict[str, str]] = []
+    for target in targets:
+        reason = _unsafe_target(source_root, target)
+        if reason:
+            findings.append({"path": str(target), "reason": reason})
+    return findings
 
 
 def _load_engine() -> Any:
@@ -220,10 +286,14 @@ def main() -> int:
     try:
         if not re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])", args.current_month):
             raise ValueError("invalid_current_month")
-        contract_root, source_root = args.contract_root.resolve(), args.source_root.resolve()
-        active_root = (source_root / ".work" / "active").resolve()
+        contract_root, source_root = args.contract_root.absolute(), args.source_root.absolute()
+        active_root = source_root / ".work" / "active"
         if contract_root.parent != active_root:
             raise ValueError("contract_root_must_be_direct_active_work")
+        preliminary_archive = source_root / ".work" / "archive" / args.current_month / contract_root.name
+        unsafe_targets = _unsafe_operation_targets(source_root, contract_root, preliminary_archive)
+        if unsafe_targets:
+            raise ValueError("unsafe_close_targets:" + json.dumps(unsafe_targets, sort_keys=True))
         contract_path, contract = _contract_document(contract_root)
         contract_errors, _, contract_payload = _completion_errors(contract_root, source_root)
         work_id = str(contract_payload.get("work_id") or _metadata(contract).get("work_id", contract_root.name))
@@ -242,6 +312,10 @@ def main() -> int:
         if errors:
             print(json.dumps({"status": "blocked", "errors": sorted(set(errors))}, sort_keys=True))
             return 3
+
+        unsafe_targets = _unsafe_operation_targets(source_root, contract_root, archive)
+        if unsafe_targets:
+            raise ValueError("unsafe_close_targets:" + json.dumps(unsafe_targets, sort_keys=True))
 
         objective = _objective(contract, contract_path.name)
         result_text = _result_text(work_id, objective, findings, checks)

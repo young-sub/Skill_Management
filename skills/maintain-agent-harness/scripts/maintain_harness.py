@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/maintain_harness.py
-# Source-SHA256: 3e0833d2dca4c0b536be14d3f73cde34cb1a87ddac6b7d8a0cc59a009e5614be
+# Source-SHA256: bb6d29ef896396a12f21d24b52d55776bf31c1dda5da4f1eef0c76d9e3c60178
 
 #!/usr/bin/env python3
 """Report Harness drift and retention candidates without applying changes."""
@@ -26,10 +26,10 @@ def _finding(kind: str, path: str, detail: str) -> dict[str, str]:
     return {"kind": kind, "path": path, "detail": detail}
 
 
-def _tracked(source_root: Path) -> list[Path]:
+def _tracked(source_root: Path) -> list[Path] | None:
     result = subprocess.run(["git", "ls-files", "-z"], cwd=source_root, capture_output=True, check=False)
     if result.returncode:
-        return []
+        return None
     return [source_root / raw.decode("utf-8", errors="surrogateescape") for raw in result.stdout.split(b"\0") if raw]
 
 
@@ -42,7 +42,10 @@ def _instruction_findings(root: Path) -> list[dict[str, str]]:
 
 def _document_findings(root: Path) -> list[dict[str, str]]:
     findings: list[dict[str, str]] = []
-    for path in _tracked(root):
+    tracked = _tracked(root)
+    if tracked is None:
+        return [{"kind": "git_ls_files_failed", "path": ".git", "detail": "unable to enumerate tracked files", "severity": "High"}]
+    for path in tracked:
         if path.suffix.lower() not in TEXT_DOCUMENT_SUFFIXES or not path.is_file():
             continue
         try:
@@ -328,8 +331,9 @@ def main() -> int:
             {"kind": item["kind"], "path": item["path"], "action": "review", "applied": False}
             for item in findings
         ]
-        print(json.dumps({"mode": "report-only", "findings": findings, "actions": actions}, ensure_ascii=False, sort_keys=True))
-        return 0
+        blocked = any(item.get("severity") == "High" for item in findings)
+        print(json.dumps({"mode": "report-only", "status": "blocked" if blocked else "complete", "findings": findings, "actions": actions}, ensure_ascii=False, sort_keys=True))
+        return 2 if blocked else 0
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
         print(json.dumps({"mode": "report-only", "errors": [str(error)], "actions": []}, sort_keys=True))
         return 2
