@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/bootstrap_project.py
-# Source-SHA256: 01db8a7f9b0586a84da8fea0776419b6a85eabd4ffb5448524968bcfbd31c07c
+# Source-SHA256: 1269790e6260c969bc04b7cdbec95b7c91ec7a6b04c4ee9bd172f8509536ef7e
 
 """Deterministic project bootstrap planner, applier, and validator."""
 
@@ -220,12 +220,18 @@ def _unsafe_targets(root: Path) -> list[dict[str, str]]:
 
 
 def _git(root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["git", "-C", str(root), *arguments],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    command = ["git", "-C", str(root), *arguments]
+    try:
+        return subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError as error:
+        return subprocess.CompletedProcess(
+            command, 127, "", f"git_unavailable:{type(error).__name__}"
+        )
 
 
 def _relative(root: Path, path: Path) -> str:
@@ -419,7 +425,7 @@ def _path_policy_entry(root: Path, path: str, desired_state: str) -> dict[str, A
     ignore_source = _ignore_source(root, probe)
     approval_required = desired_state == "local-only"
     proposed_action = "none"
-    if desired_state == "tracked" and current_state == "ignored":
+    if desired_state == "tracked" and ignore_source is not None:
         proposed_action = "resolve_ignore_conflict"
     elif desired_state == "tracked" and current_state in {"absent", "untracked"}:
         proposed_action = "create_or_review_tracked"
@@ -705,7 +711,7 @@ def build_reconciliation_plan(root: Path) -> dict[str, Any]:
             }
         )
     harness_entry = next(item for item in path_policy if item["path"] == ".harness/project.yaml")
-    if harness_entry["current_state"] == "ignored":
+    if harness_entry["ignore_source"] is not None:
         blockers.append(
             {
                 "kind": "tracked_path_ignored",

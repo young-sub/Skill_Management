@@ -13,9 +13,11 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 BOOTSTRAP = REPO_ROOT / "skills" / "setup-agent-harness" / "scripts" / "bootstrap_project.py"
 
 
-def run(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+def run(
+    *args: str, cwd: Path | None = None, env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        list(args), cwd=cwd, capture_output=True, text=True, check=False
+        list(args), cwd=cwd, env=env, capture_output=True, text=True, check=False
     )
 
 
@@ -264,6 +266,53 @@ class BrownfieldReconciliationTests(unittest.TestCase):
             mutation_paths = {item["path"] for item in plan["mutations"]}
             self.assertNotIn("AGENTS.md", mutation_paths)
             self.assertNotIn("CLAUDE.md", mutation_paths)
+
+    def test_tracked_but_ignored_harness_config_is_high_blocking(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._init_git(root)
+            (root / ".harness").mkdir()
+            (root / ".harness/project.yaml").write_text("version: 2\n", encoding="utf-8")
+            (root / ".gitignore").write_text(".harness/\n", encoding="utf-8")
+            run("git", "add", ".gitignore", cwd=root)
+            run("git", "add", "-f", ".harness/project.yaml", cwd=root)
+
+            result = bootstrap(root)
+
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            plan = json.loads(result.stdout)
+            policy = {item["path"]: item for item in plan["proposal"]["path_policy"]}
+            self.assertEqual(policy[".harness/project.yaml"]["current_state"], "tracked")
+            self.assertIsNotNone(policy[".harness/project.yaml"]["ignore_source"])
+            self.assertTrue(any(
+                item["kind"] == "tracked_path_ignored"
+                for item in plan["proposal"]["blocking_decisions"]
+            ))
+
+    def test_missing_git_executable_returns_structured_blocking_plan(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "README.md").write_text("# Existing\n", encoding="utf-8")
+            env = {
+                "PATH": "",
+                "SYSTEMROOT": __import__("os").environ.get("SYSTEMROOT", ""),
+            }
+
+            result = run(
+                sys.executable,
+                str(BOOTSTRAP),
+                "reconcile",
+                "--root",
+                str(root),
+                env=env,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            plan = json.loads(result.stdout)
+            self.assertTrue(any(
+                item["kind"] == "git_evidence_unavailable"
+                for item in plan["proposal"]["blocking_decisions"]
+            ))
 
 
 if __name__ == "__main__":
