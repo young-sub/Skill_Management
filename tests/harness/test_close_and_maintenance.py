@@ -280,6 +280,107 @@ class MaintenanceTests(unittest.TestCase):
                 kinds_by_path,
             )
 
+    def test_normalized_text_hashes_accept_crlf_but_binary_hashes_remain_exact(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "source"
+            installed = Path(temporary) / "installed"
+            root.mkdir()
+            installed.mkdir()
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            expected_text = b"VALUE = 1\n"
+            expected_binary = b"\x00\x01\x02\xff"
+            manifest = Path(temporary) / "public-resource-manifest.json"
+            manifest.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "algorithm": "sha256",
+                        "root": "skills",
+                        "files": {
+                            "fixture/scripts/helper.py": sha256(expected_text).hexdigest(),
+                            "fixture/assets/payload.bin": sha256(expected_binary).hexdigest(),
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            helper = installed / "fixture" / "scripts" / "helper.py"
+            payload = installed / "fixture" / "assets" / "payload.bin"
+            helper.parent.mkdir(parents=True)
+            payload.parent.mkdir(parents=True)
+            helper.write_bytes(expected_text.replace(b"\n", b"\r\n"))
+            payload.write_bytes(expected_binary)
+
+            clean = self.run_maintain(
+                root,
+                "--installed-root",
+                str(installed),
+                "--resource-manifest",
+                str(manifest),
+            )
+            clean_findings = json.loads(clean.stdout)["findings"]
+            self.assertFalse(
+                any(item["kind"] == "installed_resource_drift" for item in clean_findings),
+                clean.stdout,
+            )
+
+            helper.write_bytes(b"VALUE = 2\r\n")
+            payload.write_bytes(b"\x00\x01\x03\xff")
+            tampered = self.run_maintain(
+                root,
+                "--installed-root",
+                str(installed),
+                "--resource-manifest",
+                str(manifest),
+            )
+            drift_paths = {
+                item["path"]
+                for item in json.loads(tampered.stdout)["findings"]
+                if item["kind"] == "installed_resource_drift"
+            }
+            self.assertEqual(
+                drift_paths,
+                {"fixture/scripts/helper.py", "fixture/assets/payload.bin"},
+            )
+
+    def test_resource_headers_use_the_same_normalized_source_hash(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "authoring" / "references" / "policy.md"
+            target = root / "skills" / "fixture" / "references" / "policy.md"
+            source.parent.mkdir(parents=True)
+            target.parent.mkdir(parents=True)
+            source.write_bytes(b"# Policy\r\n")
+            digest = sha256(b"# Policy\n").hexdigest()
+            target.write_text(
+                "<!-- Generated file. Do not edit directly. -->\n"
+                "<!-- Source: authoring/references/policy.md -->\n"
+                f"<!-- Source-SHA256: {digest} -->\n\n# Policy\n",
+                encoding="utf-8",
+            )
+            (root / "authoring" / "resource-map.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "resources": [
+                            {
+                                "source": "references/policy.md",
+                                "targets": ["fixture/references/policy.md"],
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+
+            result = self.run_maintain(root)
+            findings = json.loads(result.stdout)["findings"]
+            self.assertFalse(
+                any(item["kind"] == "resource_drift" for item in findings),
+                result.stdout,
+            )
+
     def test_test_history_flags_budget_trend_staleness_and_duplicates(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

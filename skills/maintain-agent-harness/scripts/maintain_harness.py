@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/maintain_harness.py
-# Source-SHA256: bb6d29ef896396a12f21d24b52d55776bf31c1dda5da4f1eef0c76d9e3c60178
+# Source-SHA256: bce0be5b1897acc6d91685712e1b7b31d9e0e06c45707fcd2fc14e11dd47677a
 
 #!/usr/bin/env python3
 """Report Harness drift and retention candidates without applying changes."""
@@ -16,6 +16,25 @@ import re
 import subprocess
 import sys
 from typing import Any
+
+
+TEXT_HASH_EXTENSIONS = {
+    ".json",
+    ".md",
+    ".html",
+    ".py",
+    ".ps1",
+    ".txt",
+    ".yaml",
+    ".yml",
+}
+
+
+def _stable_digest(path: Path) -> str:
+    content = path.read_bytes()
+    if path.suffix.lower() in TEXT_HASH_EXTENSIONS:
+        content = content.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return sha256(content).hexdigest()
 
 
 TEXT_DOCUMENT_SUFFIXES = {".md", ".txt", ".rst", ".adoc", ".html", ".json", ".yaml", ".yml"}
@@ -119,17 +138,16 @@ def _resource_findings(root: Path) -> list[dict[str, str]]:
         if not source.is_file():
             findings.append(_finding("missing_resource_source", source.relative_to(root).as_posix(), "mapped source missing"))
             continue
-        digest = sha256(source.read_bytes()).hexdigest()
+        digest = _stable_digest(source)
         for target_name in entry.get("targets", []):
             target = root / "skills" / target_name
             if not target.is_file():
                 findings.append(_finding("missing_resource_target", target.relative_to(root).as_posix(), "mapped target missing"))
             else:
-                content = target.read_bytes()
                 if target.suffix.lower() == ".json":
-                    matches = sha256(content).hexdigest() == digest
+                    matches = _stable_digest(target) == digest
                 else:
-                    header = content[:1024].decode("utf-8", errors="replace")
+                    header = target.read_bytes()[:1024].decode("utf-8", errors="replace")
                     match = re.search(r"Source-SHA256:\s*([0-9a-fA-F]{64})", header)
                     matches = match is not None and match.group(1).lower() == digest
                 if not matches:
@@ -171,7 +189,7 @@ def _installed_resource_findings(
                     _finding("missing_installed_resource", relative, f"installed root: {detail_root}")
                 )
                 continue
-            actual_digest = sha256(path.read_bytes()).hexdigest()
+            actual_digest = _stable_digest(path)
             if actual_digest != expected_digest:
                 findings.append(
                     _finding(
