@@ -306,7 +306,7 @@ powershell -NoProfile -File scripts/test-install.ps1 -VerifyUpdate
 - Final status: completed
 - Outcome: expanded distribution self-containment checks, made pilot execution read-only by default, and bound release evidence to explicit clean Git commit/tree identities.
 - Validator rules added: `SC_RELATIVE_ESCAPE`, `SC_ABSOLUTE_PATH`, `SC_FILE_URI`, `SC_REPO_ROOT_REFERENCE`, `SC_CROSS_SKILL_REFERENCE`, `SC_MISSING_RESOURCE`, and `SC_REPARSE_ESCAPE`, with governed allowlist metadata and manifest closure checks.
-- Pilot determinism evidence: default execution writes only to a temporary directory; `--update-baseline` produces normalized reports from a clean source commit/tree and will be refreshed after the final review-remediation commit.
+- Pilot determinism evidence: default execution writes only to a temporary directory; `--update-baseline` produced 3/3 normalized reports from clean commit `a35644e84e8fa0f5bc34eeae38cd039518ea2348` and tree `f0b3ad0cf45edefb53f8c9f51a4560f7887e87c3` after all independent-review remediation.
 - Revision-bound evidence: `scripts/validate_evidence.py` rejects stale, dirty, missing, or mislabeled passed proof; pilot proof passes for the candidate revision.
 - External checks run/unrun: no third-party `npx` install/update command was run; local-source install refresh and remote GitHub update remain separately `not_verified` because both require a fresh explicitly approved execution.
 - Docs updated: README, architecture inventory, release candidate metadata, and archived Work Packets now describe the implemented guarantees and snapshot/final distinction.
