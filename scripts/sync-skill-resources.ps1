@@ -29,6 +29,31 @@ $utf8WithoutBom = [System.Text.UTF8Encoding]::new($false)
 $driftFound = $false
 $manifestResource = $null
 
+function ConvertTo-StableText([string]$Content) {
+    if ($null -eq $Content) {
+        return $null
+    }
+    return $Content.Replace("`r`n", "`n").Replace("`r", "`n")
+}
+
+function Get-StableTextHash([string]$Content) {
+    $bytes = $utf8WithoutBom.GetBytes((ConvertTo-StableText $Content))
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        return ([System.BitConverter]::ToString($sha256.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant()
+    } finally {
+        $sha256.Dispose()
+    }
+}
+
+function Get-StableFileHash([System.IO.FileInfo]$File) {
+    $textExtensions = @('.json', '.md', '.html', '.py', '.ps1', '.txt', '.yaml', '.yml')
+    if ($File.Extension.ToLowerInvariant() -in $textExtensions) {
+        return Get-StableTextHash ([System.IO.File]::ReadAllText($File.FullName))
+    }
+    return (Get-FileHash -LiteralPath $File.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+}
+
 foreach ($resource in $resourceMap.resources) {
     $sourcePath = [System.IO.Path]::GetFullPath((Join-Path $authoringRoot $resource.source))
     if (-not $sourcePath.StartsWith(
@@ -46,8 +71,8 @@ foreach ($resource in $resourceMap.resources) {
         $manifestResource = $resource
         continue
     }
-    $sourceHash = (Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256).Hash.ToLowerInvariant()
-    $sourceContent = Get-Content -LiteralPath $sourcePath -Raw -Encoding utf8
+    $sourceContent = ConvertTo-StableText (Get-Content -LiteralPath $sourcePath -Raw -Encoding utf8)
+    $sourceHash = Get-StableTextHash $sourceContent
 
     foreach ($target in $resource.targets) {
         $targetPath = [System.IO.Path]::GetFullPath((Join-Path $skillsRoot $target))
@@ -100,7 +125,7 @@ foreach ($resource in $resourceMap.resources) {
 
         if ($Check) {
             $targetContent = if (Test-Path -LiteralPath $targetPath -PathType Leaf) {
-                [System.IO.File]::ReadAllText($targetPath)
+                ConvertTo-StableText ([System.IO.File]::ReadAllText($targetPath))
             } else {
                 $null
             }
@@ -158,9 +183,7 @@ if ($null -ne $manifestResource) {
             Sort-Object FullName
         foreach ($file in $files) {
             $relative = $file.FullName.Substring($skillsRootPrefix.Length).Replace('\', '/')
-            $manifestFiles[$relative] = (
-                Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256
-            ).Hash.ToLowerInvariant()
+            $manifestFiles[$relative] = Get-StableFileHash $file
         }
     }
     $manifest = [ordered]@{
@@ -170,11 +193,11 @@ if ($null -ne $manifestResource) {
         excludes = @('maintain-agent-harness/resources/public-resource-manifest.json')
         files = $manifestFiles
     }
-    $manifestContent = ($manifest | ConvertTo-Json -Depth 5) + "`n"
+    $manifestContent = ConvertTo-StableText (($manifest | ConvertTo-Json -Depth 5) + "`n")
 
     if ($Check) {
         $sourceContent = if (Test-Path -LiteralPath $manifestSourcePath -PathType Leaf) {
-            [System.IO.File]::ReadAllText($manifestSourcePath)
+            ConvertTo-StableText ([System.IO.File]::ReadAllText($manifestSourcePath))
         } else {
             $null
         }
@@ -188,7 +211,7 @@ if ($null -ne $manifestResource) {
             $target = $manifestResource.targets[$index]
             $targetPath = $manifestTargetPaths[$index]
             $targetContent = if (Test-Path -LiteralPath $targetPath -PathType Leaf) {
-                [System.IO.File]::ReadAllText($targetPath)
+                ConvertTo-StableText ([System.IO.File]::ReadAllText($targetPath))
             } else {
                 $null
             }

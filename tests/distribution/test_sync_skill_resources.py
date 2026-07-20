@@ -12,6 +12,54 @@ SYNC_SCRIPT = REPO_ROOT / "scripts" / "sync-skill-resources.ps1"
 
 
 class SyncSkillResourcesTests(unittest.TestCase):
+    def test_check_accepts_checkout_line_ending_conversion(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            fixture_root = Path(temp_dir)
+            authoring = fixture_root / "authoring"
+            source = authoring / "scripts" / "helper.py"
+            source.parent.mkdir(parents=True)
+            source.write_text("VALUE = 1\n", encoding="utf-8", newline="\n")
+            skill = fixture_root / "skills" / "fixture-skill"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text(
+                "---\nname: fixture-skill\ndescription: fixture\n---\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            (authoring / "resource-map.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "resources": [
+                            {
+                                "source": "scripts/helper.py",
+                                "targets": ["fixture-skill/scripts/helper.py"],
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            sync = [
+                "powershell",
+                "-NoProfile",
+                "-File",
+                str(SYNC_SCRIPT),
+                "-RepositoryRoot",
+                str(fixture_root),
+            ]
+            generated = subprocess.run(sync, capture_output=True, text=True, check=False)
+            target = skill / "scripts" / "helper.py"
+            source.write_bytes(source.read_bytes().replace(b"\n", b"\r\n"))
+            target.write_bytes(target.read_bytes().replace(b"\n", b"\r\n"))
+            checked = subprocess.run(
+                [*sync, "-Check"], capture_output=True, text=True, check=False
+            )
+
+        diagnostics = f"{generated.stdout}\n{generated.stderr}\n{checked.stdout}\n{checked.stderr}"
+        self.assertEqual(generated.returncode, 0, diagnostics)
+        self.assertEqual(checked.returncode, 0, diagnostics)
+
     def test_builds_deterministic_complete_public_resource_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             fixture_root = Path(temp_dir)
@@ -80,9 +128,23 @@ class SyncSkillResourcesTests(unittest.TestCase):
             }
             self.assertEqual(set(manifest["files"]), expected_paths)
             for relative, digest in manifest["files"].items():
+                file_bytes = (fixture_root / "skills" / relative).read_bytes()
+                if Path(relative).suffix in {
+                    ".json",
+                    ".md",
+                    ".html",
+                    ".py",
+                    ".ps1",
+                    ".txt",
+                    ".yaml",
+                    ".yml",
+                }:
+                    file_bytes = file_bytes.replace(b"\r\n", b"\n").replace(
+                        b"\r", b"\n"
+                    )
                 self.assertEqual(
                     digest,
-                    sha256((fixture_root / "skills" / relative).read_bytes()).hexdigest(),
+                    sha256(file_bytes).hexdigest(),
                 )
 
     def test_uses_parseable_extension_aware_generated_headers(self) -> None:

@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/review-policy.md -->
-<!-- Source-SHA256: 92c91daf99ecb7b067261282aa0c2567d57f85b44cc8173a35c5843704444501 -->
+<!-- Source-SHA256: 8af883e7ba43cadd9132f38664ca4dc53f26608698355f56f8e2abfb803f6bfd -->
 
 # Review Policy
 

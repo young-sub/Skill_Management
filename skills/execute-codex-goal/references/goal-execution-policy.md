@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/goal-execution-policy.md -->
-<!-- Source-SHA256: 4c78d072f25a38a13141bf30482d652aa0cb185dc57695c0627e89ba0d767664 -->
+<!-- Source-SHA256: 9fee4a9bb6759dba4e6571c293e8633e4a7497caa76a64a1729762b5b0d69f14 -->
 
 # Goal Execution Policy
 
