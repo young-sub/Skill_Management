@@ -29,11 +29,23 @@ class EvidenceContractTests(unittest.TestCase):
         common = {
             "schema_version": 1,
             "generated_at": "2026-07-20T00:00:00+00:00",
+            "repository": "fixture",
             "git_commit": evidence_commit,
             "git_tree": evidence_tree,
             "git_dirty": dirty,
             "dirty_paths": ["dirty.txt"] if dirty else [],
+            "branch": "develop",
+            "command": ["fixture", "verify"],
+            "cwd": "<repository-root>",
+            "tool_versions": {"python": "3.12"},
+            "source_type": "local_checkout",
+            "source_package": "<repository-root>",
+            "providers": [],
+            "public_skill_count": 1,
+            "catalog_sha256": "c" * 64,
+            "resource_manifest_sha256": "d" * 64,
             "result": "passed",
+            "unverified_checks": [],
         }
         (pilots / "harness-v2-pilots.json").write_text(
             json.dumps({"schema_version": 1, "result": "passed", "evidence": common | {"evidence_kind": "pilot_execution"}}),
@@ -117,6 +129,20 @@ class EvidenceContractTests(unittest.TestCase):
             self.assertTrue(any(item["kind"] == "evidence_kind_mismatch" for item in payload["findings"]))
             candidate = json.loads((root / "distribution/release-candidate.json").read_text())
             self.assertEqual(candidate["evidence"]["remote_github_update"]["status"], "not_verified")
+
+    def test_incomplete_passed_evidence_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._write_fixture(root)
+            evidence_path = root / "distribution/evidence/local.json"
+            evidence = json.loads(evidence_path.read_text())
+            evidence.pop("command")
+            evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
+
+            code, payload = self._validate(root)
+
+            self.assertEqual(code, 1)
+            self.assertTrue(any(item["kind"] == "incomplete_evidence" for item in payload["findings"]))
 
 
 if __name__ == "__main__":

@@ -150,6 +150,10 @@ class BrownfieldSafeApplyTests(unittest.TestCase):
             self.assertEqual(second_report["mutation_count"], 0)
             self.assertEqual((root / ".gitignore").read_text(encoding="utf-8").count(".work/"), 1)
 
+            (root / "README.md").write_text("# Drift after apply\n", encoding="utf-8")
+            drifted = self._apply(root, plan_path, str(plan["plan_sha256"]))
+            self.assertEqual(self._payload(drifted)["status"], "precondition_failed")
+
     def test_ignored_harness_path_is_blocked(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -254,6 +258,42 @@ class BrownfieldSafeApplyTests(unittest.TestCase):
 
             final = self._apply(root, plan_path, str(plan["plan_sha256"]))
             self.assertEqual(self._payload(final)["status"], "applied")
+
+    def test_crash_after_target_write_is_recovered_from_write_ahead_journal(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._init_project(root)
+            plan_path, plan = self._plan(root)
+            before = snapshot(root)
+            env = os.environ.copy()
+            env["HARNESS_FAULT_AFTER_TARGET_WRITE"] = "1"
+
+            crashed = self._apply(root, plan_path, str(plan["plan_sha256"]), env=env)
+
+            self.assertNotEqual(crashed.returncode, 0)
+            transaction_root = root / ".work/bootstrap-transactions"
+            transaction = next(transaction_root.iterdir())
+            journal = json.loads((transaction / "journal.json").read_text(encoding="utf-8"))
+            self.assertEqual(journal["status"], "committing")
+            self.assertEqual(journal["operations"][0]["state"], "applying")
+
+            recovered = run(
+                sys.executable,
+                str(BOOTSTRAP),
+                "recover-apply",
+                "--root",
+                str(root),
+                "--transaction",
+                transaction.name,
+                "--approve-recovery",
+            )
+
+            self.assertEqual(recovered.returncode, 0, recovered.stderr + recovered.stdout)
+            after = snapshot(root)
+            self.assertEqual(
+                {key: value for key, value in after.items() if "bootstrap-transactions/" not in key},
+                before,
+            )
 
     def test_tampered_escape_mutation_is_rejected_before_transaction(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

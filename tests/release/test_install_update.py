@@ -15,6 +15,7 @@ class InstallUpdateSmokeTests(unittest.TestCase):
     def run_fake_smoke(
         self, *, update_mode: str, expect_success: bool = True,
         source_type: str = "local", source_package: str | None = None,
+        approve_remote: bool = False,
     ) -> tuple[str, dict[str, object]]:
         with tempfile.TemporaryDirectory() as temporary:
             temp = Path(temporary)
@@ -70,6 +71,8 @@ class InstallUpdateSmokeTests(unittest.TestCase):
             ]
             if source_package is not None:
                 command.extend(("-SourcePackage", source_package))
+            if approve_remote:
+                command.append("-ApproveRemoteEvidence")
             result = subprocess.run(
                 command,
                 capture_output=True, text=True, check=False, env=env,
@@ -135,6 +138,20 @@ class InstallUpdateSmokeTests(unittest.TestCase):
         self.assertEqual(evidence["remote_github_update"]["status"], "not_verified")
         self.assertIn("remote_github_update", evidence["unverified_checks"])
         self.assertNotEqual(evidence["source_type"], "local_source_install_refresh")
+
+    def test_approved_immutable_remote_source_emits_remote_update_evidence(self) -> None:
+        commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=True
+        ).stdout.strip()
+        _, evidence = self.run_fake_smoke(
+            update_mode="full",
+            source_type="github",
+            source_package=f"https://github.com/young-sub/Skill_Management/commit/{commit}",
+            approve_remote=True,
+        )
+        self.assertEqual(evidence["evidence_kind"], "remote_github_update")
+        self.assertEqual(evidence["remote_github_update"]["status"], "passed")
+        self.assertNotIn("remote_github_update", evidence["unverified_checks"])
 
 
 if __name__ == "__main__":

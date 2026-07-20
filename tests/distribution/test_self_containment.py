@@ -162,6 +162,77 @@ class SelfContainmentTests(unittest.TestCase):
             self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
             self.assertTrue(any(item["rule_id"] == "SC_REPARSE_ESCAPE" for item in payload["findings"]))
 
+    def test_malformed_manifests_and_missing_skills_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "authoring").mkdir()
+            (root / "authoring/resource-map.json").write_text("{broken", encoding="utf-8")
+
+            result = scan(root)
+
+            self.assertEqual(result.returncode, 1)
+            payload = self._payload(result)
+            evidence = " ".join(item["evidence"] for item in payload["findings"])
+            self.assertIn("skills directory", evidence)
+            self.assertIn("resource-map", evidence)
+
+    def test_structured_unix_root_and_cross_skill_paths_are_detected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            skill = self._skill(root)
+            self._skill(root, "other-skill")
+            (skill / "config.json").write_text(
+                json.dumps(
+                    {
+                        "absolute": "/tmp/private/config.json",
+                        "repo": "authoring/references/policy.md",
+                        "cross": "skills/other-skill/SKILL.md",
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            result = scan(root)
+
+            self.assertEqual(result.returncode, 1)
+            rule_ids = {item["rule_id"] for item in self._payload(result)["findings"]}
+            self.assertIn("SC_ABSOLUTE_PATH", rule_ids)
+            self.assertIn("SC_REPO_ROOT_REFERENCE", rule_ids)
+            self.assertIn("SC_CROSS_SKILL_REFERENCE", rule_ids)
+
+    def test_expired_allowlist_entry_fails_validation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            skill = self._skill(root)
+            (skill / "SKILL.md").write_text(
+                (skill / "SKILL.md").read_text(encoding="utf-8")
+                + "\nExample: `C:\\expired\\example.md`\n",
+                encoding="utf-8",
+            )
+            (root / "distribution").mkdir()
+            (root / "distribution/self-containment-allowlist.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "entries": [{
+                            "rule_id": "SC_ABSOLUTE_PATH",
+                            "skill": "fixture-skill",
+                            "source_path": "SKILL.md",
+                            "normalized_target": "C:/expired/example.md",
+                            "reason": "expired fixture",
+                            "owner": "fixture-owner",
+                            "review_after": "2000-01-01",
+                        }],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            result = scan(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertTrue(self._payload(result)["allowlist_errors"])
+
 
 if __name__ == "__main__":
     unittest.main()

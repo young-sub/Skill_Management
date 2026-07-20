@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/bootstrap_project.py
-# Source-SHA256: ecaf23b3deff93de8eb9d3d07db847c1cf5047f85e74126d4b96817debb0c79f
+# Source-SHA256: 01db8a7f9b0586a84da8fea0776419b6a85eabd4ffb5448524968bcfbd31c07c
 
 """Deterministic project bootstrap planner, applier, and validator."""
 
@@ -249,6 +249,8 @@ def _git_state(root: Path, relative_path: str) -> str:
     ignored = _git(root, "check-ignore", "-q", "--no-index", "--", relative_path)
     if ignored.returncode == 0:
         return "ignored"
+    if tracked.returncode not in {0, 1} or ignored.returncode not in {0, 1}:
+        return "unknown"
     return "untracked" if (root / relative_path).exists() else "absent"
 
 
@@ -321,7 +323,7 @@ def _discovery_files(root: Path, boundaries: list[dict[str, str]]) -> list[Path]
 
 def _read_text_untrusted(path: Path) -> tuple[str | None, str | None]:
     try:
-        return path.read_text(encoding="utf-8"), None
+        return path.read_bytes().decode("utf-8"), None
     except (OSError, UnicodeDecodeError) as error:
         return None, f"read_failed:{type(error).__name__}"
 
@@ -479,9 +481,7 @@ def build_reconciliation_plan(root: Path) -> dict[str, Any]:
     contents: dict[str, str] = {}
     for path in files:
         relative_path = _relative(root, path)
-        kind = _evidence_kind(relative_path)
-        if kind is None:
-            continue
+        kind = _evidence_kind(relative_path) or "unknown"
         text, warning = _read_text_untrusted(path)
         if warning:
             warnings.append({"path": relative_path, "warning": warning})
@@ -494,7 +494,11 @@ def build_reconciliation_plan(root: Path) -> dict[str, Any]:
                 "evidence_kind": kind,
                 "detector": "conservative-text-inventory",
                 "locator": relative_path,
-                "confidence": "high" if kind in {"instructions", "ci", "manifest"} else "medium",
+                "confidence": (
+                    "high" if kind in {"instructions", "ci", "manifest"}
+                    else "low" if kind == "unknown"
+                    else "medium"
+                ),
                 "notes": "content treated as untrusted and was not executed",
             }
         )
@@ -519,7 +523,22 @@ def build_reconciliation_plan(root: Path) -> dict[str, Any]:
             }
         )
     for path in sorted(contents):
-        if path in {"TESTING.md", "CONTRIBUTING.md", "README.md"}:
+        evidence_kind = _evidence_kind(path)
+        source_commands = [
+            item for item in commands if item["source_pointer"].startswith(f"{path}:")
+        ]
+        if evidence_kind in {"ci", "manifest"} and source_commands:
+            authorities.append(
+                {
+                    "authority_kind": "verification",
+                    "path": path,
+                    "precedence_basis": "active CI or build manifest invocation",
+                    "precedence_rank": 2,
+                    "confidence": "high",
+                    "conflicts": [],
+                }
+            )
+        elif path in {"TESTING.md", "CONTRIBUTING.md", "README.md"}:
             authorities.append(
                 {
                     "authority_kind": "verification",
@@ -530,7 +549,7 @@ def build_reconciliation_plan(root: Path) -> dict[str, Any]:
                     "conflicts": [],
                 }
             )
-        elif _evidence_kind(path) == "architecture":
+        elif evidence_kind == "architecture":
             authorities.append(
                 {
                     "authority_kind": "architecture",
@@ -576,9 +595,14 @@ def build_reconciliation_plan(root: Path) -> dict[str, Any]:
             }
         )
 
-    agents_content = contents.get("AGENTS.md") or contents.get("CLAUDE.md")
-    referenced = _explicit_references(agents_content or "", known_paths)
-    if agents_content is None:
+    ambiguous_instructions = any(
+        item["kind"] == "conflicting_instruction_authority" for item in blockers
+    )
+    agents_content = None if ambiguous_instructions else (
+        contents.get("AGENTS.md") or contents.get("CLAUDE.md")
+    )
+    referenced = sorted(instruction_references)
+    if agents_content is None and not ambiguous_instructions:
         pointer_lines = ["# AGENTS.md", "", "## Repository Sources"]
         for path in sorted(
             item["path"]
@@ -650,6 +674,36 @@ def build_reconciliation_plan(root: Path) -> dict[str, Any]:
         _path_policy_entry(root, ".work/**", "local-only"),
         _path_policy_entry(root, "agent-env.*.md", "local-only"),
     ]
+    prohibited_harness_paths = sorted(
+        path.relative_to(root).as_posix()
+        for path in (root / ".harness").rglob("*")
+        if path.is_file() and path.relative_to(root).as_posix() != ".harness/project.yaml"
+    ) if (root / ".harness").is_dir() else []
+    prohibited_entry = next(item for item in path_policy if item["path"] == ".harness/**")
+    prohibited_entry["evidence"].extend(prohibited_harness_paths)
+    if prohibited_harness_paths:
+        if prohibited_entry["current_state"] != "unknown":
+            prohibited_entry["current_state"] = "present"
+        prohibited_entry["proposed_action"] = "remove_or_relocate_runtime_state"
+        blockers.append(
+            {
+                "kind": "prohibited_path_present",
+                "severity": "high",
+                "path": ".harness/**",
+                "paths": prohibited_harness_paths,
+                "reason": "runtime state belongs under .work",
+            }
+        )
+    git_probe = _git(root, "rev-parse", "--is-inside-work-tree")
+    if git_probe.returncode != 0:
+        blockers.append(
+            {
+                "kind": "git_evidence_unavailable",
+                "severity": "high",
+                "path": ".git",
+                "reason": "Git path and ignore state could not be established",
+            }
+        )
     harness_entry = next(item for item in path_policy if item["path"] == ".harness/project.yaml")
     if harness_entry["current_state"] == "ignored":
         blockers.append(
@@ -684,7 +738,7 @@ def build_reconciliation_plan(root: Path) -> dict[str, Any]:
         "boundaries": boundaries,
     }
     discovery_fingerprint = sha256(_canonical_json(fingerprint_material)).hexdigest()
-    instruction_bytes = agents_content.encode("utf-8")
+    instruction_bytes = agents_content.encode("utf-8") if agents_content is not None else None
     project_config = (
         "version: 2\n"
         "project:\n"
@@ -694,7 +748,7 @@ def build_reconciliation_plan(root: Path) -> dict[str, Any]:
         "  authoritative: AGENTS.md\n"
         "  mirrors:\n"
         "    - CLAUDE.md\n"
-        f"  sha256: {instruction_hash(instruction_bytes)}\n"
+        f"  sha256: {instruction_hash(instruction_bytes or b'')}\n"
         "work:\n"
         "  root: .work\n"
         "  retention_days: 90\n"
@@ -710,12 +764,16 @@ def build_reconciliation_plan(root: Path) -> dict[str, Any]:
         "  commands: []\n"
     ).encode("utf-8")
     mutations: list[dict[str, Any]] = []
-    for relative_path, content in (
-        ("AGENTS.md", instruction_bytes),
-        ("CLAUDE.md", instruction_bytes),
+    mutation_sources = [
         ("TESTING.md", proposed_testing.encode("utf-8")),
         (".harness/project.yaml", project_config),
-    ):
+    ]
+    if instruction_bytes is not None:
+        mutation_sources[0:0] = [
+            ("AGENTS.md", instruction_bytes),
+            ("CLAUDE.md", instruction_bytes),
+        ]
+    for relative_path, content in mutation_sources:
         mutation = _file_mutation(
             root,
             relative_path,
@@ -908,6 +966,7 @@ def _prepare_transaction(root: Path, plan: dict[str, Any]) -> tuple[Path, dict[s
             operation = dict(mutation)
             operation["state"] = "pending"
             target = root / mutation["path"]
+            operation["before_exists"] = target.exists()
             before = _read_bytes(target)
             operation["before_content_base64"] = (
                 base64.b64encode(before).decode("ascii") if before is not None else None
@@ -946,11 +1005,11 @@ def _restore_transaction(
     if inject_failure:
         raise RuntimeError("injected_rollback_failure")
     for operation in reversed(journal["operations"]):
-        if operation.get("state") != "applied":
+        if operation.get("state") not in {"applying", "applied"}:
             continue
         target = root / operation["path"]
         if operation["operation"] == "create_directory":
-            if target.is_dir():
+            if target.is_dir() and not operation.get("before_exists", False):
                 try:
                     target.rmdir()
                 except OSError as error:
@@ -985,6 +1044,7 @@ def _commit_transaction(
     journal: dict[str, Any],
     *,
     fault_after_operation: int | None = None,
+    fault_after_target_write: int | None = None,
     fault_during_rollback: bool = False,
 ) -> str:
     transaction_dir = journal_path.parent
@@ -997,6 +1057,8 @@ def _commit_transaction(
             reason = _unsafe_write_target(root, target)
             if reason:
                 raise RuntimeError(f"unsafe_transaction_target:{operation['path']}:{reason}")
+            operation["state"] = "applying"
+            _write_journal(journal_path, journal)
             if operation["operation"] == "create_directory":
                 target.mkdir(parents=True, exist_ok=True)
             else:
@@ -1005,6 +1067,10 @@ def _commit_transaction(
                 if sha256(content).hexdigest() != operation["after_sha256"]:
                     raise RuntimeError(f"staged_hash_drift:{operation['path']}")
                 _atomic_write_bytes(target, content)
+            if fault_after_target_write is not None and applied_count + 1 == fault_after_target_write:
+                raise KeyboardInterrupt(
+                    f"injected_crash_after_target_write:{fault_after_target_write}"
+                )
             operation["state"] = "applied"
             applied_count += 1
             _write_journal(journal_path, journal)
@@ -1077,13 +1143,37 @@ def apply_reconciliation_plan(
     incomplete = _incomplete_transactions(root)
     if incomplete:
         return 4, {"status": "incomplete_transaction", "transactions": incomplete}
-    if all(_mutation_is_applied(root, mutation) for mutation in plan.get("mutations", [])):
+    current = build_reconciliation_plan(root)
+    all_applied = all(
+        _mutation_is_applied(root, mutation) for mutation in plan.get("mutations", [])
+    )
+    if all_applied:
+        mutation_paths = {item["path"] for item in plan.get("mutations", [])}
+        planned_inputs = {
+            item["path"]: item for item in plan.get("inputs", [])
+            if item.get("path") not in mutation_paths
+        }
+        current_inputs = {
+            item["path"]: item for item in current.get("inputs", [])
+            if item.get("path") not in mutation_paths
+        }
+        stable_fields = ("existence", "content_sha256", "git_state", "ignore_source")
+        drifted_inputs = sorted(
+            path for path in set(planned_inputs) | set(current_inputs)
+            if path not in planned_inputs or path not in current_inputs
+            or any(planned_inputs[path].get(field) != current_inputs[path].get(field) for field in stable_fields)
+        )
+        if drifted_inputs or current["discovery"]["repository_boundaries"] != plan["discovery"].get("repository_boundaries"):
+            return 2, {
+                "status": "precondition_failed",
+                "failed_preconditions": ["post_apply_input_drift"],
+                "drifted_inputs": drifted_inputs,
+            }
         return 0, {
             "status": "already_applied",
             "plan_sha256": actual_digest,
             "mutation_count": 0,
         }
-    current = build_reconciliation_plan(root)
     failed_preconditions: list[str] = []
     if current["discovery_fingerprint"] != plan.get("discovery_fingerprint"):
         failed_preconditions.append("discovery_fingerprint")
@@ -1101,15 +1191,21 @@ def apply_reconciliation_plan(
     except (OSError, ValueError, json.JSONDecodeError) as error:
         return 4, {"status": "transaction_prepare_failed", "error": str(error)}
     fault_value = os.environ.get("HARNESS_FAULT_AFTER_OPERATION")
+    crash_value = os.environ.get("HARNESS_FAULT_AFTER_TARGET_WRITE")
     try:
         fault_after = int(fault_value) if fault_value else None
     except ValueError:
         fault_after = None
+    try:
+        fault_after_target_write = int(crash_value) if crash_value else None
+    except ValueError:
+        fault_after_target_write = None
     transaction_status = _commit_transaction(
         root,
         journal_path,
         journal,
         fault_after_operation=fault_after,
+        fault_after_target_write=fault_after_target_write,
         fault_during_rollback=os.environ.get("HARNESS_FAULT_DURING_ROLLBACK") == "1",
     )
     transaction_id = journal["transaction_id"]

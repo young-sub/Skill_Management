@@ -27,6 +27,9 @@ MARKDOWN_LINK = re.compile(r"\[[^\]]*\]\((?P<target>[^)\s]+)(?:\s+[^)]*)?\)")
 RELATIVE_ESCAPE = re.compile(r"(?P<target>(?:\.\.[/\\])+[A-Za-z0-9._/\\-]+)")
 WINDOWS_ABSOLUTE = re.compile(r"(?<![A-Za-z0-9_])(?P<target>[A-Za-z]:[\\/][^\s`\"'<>|]*)")
 FILE_URI = re.compile(r"(?P<target>file://[^\s`\"'<>)]*)", re.IGNORECASE)
+STRUCTURED_PATH = re.compile(
+    r"(?P<quote>[\"'`])(?P<target>/(?:[A-Za-z0-9._-]+/)+[A-Za-z0-9._-]+|(?:authoring|skills)/(?:[A-Za-z0-9._-]+/)*[A-Za-z0-9._-]+)(?P=quote)"
+)
 
 
 def _inside(path: Path, parent: Path) -> bool:
@@ -208,6 +211,38 @@ def _scan_text_file(
                 match.start("target"),
             )
         )
+    for match in STRUCTURED_PATH.finditer(text):
+        if any(start <= match.start("target") < end for start, end in occupied):
+            continue
+        target = match.group("target")
+        locator = _locator(text, match.start("target"))
+        if target.startswith("/"):
+            findings.append(
+                _finding("SC_ABSOLUTE_PATH", skill_root.name, source_path, locator, target, target)
+            )
+            continue
+        findings.append(
+            _finding(
+                "SC_REPO_ROOT_REFERENCE",
+                skill_root.name,
+                source_path,
+                locator,
+                target,
+                "structured path depends on repository-root content",
+            )
+        )
+        parts = target.split("/")
+        if len(parts) > 1 and parts[0] == "skills" and parts[1] != skill_root.name:
+            findings.append(
+                _finding(
+                    "SC_CROSS_SKILL_REFERENCE",
+                    skill_root.name,
+                    source_path,
+                    locator,
+                    target,
+                    f"runtime dependency on public Skill '{parts[1]}'",
+                )
+            )
     return findings
 
 
@@ -260,7 +295,16 @@ def _manifest_findings(root: Path, skills_root: Path) -> list[dict[str, str]]:
         try:
             mapping = json.loads(resource_map.read_text(encoding="utf-8"))
             resources = mapping.get("resources", [])
-        except (OSError, json.JSONDecodeError, AttributeError):
+            if not isinstance(resources, list):
+                raise ValueError("resources must be an array")
+        except (OSError, json.JSONDecodeError, AttributeError, ValueError) as error:
+            findings.append(
+                _finding(
+                    "SC_MISSING_RESOURCE", "*", "authoring/resource-map.json",
+                    "manifest", "authoring/resource-map.json",
+                    f"resource-map could not be validated: {type(error).__name__}",
+                )
+            )
             resources = []
         for item in resources:
             if not isinstance(item, dict):
@@ -284,7 +328,16 @@ def _manifest_findings(root: Path, skills_root: Path) -> list[dict[str, str]]:
         try:
             manifest = json.loads(public_manifest.read_text(encoding="utf-8"))
             declared = manifest.get("files", {})
-        except (OSError, json.JSONDecodeError, AttributeError):
+            if not isinstance(declared, dict):
+                raise ValueError("files must be an object")
+        except (OSError, json.JSONDecodeError, AttributeError, ValueError) as error:
+            findings.append(
+                _finding(
+                    "SC_MISSING_RESOURCE", "*", "authoring/public-resource-manifest.json",
+                    "manifest", "authoring/public-resource-manifest.json",
+                    f"public resource manifest could not be validated: {type(error).__name__}",
+                )
+            )
             declared = {}
         for target in declared:
             if isinstance(target, str) and not (skills_root / target).is_file():
@@ -331,9 +384,12 @@ def _load_allowlist(root: Path) -> tuple[list[dict[str, str]], list[str]]:
             errors.append(f"allowlist entry {index} has invalid values")
             continue
         try:
-            date.fromisoformat(str(entry["review_after"]))
+            review_after = date.fromisoformat(str(entry["review_after"]))
         except ValueError:
             errors.append(f"allowlist entry {index} has invalid review_after")
+            continue
+        if review_after < date.today():
+            errors.append(f"allowlist entry {index} review_after has expired")
             continue
         entries.append({key: str(entry[key]) for key in required})
     return entries, errors
@@ -362,6 +418,13 @@ def validate(root: Path) -> dict[str, Any]:
                     source = current_path / name
                     if source.suffix.lower() in TEXT_SUFFIXES and not _is_reparse(source):
                         findings.extend(_scan_text_file(root, skills_root, skill_root, source))
+    else:
+        findings.append(
+            _finding(
+                "SC_MISSING_RESOURCE", "*", "skills", "directory", "skills",
+                "public skills directory is missing",
+            )
+        )
     findings.extend(_manifest_findings(root, skills_root))
     unique = {
         (

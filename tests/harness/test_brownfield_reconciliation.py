@@ -108,6 +108,7 @@ class BrownfieldReconciliationTests(unittest.TestCase):
             (root / "AGENTS.md").write_text("Use `TESTING.md`.\n", encoding="utf-8")
             (root / "CLAUDE.md").write_text("Use `CONTRIBUTING.md`.\n", encoding="utf-8")
             (root / "TESTING.md").write_text("# Testing\n\n`python -m unittest`\n", encoding="utf-8")
+            testing_bytes = (root / "TESTING.md").read_bytes()
             (root / "CONTRIBUTING.md").write_text("# Checks\n\n`python -m pytest`\n", encoding="utf-8")
             (root / ".github/workflows/ci.yml").write_text(
                 "steps:\n  - run: python -m pytest\n", encoding="utf-8"
@@ -123,7 +124,7 @@ class BrownfieldReconciliationTests(unittest.TestCase):
             authorities = plan["proposal"]["authority_candidates"]
             self.assertGreaterEqual(len([a for a in authorities if a["authority_kind"] == "instructions"]), 2)
             merge = plan["proposal"]["testing_merge_proposal"]
-            self.assertEqual(merge["preserved_content_utf8"], "# Testing\n\n`python -m unittest`\n")
+            self.assertEqual(merge["preserved_content_utf8"].encode("utf-8"), testing_bytes)
             self.assertTrue(merge["human_decisions_required"])
 
     def test_git_path_policy_is_evidence_backed_and_fail_closed(self) -> None:
@@ -202,6 +203,67 @@ class BrownfieldReconciliationTests(unittest.TestCase):
                 "path", "existence", "content_sha256", "git_state", "ignore_source"
             }
             self.assertTrue(all(required_input_fields <= item.keys() for item in plan["inputs"]))
+
+    def test_testing_merge_preserves_crlf_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._init_git(root)
+            original = b"# Testing\r\n\r\nKeep CRLF.\r\n"
+            (root / "TESTING.md").write_bytes(original)
+
+            result = bootstrap(root)
+
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            plan = json.loads(result.stdout)
+            merge = plan["proposal"]["testing_merge_proposal"]
+            self.assertEqual(merge["preserved_content_utf8"].encode("utf-8"), original)
+
+    def test_git_unavailable_and_prohibited_harness_state_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / ".harness").mkdir()
+            (root / ".harness/cache.bin").write_bytes(b"runtime")
+
+            result = bootstrap(root)
+
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            plan = json.loads(result.stdout)
+            blockers = plan["proposal"]["blocking_decisions"]
+            kinds = {item["kind"] for item in blockers}
+            self.assertIn("git_evidence_unavailable", kinds)
+            self.assertIn("prohibited_path_present", kinds)
+            policy = {item["path"]: item for item in plan["proposal"]["path_policy"]}
+            self.assertEqual(policy[".harness/**"]["current_state"], "unknown")
+            self.assertIn(".harness/cache.bin", policy[".harness/**"]["evidence"])
+
+    def test_ci_is_ranked_authority_and_ambiguous_instructions_produce_no_router_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._init_git(root)
+            (root / ".github/workflows").mkdir(parents=True)
+            (root / "notes").mkdir()
+            (root / "AGENTS.md").write_text("Use `TESTING.md`.\n", encoding="utf-8")
+            (root / "CLAUDE.md").write_text("Use `CONTRIBUTING.md`.\n", encoding="utf-8")
+            (root / ".github/workflows/ci.yml").write_text(
+                "steps:\n  - run: python -m unittest\n", encoding="utf-8"
+            )
+            (root / "notes/custom.txt").write_text("opaque evidence\n", encoding="utf-8")
+
+            result = bootstrap(root)
+
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            plan = json.loads(result.stdout)
+            ci = next(
+                item for item in plan["proposal"]["authority_candidates"]
+                if item["path"] == ".github/workflows/ci.yml"
+            )
+            self.assertEqual(ci["precedence_rank"], 2)
+            self.assertTrue(any(item["evidence_kind"] == "unknown" for item in plan["discovery"]["evidence"]))
+            router = plan["proposal"]["router_proposals"][0]
+            self.assertIsNone(router["proposed_content"])
+            mutation_paths = {item["path"] for item in plan["mutations"]}
+            self.assertNotIn("AGENTS.md", mutation_paths)
+            self.assertNotIn("CLAUDE.md", mutation_paths)
 
 
 if __name__ == "__main__":

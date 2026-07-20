@@ -158,11 +158,15 @@ try {
     } else {
         Write-Output "Install smoke test passed for codex and claude-code."
     }
+    $remoteSourceMatch = [regex]::Match(
+        $SourcePackage,
+        '^https://github\.com/[^/]+/[^/]+/(?:tree|commit)/(?<commit>[0-9a-fA-F]{40})$'
+    )
     $remoteEvidenceApproved = (
         $ApproveRemoteEvidence -and
         $SourceType -eq 'github' -and
         $VerifyUpdate -and
-        $SourcePackage -match '^https://github\.com/[^/]+/[^/]+/(?:tree|commit)/[^/]+$'
+        $remoteSourceMatch.Success
     )
     $unverifiedChecks = @()
     if (-not $remoteEvidenceApproved) {
@@ -200,9 +204,20 @@ try {
         throw "Evidence provenance failed: $provenanceText"
     }
     $provenance = $provenanceText | ConvertFrom-Json
+    if (
+        $remoteEvidenceApproved -and
+        $provenance.git_commit.ToLowerInvariant() -ne
+            $remoteSourceMatch.Groups['commit'].Value.ToLowerInvariant()
+    ) {
+        throw 'Remote evidence source commit does not match the local source revision.'
+    }
     Write-SmokeEvidence -Path $EvidencePath -Payload ([ordered]@{
         schema_version = 2
-        evidence_kind = $(if ($localRefreshStatus -eq 'passed') { 'local_source_install_refresh' } else { 'install_and_update_smoke' })
+        evidence_kind = $(
+            if ($remoteEvidenceApproved) { 'remote_github_update' }
+            elseif ($localRefreshStatus -eq 'passed') { 'local_source_install_refresh' }
+            else { 'install_and_update_smoke' }
+        )
         generated_at = $provenance.generated_at
         repository = $provenance.repository
         git_commit = $provenance.git_commit

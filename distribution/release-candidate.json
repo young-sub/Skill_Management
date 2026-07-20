@@ -56,8 +56,8 @@
       "status": "not_verified",
       "scope": "release_gate_requires_explicit_network_approval",
       "source_package": "young-sub/Skill_Management",
-      "candidate_source_package": "https://github.com/young-sub/Skill_Management/tree/develop",
-      "command": "powershell -NoProfile -File scripts/test-install.ps1 -RepositoryRoot . -SourcePackage https://github.com/young-sub/Skill_Management/tree/develop -SourceType github -VerifyUpdate -ApproveRemoteEvidence -EvidencePath distribution/evidence/remote-github-update.json",
+      "candidate_source_package": "https://github.com/young-sub/Skill_Management/commit/be3d08ffeb852ba76a02a65c4332ff3f1df0527a",
+      "command": "powershell -NoProfile -File scripts/test-install.ps1 -RepositoryRoot . -SourcePackage https://github.com/young-sub/Skill_Management/commit/be3d08ffeb852ba76a02a65c4332ff3f1df0527a -SourceType github -VerifyUpdate -ApproveRemoteEvidence -EvidencePath distribution/evidence/remote-github-update.json",
       "evidence_path": "distribution/evidence/remote-github-update.json"
     }
   },

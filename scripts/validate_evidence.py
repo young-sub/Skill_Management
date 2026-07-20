@@ -16,6 +16,13 @@ EVIDENCE_KINDS = {
     "local_source_install_refresh",
     "remote_github_update",
 }
+REQUIRED_COMMON_FIELDS = {
+    "schema_version", "generated_at", "repository", "git_commit", "git_tree",
+    "git_dirty", "dirty_paths", "branch", "command", "cwd", "tool_versions",
+    "source_type", "source_package", "providers", "public_skill_count",
+    "catalog_sha256", "resource_manifest_sha256", "result", "unverified_checks",
+    "evidence_kind",
+}
 
 
 def _inside(path: Path, root: Path) -> bool:
@@ -92,6 +99,33 @@ def validate(root: Path) -> dict[str, Any]:
         record = payload.get("evidence") if key == "pilot_execution" else payload
         if not isinstance(record, dict):
             findings.append(_finding("invalid_evidence", key, "evidence record must be an object"))
+            continue
+        missing_fields = sorted(REQUIRED_COMMON_FIELDS - record.keys())
+        invalid_fields: list[str] = []
+        if not isinstance(record.get("command"), list) or not record.get("command"):
+            invalid_fields.append("command")
+        if not isinstance(record.get("tool_versions"), dict) or not record.get("tool_versions"):
+            invalid_fields.append("tool_versions")
+        if not isinstance(record.get("providers"), list):
+            invalid_fields.append("providers")
+        if not isinstance(record.get("unverified_checks"), list):
+            invalid_fields.append("unverified_checks")
+        for hash_field in ("catalog_sha256", "resource_manifest_sha256"):
+            if not isinstance(record.get(hash_field), str) or not REVISION.fullmatch(record[hash_field]):
+                invalid_fields.append(hash_field)
+        for text_field in ("generated_at", "repository", "branch", "cwd", "source_type", "source_package"):
+            if not isinstance(record.get(text_field), str) or not record[text_field]:
+                invalid_fields.append(text_field)
+        if not isinstance(record.get("public_skill_count"), int):
+            invalid_fields.append("public_skill_count")
+        if missing_fields or invalid_fields:
+            findings.append(
+                _finding(
+                    "incomplete_evidence",
+                    key,
+                    f"missing={missing_fields}; invalid={sorted(set(invalid_fields))}",
+                )
+            )
             continue
         if record.get("evidence_kind") != expected_kind:
             findings.append(

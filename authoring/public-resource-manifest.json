@@ -62,7 +62,7 @@
                   "prototype/LOGIC.md":  "da91dc92195c00d5dc33863b8c1a030998025a0f8583ebf2babd770825b7f70c",
                   "prototype/SKILL.md":  "a653deb65afa2ee8f45c68f6ef4f593147171b386e994c8cccf89292d9ea9d75",
                   "prototype/UI.md":  "d76d565149ee50456c5ddc5e29c27fec8737637874fe5c37d970db085a200b27",
-                  "setup-agent-harness/scripts/bootstrap_project.py":  "6a0948b77e3d6479950883c707b922499e3fc17b44db7ce84ce7b08887cb91c7",
+                  "setup-agent-harness/scripts/bootstrap_project.py":  "db41bfaf3a7a8e9e66298971c4e34d5fa0833b5887f6a3626326f10e016d5b78",
                   "setup-agent-harness/SKILL.md":  "6090d5fb09a24b35bf5ff3adb7b1f115cc04557cbf7e5061b4d0e3d9a87ebf6b",
                   "setup-agent-harness/templates/project/AGENTS.md":  "234c9187b59e3df1e76c0bf1ba5d7a9ae7f75746f5f3b6c125a72c9cc4c8c7ec",
                   "setup-agent-harness/templates/project/project.yaml":  "1f0799ad75039d818b9bce6b43424761b86b428dd549f2dd6a4b19bcd67a6caa",
