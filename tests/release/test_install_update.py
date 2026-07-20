@@ -17,6 +17,7 @@ class InstallUpdateSmokeTests(unittest.TestCase):
         source_type: str = "local", source_package: str | None = None,
         approve_remote: bool = False, expected_source_commit: str | None = None,
         resolved_remote_commit: str | None = None,
+        resolved_default_commit: str | None = None,
     ) -> tuple[str, dict[str, object]]:
         with tempfile.TemporaryDirectory() as temporary:
             temp = Path(temporary)
@@ -64,6 +65,11 @@ class InstallUpdateSmokeTests(unittest.TestCase):
             )
             fake_git.write_text(
                 "param([Parameter(ValueFromRemainingArguments=$true)]$GitArgs)\n"
+                "if ($GitArgs -contains '--symref') {\n"
+                "  Write-Output \"ref: refs/heads/main`tHEAD\"\n"
+                "  Write-Output \"$env:HARNESS_FAKE_DEFAULT_COMMIT`tHEAD\"\n"
+                "  exit 0\n"
+                "}\n"
                 "Write-Output \"$env:HARNESS_FAKE_REMOTE_COMMIT`trefs/tags/release-smoke-test\"\n"
                 "exit 0\n",
                 encoding="utf-8",
@@ -72,6 +78,7 @@ class InstallUpdateSmokeTests(unittest.TestCase):
             env["HARNESS_FAKE_SOURCE"] = str(ROOT)
             env["HARNESS_FAKE_UPDATE_MODE"] = update_mode
             env["HARNESS_FAKE_REMOTE_COMMIT"] = resolved_remote_commit or expected_source_commit or ""
+            env["HARNESS_FAKE_DEFAULT_COMMIT"] = resolved_default_commit or expected_source_commit or ""
             command = [
                 "powershell", "-NoProfile", "-File", str(SCRIPT),
                 "-RepositoryRoot", str(ROOT), "-DestinationRoot", str(destination),
@@ -187,6 +194,21 @@ class InstallUpdateSmokeTests(unittest.TestCase):
             expect_success=False,
         )
         self.assertIn("Remote source ref does not resolve to ExpectedSourceCommit", diagnostics)
+
+    def test_approved_remote_update_rejects_default_branch_at_another_commit(self) -> None:
+        commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=True
+        ).stdout.strip()
+        diagnostics, _ = self.run_fake_smoke(
+            update_mode="noop",
+            source_type="github",
+            source_package="https://github.com/young-sub/Skill_Management/tree/release-smoke-test",
+            approve_remote=True,
+            expected_source_commit=commit,
+            resolved_default_commit="0" * 40,
+            expect_success=False,
+        )
+        self.assertIn("Remote default branch does not resolve to ExpectedSourceCommit", diagnostics)
 
 
 if __name__ == "__main__":

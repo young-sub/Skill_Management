@@ -57,6 +57,8 @@ $remoteEvidenceApproved = (
     $boundSourceCommit -match '^[0-9a-fA-F]{40}$'
 )
 $resolvedRemoteCommits = @()
+$remoteDefaultBranch = $null
+$remoteDefaultCommit = $null
 if ($remoteEvidenceApproved) {
     $remoteRepository = "https://github.com/$($remoteSourceMatch.Groups['owner'].Value)/$($remoteSourceMatch.Groups['repo'].Value).git"
     $remoteRef = $remoteSourceMatch.Groups['ref'].Value
@@ -72,6 +74,20 @@ if ($remoteEvidenceApproved) {
     )
     if ($resolvedRemoteCommits -notcontains $boundSourceCommit.ToLowerInvariant()) {
         throw "Remote source ref does not resolve to ExpectedSourceCommit: $remoteRef"
+    }
+    $defaultResolutionOutput = @(& $GitCommand ls-remote --symref --exit-code $remoteRepository HEAD 2>&1)
+    if ($LASTEXITCODE -ne 0) {
+        throw "Remote default branch could not be resolved: $($defaultResolutionOutput -join [Environment]::NewLine)"
+    }
+    foreach ($line in $defaultResolutionOutput) {
+        if ([string]$line -match '^ref:\s+(?<branch>refs/heads/\S+)\s+HEAD$') {
+            $remoteDefaultBranch = $Matches['branch']
+        } elseif ([string]$line -match '^(?<commit>[0-9a-fA-F]{40})\s+HEAD$') {
+            $remoteDefaultCommit = $Matches['commit'].ToLowerInvariant()
+        }
+    }
+    if ($remoteDefaultCommit -ne $boundSourceCommit.ToLowerInvariant()) {
+        throw "Remote default branch does not resolve to ExpectedSourceCommit: $remoteDefaultBranch"
     }
 }
 
@@ -300,6 +316,11 @@ try {
             status = $(if ($remoteEvidenceApproved) { 'passed' } else { 'not_verified' })
             resolved_commits = @($resolvedRemoteCommits)
         }
+        remote_default_resolution = @{
+            status = $(if ($remoteEvidenceApproved) { 'passed' } else { 'not_verified' })
+            branch = $remoteDefaultBranch
+            commit = $remoteDefaultCommit
+        }
         source_type = $SourceType
         verification_mode = $(if ($VerifyUpdate) { 'install_and_update' } else { 'install' })
         public_skill_count = $expectedSkills.Count
@@ -314,6 +335,7 @@ try {
         remote_github_update = @{
             status = $(if ($remoteEvidenceApproved) { 'passed' } else { 'not_verified' })
             evidence_kind = 'remote_github_update'
+            verification_mode = $(if ($remoteEvidenceApproved) { 'idempotent_current_revision' } else { 'not_verified' })
         }
     })
 } finally {
