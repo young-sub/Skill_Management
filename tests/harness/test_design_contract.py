@@ -224,6 +224,17 @@ class DesignContractTests(unittest.TestCase):
         self.assertIn("Goal declaration payload", design)
         self.assertIn("stop", design.lower())
 
+    def test_design_skill_uses_adaptive_bounded_interview(self) -> None:
+        design = (REPO_ROOT / "skills" / "design-goal" / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("bounded interview", design)
+        self.assertIn("Repeat decision rounds", design)
+        self.assertIn("Do not ask questions when no material decision remains", design)
+        self.assertIn("human intent", design)
+        self.assertNotIn("Ask one grouped decision question only", design)
+
 
 if __name__ == "__main__":
     unittest.main()

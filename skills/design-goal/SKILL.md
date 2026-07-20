@@ -8,7 +8,10 @@ description: Build an approvable implementation contract from repository evidenc
 ## Preconditions
 
 - Investigate code, public interfaces, schemas, tests, ADRs, domain language, runtime, security, and operations before asking questions answerable from the repository.
-- Ask one grouped decision question only for unresolved product, state, interface, failure, security, verification, completion, or architecture choices.
+- If the requested behavior is already clear and repository evidence resolves the constraints, skip interviewing and proceed to the Contract workflow. Do not ask questions when no material decision remains.
+- Otherwise run a bounded interview for unresolved product, state, interface, failure, security, verification, completion, or architecture choices. Ask one related group of decision questions per round, include recommended answers and tradeoffs, and wait for the human response.
+- Repeat decision rounds only while material choices remain unresolved. Treat contradictions, uncertain inferences, and ambiguous acceptance scenarios as unresolved rather than silently choosing for the human.
+- Before drafting the Contract, restate the resolved human intent, observable acceptance scenarios, non-goals, and any remaining assumptions. Do not continue if a material decision is still open or the human says the summary is incorrect.
 - Never implement the proposed behavior during this workflow.
 
 ## Contract workflow
