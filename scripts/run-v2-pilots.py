@@ -558,6 +558,7 @@ def main() -> int:
             "pilots": pilots,
         }
         provenance["result"] = report["result"]
+        provenance["evidence_kind"] = "pilot_execution"
         report["evidence"] = provenance
         serialized_report = normalized_baseline(report) if args.update_baseline else report
         (output / "harness-v2-pilots.json").write_text(

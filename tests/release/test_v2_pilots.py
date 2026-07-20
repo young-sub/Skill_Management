@@ -154,6 +154,7 @@ class V2PilotTests(unittest.TestCase):
                 "resource_manifest_sha256",
                 "result",
                 "unverified_checks",
+                "evidence_kind",
             ):
                 self.assertIn(field, evidence)
 
@@ -182,6 +183,7 @@ class V2PilotTests(unittest.TestCase):
             report = json.loads(report_text)
             self.assertFalse(report["evidence"]["git_dirty"])
             self.assertEqual(report["evidence"]["dirty_paths"], [])
+            self.assertEqual(report["evidence"]["evidence_kind"], "pilot_execution")
             self.assertNotIn('"duration_seconds"', report_text)
             self.assertIn('"duration_bucket"', report_text)
 
