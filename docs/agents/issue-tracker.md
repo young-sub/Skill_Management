@@ -13,7 +13,7 @@
 
 - Active local pending records: `docs/work-packets/<owner-slug>/`.
 - Published immutable archive: `docs/archive/work-packets/<owner-slug>/`.
-- Active implementation plan: `harness_v2_implementation_plan.md`.
+- Completed V2 implementation record: `docs/archive/plans/harness_v2_implementation_plan.md`.
 - Completed plan and design archive: `docs/archive/`.
 - Decisions: tracked plans and future `docs/adr/` records.
 - `.scratch/` and `.work/`: ephemeral only, never durable sources.

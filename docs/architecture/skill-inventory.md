@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This inventory defines WP-01 distribution ownership. `harness_v2_implementation_plan.md` is authoritative; this document records its mapping against the current worktree.
+This inventory defines current distribution ownership. The completed V2 record is archived at `docs/archive/plans/harness_v2_implementation_plan.md`; this document records its mapping against the current worktree.
 
 ## Public Skills
 

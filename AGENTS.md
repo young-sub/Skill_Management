@@ -9,15 +9,15 @@
 ## Repo Map
 
 - `skills/`: publicly discoverable Agent Skills; each published skill must be self-contained.
-- `authoring/`: planned canonical shared policies and templates, generated into individual skills.
-- `legacy-skills/`: planned non-discoverable preservation area for replaced workflow skills.
-- `tests/` and `scripts/`: planned distribution, installation, and contract verification surfaces.
+- `authoring/`: canonical shared policies and templates, generated into individual skills.
+- `legacy-skills/`: non-discoverable preservation area for replaced workflow skills.
+- `tests/` and `scripts/`: distribution, installation, contract, runtime, and release verification surfaces.
 - `back-up/`: historical snapshots; read only unless a task explicitly targets them.
 
 ## Source Of Truth
 
-- Active V2 implementation plan: `harness_v2_implementation_plan.md`
-- Parent design plan: `skill_recreate_plan.md`; the active implementation plan wins on conflict.
+- Completed V2 implementation record: `docs/archive/plans/harness_v2_implementation_plan.md`
+- Parent design record: `skill_recreate_plan.md`; implemented behavior and current architecture docs win on conflict.
 - Agent workflow: `docs/agents/workflow.md`
 - Tracker and durable records: `docs/agents/issue-tracker.md`
 - Triage vocabulary: `docs/agents/triage-labels.md`

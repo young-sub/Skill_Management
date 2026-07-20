@@ -2,12 +2,12 @@
 
 ## Status
 
-- Phase: completion review
+- Phase: close
 - Branch: `wp-20260719-002-harness-v2-core-release`
 - Base: `develop` at `f16598a`
 - Tracker channel: `none` (local markdown is authoritative)
 - Confirmation: supplied by the user in the active goal
-- Git publish state: `implementation_complete_local`
+- Git publish state: `ready_for_develop_merge`
 - Tracker publish state: `local_pending`
 
 ## Objective
@@ -16,7 +16,7 @@ Implement and verify WP-02 through WP-06 from `harness_v2_implementation_plan.md
 
 ## Source Of Truth And Decisions
 
-- `harness_v2_implementation_plan.md` wins on conflict with `skill_recreate_plan.md`.
+- The completed record `docs/archive/plans/harness_v2_implementation_plan.md` governed implementation and won on conflict with `skill_recreate_plan.md`.
 - `docs/architecture/skill-inventory.md` defines public, legacy, and future catalog ownership.
 - Installed Skills must be self-contained. Shared authoring sources are copied into consuming Skill directories through `authoring/resource-map.json`; installed Skills never reference `authoring/` or another Skill at runtime.
 - Python standard-library scripts provide deterministic filesystem, schema, hash, DAG, rendering, and maintenance behavior. `SKILL.md` files own agent orchestration and approval boundaries.
@@ -170,11 +170,11 @@ Stop for destructive deletion, secret/credential handling, live provider calls b
 ## Phase Handoff Capsule
 
 - updated_at: 2026-07-20T09:10:00+09:00
-- source_ref: `harness_v2_implementation_plan.md`
+- source_ref: `docs/archive/plans/harness_v2_implementation_plan.md`
 - updated_by: main session
 - phase: completion review
 - scope: WP-02 through WP-06
-- current gate: independent remediation re-review
+- current gate: closed locally; merge and push to `develop` are the authorized final publication actions
 - accepted decisions: self-contained generated resources; Python stdlib helpers; local markdown tracker; five slice commits
 - open decisions: remote GitHub-backed update evidence requires publishing an intermediate branch revision and remains unverified; local-source install and refresh is the authorized release evidence
 - files read: implementation plan, parent plan excerpts, inventory, workflow, README, authoring resource map, distribution catalog
@@ -202,5 +202,15 @@ Stop for destructive deletion, secret/credential handling, live provider calls b
 - second remediation: close now validates repository containment and rejects reparse components for every work/archive/write/move target; bootstrap rechecks immediately after verification and before writes; resume uses a recoverable idempotent transaction; maintenance emits a High fail-closed finding when tracked-file enumeration fails; remote evidence metadata explicitly targets the `develop` branch while remaining `not_verified`
 - final local verification: `python -m unittest discover -s tests -p "test_*.py"` passed 83/83; resource drift check passed; distribution validation passed; `scripts/run-v2-pilots.py` passed 3/3 with one measured Full check per Goal; `git diff --check develop` passed; approved `scripts/test-install.ps1 -VerifyUpdate` was rerun after the final public-resource changes and passed for all 18 public Skills across Codex and Claude Code with complete-tree SHA256 comparison and local-source refresh evidence in `distribution/evidence/local-source-install-refresh.json`
 - risks: remote GitHub-backed native update remains unverified because it requires an intermediate branch publication not covered by the final-push authorization; live GitHub release is not authorized
-- next mode: review
-- next stop condition: independent re-review of the remediated complete diff
+- final independent review: `MERGE`; no High or Medium finding remains after focused 39/39 tests, resource sync, distribution validation, and diff checks
+- next mode: merge to `develop`, verify, and push
+- next stop condition: a failed merge, failed final verification, or failed push
+
+## Close Report
+
+- Outcome: WP-02..WP-06 delivered the seven self-contained Harness V2 Core Skills, deterministic project/contract/runtime/review helpers, release-candidate metadata, actual isolated pilots, and install/update smoke coverage.
+- Commits: `0db9821`, `be87141`, `9f033b0`, `94f5fa7`, `9d73977`, `49e01f8`, `188ad46`, `b409e8a`, `98a3d60`, `967c247`, `e7deff2`.
+- Verification: 83/83 unit tests; 3/3 actual pilots; resource sync and distribution validation passed; approved local-source external smoke passed for 18 Skills across Codex and Claude Code with complete-tree SHA256 comparison.
+- Review: three independent read-only passes; two rounds found and drove containment, transaction, fail-closed, pilot, and install-verification hardening; the final pass returned `MERGE` with no High/Medium findings.
+- Remaining risk: native remote GitHub update is explicitly `not_verified` for this non-live release candidate and requires separate network approval after `develop` exists remotely.
+- Durable record: this archived Work Packet and `docs/archive/plans/harness_v2_implementation_plan.md` are the completed planning records.

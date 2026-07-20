@@ -11,7 +11,7 @@
 
 Use `init -> ready -> issue -> run -> pr -> close -> next` for non-trivial capability work. `auto` may execute local phases but never publishes. `publish` is a separate human-triggered action that batches pending Issue/PR records and archives published records.
 
-The current V2 effort starts with WP-01 from `harness_v2_implementation_plan.md`. Its implementation contract is the active plan plus a local Work Packet record. Use 2-5 vertical slices, TDD for behavior, and exact verification evidence.
+Harness V2 was delivered through WP-01..WP-06; its implementation record is archived at `docs/archive/plans/harness_v2_implementation_plan.md`. New work uses a current local Work Packet with 2-5 vertical slices, TDD for behavior, and exact verification evidence.
 
 ## Intake And Delegation
 
