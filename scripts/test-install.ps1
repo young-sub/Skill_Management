@@ -4,6 +4,7 @@ param(
     [string]$DestinationRoot,
     [string]$SkillsCommand = 'npx',
     [string]$SourcePackage,
+    [string]$ExpectedSourceCommit,
     [ValidateSet('local', 'github')]
     [string]$SourceType = 'local',
     [string]$EvidencePath,
@@ -160,13 +161,22 @@ try {
     }
     $remoteSourceMatch = [regex]::Match(
         $SourcePackage,
-        '^https://github\.com/[^/]+/[^/]+/(?:tree|commit)/(?<commit>[0-9a-fA-F]{40})$'
+        '^https://github\.com/[^/]+/[^/]+/(?<kind>tree|commit)/(?<ref>[^/]+)$'
     )
+    $boundSourceCommit = $ExpectedSourceCommit
+    if (
+        [string]::IsNullOrWhiteSpace($boundSourceCommit) -and
+        $remoteSourceMatch.Success -and
+        $remoteSourceMatch.Groups['ref'].Value -match '^[0-9a-fA-F]{40}$'
+    ) {
+        $boundSourceCommit = $remoteSourceMatch.Groups['ref'].Value
+    }
     $remoteEvidenceApproved = (
         $ApproveRemoteEvidence -and
         $SourceType -eq 'github' -and
         $VerifyUpdate -and
-        $remoteSourceMatch.Success
+        $remoteSourceMatch.Success -and
+        $boundSourceCommit -match '^[0-9a-fA-F]{40}$'
     )
     $unverifiedChecks = @()
     if (-not $remoteEvidenceApproved) {
@@ -180,6 +190,9 @@ try {
     )
     if ($VerifyUpdate) { $evidenceCommand += '-VerifyUpdate' }
     if ($ApproveRemoteEvidence) { $evidenceCommand += '-ApproveRemoteEvidence' }
+    if (-not [string]::IsNullOrWhiteSpace($ExpectedSourceCommit)) {
+        $evidenceCommand += @('-ExpectedSourceCommit', $ExpectedSourceCommit)
+    }
     $provenanceArguments = @(
         $provenanceScript,
         '--repository-root', $resolvedRoot,
@@ -207,7 +220,7 @@ try {
     if (
         $remoteEvidenceApproved -and
         $provenance.git_commit.ToLowerInvariant() -ne
-            $remoteSourceMatch.Groups['commit'].Value.ToLowerInvariant()
+            $boundSourceCommit.ToLowerInvariant()
     ) {
         throw 'Remote evidence source commit does not match the local source revision.'
     }
@@ -234,6 +247,7 @@ try {
             skills_command = $SkillsCommand
         }
         source_package = $SourcePackage
+        expected_source_commit = $boundSourceCommit
         source_type = $SourceType
         verification_mode = $(if ($VerifyUpdate) { 'install_and_update' } else { 'install' })
         public_skill_count = $expectedSkills.Count
