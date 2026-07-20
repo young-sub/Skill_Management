@@ -1,6 +1,6 @@
 ---
 title: "WP-20260720-005: Verification And Evidence Hardening"
-status: in-progress
+status: completed
 labels:
   - test/eval
   - diagnostics
@@ -29,7 +29,7 @@ self-containment 검사를 절대경로·URI·cross-skill·reparse 경계까지 
 - Durable tracker: this file
 - Intake mode: `docs_grill_preflight`
 - Intent confidence: high
-- Status: `in-progress`
+- Status: `completed`
 - Dependency: independent of WP-003 implementation; brownfield acceptance fixtures should reuse its scenarios when available
 
 ## Background
@@ -283,30 +283,32 @@ powershell -NoProfile -File scripts/test-install.ps1 -VerifyUpdate
 - updated_at: 2026-07-20
 - source_ref: this Work Packet
 - updated_by: Codex main session
-- phase: run
+- phase: close
 - scope: validator, pilot, and evidence trust hardening
-- current gate: WP-005 TDD implementation
+- current gate: closed locally; independent document review remains before goal completion
 - accepted decisions: read-only pilots by default; revision-bound evidence; remote remains separately gated
 - open decisions: none identified
 - files read: distribution validator/tests, pilot/release evidence pointers, tracker/workflow config
-- files changed: this isolated Work Packet
+- files changed: self-containment/evidence validators, pilot/install evidence producers, release metadata, docs, archive records, tests, and this Work Packet
 - tracker/PR/doc mutations: local Work Packet only
 - tracker_channel: none
 - git_publish_state: local_only
 - tracker_publish_state: local_pending
 - published_body_ref:
-- verification evidence: documentation checks pending
-- delegated evidence: prior independent multi-agent review
-- risks: false positives from broader path detection
-- next mode: close after implementation and verification
-- next stop condition: evidence scope or provenance acceptance incomplete
+- verification evidence: 111/111 unit tests passed; 40/40 WP-005 focused tests passed; 3/3 revision-bound pilot baseline update passed; resource sync, evidence validation, distribution validation, and diff checks passed before final close edits
+- delegated evidence: independent document-specific review scheduled after all three Work Packets are implemented
+- risks: two governed self-containment allowlist entries require review; revision-bound local and remote install/update evidence remain not_verified until separately approved reruns
+- next mode: independent document review
+- next stop condition: a review finding or final verification failure
 
-## Close Report Skeleton
+## Close Report
 
-- Outcome:
-- Validator rules added:
-- Pilot determinism evidence:
-- Revision-bound evidence:
-- External checks run/unrun:
-- Docs updated:
-- Remaining risks:
+- Final status: completed
+- Outcome: expanded distribution self-containment checks, made pilot execution read-only by default, and bound release evidence to explicit clean Git commit/tree identities.
+- Validator rules added: `SC_RELATIVE_ESCAPE`, `SC_ABSOLUTE_PATH`, `SC_FILE_URI`, `SC_REPO_ROOT_REFERENCE`, `SC_CROSS_SKILL_REFERENCE`, `SC_MISSING_RESOURCE`, and `SC_REPARSE_ESCAPE`, with governed allowlist metadata and manifest closure checks.
+- Pilot determinism evidence: default execution writes only to a temporary directory; `--update-baseline` produced 3/3 normalized reports from clean commit `be3d08ffeb852ba76a02a65c4332ff3f1df0527a` and tree `2475e0963ba054d9a56f3418dddd7fdc510e101e`.
+- Revision-bound evidence: `scripts/validate_evidence.py` rejects stale, dirty, missing, or mislabeled passed proof; pilot proof passes for the candidate revision.
+- External checks run/unrun: no third-party `npx` install/update command was run; local-source install refresh and remote GitHub update remain separately `not_verified` because both require a fresh explicitly approved execution.
+- Docs updated: README, architecture inventory, release candidate metadata, and archived Work Packets now describe the implemented guarantees and snapshot/final distinction.
+- Verification: 111/111 unit tests; resource sync; evidence validation; distribution validation; `git diff --check`.
+- Remaining risks: governed scanner exceptions need periodic review; the approval-gated local/remote install evidence is intentionally not current release proof.

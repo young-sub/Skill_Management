@@ -1,5 +1,36 @@
 {
   "candidate_version": "2.0.0",
+  "evidence": {
+    "branch": "develop",
+    "catalog_sha256": "4c5cd3731faca439fe00ca460b95193757ccd5c752b07ff12992d0f81dbaedfe",
+    "command": [
+      "C:\\Python312\\python.exe",
+      "C:\\Users\\YS\\Desktop\\python\\Skill_Management\\scripts\\run-v2-pilots.py",
+      "--update-baseline"
+    ],
+    "cwd": "<repository-root>",
+    "dirty_paths": [],
+    "evidence_kind": "pilot_execution",
+    "generated_at": "normalized-at-baseline-update",
+    "git_commit": "be3d08ffeb852ba76a02a65c4332ff3f1df0527a",
+    "git_dirty": false,
+    "git_tree": "2475e0963ba054d9a56f3418dddd7fdc510e101e",
+    "providers": [],
+    "public_skill_count": 18,
+    "repository": "Skill_Management",
+    "resource_manifest_sha256": "de49a56853970a79af4887b4f646733bb7c31f64576ef5cd6bcfb7f128db5d16",
+    "result": "passed",
+    "schema_version": 1,
+    "source_package": "<repository-root>",
+    "source_type": "local_checkout",
+    "tool_versions": {
+      "git": "git version 2.50.1.windows.1",
+      "python": "3.12.10"
+    },
+    "unverified_checks": [
+      "remote_github_update"
+    ]
+  },
   "pilots": [
     {
       "active_leftovers": [],
@@ -7,7 +38,7 @@
       "command_evidence": [
         {
           "command": "python -m unittest tests.test_behavior.BehaviorTests.test_enforces_minimum",
-          "duration_seconds": 0.133,
+          "duration_bucket": "under-1s",
           "evidence": "measured subprocess returned 0",
           "kind": "Targeted",
           "returncode": 0,
@@ -18,7 +49,7 @@
         },
         {
           "command": "python -m unittest tests.test_behavior.BehaviorTests.test_enforces_minimum",
-          "duration_seconds": 0.122,
+          "duration_bucket": "under-1s",
           "evidence": "measured subprocess returned 0",
           "kind": "Feature",
           "returncode": 0,
@@ -29,7 +60,7 @@
         },
         {
           "command": "python -m compileall -q behavior.py tests",
-          "duration_seconds": 0.102,
+          "duration_bucket": "under-1s",
           "evidence": "measured subprocess returned 0",
           "kind": "Fast",
           "returncode": 0,
@@ -40,7 +71,7 @@
         },
         {
           "command": "python -m unittest discover -s tests -p test_*.py",
-          "duration_seconds": 0.113,
+          "duration_bucket": "under-1s",
           "evidence": "measured subprocess returned 0",
           "kind": "Full",
           "returncode": 0,
@@ -58,7 +89,7 @@
           "checks": [
             {
               "command": "python -m unittest tests.test_behavior.BehaviorTests.test_enforces_minimum",
-              "duration_seconds": 0.133,
+              "duration_bucket": "under-1s",
               "evidence": "measured subprocess returned 0",
               "kind": "Targeted",
               "returncode": 0,
@@ -69,7 +100,7 @@
             },
             {
               "command": "python -m unittest tests.test_behavior.BehaviorTests.test_enforces_minimum",
-              "duration_seconds": 0.122,
+              "duration_bucket": "under-1s",
               "evidence": "measured subprocess returned 0",
               "kind": "Feature",
               "returncode": 0,
@@ -80,7 +111,7 @@
             },
             {
               "command": "python -m compileall -q behavior.py tests",
-              "duration_seconds": 0.102,
+              "duration_bucket": "under-1s",
               "evidence": "measured subprocess returned 0",
               "kind": "Fast",
               "returncode": 0,
@@ -107,7 +138,7 @@
       "regression_evidence": {
         "green": {
           "command": "python -m unittest discover -s tests -p test_*.py",
-          "duration_seconds": 0.113,
+          "duration_bucket": "under-1s",
           "evidence": "measured subprocess returned 0",
           "kind": "Full",
           "returncode": 0,
@@ -118,7 +149,7 @@
         },
         "red": {
           "command": "python -m unittest discover -s tests -p test_*.py",
-          "duration_seconds": 0.151,
+          "duration_bucket": "under-1s",
           "evidence": "measured subprocess returned 1",
           "kind": "RED",
           "returncode": 1,
@@ -134,7 +165,7 @@
       "verification": [
         {
           "command": "python -m unittest tests.test_behavior.BehaviorTests.test_enforces_minimum",
-          "duration_seconds": 0.133,
+          "duration_bucket": "under-1s",
           "evidence": "1 measured subprocess check(s) passed",
           "kind": "Targeted",
           "returncode": 0,
@@ -143,7 +174,7 @@
         },
         {
           "command": "python -m unittest tests.test_behavior.BehaviorTests.test_enforces_minimum",
-          "duration_seconds": 0.122,
+          "duration_bucket": "under-1s",
           "evidence": "1 measured subprocess check(s) passed",
           "kind": "Feature",
           "returncode": 0,
@@ -152,7 +183,7 @@
         },
         {
           "command": "python -m compileall -q behavior.py tests",
-          "duration_seconds": 0.102,
+          "duration_bucket": "under-1s",
           "evidence": "1 measured subprocess check(s) passed",
           "kind": "Fast",
           "returncode": 0,
@@ -161,7 +192,7 @@
         },
         {
           "command": "python -m unittest discover -s tests -p test_*.py",
-          "duration_seconds": 0.113,
+          "duration_bucket": "under-1s",
           "evidence": "1 measured subprocess check(s) passed",
           "kind": "Full",
           "returncode": 0,
@@ -179,7 +210,7 @@
       "command_evidence": [
         {
           "command": "python -m unittest tests.test_behavior.BehaviorTests.test_formats_a_greeting",
-          "duration_seconds": 0.126,
+          "duration_bucket": "under-1s",
           "evidence": "measured subprocess returned 0",
           "kind": "Targeted",
           "returncode": 0,
@@ -190,7 +221,7 @@
         },
         {
           "command": "python -m unittest tests.test_behavior.BehaviorTests.test_formats_a_greeting",
-          "duration_seconds": 0.116,
+          "duration_bucket": "under-1s",
           "evidence": "measured subprocess returned 0",
           "kind": "Feature",
           "returncode": 0,
@@ -201,7 +232,7 @@
         },
         {
           "command": "python -m compileall -q behavior.py tests",
-          "duration_seconds": 0.096,
+          "duration_bucket": "under-1s",
           "evidence": "measured subprocess returned 0",
           "kind": "Fast",
           "returncode": 0,
@@ -212,7 +243,7 @@
         },
         {
           "command": "python -m unittest discover -s tests -p test_*.py",
-          "duration_seconds": 0.12,
+          "duration_bucket": "under-1s",
           "evidence": "measured subprocess returned 0",
           "kind": "Full",
           "returncode": 0,
@@ -230,7 +261,7 @@
           "checks": [
             {
               "command": "python -m unittest tests.test_behavior.BehaviorTests.test_formats_a_greeting",
-              "duration_seconds": 0.126,
+              "duration_bucket": "under-1s",
               "evidence": "measured subprocess returned 0",
               "kind": "Targeted",
               "returncode": 0,
@@ -241,7 +272,7 @@
             },
             {
               "command": "python -m unittest tests.test_behavior.BehaviorTests.test_formats_a_greeting",
-              "duration_seconds": 0.116,
+              "duration_bucket": "under-1s",
               "evidence": "measured subprocess returned 0",
               "kind": "Feature",
               "returncode": 0,
@@ -252,7 +283,7 @@
             },
             {
               "command": "python -m compileall -q behavior.py tests",
-              "duration_seconds": 0.096,
+              "duration_bucket": "under-1s",
               "evidence": "measured subprocess returned 0",
               "kind": "Fast",
               "returncode": 0,
@@ -279,7 +310,7 @@
       "regression_evidence": {
         "green": {
           "command": "python -m unittest discover -s tests -p test_*.py",
-          "duration_seconds": 0.12,
+          "duration_bucket": "under-1s",
           "evidence": "measured subprocess returned 0",
           "kind": "Full",
           "returncode": 0,
@@ -290,7 +321,7 @@
         },
         "red": {
           "command": "python -m unittest discover -s tests -p test_*.py",
-          "duration_seconds": 0.126,
+          "duration_bucket": "under-1s",
           "evidence": "measured subprocess returned 1",
           "kind": "RED",
           "returncode": 1,
@@ -306,7 +337,7 @@
       "verification": [
         {
           "command": "python -m unittest tests.test_behavior.BehaviorTests.test_formats_a_greeting",
-          "duration_seconds": 0.126,
+          "duration_bucket": "under-1s",
           "evidence": "1 measured subprocess check(s) passed",
           "kind": "Targeted",
           "returncode": 0,
@@ -315,7 +346,7 @@
         },
         {
           "command": "python -m unittest tests.test_behavior.BehaviorTests.test_formats_a_greeting",
-          "duration_seconds": 0.116,
+          "duration_bucket": "under-1s",
           "evidence": "1 measured subprocess check(s) passed",
           "kind": "Feature",
           "returncode": 0,
@@ -324,7 +355,7 @@
         },
         {
           "command": "python -m compileall -q behavior.py tests",
-          "duration_seconds": 0.096,
+          "duration_bucket": "under-1s",
           "evidence": "1 measured subprocess check(s) passed",
           "kind": "Fast",
           "returncode": 0,
@@ -333,7 +364,7 @@
         },
         {
           "command": "python -m unittest discover -s tests -p test_*.py",
-          "duration_seconds": 0.12,
+          "duration_bucket": "under-1s",
           "evidence": "1 measured subprocess check(s) passed",
           "kind": "Full",
           "returncode": 0,
@@ -351,7 +382,7 @@
       "command_evidence": [
         {
           "command": "python -m unittest tests.test_behavior.BehaviorTests.test_normalizes_input",
-          "duration_seconds": 0.143,
+          "duration_bucket": "under-1s",
           "evidence": "measured subprocess returned 0",
           "kind": "Targeted",
           "returncode": 0,
@@ -362,7 +393,7 @@
         },
         {
           "command": "python -m unittest tests.test_behavior.BehaviorTests.test_normalizes_input",
-          "duration_seconds": 0.115,
+          "duration_bucket": "under-1s",
           "evidence": "measured subprocess returned 0",
           "kind": "Feature",
           "returncode": 0,
@@ -373,7 +404,7 @@
         },
         {
           "command": "python -m compileall -q behavior.py tests",
-          "duration_seconds": 0.097,
+          "duration_bucket": "under-1s",
           "evidence": "measured subprocess returned 0",
           "kind": "Fast",
           "returncode": 0,
@@ -384,7 +415,7 @@
         },
         {
           "command": "python -m unittest tests.test_behavior.BehaviorTests.test_builds_slug",
-          "duration_seconds": 0.116,
+          "duration_bucket": "under-1s",
           "evidence": "measured subprocess returned 0",
           "kind": "Targeted",
           "returncode": 0,
@@ -395,7 +426,7 @@
         },
         {
           "command": "python -m unittest tests.test_behavior.BehaviorTests.test_normalizes_input tests.test_behavior.BehaviorTests.test_builds_slug",
-          "duration_seconds": 0.12,
+          "duration_bucket": "under-1s",
           "evidence": "measured subprocess returned 0",
           "kind": "Feature",
           "returncode": 0,
@@ -406,7 +437,7 @@
         },
         {
           "command": "python -m compileall -q behavior.py tests",
-          "duration_seconds": 0.101,
+          "duration_bucket": "under-1s",
           "evidence": "measured subprocess returned 0",
           "kind": "Fast",
           "returncode": 0,
@@ -417,7 +448,7 @@
         },
         {
           "command": "python -m unittest tests.test_behavior.BehaviorTests.test_builds_label",
-          "duration_seconds": 0.124,
+          "duration_bucket": "under-1s",
           "evidence": "measured subprocess returned 0",
           "kind": "Targeted",
           "returncode": 0,
@@ -428,7 +459,7 @@
         },
         {
           "command": "python -m unittest tests.test_behavior.BehaviorTests.test_normalizes_input tests.test_behavior.BehaviorTests.test_builds_slug tests.test_behavior.BehaviorTests.test_builds_label",
-          "duration_seconds": 0.117,
+          "duration_bucket": "under-1s",
           "evidence": "measured subprocess returned 0",
           "kind": "Feature",
           "returncode": 0,
@@ -439,7 +470,7 @@
         },
         {
           "command": "python -m compileall -q behavior.py tests",
-          "duration_seconds": 0.096,
+          "duration_bucket": "under-1s",
           "evidence": "measured subprocess returned 0",
           "kind": "Fast",
           "returncode": 0,
@@ -450,7 +481,7 @@
         },
         {
           "command": "python -m unittest discover -s tests -p test_*.py",
-          "duration_seconds": 0.118,
+          "duration_bucket": "under-1s",
           "evidence": "measured subprocess returned 0",
           "kind": "Full",
           "returncode": 0,
@@ -468,7 +499,7 @@
           "checks": [
             {
               "command": "python -m unittest tests.test_behavior.BehaviorTests.test_normalizes_input",
-              "duration_seconds": 0.143,
+              "duration_bucket": "under-1s",
               "evidence": "measured subprocess returned 0",
               "kind": "Targeted",
               "returncode": 0,
@@ -479,7 +510,7 @@
             },
             {
               "command": "python -m unittest tests.test_behavior.BehaviorTests.test_normalizes_input",
-              "duration_seconds": 0.115,
+              "duration_bucket": "under-1s",
               "evidence": "measured subprocess returned 0",
               "kind": "Feature",
               "returncode": 0,
@@ -490,7 +521,7 @@
             },
             {
               "command": "python -m compileall -q behavior.py tests",
-              "duration_seconds": 0.097,
+              "duration_bucket": "under-1s",
               "evidence": "measured subprocess returned 0",
               "kind": "Fast",
               "returncode": 0,
@@ -510,7 +541,7 @@
           "checks": [
             {
               "command": "python -m unittest tests.test_behavior.BehaviorTests.test_builds_slug",
-              "duration_seconds": 0.116,
+              "duration_bucket": "under-1s",
               "evidence": "measured subprocess returned 0",
               "kind": "Targeted",
               "returncode": 0,
@@ -521,7 +552,7 @@
             },
             {
               "command": "python -m unittest tests.test_behavior.BehaviorTests.test_normalizes_input tests.test_behavior.BehaviorTests.test_builds_slug",
-              "duration_seconds": 0.12,
+              "duration_bucket": "under-1s",
               "evidence": "measured subprocess returned 0",
               "kind": "Feature",
               "returncode": 0,
@@ -532,7 +563,7 @@
             },
             {
               "command": "python -m compileall -q behavior.py tests",
-              "duration_seconds": 0.101,
+              "duration_bucket": "under-1s",
               "evidence": "measured subprocess returned 0",
               "kind": "Fast",
               "returncode": 0,
@@ -552,7 +583,7 @@
           "checks": [
             {
               "command": "python -m unittest tests.test_behavior.BehaviorTests.test_builds_label",
-              "duration_seconds": 0.124,
+              "duration_bucket": "under-1s",
               "evidence": "measured subprocess returned 0",
               "kind": "Targeted",
               "returncode": 0,
@@ -563,7 +594,7 @@
             },
             {
               "command": "python -m unittest tests.test_behavior.BehaviorTests.test_normalizes_input tests.test_behavior.BehaviorTests.test_builds_slug tests.test_behavior.BehaviorTests.test_builds_label",
-              "duration_seconds": 0.117,
+              "duration_bucket": "under-1s",
               "evidence": "measured subprocess returned 0",
               "kind": "Feature",
               "returncode": 0,
@@ -574,7 +605,7 @@
             },
             {
               "command": "python -m compileall -q behavior.py tests",
-              "duration_seconds": 0.096,
+              "duration_bucket": "under-1s",
               "evidence": "measured subprocess returned 0",
               "kind": "Fast",
               "returncode": 0,
@@ -603,7 +634,7 @@
       "regression_evidence": {
         "green": {
           "command": "python -m unittest discover -s tests -p test_*.py",
-          "duration_seconds": 0.118,
+          "duration_bucket": "under-1s",
           "evidence": "measured subprocess returned 0",
           "kind": "Full",
           "returncode": 0,
@@ -614,7 +645,7 @@
         },
         "red": {
           "command": "python -m unittest discover -s tests -p test_*.py",
-          "duration_seconds": 0.125,
+          "duration_bucket": "under-1s",
           "evidence": "measured subprocess returned 1",
           "kind": "RED",
           "returncode": 1,
@@ -630,7 +661,7 @@
       "verification": [
         {
           "command": "python -m unittest tests.test_behavior.BehaviorTests.test_normalizes_input && python -m unittest tests.test_behavior.BehaviorTests.test_builds_slug && python -m unittest tests.test_behavior.BehaviorTests.test_builds_label",
-          "duration_seconds": 0.383,
+          "duration_bucket": "under-1s",
           "evidence": "3 measured subprocess check(s) passed",
           "kind": "Targeted",
           "returncode": 0,
@@ -639,7 +670,7 @@
         },
         {
           "command": "python -m unittest tests.test_behavior.BehaviorTests.test_normalizes_input && python -m unittest tests.test_behavior.BehaviorTests.test_normalizes_input tests.test_behavior.BehaviorTests.test_builds_slug && python -m unittest tests.test_behavior.BehaviorTests.test_normalizes_input tests.test_behavior.BehaviorTests.test_builds_slug tests.test_behavior.BehaviorTests.test_builds_label",
-          "duration_seconds": 0.352,
+          "duration_bucket": "under-1s",
           "evidence": "3 measured subprocess check(s) passed",
           "kind": "Feature",
           "returncode": 0,
@@ -648,7 +679,7 @@
         },
         {
           "command": "python -m compileall -q behavior.py tests && python -m compileall -q behavior.py tests && python -m compileall -q behavior.py tests",
-          "duration_seconds": 0.294,
+          "duration_bucket": "under-1s",
           "evidence": "3 measured subprocess check(s) passed",
           "kind": "Fast",
           "returncode": 0,
@@ -657,7 +688,7 @@
         },
         {
           "command": "python -m unittest discover -s tests -p test_*.py",
-          "duration_seconds": 0.118,
+          "duration_bucket": "under-1s",
           "evidence": "1 measured subprocess check(s) passed",
           "kind": "Full",
           "returncode": 0,

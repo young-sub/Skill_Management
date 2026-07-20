@@ -73,7 +73,7 @@ class DesignContractTests(unittest.TestCase):
 
     def test_approval_records_hash_and_contract_mutation_causes_hash_drift(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            root = Path(temp_dir)
+            root = Path(temp_dir) / "contract"
             copy_fixture("small", root)
 
             approved = run_engine(
