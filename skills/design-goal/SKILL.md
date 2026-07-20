@@ -18,7 +18,7 @@ description: Build an approvable implementation contract from repository evidenc
 3. Keep every Plan a vertical, independently verifiable slice. Record dependencies as a JSON-array literal in `depends_on`.
 4. Run `python scripts/contract_engine.py validate --root <contract-root> --work-root <work-root>`.
 5. Render `design-review.html` with `python scripts/render_design_review.py --root <contract-root> --output <contract-root>/design-review.html` and present the human-readable contract for approval.
-6. After an explicit human approval response, run `python scripts/contract_engine.py approve --root <contract-root> --approved-at <ISO-8601> --approved-by human`.
+6. After an explicit human approval response, run `python scripts/contract_engine.py approve --root <contract-root> --work-root <work-root> --approved-at <ISO-8601> --approved-by human`. Approval rechecks Work ID uniqueness in that work root; never reuse an earlier validation result.
 7. Re-run validation with `--require-approved`. Any contract hash drift requires new approval.
 
 The parser supports only the generated limited frontmatter and required `##` sections. Approval metadata, Plan runtime status, Results, Blocked reports, and Evidence section content are excluded from the canonical hash. Contract decisions, approval requirements, Plan identity, and dependencies are included.

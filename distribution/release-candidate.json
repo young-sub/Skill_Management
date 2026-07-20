@@ -32,6 +32,7 @@
     "status": "passed",
     "cli_version": "skills@1.5.19",
     "source_type": "local",
+    "comparison_scope": "complete_relative_file_set_sha256",
     "install": {
       "status": "passed",
       "public_skill_count": 18,
@@ -49,7 +50,10 @@
     },
     "remote_github_update": {
       "status": "not_verified",
-      "scope": "post-release"
+      "scope": "release_gate_requires_explicit_network_approval",
+      "source_package": "young-sub/Skill_Management",
+      "command": "powershell -NoProfile -File scripts/test-install.ps1 -RepositoryRoot . -SourcePackage young-sub/Skill_Management -SourceType github -VerifyUpdate -EvidencePath distribution/evidence/remote-github-update.json",
+      "evidence_path": "distribution/evidence/remote-github-update.json"
     }
   },
   "pilot_report": "../docs/pilots/harness-v2-pilots.json"

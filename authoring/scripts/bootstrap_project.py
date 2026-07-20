@@ -122,13 +122,120 @@ def classify(root: Path) -> str:
     return "NEW_UNCONFIGURED"
 
 
-def _command_exists(command: list[str]) -> bool:
+def _path_is_reparse(path: Path) -> bool:
+    try:
+        if path.is_symlink():
+            return True
+        is_junction = getattr(path, "is_junction", None)
+        if is_junction is not None and is_junction():
+            return True
+        attributes = getattr(path.lstat(), "st_file_attributes", 0)
+        reparse_flag = getattr(__import__("stat"), "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+        return bool(attributes & reparse_flag)
+    except OSError:
+        return False
+
+
+def _within(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
+def _existing_components(root: Path, target: Path) -> list[Path]:
+    components = [root]
+    relative = target.relative_to(root)
+    current = root
+    for part in relative.parts:
+        current = current / part
+        if current.exists() or current.is_symlink():
+            components.append(current)
+        else:
+            break
+    return components
+
+
+def _unsafe_write_target(root: Path, target: Path) -> str | None:
+    root = root.absolute()
+    target = target.absolute()
+    if not _within(target, root):
+        return "target_outside_root"
+    for component in _existing_components(root, target):
+        if _path_is_reparse(component):
+            return f"reparse_component:{component}"
+    resolved_root = root.resolve()
+    existing_parent = target.parent
+    while not existing_parent.exists() and existing_parent != root:
+        existing_parent = existing_parent.parent
+    try:
+        resolved_parent = existing_parent.resolve(strict=True)
+    except OSError:
+        return f"unresolvable_parent:{existing_parent}"
+    if not _within(resolved_parent, resolved_root):
+        return f"resolved_parent_outside_root:{existing_parent}"
+    return None
+
+
+def _write_targets(root: Path) -> list[Path]:
+    relative_paths = (
+        "AGENTS.md",
+        "CLAUDE.md",
+        "TESTING.md",
+        ".harness/project.yaml",
+        ".gitignore",
+        ".work/active",
+        ".work/archive",
+        ".work/trash",
+    )
+    return [root / relative for relative in relative_paths]
+
+
+def _unsafe_targets(root: Path) -> list[dict[str, str]]:
+    findings: list[dict[str, str]] = []
+    for target in _write_targets(root):
+        reason = _unsafe_write_target(root, target)
+        if reason:
+            findings.append(
+                {"path": target.relative_to(root).as_posix(), "reason": reason}
+            )
+    return findings
+
+
+def _command_exists(root: Path, command: list[str]) -> bool:
     if not command or not all(isinstance(part, str) and part for part in command):
         return False
     executable = command[0]
-    if Path(executable).is_absolute() or os.sep in executable or "/" in executable:
-        return Path(executable).is_file()
+    executable_path = Path(executable)
+    if executable_path.is_absolute():
+        return executable_path.is_file()
+    if os.sep in executable or "/" in executable or "\\" in executable:
+        candidate = (root / executable_path).absolute()
+        try:
+            resolved_root = root.resolve(strict=True)
+            resolved = candidate.resolve(strict=True)
+        except OSError:
+            return False
+        return (
+            _within(resolved, resolved_root)
+            and candidate.is_file()
+            and _unsafe_write_target(root, candidate) is None
+        )
     return shutil.which(executable) is not None
+
+
+def _execution_command(root: Path, command: list[str]) -> list[str]:
+    executable = Path(command[0])
+    if executable.is_absolute() or not (
+        os.sep in command[0] or "/" in command[0] or "\\" in command[0]
+    ):
+        return command
+    resolved = str((root / executable).resolve(strict=True))
+    normalized = [resolved, *command[1:]]
+    if os.name == "nt" and Path(resolved).suffix.lower() in {".bat", ".cmd"}:
+        return [os.environ.get("COMSPEC", "cmd.exe"), "/d", "/c", *normalized]
+    return normalized
 
 
 def verify_commands(root: Path, encoded_commands: list[str]) -> dict[str, list[dict[str, Any]]]:
@@ -140,12 +247,12 @@ def verify_commands(root: Path, encoded_commands: list[str]) -> dict[str, list[d
         except json.JSONDecodeError:
             rejected.append({"input": encoded, "reason": "invalid_json"})
             continue
-        if not isinstance(value, list) or not _command_exists(value):
+        if not isinstance(value, list) or not _command_exists(root, value):
             rejected.append({"command": value, "reason": "command_not_found"})
             continue
         try:
             result = subprocess.run(
-                value,
+                _execution_command(root, value),
                 cwd=root,
                 capture_output=True,
                 text=True,
@@ -325,7 +432,7 @@ def validate(root: Path) -> list[str]:
     if agents is not None and _config_sha(config) != instruction_hash(agents):
         errors.append("instruction_hash_drift")
     for command in _recorded_commands(config):
-        if not _command_exists(command):
+        if not _command_exists(root, command):
             errors.append("recorded_command_not_found")
     return list(dict.fromkeys(errors))
 
@@ -347,7 +454,7 @@ def _parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = _parser().parse_args()
-    root = args.root.resolve()
+    root = args.root.absolute()
     if args.action == "hash":
         content = _read_bytes(root / "AGENTS.md")
         if content is None:
@@ -365,6 +472,15 @@ def main() -> int:
     if not args.approve:
         print(json.dumps({"status": "approval_required"}))
         return 3
+    unsafe_targets = _unsafe_targets(root)
+    if unsafe_targets:
+        print(
+            json.dumps(
+                {"status": "unsafe_target", "unsafe_targets": unsafe_targets},
+                indent=2,
+            )
+        )
+        return 4
     preliminary = build_plan(root)
     if preliminary["conflicts"]:
         payload = _public_plan(preliminary)

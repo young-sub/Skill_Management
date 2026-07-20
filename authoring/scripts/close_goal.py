@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 from pathlib import Path
 import re
@@ -16,6 +17,20 @@ from render_completion_review import render_review, template_path
 
 
 TEXT_DOCUMENT_SUFFIXES = {".md", ".txt", ".rst", ".adoc", ".html", ".json", ".yaml", ".yml"}
+REQUIRED_CHECKS = {"targeted", "feature", "fast", "full"}
+
+
+def _load_engine() -> Any:
+    path = Path(__file__).with_name("contract_engine.py")
+    spec = importlib.util.spec_from_file_location("harness_close_contract_engine", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("contract_engine_unavailable")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+ENGINE = _load_engine()
 
 
 def _object(path: Path) -> dict[str, Any]:
@@ -55,7 +70,7 @@ def _tracked_work_references(source_root: Path) -> list[str]:
         ["git", "ls-files", "-z"], cwd=source_root, capture_output=True, check=False
     )
     if result.returncode:
-        return []
+        return ["git_ls_files_failed"]
     errors: list[str] = []
     for raw in result.stdout.split(b"\0"):
         if not raw:
@@ -85,6 +100,56 @@ def _checks(value: Any) -> list[dict[str, str]]:
             status = "unverified"
         normalized.append({**{str(k): str(v) for k, v in item.items()}, "kind": kind, "status": status})
     return normalized
+
+
+def _verification_errors(checks: list[dict[str, str]]) -> list[str]:
+    errors: list[str] = []
+    by_kind: dict[str, list[dict[str, str]]] = {}
+    for check in checks:
+        by_kind.setdefault(check["kind"].lower(), []).append(check)
+    for kind in sorted(REQUIRED_CHECKS):
+        entries = by_kind.get(kind, [])
+        if len(entries) != 1:
+            errors.append(f"required_check_count:{kind}:{len(entries)}")
+            continue
+        check = entries[0]
+        if check.get("status") != "passed":
+            errors.append(f"required_check_not_passed:{kind}")
+        if not check.get("command", "").strip():
+            errors.append(f"required_check_missing_command:{kind}")
+        if not check.get("evidence", "").strip():
+            errors.append(f"required_check_missing_evidence:{kind}")
+        if check.get("returncode") != "0":
+            errors.append(f"required_check_returncode:{kind}")
+    for kind in ("live", "eval"):
+        for check in by_kind.get(kind, []):
+            if check.get("status") not in {"passed", "failed", "unverified"}:
+                errors.append(f"invalid_optional_check_status:{kind}")
+    return errors
+
+
+def _completion_errors(contract_root: Path, source_root: Path) -> tuple[list[str], list[Any], dict[str, Any]]:
+    payload, _, documents = ENGINE.validate_contract(contract_root, source_root / ".work")
+    errors = list(payload.get("errors", []))
+    if payload.get("approval_status") != "approved":
+        errors.append("approval_required")
+    if not payload.get("executable"):
+        errors.append("contract_not_executable")
+    plans = [document for document in documents if document.kind == "plan"]
+    if plans:
+        errors.extend(
+            f"plan_not_completed:{document.metadata.get('plan_id', 'missing')}"
+            for document in plans if document.metadata.get("status") != "completed"
+        )
+    elif any(document.kind == "spec" for document in documents):
+        state_path = contract_root / "runtime-state.json"
+        try:
+            state = _object(state_path)
+            if state != {"SPEC": "completed"}:
+                errors.append("spec_not_completed")
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+            errors.append("spec_not_completed")
+    return errors, documents, payload
 
 
 def _handoff_target(source_root: Path) -> str:
@@ -156,14 +221,15 @@ def main() -> int:
         if contract_root.parent != active_root:
             raise ValueError("contract_root_must_be_direct_active_work")
         contract_path, contract = _contract_document(contract_root)
-        work_id = _metadata(contract).get("work_id", contract_root.name)
+        contract_errors, _, contract_payload = _completion_errors(contract_root, source_root)
+        work_id = str(contract_payload.get("work_id") or _metadata(contract).get("work_id", contract_root.name))
         if work_id != contract_root.name or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", work_id):
             raise ValueError("invalid_work_id")
         findings = _object(args.findings).get("findings", [])
         if not isinstance(findings, list) or any(not isinstance(item, dict) for item in findings):
             raise ValueError("findings_must_be_list")
         checks = _checks(_object(args.verification).get("checks", []))
-        errors = _tracked_work_references(source_root)
+        errors = contract_errors + _verification_errors(checks) + _tracked_work_references(source_root)
         if any(str(item.get("severity", "")).lower() == "high" for item in findings):
             errors.append("high_finding")
         archive = source_root / ".work" / "archive" / args.current_month / work_id

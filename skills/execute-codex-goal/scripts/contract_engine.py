@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/contract_engine.py
-# Source-SHA256: b31c10835f2579d76d76d8e0ec7856c5aab5d84e36f049b277ccaf8bc8cc858c
+# Source-SHA256: 5f46e58318cee8ed5b432689f0bd0e73493db31c21a9e7957f0e4c3f1fa92480
 
 #!/usr/bin/env python3
 """Validate and approve the generated Harness V2 Markdown contract schema."""
@@ -327,7 +327,7 @@ def build_parser() -> argparse.ArgumentParser:
     for command in ("validate", "hash", "approve"):
         child = subparsers.add_parser(command)
         child.add_argument("--root", type=Path, required=True)
-        child.add_argument("--work-root", type=Path)
+        child.add_argument("--work-root", type=Path, required=command == "approve")
         if command == "validate":
             child.add_argument("--require-approved", action="store_true")
         if command == "approve":

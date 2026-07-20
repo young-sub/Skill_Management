@@ -1,5 +1,6 @@
 from hashlib import sha256
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -27,6 +28,16 @@ def run_bootstrap(root: Path, action: str, *extra: str) -> subprocess.CompletedP
 
 
 class SetupAgentHarnessTests(unittest.TestCase):
+    def _write_relative_command(self, directory: Path, name: str) -> str:
+        if os.name == "nt":
+            path = directory / f"{name}.cmd"
+            path.write_text("@echo off\r\ncd\r\n", encoding="utf-8")
+            return f".\\{path.name}"
+        path = directory / name
+        path.write_text("#!/bin/sh\npwd\n", encoding="utf-8")
+        path.chmod(0o755)
+        return f"./{path.name}"
+
     def test_classifies_new_partial_overgrown_and_drift_repositories(self) -> None:
         cases = {
             "NEW_UNCONFIGURED": {},
@@ -125,6 +136,82 @@ class SetupAgentHarnessTests(unittest.TestCase):
             self.assertIn(".work/", (root / ".gitignore").read_text(encoding="utf-8"))
             for relative_path in (".work/active", ".work/archive", ".work/trash"):
                 self.assertTrue((root / relative_path).is_dir(), relative_path)
+
+    def test_relative_executable_is_resolved_and_run_from_project_root(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            command = self._write_relative_command(root, "verify-root")
+
+            result = run_bootstrap(
+                root,
+                "apply",
+                "--approve",
+                "--verify-command-json",
+                json.dumps([command]),
+            )
+
+            payload = json.loads(result.stdout)
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            self.assertEqual(payload["verification"]["rejected"], [])
+            observed = payload["verification"]["recorded"][0]["stdout"].strip()
+            self.assertEqual(Path(observed).resolve(), root.resolve())
+
+    def test_relative_executable_in_caller_cwd_is_not_accepted_for_project(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            parent = Path(temp_dir)
+            root = parent / "project"
+            caller = parent / "caller"
+            root.mkdir()
+            caller.mkdir()
+            command = self._write_relative_command(caller, "caller-only")
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(BOOTSTRAP),
+                    "apply",
+                    "--root",
+                    str(root),
+                    "--approve",
+                    "--verify-command-json",
+                    json.dumps([command]),
+                ],
+                cwd=caller,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            payload = json.loads(result.stdout)
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            self.assertEqual(payload["verification"]["recorded"], [])
+            self.assertEqual(
+                payload["verification"]["rejected"][0]["reason"],
+                "command_not_found",
+            )
+
+    def test_apply_rejects_reparse_component_without_external_write(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            parent = Path(temp_dir)
+            root = parent / "project"
+            external = parent / "external"
+            root.mkdir()
+            external.mkdir()
+            sentinel = external / "sentinel.txt"
+            sentinel.write_text("unchanged\n", encoding="utf-8")
+            try:
+                os.symlink(external, root / ".harness", target_is_directory=True)
+            except OSError as error:
+                self.skipTest(f"directory symlink unavailable: {error}")
+
+            result = run_bootstrap(root, "apply", "--approve")
+
+            payload = json.loads(result.stdout)
+            self.assertNotEqual(result.returncode, 0, result.stderr + result.stdout)
+            self.assertEqual(payload["status"], "unsafe_target")
+            self.assertEqual(sentinel.read_text(encoding="utf-8"), "unchanged\n")
+            self.assertFalse((external / "project.yaml").exists())
+            self.assertFalse((root / "AGENTS.md").exists())
 
     def test_apply_requires_explicit_approval(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

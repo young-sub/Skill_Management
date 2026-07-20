@@ -323,7 +323,7 @@ def build_parser() -> argparse.ArgumentParser:
     for command in ("validate", "hash", "approve"):
         child = subparsers.add_parser(command)
         child.add_argument("--root", type=Path, required=True)
-        child.add_argument("--work-root", type=Path)
+        child.add_argument("--work-root", type=Path, required=command == "approve")
         if command == "validate":
             child.add_argument("--require-approved", action="store_true")
         if command == "approve":

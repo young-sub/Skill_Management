@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/goal_runtime.py
-# Source-SHA256: c3d7c4521e5bec5d02c6bba1411ba9e6ee4fdb8cb69a2b097b94196c36311e77
+# Source-SHA256: 0be49ad0323c7a1197a6f5a80a7d7644f18b3add32c83583e51895785678db1a
 
 #!/usr/bin/env python3
 """Execute an approved Harness V2 contract inside a human-declared Goal."""
@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime
 from hashlib import sha256
 import importlib.util
 import json
@@ -31,6 +32,7 @@ def _load_engine() -> Any:
 
 ENGINE = _load_engine()
 RUNTIME_STATUSES = {"pending", "in_progress", "completed", "blocked"}
+BLOCK_TRANSACTION = ".block-transaction.json"
 
 
 def _digest(path: Path) -> str:
@@ -42,6 +44,36 @@ def _json(path: Path) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ValueError("expected_object")
     return value
+
+
+def _objective_fingerprint(state: dict[str, Any]) -> str:
+    encoded = json.dumps(
+        {"goal_id": state["goal_id"], "objective": state["objective"]},
+        ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")
+    return "sha256:" + sha256(encoded).hexdigest()
+
+
+def _validate_goal_state(state: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    if state.get("active") is not True:
+        errors.append("inactive_goal")
+    for field in ("goal_id", "retrieved_at", "host"):
+        if not isinstance(state.get(field), str) or not state[field].strip():
+            errors.append(f"invalid_goal_state:{field}")
+    if isinstance(state.get("retrieved_at"), str) and state["retrieved_at"].strip():
+        try:
+            datetime.fromisoformat(state["retrieved_at"])
+        except ValueError:
+            errors.append("invalid_goal_state:retrieved_at")
+    objective = state.get("objective")
+    if not isinstance(objective, dict):
+        errors.append("missing_objective")
+    else:
+        for field in ("work_id", "contract_path", "contract_hash"):
+            if not isinstance(objective.get(field), str) or not objective[field].strip():
+                errors.append(f"invalid_goal_state:objective.{field}")
+    return errors
 
 
 def _declaration_payload(state: dict[str, Any]) -> str:
@@ -98,19 +130,44 @@ def _spec_status(contract_root: Path) -> str:
     return status
 
 
-def preflight(contract_root: Path, source_root: Path, goal_state: Path) -> tuple[dict[str, Any], int, list[Any]]:
+def _baseline_path(goal_state: Path) -> Path:
+    return goal_state.with_name(goal_state.name + ".dirty-baseline.json")
+
+
+def _load_or_create_baseline(goal_state: Path, source_root: Path, state: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
+    path = _baseline_path(goal_state)
+    fingerprint = _objective_fingerprint(state)
+    if path.exists():
+        try:
+            baseline = _json(path)
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
+            return None, [f"invalid_dirty_baseline:{error}"]
+        if baseline.get("goal_id") != state["goal_id"] or baseline.get("objective_fingerprint") != fingerprint:
+            return None, ["dirty_baseline_identity_mismatch"]
+        dirty = baseline.get("dirty_baseline")
+        if not isinstance(dirty, dict) or not isinstance(dirty.get("file_hashes"), dict) or not isinstance(dirty.get("git_status"), list):
+            return None, ["invalid_dirty_baseline:schema"]
+        return baseline, []
+    baseline = {
+        "goal_id": state["goal_id"],
+        "objective_fingerprint": fingerprint,
+        "dirty_baseline": {"file_hashes": _file_hashes(source_root), "git_status": _git_status(source_root)},
+    }
+    _atomic_text(path, json.dumps(baseline, ensure_ascii=False, sort_keys=True) + "\n")
+    return baseline, []
+
+
+def preflight(contract_root: Path, source_root: Path, goal_state: Path, *, allow_block_recovery: bool = False) -> tuple[dict[str, Any], int, list[Any]]:
     errors: list[str] = []
     try:
         state = _json(goal_state)
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
         return {"status": "rejected", "errors": [f"invalid_goal_state:{error}"]}, 2, []
+    errors.extend(_validate_goal_state(state))
     objective = state.get("objective")
     if not isinstance(objective, dict):
         objective = {}
         errors.append("missing_objective")
-    if state.get("active") is not True:
-        errors.append("inactive_goal")
-
     resolved_contract = contract_root.resolve()
     contract_payload, contract_code, documents = ENGINE.validate_contract(resolved_contract, None)
     approval = ENGINE.approval_document(documents)
@@ -143,6 +200,16 @@ def preflight(contract_root: Path, source_root: Path, goal_state: Path) -> tuple
             _spec_status(resolved_contract)
         except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
             errors.append(str(error))
+    else:
+        in_progress = [
+            document for document in documents
+            if document.kind == "plan" and document.metadata.get("status") == "in_progress"
+        ]
+        if len(in_progress) > 1:
+            errors.append("multiple_in_progress_plans")
+
+    if (resolved_contract / BLOCK_TRANSACTION).exists() and not allow_block_recovery:
+        errors.append("incomplete_block_transaction")
 
     if errors:
         payload: dict[str, Any] = {"status": "rejected", "errors": sorted(set(errors))}
@@ -150,6 +217,13 @@ def preflight(contract_root: Path, source_root: Path, goal_state: Path) -> tuple
             payload["Goal declaration payload"] = _declaration_payload(state)
         return payload, 4 if any("drift" in error for error in errors) else 2, documents
 
+    try:
+        baseline, baseline_errors = _load_or_create_baseline(goal_state, source_root, state)
+    except OSError as error:
+        baseline, baseline_errors = None, [f"dirty_baseline_write_failed:{error}"]
+    if baseline_errors:
+        return {"status": "rejected", "errors": baseline_errors}, 2, documents
+    assert baseline is not None
     payload = {
         "status": "ready",
         "work_id": contract_payload["work_id"],
@@ -158,10 +232,8 @@ def preflight(contract_root: Path, source_root: Path, goal_state: Path) -> tuple
         "verification_order": ["targeted", "feature", "fast"],
         "live_enabled": False,
         "eval_enabled": False,
-        "dirty_baseline": {
-            "file_hashes": _file_hashes(source_root),
-            "git_status": _git_status(source_root),
-        },
+        "dirty_baseline": baseline["dirty_baseline"],
+        "dirty_baseline_path": str(_baseline_path(goal_state)),
     }
     return payload, 0, documents
 
@@ -276,16 +348,50 @@ Plan {plan_id} is blocked before further implementation.
 """
 
 
+def _recovery_blocked_document(work_id: str, plan_id: str) -> str:
+    return f"""---
+work_id: {work_id}
+kind: blocked
+---
+
+## Blocker
+
+Recovered an interrupted block transaction.
+
+## Impact
+
+Plan {plan_id} remains paused.
+
+## Evidence
+
+The durable transaction marker proved the interrupted operation.
+
+## Attempts
+
+The explicit recovery command completed safe ordering.
+
+## Resume Conditions
+
+Resolve the original blocker and use explicit approved resume.
+"""
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     commands = parser.add_subparsers(dest="command", required=True)
-    for name in ("preflight", "next", "start", "complete", "block", "evidence"):
+    for name in ("preflight", "next", "start", "complete", "block", "resume", "recover-block", "evidence"):
         child = commands.add_parser(name)
         child.add_argument("--contract-root", type=Path, required=True)
         child.add_argument("--source-root", type=Path, required=True)
         child.add_argument("--goal-state", type=Path, required=True)
         if name in {"complete", "block"}:
             child.add_argument("--plan-id", required=True)
+        if name == "resume":
+            child.add_argument("--plan-id", required=True)
+            child.add_argument("--resolution-evidence", required=True)
+            child.add_argument("--approve-resume", action="store_true")
+        if name == "recover-block":
+            child.add_argument("--approve-recovery", action="store_true")
         if name == "block":
             child.add_argument("--reason", required=True)
             child.add_argument("--evidence", required=True)
@@ -302,7 +408,10 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
     contract_root = args.contract_root.resolve()
-    payload, code, documents = preflight(contract_root, args.source_root.resolve(), args.goal_state.resolve())
+    payload, code, documents = preflight(
+        contract_root, args.source_root.resolve(), args.goal_state.resolve(),
+        allow_block_recovery=args.command == "recover-block",
+    )
     if code:
         print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
         return code
@@ -313,7 +422,41 @@ def main() -> int:
     plans = _plans(documents)
     spec_only = _is_spec_only(documents)
     try:
-        if args.command == "next":
+        if args.command == "recover-block":
+            if not args.approve_recovery:
+                raise ValueError("recovery_approval_required")
+            marker_path = contract_root / BLOCK_TRANSACTION
+            if not marker_path.is_file():
+                raise ValueError("no_incomplete_block_transaction")
+            marker = _json(marker_path)
+            plan_id = str(marker.get("plan_id", ""))
+            if plan_id != "SPEC" and plan_id not in plans:
+                raise ValueError(f"unknown_plan:{plan_id}")
+            blocked_path = contract_root / "BLOCKED.md"
+            if not blocked_path.exists():
+                _atomic_text(
+                    blocked_path,
+                    str(marker.get("blocked_text") or _recovery_blocked_document(payload["work_id"], plan_id)),
+                )
+            if spec_only and plan_id == "SPEC":
+                current = _spec_status(contract_root)
+                if current == "in_progress":
+                    result = _transition_spec(contract_root, "in_progress", "blocked")
+                elif current == "blocked":
+                    result = {"plan_id": "SPEC", "transition": "blocked->blocked"}
+                else:
+                    raise ValueError("invalid_block_recovery_state")
+            else:
+                current = plans[plan_id].metadata.get("status")
+                if current == "in_progress":
+                    result = _transition(plans[plan_id], "in_progress", "blocked")
+                elif current == "blocked":
+                    result = {"plan_id": plan_id, "transition": "blocked->blocked"}
+                else:
+                    raise ValueError("invalid_block_recovery_state")
+            marker_path.unlink()
+            result.update({"status": "blocked", "blocked_document": str(blocked_path), "recovered": True})
+        elif args.command == "next":
             if spec_only:
                 result = {
                     "status": "ready",
@@ -326,6 +469,8 @@ def main() -> int:
             if spec_only:
                 result = _transition_spec(contract_root, "pending", "in_progress")
             else:
+                if any(plan.metadata.get("status") == "in_progress" for plan in plans.values()):
+                    raise ValueError("plan_already_in_progress")
                 plan = next_plan(documents, payload["plan_order"])
                 if plan is None:
                     raise ValueError("no_dependency_ready_plan")
@@ -343,21 +488,50 @@ def main() -> int:
                 raise ValueError("evidence_data_must_be_object")
             evidence_path = _append_evidence(contract_root, {"kind": args.kind, "data": data})
             result = {"status": "recorded", "path": str(evidence_path)}
-        else:
+        elif args.command == "resume":
+            if not args.approve_resume:
+                raise ValueError("resume_approval_required")
+            if not args.resolution_evidence.strip():
+                raise ValueError("resolution_evidence_required")
+            blocked_path = contract_root / "BLOCKED.md"
+            if not blocked_path.is_file():
+                raise ValueError("blocked_document_required")
+            resolved_path = contract_root / "resolved-blocks" / f"{args.plan_id}.md"
+            if resolved_path.exists():
+                raise ValueError("resolved_block_evidence_exists")
+            resolved_text = blocked_path.read_text(encoding="utf-8") + f"\n## Resolution Evidence\n\n{args.resolution_evidence}\n"
+            _atomic_text(resolved_path, resolved_text)
+            _append_evidence(
+                contract_root,
+                {"kind": "resolved_block", "data": {"plan_id": args.plan_id, "evidence": args.resolution_evidence}},
+            )
             if spec_only and args.plan_id == "SPEC":
-                result = _transition_spec(contract_root, "in_progress", "blocked")
+                result = _transition_spec(contract_root, "blocked", "pending")
             elif args.plan_id not in plans:
                 raise ValueError(f"unknown_plan:{args.plan_id}")
             else:
-                result = _transition(plans[args.plan_id], "in_progress", "blocked")
+                result = _transition(plans[args.plan_id], "blocked", "pending")
+            blocked_path.unlink()
+            result.update({"status": "resumed", "resolved_block": str(resolved_path)})
+        else:
+            if not (spec_only and args.plan_id == "SPEC") and args.plan_id not in plans:
+                raise ValueError(f"unknown_plan:{args.plan_id}")
             completed = [] if spec_only else sorted(
                 plan_id for plan_id, plan in plans.items() if plan.metadata.get("status") == "completed"
             )
             blocked_path = contract_root / "BLOCKED.md"
+            blocked_text = _blocked_document(payload["work_id"], args.plan_id, completed, args)
+            marker_path = contract_root / BLOCK_TRANSACTION
             _atomic_text(
-                blocked_path,
-                _blocked_document(payload["work_id"], args.plan_id, completed, args),
+                marker_path,
+                json.dumps({"plan_id": args.plan_id, "blocked_document": "BLOCKED.md", "blocked_text": blocked_text}, ensure_ascii=False, sort_keys=True) + "\n",
             )
+            _atomic_text(blocked_path, blocked_text)
+            if spec_only and args.plan_id == "SPEC":
+                result = _transition_spec(contract_root, "in_progress", "blocked")
+            else:
+                result = _transition(plans[args.plan_id], "in_progress", "blocked")
+            marker_path.unlink()
             result.update({"status": "blocked", "blocked_document": str(blocked_path)})
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
         print(json.dumps({"status": "rejected", "errors": [str(error)]}, sort_keys=True))

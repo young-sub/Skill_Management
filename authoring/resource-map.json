@@ -29,7 +29,8 @@
       "source": "scripts/contract_engine.py",
       "targets": [
         "design-goal/scripts/contract_engine.py",
-        "execute-codex-goal/scripts/contract_engine.py"
+        "execute-codex-goal/scripts/contract_engine.py",
+        "close-goal/scripts/contract_engine.py"
       ]
     },
     {
@@ -128,6 +129,12 @@
       "source": "scripts/maintain_harness.py",
       "targets": [
         "maintain-agent-harness/scripts/maintain_harness.py"
+      ]
+    },
+    {
+      "source": "public-resource-manifest.json",
+      "targets": [
+        "maintain-agent-harness/resources/public-resource-manifest.json"
       ]
     }
   ]

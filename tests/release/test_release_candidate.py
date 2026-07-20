@@ -39,8 +39,22 @@ class ReleaseCandidateTests(unittest.TestCase):
         self.assertIn("v2.0.0 release candidate", readme)
         self.assertIn("-VerifyUpdate", readme)
         self.assertIn("run-v2-pilots.py", readme)
-        self.assertIn("repo-local helper simulations", readme)
+        self.assertIn("real temporary implementation cycles", readme)
+        self.assertIn("complete relative file set and SHA256", readme)
+        self.assertIn("-SourcePackage young-sub/Skill_Management", readme)
+        self.assertIn("-SourceType github", readme)
+        self.assertIn("-EvidencePath", readme)
         self.assertIn("requires explicit approval", readme)
+
+    def test_remote_update_remains_unverified_with_an_executable_evidence_contract(self) -> None:
+        candidate = json.loads((ROOT / "distribution" / "release-candidate.json").read_text(encoding="utf-8"))
+        smoke = candidate["external_install_smoke"]
+        self.assertEqual(smoke["comparison_scope"], "complete_relative_file_set_sha256")
+        remote = smoke["remote_github_update"]
+        self.assertEqual(remote["status"], "not_verified")
+        self.assertEqual(remote["source_package"], "young-sub/Skill_Management")
+        self.assertIn("-SourceType github", remote["command"])
+        self.assertTrue(remote["evidence_path"].endswith(".json"))
 
 
 if __name__ == "__main__":

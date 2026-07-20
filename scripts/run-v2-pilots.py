@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from typing import Any
 
 
@@ -159,7 +160,7 @@ def write_contract(contract: Path, work_id: str, kind: str, plans: tuple[str, ..
     plan_root = contract / "plans"
     plan_root.mkdir()
     for index, plan_id in enumerate(plans):
-        dependencies = () if index == 0 else ((plans[0],) if len(plans) > 1 else ())
+        dependencies = () if index == 0 else (plans[index - 1],)
         (plan_root / f"{plan_id}.md").write_text(
             plan_document(work_id, plan_id, dependencies), encoding="utf-8", newline="\n"
         )
@@ -175,18 +176,131 @@ def runtime_command(contract: Path, source: Path, state: Path, command: str, *ex
     )
 
 
-def verification_records(plan_count: int) -> list[dict[str, Any]]:
-    seconds = (0.02, 0.04, 0.08, 0.16)
-    return [
-        {
-            "kind": kind,
-            "status": "passed",
-            "count": plan_count,
-            "duration_seconds": duration * plan_count,
-            "timing_mode": "simulated",
-        }
-        for kind, duration in zip(("Targeted", "Feature", "Fast", "Full"), seconds)
-    ]
+def fixture_files(pilot_type: str) -> tuple[str, str, dict[str, str], dict[str, tuple[str, ...]]]:
+    if pilot_type == "small-spec-bug-fix":
+        initial = "def bounded(value, minimum):\n    return value\n"
+        test = '''import unittest
+from behavior import bounded
+
+class BehaviorTests(unittest.TestCase):
+    def test_enforces_minimum(self):
+        self.assertEqual(bounded(2, 5), 5)
+'''
+        changes = {"SPEC": "def bounded(value, minimum):\n    return max(value, minimum)\n"}
+        tests = {"SPEC": ("tests.test_behavior.BehaviorTests.test_enforces_minimum",)}
+        return initial, test, changes, tests
+    if pilot_type == "normal-goal-feature":
+        initial = "def greeting(name):\n    return name\n"
+        test = '''import unittest
+from behavior import greeting
+
+class BehaviorTests(unittest.TestCase):
+    def test_formats_a_greeting(self):
+        self.assertEqual(greeting("Ada"), "Hello, Ada!")
+'''
+        changes = {"P-01": "def greeting(name):\n    return f\"Hello, {name}!\"\n"}
+        tests = {"P-01": ("tests.test_behavior.BehaviorTests.test_formats_a_greeting",)}
+        return initial, test, changes, tests
+
+    initial = '''def normalize(value):
+    return value
+
+def slug(value):
+    return normalize(value)
+
+def label(value):
+    return f"Feature: {slug(value)}"
+'''
+    test = '''import unittest
+from behavior import label, normalize, slug
+
+class BehaviorTests(unittest.TestCase):
+    def test_normalizes_input(self):
+        self.assertEqual(normalize(" Beta Release "), "beta release")
+
+    def test_builds_slug(self):
+        self.assertEqual(slug(" Beta Release "), "beta-release")
+
+    def test_builds_label(self):
+        self.assertEqual(label(" Beta Release "), "[beta-release]")
+'''
+    changes = {
+        "P-01": '''def normalize(value):
+    return value.strip().lower()
+
+def slug(value):
+    return normalize(value)
+
+def label(value):
+    return f"Feature: {slug(value)}"
+''',
+        "P-02": '''def normalize(value):
+    return value.strip().lower()
+
+def slug(value):
+    return normalize(value).replace(" ", "-")
+
+def label(value):
+    return f"Feature: {slug(value)}"
+''',
+        "P-03": '''def normalize(value):
+    return value.strip().lower()
+
+def slug(value):
+    return normalize(value).replace(" ", "-")
+
+def label(value):
+    return f"[{slug(value)}]"
+''',
+    }
+    tests = {
+        "P-01": ("tests.test_behavior.BehaviorTests.test_normalizes_input",),
+        "P-02": ("tests.test_behavior.BehaviorTests.test_builds_slug",),
+        "P-03": ("tests.test_behavior.BehaviorTests.test_builds_label",),
+    }
+    return initial, test, changes, tests
+
+
+def command_record(source: Path, kind: str, arguments: tuple[str, ...]) -> dict[str, Any]:
+    started = time.perf_counter()
+    result = subprocess.run(
+        [sys.executable, *arguments], cwd=source, capture_output=True, text=True, check=False
+    )
+    duration = round(time.perf_counter() - started, 3)
+
+    def summary(value: str) -> str:
+        normalized = value.replace(str(source), "<pilot-repo>").replace(sys.executable, "python").strip()
+        return normalized[-2000:]
+
+    return {
+        "kind": kind,
+        "status": "passed" if result.returncode == 0 else "failed",
+        "command": "python " + " ".join(arguments),
+        "returncode": result.returncode,
+        "stdout_summary": summary(result.stdout),
+        "stderr_summary": summary(result.stderr),
+        "duration_seconds": duration,
+        "timing_mode": "measured",
+        "evidence": f"measured subprocess returned {result.returncode}",
+    }
+
+
+def aggregate_verification(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    checks: list[dict[str, Any]] = []
+    for kind in ("Targeted", "Feature", "Fast", "Full"):
+        matches = [record for record in records if record["kind"] == kind]
+        checks.append(
+            {
+                "kind": kind,
+                "status": "passed" if matches and all(item["returncode"] == 0 for item in matches) else "failed",
+                "command": " && ".join(item["command"] for item in matches),
+                "returncode": 0 if matches and all(item["returncode"] == 0 for item in matches) else 1,
+                "evidence": f"{len(matches)} measured subprocess check(s) passed",
+                "duration_seconds": round(sum(item["duration_seconds"] for item in matches), 3),
+                "timing_mode": "measured",
+            }
+        )
+    return checks
 
 
 def run_pilot(output: Path, pilot_type: str, work_id: str, kind: str, expected_plans: tuple[str, ...]) -> dict[str, Any]:
@@ -194,16 +308,31 @@ def run_pilot(output: Path, pilot_type: str, work_id: str, kind: str, expected_p
         source = Path(temporary) / "repo"
         contract = source / ".work" / "active" / work_id
         source.mkdir(parents=True)
+        initial_source, test_source, changes, plan_tests = fixture_files(pilot_type)
         (source / "AGENTS.md").write_text("# Pilot instructions\n", encoding="utf-8")
         (source / "CLAUDE.md").write_text("# Pilot instructions\n", encoding="utf-8")
         (source / ".harness").mkdir()
         (source / ".harness" / "project.yaml").write_text("handoff:\n  target: local\n", encoding="utf-8")
-        subprocess.run(["git", "init", "-q"], cwd=source, check=True)
-        subprocess.run(["git", "add", "AGENTS.md", "CLAUDE.md"], cwd=source, check=True)
+        (source / "behavior.py").write_text(initial_source, encoding="utf-8", newline="\n")
+        tests_root = source / "tests"
+        tests_root.mkdir()
+        (tests_root / "__init__.py").write_text("", encoding="utf-8")
+        (tests_root / "test_behavior.py").write_text(test_source, encoding="utf-8", newline="\n")
+        subprocess.run(["git", "init", "-q"], cwd=source, check=True, capture_output=True, text=True)
+        subprocess.run(
+            ["git", "add", "AGENTS.md", "CLAUDE.md", ".harness/project.yaml", "behavior.py", "tests"],
+            cwd=source, check=True, capture_output=True, text=True,
+        )
+        subprocess.run(
+            ["git", "-c", "user.name=Harness Pilot", "-c", "user.email=pilot@example.invalid",
+             "commit", "-qm", "seed failing pilot fixture"],
+            cwd=source, check=True, capture_output=True, text=True,
+        )
         write_contract(contract, work_id, kind, expected_plans)
 
         approved = run_json(
             str(CONTRACT_ENGINE), "approve", "--root", str(contract),
+            "--work-root", str(source / ".work"),
             "--approved-at", "2026-07-19T00:00:00Z", "--approved-by", "pilot-human",
         )
         contract_document = contract / ("SPEC.md" if kind == "spec" else "GOAL.md")
@@ -212,6 +341,9 @@ def run_pilot(output: Path, pilot_type: str, work_id: str, kind: str, expected_p
             json.dumps(
                 {
                     "active": True,
+                    "goal_id": f"pilot-{pilot_type}",
+                    "retrieved_at": "2026-07-19T00:00:00+00:00",
+                    "host": "repo-local-host-adapter",
                     "objective": {
                         "work_id": work_id,
                         "contract_path": str(contract_document.resolve()),
@@ -231,19 +363,58 @@ def run_pilot(output: Path, pilot_type: str, work_id: str, kind: str, expected_p
         plans = tuple(preflight["plan_order"])
         if plans != expected_plans:
             raise RuntimeError(f"unexpected Plan order for {pilot_type}: {plans!r}")
+        full_arguments = ("-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py")
+        red = command_record(source, "RED", full_arguments)
+        if red["returncode"] == 0 or "AssertionError" not in red["stderr_summary"]:
+            raise RuntimeError(f"pilot {pilot_type} did not reproduce an assertion RED: {red}")
+
+        command_evidence: list[dict[str, Any]] = []
+        implementation_cycles: list[dict[str, Any]] = []
+        completed_tests: list[str] = []
         for plan_id in plans:
             selected = runtime_command(contract, source, state, "next")
             if selected.get("plan_id") != plan_id:
                 raise RuntimeError(f"DAG selected {selected.get('plan_id')!r}, expected {plan_id!r}")
             runtime_command(contract, source, state, "start")
-            for check in verification_records(1):
+            (source / "behavior.py").write_text(changes[plan_id], encoding="utf-8", newline="\n")
+            completed_tests.extend(plan_tests[plan_id])
+            check_definitions = (
+                ("Targeted", ("-m", "unittest", *plan_tests[plan_id])),
+                ("Feature", ("-m", "unittest", *completed_tests)),
+                ("Fast", ("-m", "compileall", "-q", "behavior.py", "tests")),
+            )
+            plan_checks: list[dict[str, Any]] = []
+            for check_kind, arguments in check_definitions:
+                check = command_record(source, check_kind, arguments)
+                if check["returncode"] != 0:
+                    raise RuntimeError(f"{pilot_type} {plan_id} {check_kind} failed: {check}")
+                plan_checks.append(check)
+                command_evidence.append(check)
                 runtime_command(
-                    contract, source, state, "evidence", "--kind", check["kind"].lower(),
+                    contract, source, state, "evidence", "--kind", check_kind.lower(),
                     "--data", json.dumps(check, sort_keys=True),
                 )
             runtime_command(contract, source, state, "complete", "--plan-id", plan_id)
+            implementation_cycles.append(
+                {
+                    "plan_id": plan_id,
+                    "source_change": {
+                        "path": "behavior.py",
+                        "description": f"implemented the approved {plan_id} behavior slice",
+                    },
+                    "checks": plan_checks,
+                }
+            )
 
-        verification = verification_records(len(plans))
+        full = command_record(source, "Full", full_arguments)
+        if full["returncode"] != 0:
+            raise RuntimeError(f"{pilot_type} Full failed: {full}")
+        command_evidence.append(full)
+        runtime_command(
+            contract, source, state, "evidence", "--kind", "full",
+            "--data", json.dumps(full, sort_keys=True),
+        )
+        verification = aggregate_verification(command_evidence)
         findings_path = Path(temporary) / "findings.json"
         verification_path = Path(temporary) / "verification.json"
         findings_path.write_text(json.dumps({"findings": []}), encoding="utf-8")
@@ -271,14 +442,17 @@ def run_pilot(output: Path, pilot_type: str, work_id: str, kind: str, expected_p
         return {
             "type": pilot_type,
             "work_id": work_id,
-            "execution_adapter": "repo-local-helper-simulation",
+            "execution_adapter": "repo-local-host-adapter",
             "live_goal": False,
-            "timing_mode": "simulated",
+            "timing_mode": "measured",
             "question_count": 0,
             "interruptions": 0,
             "plans": list(plans),
             "design_approved": approved.get("approval_status") == "approved",
             "verification": verification,
+            "command_evidence": command_evidence,
+            "implementation_cycles": implementation_cycles,
+            "regression_evidence": {"red": red, "green": full},
             "result_success": (archive / "RESULT.md").is_file() and closed.get("status") == "complete",
             "archive_success": archive.is_dir() and not contract.exists(),
             "instruction_drift": (source / "AGENTS.md").read_bytes() != (source / "CLAUDE.md").read_bytes(),
@@ -293,8 +467,8 @@ def render_markdown(report: dict[str, Any]) -> str:
     lines = [
         "# Harness V2 Pilot Report",
         "",
-        "These are deterministic repo-local helper simulations, not live host `/goal` runs.",
-        "Timing values are simulated and labeled in the JSON record.",
+        "These are real temporary implementation cycles through a repo-local host adapter, not live host `/goal` runs.",
+        "Each pilot captures an assertion RED, explicit Plan source changes, measured subprocess checks, Contract state transitions, and close/archive output.",
         "",
         f"Overall result: **{report['result']}**",
         "",
@@ -307,6 +481,8 @@ def render_markdown(report: dict[str, Any]) -> str:
                 f"- Plans: {', '.join(pilot['plans'])}",
                 f"- Questions / interruptions: {pilot['question_count']} / {pilot['interruptions']}",
                 f"- Result / archive: {pilot['result_success']} / {pilot['archive_success']}",
+                f"- RED / final GREEN: {pilot['regression_evidence']['red']['status']} / {pilot['regression_evidence']['green']['status']}",
+                f"- Measured command checks: {len(pilot['command_evidence'])}",
                 f"- Human review: [{pilot['human_review_artifact']}]({pilot['human_review_artifact']})",
                 "",
             ]

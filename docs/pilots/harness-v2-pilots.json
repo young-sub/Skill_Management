@@ -4,9 +4,99 @@
     {
       "active_leftovers": [],
       "archive_success": true,
+      "command_evidence": [
+        {
+          "command": "python -m unittest tests.test_behavior.BehaviorTests.test_enforces_minimum",
+          "duration_seconds": 0.11,
+          "evidence": "measured subprocess returned 0",
+          "kind": "Targeted",
+          "returncode": 0,
+          "status": "passed",
+          "stderr_summary": ".\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK",
+          "stdout_summary": "",
+          "timing_mode": "measured"
+        },
+        {
+          "command": "python -m unittest tests.test_behavior.BehaviorTests.test_enforces_minimum",
+          "duration_seconds": 0.106,
+          "evidence": "measured subprocess returned 0",
+          "kind": "Feature",
+          "returncode": 0,
+          "status": "passed",
+          "stderr_summary": ".\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK",
+          "stdout_summary": "",
+          "timing_mode": "measured"
+        },
+        {
+          "command": "python -m compileall -q behavior.py tests",
+          "duration_seconds": 0.089,
+          "evidence": "measured subprocess returned 0",
+          "kind": "Fast",
+          "returncode": 0,
+          "status": "passed",
+          "stderr_summary": "",
+          "stdout_summary": "",
+          "timing_mode": "measured"
+        },
+        {
+          "command": "python -m unittest discover -s tests -p test_*.py",
+          "duration_seconds": 0.106,
+          "evidence": "measured subprocess returned 0",
+          "kind": "Full",
+          "returncode": 0,
+          "status": "passed",
+          "stderr_summary": ".\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK",
+          "stdout_summary": "",
+          "timing_mode": "measured"
+        }
+      ],
       "design_approved": true,
-      "execution_adapter": "repo-local-helper-simulation",
+      "execution_adapter": "repo-local-host-adapter",
       "human_review_artifact": "artifacts/small-spec-bug-fix-completion-review.html",
+      "implementation_cycles": [
+        {
+          "checks": [
+            {
+              "command": "python -m unittest tests.test_behavior.BehaviorTests.test_enforces_minimum",
+              "duration_seconds": 0.11,
+              "evidence": "measured subprocess returned 0",
+              "kind": "Targeted",
+              "returncode": 0,
+              "status": "passed",
+              "stderr_summary": ".\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK",
+              "stdout_summary": "",
+              "timing_mode": "measured"
+            },
+            {
+              "command": "python -m unittest tests.test_behavior.BehaviorTests.test_enforces_minimum",
+              "duration_seconds": 0.106,
+              "evidence": "measured subprocess returned 0",
+              "kind": "Feature",
+              "returncode": 0,
+              "status": "passed",
+              "stderr_summary": ".\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK",
+              "stdout_summary": "",
+              "timing_mode": "measured"
+            },
+            {
+              "command": "python -m compileall -q behavior.py tests",
+              "duration_seconds": 0.089,
+              "evidence": "measured subprocess returned 0",
+              "kind": "Fast",
+              "returncode": 0,
+              "status": "passed",
+              "stderr_summary": "",
+              "stdout_summary": "",
+              "timing_mode": "measured"
+            }
+          ],
+          "plan_id": "SPEC",
+          "source_change": {
+            "description": "implemented the approved SPEC behavior slice",
+            "path": "behavior.py"
+          }
+        }
+      ],
       "instruction_drift": false,
       "interruptions": 0,
       "live_goal": false,
@@ -14,37 +104,69 @@
         "SPEC"
       ],
       "question_count": 0,
+      "regression_evidence": {
+        "green": {
+          "command": "python -m unittest discover -s tests -p test_*.py",
+          "duration_seconds": 0.106,
+          "evidence": "measured subprocess returned 0",
+          "kind": "Full",
+          "returncode": 0,
+          "status": "passed",
+          "stderr_summary": ".\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK",
+          "stdout_summary": "",
+          "timing_mode": "measured"
+        },
+        "red": {
+          "command": "python -m unittest discover -s tests -p test_*.py",
+          "duration_seconds": 0.116,
+          "evidence": "measured subprocess returned 1",
+          "kind": "RED",
+          "returncode": 1,
+          "status": "failed",
+          "stderr_summary": "F\n======================================================================\nFAIL: test_enforces_minimum (test_behavior.BehaviorTests.test_enforces_minimum)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"<pilot-repo>\\tests\\test_behavior.py\", line 6, in test_enforces_minimum\n    self.assertEqual(bounded(2, 5), 5)\nAssertionError: 2 != 5\n\n----------------------------------------------------------------------\nRan 1 test in 0.001s\n\nFAILED (failures=1)",
+          "stdout_summary": "",
+          "timing_mode": "measured"
+        }
+      },
       "result_success": true,
-      "timing_mode": "simulated",
+      "timing_mode": "measured",
       "type": "small-spec-bug-fix",
       "verification": [
         {
-          "count": 1,
-          "duration_seconds": 0.02,
+          "command": "python -m unittest tests.test_behavior.BehaviorTests.test_enforces_minimum",
+          "duration_seconds": 0.11,
+          "evidence": "1 measured subprocess check(s) passed",
           "kind": "Targeted",
+          "returncode": 0,
           "status": "passed",
-          "timing_mode": "simulated"
+          "timing_mode": "measured"
         },
         {
-          "count": 1,
-          "duration_seconds": 0.04,
+          "command": "python -m unittest tests.test_behavior.BehaviorTests.test_enforces_minimum",
+          "duration_seconds": 0.106,
+          "evidence": "1 measured subprocess check(s) passed",
           "kind": "Feature",
+          "returncode": 0,
           "status": "passed",
-          "timing_mode": "simulated"
+          "timing_mode": "measured"
         },
         {
-          "count": 1,
-          "duration_seconds": 0.08,
+          "command": "python -m compileall -q behavior.py tests",
+          "duration_seconds": 0.089,
+          "evidence": "1 measured subprocess check(s) passed",
           "kind": "Fast",
+          "returncode": 0,
           "status": "passed",
-          "timing_mode": "simulated"
+          "timing_mode": "measured"
         },
         {
-          "count": 1,
-          "duration_seconds": 0.16,
+          "command": "python -m unittest discover -s tests -p test_*.py",
+          "duration_seconds": 0.106,
+          "evidence": "1 measured subprocess check(s) passed",
           "kind": "Full",
+          "returncode": 0,
           "status": "passed",
-          "timing_mode": "simulated"
+          "timing_mode": "measured"
         }
       ],
       "work_id": "W-PILOT-SMALL",
@@ -54,9 +176,99 @@
     {
       "active_leftovers": [],
       "archive_success": true,
+      "command_evidence": [
+        {
+          "command": "python -m unittest tests.test_behavior.BehaviorTests.test_formats_a_greeting",
+          "duration_seconds": 0.112,
+          "evidence": "measured subprocess returned 0",
+          "kind": "Targeted",
+          "returncode": 0,
+          "status": "passed",
+          "stderr_summary": ".\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK",
+          "stdout_summary": "",
+          "timing_mode": "measured"
+        },
+        {
+          "command": "python -m unittest tests.test_behavior.BehaviorTests.test_formats_a_greeting",
+          "duration_seconds": 0.106,
+          "evidence": "measured subprocess returned 0",
+          "kind": "Feature",
+          "returncode": 0,
+          "status": "passed",
+          "stderr_summary": ".\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK",
+          "stdout_summary": "",
+          "timing_mode": "measured"
+        },
+        {
+          "command": "python -m compileall -q behavior.py tests",
+          "duration_seconds": 0.088,
+          "evidence": "measured subprocess returned 0",
+          "kind": "Fast",
+          "returncode": 0,
+          "status": "passed",
+          "stderr_summary": "",
+          "stdout_summary": "",
+          "timing_mode": "measured"
+        },
+        {
+          "command": "python -m unittest discover -s tests -p test_*.py",
+          "duration_seconds": 0.111,
+          "evidence": "measured subprocess returned 0",
+          "kind": "Full",
+          "returncode": 0,
+          "status": "passed",
+          "stderr_summary": ".\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK",
+          "stdout_summary": "",
+          "timing_mode": "measured"
+        }
+      ],
       "design_approved": true,
-      "execution_adapter": "repo-local-helper-simulation",
+      "execution_adapter": "repo-local-host-adapter",
       "human_review_artifact": "artifacts/normal-goal-feature-completion-review.html",
+      "implementation_cycles": [
+        {
+          "checks": [
+            {
+              "command": "python -m unittest tests.test_behavior.BehaviorTests.test_formats_a_greeting",
+              "duration_seconds": 0.112,
+              "evidence": "measured subprocess returned 0",
+              "kind": "Targeted",
+              "returncode": 0,
+              "status": "passed",
+              "stderr_summary": ".\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK",
+              "stdout_summary": "",
+              "timing_mode": "measured"
+            },
+            {
+              "command": "python -m unittest tests.test_behavior.BehaviorTests.test_formats_a_greeting",
+              "duration_seconds": 0.106,
+              "evidence": "measured subprocess returned 0",
+              "kind": "Feature",
+              "returncode": 0,
+              "status": "passed",
+              "stderr_summary": ".\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK",
+              "stdout_summary": "",
+              "timing_mode": "measured"
+            },
+            {
+              "command": "python -m compileall -q behavior.py tests",
+              "duration_seconds": 0.088,
+              "evidence": "measured subprocess returned 0",
+              "kind": "Fast",
+              "returncode": 0,
+              "status": "passed",
+              "stderr_summary": "",
+              "stdout_summary": "",
+              "timing_mode": "measured"
+            }
+          ],
+          "plan_id": "P-01",
+          "source_change": {
+            "description": "implemented the approved P-01 behavior slice",
+            "path": "behavior.py"
+          }
+        }
+      ],
       "instruction_drift": false,
       "interruptions": 0,
       "live_goal": false,
@@ -64,37 +276,69 @@
         "P-01"
       ],
       "question_count": 0,
+      "regression_evidence": {
+        "green": {
+          "command": "python -m unittest discover -s tests -p test_*.py",
+          "duration_seconds": 0.111,
+          "evidence": "measured subprocess returned 0",
+          "kind": "Full",
+          "returncode": 0,
+          "status": "passed",
+          "stderr_summary": ".\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK",
+          "stdout_summary": "",
+          "timing_mode": "measured"
+        },
+        "red": {
+          "command": "python -m unittest discover -s tests -p test_*.py",
+          "duration_seconds": 0.113,
+          "evidence": "measured subprocess returned 1",
+          "kind": "RED",
+          "returncode": 1,
+          "status": "failed",
+          "stderr_summary": "F\n======================================================================\nFAIL: test_formats_a_greeting (test_behavior.BehaviorTests.test_formats_a_greeting)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"<pilot-repo>\\tests\\test_behavior.py\", line 6, in test_formats_a_greeting\n    self.assertEqual(greeting(\"Ada\"), \"Hello, Ada!\")\nAssertionError: 'Ada' != 'Hello, Ada!'\n- Ada\n+ Hello, Ada!\n\n\n----------------------------------------------------------------------\nRan 1 test in 0.001s\n\nFAILED (failures=1)",
+          "stdout_summary": "",
+          "timing_mode": "measured"
+        }
+      },
       "result_success": true,
-      "timing_mode": "simulated",
+      "timing_mode": "measured",
       "type": "normal-goal-feature",
       "verification": [
         {
-          "count": 1,
-          "duration_seconds": 0.02,
+          "command": "python -m unittest tests.test_behavior.BehaviorTests.test_formats_a_greeting",
+          "duration_seconds": 0.112,
+          "evidence": "1 measured subprocess check(s) passed",
           "kind": "Targeted",
+          "returncode": 0,
           "status": "passed",
-          "timing_mode": "simulated"
+          "timing_mode": "measured"
         },
         {
-          "count": 1,
-          "duration_seconds": 0.04,
+          "command": "python -m unittest tests.test_behavior.BehaviorTests.test_formats_a_greeting",
+          "duration_seconds": 0.106,
+          "evidence": "1 measured subprocess check(s) passed",
           "kind": "Feature",
+          "returncode": 0,
           "status": "passed",
-          "timing_mode": "simulated"
+          "timing_mode": "measured"
         },
         {
-          "count": 1,
-          "duration_seconds": 0.08,
+          "command": "python -m compileall -q behavior.py tests",
+          "duration_seconds": 0.088,
+          "evidence": "1 measured subprocess check(s) passed",
           "kind": "Fast",
+          "returncode": 0,
           "status": "passed",
-          "timing_mode": "simulated"
+          "timing_mode": "measured"
         },
         {
-          "count": 1,
-          "duration_seconds": 0.16,
+          "command": "python -m unittest discover -s tests -p test_*.py",
+          "duration_seconds": 0.111,
+          "evidence": "1 measured subprocess check(s) passed",
           "kind": "Full",
+          "returncode": 0,
           "status": "passed",
-          "timing_mode": "simulated"
+          "timing_mode": "measured"
         }
       ],
       "work_id": "W-PILOT-NORMAL",
@@ -104,9 +348,249 @@
     {
       "active_leftovers": [],
       "archive_success": true,
+      "command_evidence": [
+        {
+          "command": "python -m unittest tests.test_behavior.BehaviorTests.test_normalizes_input",
+          "duration_seconds": 0.112,
+          "evidence": "measured subprocess returned 0",
+          "kind": "Targeted",
+          "returncode": 0,
+          "status": "passed",
+          "stderr_summary": ".\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK",
+          "stdout_summary": "",
+          "timing_mode": "measured"
+        },
+        {
+          "command": "python -m unittest tests.test_behavior.BehaviorTests.test_normalizes_input",
+          "duration_seconds": 0.108,
+          "evidence": "measured subprocess returned 0",
+          "kind": "Feature",
+          "returncode": 0,
+          "status": "passed",
+          "stderr_summary": ".\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK",
+          "stdout_summary": "",
+          "timing_mode": "measured"
+        },
+        {
+          "command": "python -m compileall -q behavior.py tests",
+          "duration_seconds": 0.095,
+          "evidence": "measured subprocess returned 0",
+          "kind": "Fast",
+          "returncode": 0,
+          "status": "passed",
+          "stderr_summary": "",
+          "stdout_summary": "",
+          "timing_mode": "measured"
+        },
+        {
+          "command": "python -m unittest tests.test_behavior.BehaviorTests.test_builds_slug",
+          "duration_seconds": 0.114,
+          "evidence": "measured subprocess returned 0",
+          "kind": "Targeted",
+          "returncode": 0,
+          "status": "passed",
+          "stderr_summary": ".\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK",
+          "stdout_summary": "",
+          "timing_mode": "measured"
+        },
+        {
+          "command": "python -m unittest tests.test_behavior.BehaviorTests.test_normalizes_input tests.test_behavior.BehaviorTests.test_builds_slug",
+          "duration_seconds": 0.113,
+          "evidence": "measured subprocess returned 0",
+          "kind": "Feature",
+          "returncode": 0,
+          "status": "passed",
+          "stderr_summary": "..\n----------------------------------------------------------------------\nRan 2 tests in 0.000s\n\nOK",
+          "stdout_summary": "",
+          "timing_mode": "measured"
+        },
+        {
+          "command": "python -m compileall -q behavior.py tests",
+          "duration_seconds": 0.101,
+          "evidence": "measured subprocess returned 0",
+          "kind": "Fast",
+          "returncode": 0,
+          "status": "passed",
+          "stderr_summary": "",
+          "stdout_summary": "",
+          "timing_mode": "measured"
+        },
+        {
+          "command": "python -m unittest tests.test_behavior.BehaviorTests.test_builds_label",
+          "duration_seconds": 0.118,
+          "evidence": "measured subprocess returned 0",
+          "kind": "Targeted",
+          "returncode": 0,
+          "status": "passed",
+          "stderr_summary": ".\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK",
+          "stdout_summary": "",
+          "timing_mode": "measured"
+        },
+        {
+          "command": "python -m unittest tests.test_behavior.BehaviorTests.test_normalizes_input tests.test_behavior.BehaviorTests.test_builds_slug tests.test_behavior.BehaviorTests.test_builds_label",
+          "duration_seconds": 0.112,
+          "evidence": "measured subprocess returned 0",
+          "kind": "Feature",
+          "returncode": 0,
+          "status": "passed",
+          "stderr_summary": "...\n----------------------------------------------------------------------\nRan 3 tests in 0.000s\n\nOK",
+          "stdout_summary": "",
+          "timing_mode": "measured"
+        },
+        {
+          "command": "python -m compileall -q behavior.py tests",
+          "duration_seconds": 0.107,
+          "evidence": "measured subprocess returned 0",
+          "kind": "Fast",
+          "returncode": 0,
+          "status": "passed",
+          "stderr_summary": "",
+          "stdout_summary": "",
+          "timing_mode": "measured"
+        },
+        {
+          "command": "python -m unittest discover -s tests -p test_*.py",
+          "duration_seconds": 0.116,
+          "evidence": "measured subprocess returned 0",
+          "kind": "Full",
+          "returncode": 0,
+          "status": "passed",
+          "stderr_summary": "...\n----------------------------------------------------------------------\nRan 3 tests in 0.000s\n\nOK",
+          "stdout_summary": "",
+          "timing_mode": "measured"
+        }
+      ],
       "design_approved": true,
-      "execution_adapter": "repo-local-helper-simulation",
+      "execution_adapter": "repo-local-host-adapter",
       "human_review_artifact": "artifacts/multi-plan-dag-feature-completion-review.html",
+      "implementation_cycles": [
+        {
+          "checks": [
+            {
+              "command": "python -m unittest tests.test_behavior.BehaviorTests.test_normalizes_input",
+              "duration_seconds": 0.112,
+              "evidence": "measured subprocess returned 0",
+              "kind": "Targeted",
+              "returncode": 0,
+              "status": "passed",
+              "stderr_summary": ".\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK",
+              "stdout_summary": "",
+              "timing_mode": "measured"
+            },
+            {
+              "command": "python -m unittest tests.test_behavior.BehaviorTests.test_normalizes_input",
+              "duration_seconds": 0.108,
+              "evidence": "measured subprocess returned 0",
+              "kind": "Feature",
+              "returncode": 0,
+              "status": "passed",
+              "stderr_summary": ".\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK",
+              "stdout_summary": "",
+              "timing_mode": "measured"
+            },
+            {
+              "command": "python -m compileall -q behavior.py tests",
+              "duration_seconds": 0.095,
+              "evidence": "measured subprocess returned 0",
+              "kind": "Fast",
+              "returncode": 0,
+              "status": "passed",
+              "stderr_summary": "",
+              "stdout_summary": "",
+              "timing_mode": "measured"
+            }
+          ],
+          "plan_id": "P-01",
+          "source_change": {
+            "description": "implemented the approved P-01 behavior slice",
+            "path": "behavior.py"
+          }
+        },
+        {
+          "checks": [
+            {
+              "command": "python -m unittest tests.test_behavior.BehaviorTests.test_builds_slug",
+              "duration_seconds": 0.114,
+              "evidence": "measured subprocess returned 0",
+              "kind": "Targeted",
+              "returncode": 0,
+              "status": "passed",
+              "stderr_summary": ".\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK",
+              "stdout_summary": "",
+              "timing_mode": "measured"
+            },
+            {
+              "command": "python -m unittest tests.test_behavior.BehaviorTests.test_normalizes_input tests.test_behavior.BehaviorTests.test_builds_slug",
+              "duration_seconds": 0.113,
+              "evidence": "measured subprocess returned 0",
+              "kind": "Feature",
+              "returncode": 0,
+              "status": "passed",
+              "stderr_summary": "..\n----------------------------------------------------------------------\nRan 2 tests in 0.000s\n\nOK",
+              "stdout_summary": "",
+              "timing_mode": "measured"
+            },
+            {
+              "command": "python -m compileall -q behavior.py tests",
+              "duration_seconds": 0.101,
+              "evidence": "measured subprocess returned 0",
+              "kind": "Fast",
+              "returncode": 0,
+              "status": "passed",
+              "stderr_summary": "",
+              "stdout_summary": "",
+              "timing_mode": "measured"
+            }
+          ],
+          "plan_id": "P-02",
+          "source_change": {
+            "description": "implemented the approved P-02 behavior slice",
+            "path": "behavior.py"
+          }
+        },
+        {
+          "checks": [
+            {
+              "command": "python -m unittest tests.test_behavior.BehaviorTests.test_builds_label",
+              "duration_seconds": 0.118,
+              "evidence": "measured subprocess returned 0",
+              "kind": "Targeted",
+              "returncode": 0,
+              "status": "passed",
+              "stderr_summary": ".\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK",
+              "stdout_summary": "",
+              "timing_mode": "measured"
+            },
+            {
+              "command": "python -m unittest tests.test_behavior.BehaviorTests.test_normalizes_input tests.test_behavior.BehaviorTests.test_builds_slug tests.test_behavior.BehaviorTests.test_builds_label",
+              "duration_seconds": 0.112,
+              "evidence": "measured subprocess returned 0",
+              "kind": "Feature",
+              "returncode": 0,
+              "status": "passed",
+              "stderr_summary": "...\n----------------------------------------------------------------------\nRan 3 tests in 0.000s\n\nOK",
+              "stdout_summary": "",
+              "timing_mode": "measured"
+            },
+            {
+              "command": "python -m compileall -q behavior.py tests",
+              "duration_seconds": 0.107,
+              "evidence": "measured subprocess returned 0",
+              "kind": "Fast",
+              "returncode": 0,
+              "status": "passed",
+              "stderr_summary": "",
+              "stdout_summary": "",
+              "timing_mode": "measured"
+            }
+          ],
+          "plan_id": "P-03",
+          "source_change": {
+            "description": "implemented the approved P-03 behavior slice",
+            "path": "behavior.py"
+          }
+        }
+      ],
       "instruction_drift": false,
       "interruptions": 0,
       "live_goal": false,
@@ -116,37 +600,69 @@
         "P-03"
       ],
       "question_count": 0,
+      "regression_evidence": {
+        "green": {
+          "command": "python -m unittest discover -s tests -p test_*.py",
+          "duration_seconds": 0.116,
+          "evidence": "measured subprocess returned 0",
+          "kind": "Full",
+          "returncode": 0,
+          "status": "passed",
+          "stderr_summary": "...\n----------------------------------------------------------------------\nRan 3 tests in 0.000s\n\nOK",
+          "stdout_summary": "",
+          "timing_mode": "measured"
+        },
+        "red": {
+          "command": "python -m unittest discover -s tests -p test_*.py",
+          "duration_seconds": 0.115,
+          "evidence": "measured subprocess returned 1",
+          "kind": "RED",
+          "returncode": 1,
+          "status": "failed",
+          "stderr_summary": "FFF\n======================================================================\nFAIL: test_builds_label (test_behavior.BehaviorTests.test_builds_label)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"<pilot-repo>\\tests\\test_behavior.py\", line 12, in test_builds_label\n    self.assertEqual(label(\" Beta Release \"), \"[beta-release]\")\nAssertionError: 'Feature:  Beta Release ' != '[beta-release]'\n- Feature:  Beta Release \n+ [beta-release]\n\n\n======================================================================\nFAIL: test_builds_slug (test_behavior.BehaviorTests.test_builds_slug)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"<pilot-repo>\\tests\\test_behavior.py\", line 9, in test_builds_slug\n    self.assertEqual(slug(\" Beta Release \"), \"beta-release\")\nAssertionError: ' Beta Release ' != 'beta-release'\n-  Beta Release \n+ beta-release\n\n\n======================================================================\nFAIL: test_normalizes_input (test_behavior.BehaviorTests.test_normalizes_input)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"<pilot-repo>\\tests\\test_behavior.py\", line 6, in test_normalizes_input\n    self.assertEqual(normalize(\" Beta Release \"), \"beta release\")\nAssertionError: ' Beta Release ' != 'beta release'\n-  Beta Release \n? ^^    ^      -\n+ beta release\n? ^    ^\n\n\n----------------------------------------------------------------------\nRan 3 tests in 0.001s\n\nFAILED (failures=3)",
+          "stdout_summary": "",
+          "timing_mode": "measured"
+        }
+      },
       "result_success": true,
-      "timing_mode": "simulated",
+      "timing_mode": "measured",
       "type": "multi-plan-dag-feature",
       "verification": [
         {
-          "count": 3,
-          "duration_seconds": 0.06,
+          "command": "python -m unittest tests.test_behavior.BehaviorTests.test_normalizes_input && python -m unittest tests.test_behavior.BehaviorTests.test_builds_slug && python -m unittest tests.test_behavior.BehaviorTests.test_builds_label",
+          "duration_seconds": 0.344,
+          "evidence": "3 measured subprocess check(s) passed",
           "kind": "Targeted",
+          "returncode": 0,
           "status": "passed",
-          "timing_mode": "simulated"
+          "timing_mode": "measured"
         },
         {
-          "count": 3,
-          "duration_seconds": 0.12,
+          "command": "python -m unittest tests.test_behavior.BehaviorTests.test_normalizes_input && python -m unittest tests.test_behavior.BehaviorTests.test_normalizes_input tests.test_behavior.BehaviorTests.test_builds_slug && python -m unittest tests.test_behavior.BehaviorTests.test_normalizes_input tests.test_behavior.BehaviorTests.test_builds_slug tests.test_behavior.BehaviorTests.test_builds_label",
+          "duration_seconds": 0.333,
+          "evidence": "3 measured subprocess check(s) passed",
           "kind": "Feature",
+          "returncode": 0,
           "status": "passed",
-          "timing_mode": "simulated"
+          "timing_mode": "measured"
         },
         {
-          "count": 3,
-          "duration_seconds": 0.24,
+          "command": "python -m compileall -q behavior.py tests && python -m compileall -q behavior.py tests && python -m compileall -q behavior.py tests",
+          "duration_seconds": 0.303,
+          "evidence": "3 measured subprocess check(s) passed",
           "kind": "Fast",
+          "returncode": 0,
           "status": "passed",
-          "timing_mode": "simulated"
+          "timing_mode": "measured"
         },
         {
-          "count": 3,
-          "duration_seconds": 0.48,
+          "command": "python -m unittest discover -s tests -p test_*.py",
+          "duration_seconds": 0.116,
+          "evidence": "1 measured subprocess check(s) passed",
           "kind": "Full",
+          "returncode": 0,
           "status": "passed",
-          "timing_mode": "simulated"
+          "timing_mode": "measured"
         }
       ],
       "work_id": "W-PILOT-DAG",

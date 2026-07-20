@@ -12,6 +12,79 @@ SYNC_SCRIPT = REPO_ROOT / "scripts" / "sync-skill-resources.ps1"
 
 
 class SyncSkillResourcesTests(unittest.TestCase):
+    def test_builds_deterministic_complete_public_resource_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            fixture_root = Path(temp_dir)
+            authoring = fixture_root / "authoring"
+            (authoring / "scripts").mkdir(parents=True)
+            (authoring / "scripts" / "helper.py").write_text(
+                "VALUE = 1\n", encoding="utf-8", newline="\n"
+            )
+            fixture_skill = fixture_root / "skills" / "fixture-skill"
+            maintain_skill = fixture_root / "skills" / "maintain-agent-harness"
+            fixture_skill.mkdir(parents=True)
+            maintain_skill.mkdir(parents=True)
+            (fixture_skill / "SKILL.md").write_text(
+                "---\nname: fixture-skill\ndescription: fixture\n---\n",
+                encoding="utf-8",
+            )
+            (maintain_skill / "SKILL.md").write_text(
+                "---\nname: maintain-agent-harness\ndescription: audit\n---\n",
+                encoding="utf-8",
+            )
+            resource_map = {
+                "schema_version": 1,
+                "resources": [
+                    {
+                        "source": "scripts/helper.py",
+                        "targets": ["fixture-skill/scripts/helper.py"],
+                    },
+                    {
+                        "source": "public-resource-manifest.json",
+                        "targets": [
+                            "maintain-agent-harness/resources/public-resource-manifest.json"
+                        ],
+                    },
+                ],
+            }
+            (authoring / "resource-map.json").write_text(
+                json.dumps(resource_map), encoding="utf-8"
+            )
+
+            command = [
+                "powershell",
+                "-NoProfile",
+                "-File",
+                str(SYNC_SCRIPT),
+                "-RepositoryRoot",
+                str(fixture_root),
+            ]
+            first = subprocess.run(command, capture_output=True, text=True, check=False)
+            manifest_source = authoring / "public-resource-manifest.json"
+            manifest_target = (
+                maintain_skill / "resources" / "public-resource-manifest.json"
+            )
+            first_bytes = manifest_source.read_bytes() if manifest_source.is_file() else b""
+            second = subprocess.run(command, capture_output=True, text=True, check=False)
+
+            diagnostics = f"{first.stdout}\n{first.stderr}\n{second.stdout}\n{second.stderr}"
+            self.assertEqual(first.returncode, 0, diagnostics)
+            self.assertEqual(second.returncode, 0, diagnostics)
+            self.assertEqual(manifest_source.read_bytes(), first_bytes)
+            self.assertEqual(manifest_target.read_bytes(), first_bytes)
+            manifest = json.loads(first_bytes)
+            expected_paths = {
+                "fixture-skill/SKILL.md",
+                "fixture-skill/scripts/helper.py",
+                "maintain-agent-harness/SKILL.md",
+            }
+            self.assertEqual(set(manifest["files"]), expected_paths)
+            for relative, digest in manifest["files"].items():
+                self.assertEqual(
+                    digest,
+                    sha256((fixture_root / "skills" / relative).read_bytes()).hexdigest(),
+                )
+
     def test_uses_parseable_extension_aware_generated_headers(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             fixture_root = Path(temp_dir)
@@ -22,6 +95,7 @@ class SyncSkillResourcesTests(unittest.TestCase):
                 "scripts/helper.py": "VALUE = 2\n",
                 "templates/config.yaml": "version: 2\n",
                 "templates/config.json": '{"version": 2}\n',
+                "templates/review.html": "<!doctype html>\n<html><body>ok</body></html>\n",
             }
             for relative_path, content in sources.items():
                 (authoring / relative_path).write_text(
@@ -70,6 +144,9 @@ class SyncSkillResourcesTests(unittest.TestCase):
             generated_json = (
                 fixture_root / "skills/fixture-skill/templates/config.json"
             )
+            generated_html = (
+                fixture_root / "skills/fixture-skill/templates/review.html"
+            )
             py_compile.compile(str(generated_python), doraise=True)
             self.assertTrue(
                 generated_python.read_text(encoding="utf-8").startswith(
@@ -85,6 +162,9 @@ class SyncSkillResourcesTests(unittest.TestCase):
                 json.loads(generated_json.read_text(encoding="utf-8")),
                 {"version": 2},
             )
+            html = generated_html.read_text(encoding="utf-8")
+            self.assertTrue(html.startswith("<!doctype html>\n<!-- Generated file."))
+            self.assertNotIn("\n# Generated file.", html)
 
     def test_copies_canonical_resource_with_source_hash(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

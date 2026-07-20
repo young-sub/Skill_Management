@@ -28,6 +28,30 @@ def copy_fixture(name: str, destination: Path) -> None:
 
 
 class DesignContractTests(unittest.TestCase):
+    def test_approve_requires_work_root_and_rechecks_duplicate_work_id(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_root = Path(temp_dir)
+            first = work_root / "first"
+            second = work_root / "second"
+            copy_fixture("small", first)
+
+            missing_scope = run_engine(
+                first, "approve", "--approved-at", "2026-07-19T18:00:00+09:00",
+                "--approved-by", "human",
+            )
+            self.assertNotEqual(missing_scope.returncode, 0)
+            self.assertIn("--work-root", missing_scope.stderr)
+
+            # A duplicate created after design validation must still block approval.
+            self.assertEqual(run_engine(first, "validate", "--work-root", str(work_root)).returncode, 0)
+            copy_fixture("small", second)
+            duplicate = run_engine(
+                first, "approve", "--work-root", str(work_root),
+                "--approved-at", "2026-07-19T18:00:00+09:00", "--approved-by", "human",
+            )
+            self.assertEqual(duplicate.returncode, 2, duplicate.stdout)
+            self.assertIn("duplicate_work_id:W-20260719-101", json.loads(duplicate.stdout)["errors"])
+
     def test_small_contract_validates_but_pending_approval_cannot_execute(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -55,6 +79,8 @@ class DesignContractTests(unittest.TestCase):
             approved = run_engine(
                 root,
                 "approve",
+                "--work-root",
+                str(root.parent),
                 "--approved-at",
                 "2026-07-19T18:00:00+09:00",
                 "--approved-by",

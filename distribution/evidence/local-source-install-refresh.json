@@ -1,0 +1,24 @@
+﻿{
+    "remote_github_update":  {
+                                 "status":  "not_verified"
+                             },
+    "schema_version":  1,
+    "source_type":  "local",
+    "source_package":  "C:\\Users\\YS\\Desktop\\python\\Skill_Management",
+    "native_update":  {
+                          "status":  "unsupported_for_local_source"
+                      },
+    "verification_mode":  "install_and_update",
+    "providers":  [
+                      "codex",
+                      "claude-code"
+                  ],
+    "public_skill_count":  18,
+    "complete_skill_tree_comparison":  {
+                                           "algorithm":  "SHA256",
+                                           "status":  "passed"
+                                       },
+    "local_source_refresh":  {
+                                 "status":  "passed"
+                             }
+}

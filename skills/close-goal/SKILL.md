@@ -9,7 +9,7 @@ Use after every approved Plan is complete and implementation verification has be
 
 ## Inputs
 
-Prepare JSON files with `findings` and `checks` arrays. Each finding has `severity` and `title`. Each check has `kind` and `status`; include exact commands and evidence when available. Treat unrun Live or Eval checks as `unverified`, never as passed or failed.
+Prepare JSON files with `findings` and `checks` arrays. Each finding has `severity` and `title`. Targeted, Feature, Fast, and Full must each appear exactly once with `status: passed`, a nonempty exact command and evidence, and `returncode: 0`. Treat unrun Live or Eval checks as `unverified`, never as passed or failed.
 
 Run:
 
@@ -20,7 +20,10 @@ python scripts/close_goal.py --contract-root <.work/active/work-id> --source-roo
 ## Gates
 
 - Any High finding blocks completion and archive.
+- The generated Contract engine must confirm the canonical approved hash, required sections, and DAG. Every GOAL Plan, or the SPEC runtime state, must be `completed`.
+- Missing, duplicated, failed, or evidence-free Targeted, Feature, Fast, or Full verification blocks completion.
 - Any git-tracked text document referencing `.work/` blocks completion. Move important decisions and structural knowledge into durable repository documents, then rerun the gate.
+- Failure to enumerate tracked files is a blocking gate, not absence of references.
 - Never claim an unrun check passed or failed.
 - Never overwrite an existing archive destination or delete work.
 

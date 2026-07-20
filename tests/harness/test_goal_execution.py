@@ -42,6 +42,8 @@ class RuntimeCase:
                 "approve",
                 "--root",
                 str(self.contract),
+                "--work-root",
+                str(parent),
                 "--approved-at",
                 "2026-07-19T18:00:00+09:00",
                 "--approved-by",
@@ -60,9 +62,12 @@ class RuntimeCase:
         self.state = parent / "goal-state.json"
         self.write_state(active=True)
 
-    def write_state(self, *, active: bool, work_id: str | None = None, contract_hash: str | None = None, contract_path: str | None = None) -> None:
+    def write_state(self, *, active: bool, work_id: str | None = None, contract_hash: str | None = None, contract_path: str | None = None, goal_id: str = "goal-1", retrieved_at: str = "2026-07-19T18:00:00+09:00", host: str = "codex.get_goal") -> None:
         payload = {
             "active": active,
+            "goal_id": goal_id,
+            "retrieved_at": retrieved_at,
+            "host": host,
             "objective": {
                 "work_id": work_id or self.work_id,
                 "contract_path": contract_path or str(self.contract_document.resolve()),
@@ -211,8 +216,6 @@ class GoalExecutionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             runtime = RuntimeCase(Path(temp_dir))
             runtime.source.joinpath("existing.txt").write_text("preserve me\n", encoding="utf-8")
-            before = tree_snapshot(runtime.root)
-
             result = runtime.run("preflight")
 
             self.assertEqual(result.returncode, 0, result.stdout)
@@ -222,11 +225,73 @@ class GoalExecutionTests(unittest.TestCase):
             self.assertFalse(payload["eval_enabled"])
             self.assertIn("existing.txt", payload["dirty_baseline"]["file_hashes"])
             self.assertIn("git_status", payload["dirty_baseline"])
-            self.assertEqual(tree_snapshot(runtime.root), before)
+            baseline_path = Path(payload["dirty_baseline_path"])
+            self.assertTrue(baseline_path.is_file())
+            original_baseline = baseline_path.read_text(encoding="utf-8")
+
+            runtime.source.joinpath("later.txt").write_text("later\n", encoding="utf-8")
+            second = json.loads(runtime.run("preflight").stdout)
+            self.assertEqual(Path(second["dirty_baseline_path"]).read_text(encoding="utf-8"), original_baseline)
+            self.assertNotIn("later.txt", second["dirty_baseline"]["file_hashes"])
 
             source_before = tree_snapshot(runtime.source)
             self.assertEqual(runtime.run("start").returncode, 0)
             self.assertEqual(tree_snapshot(runtime.source), source_before)
+
+    def test_goal_state_schema_and_baseline_identity_fail_closed(self) -> None:
+        for field in ("goal_id", "retrieved_at", "host"):
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as temp_dir:
+                runtime = RuntimeCase(Path(temp_dir))
+                payload = json.loads(runtime.state.read_text(encoding="utf-8"))
+                payload.pop(field)
+                runtime.state.write_text(json.dumps(payload), encoding="utf-8")
+                result = runtime.run("preflight")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(f"invalid_goal_state:{field}", json.loads(result.stdout)["errors"])
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            runtime = RuntimeCase(Path(temp_dir))
+            self.assertEqual(runtime.run("preflight").returncode, 0)
+            runtime.write_state(active=True, goal_id="different-goal")
+            result = runtime.run("start")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("dirty_baseline_identity_mismatch", json.loads(result.stdout)["errors"])
+
+    def test_only_one_plan_may_be_in_progress(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            runtime = RuntimeCase(Path(temp_dir))
+            p2 = runtime.contract / "plans" / "P-02.md"
+            p2.write_text(p2.read_text(encoding="utf-8").replace("status: pending", "status: in_progress"), encoding="utf-8")
+            result = runtime.run("start")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("plan_already_in_progress", json.loads(result.stdout)["errors"])
+
+    def test_block_transaction_is_recoverable_and_resume_is_explicit(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            runtime = RuntimeCase(Path(temp_dir))
+            self.assertEqual(runtime.run("start").returncode, 0)
+            marker = runtime.contract / ".block-transaction.json"
+            marker.write_text(json.dumps({"plan_id": "P-01", "blocked_document": "BLOCKED.md"}), encoding="utf-8")
+
+            blocked = runtime.run("next")
+            self.assertNotEqual(blocked.returncode, 0)
+            self.assertIn("incomplete_block_transaction", json.loads(blocked.stdout)["errors"])
+
+            recovered = runtime.run("recover-block", "--approve-recovery")
+            self.assertEqual(recovered.returncode, 0, recovered.stdout)
+            self.assertFalse(marker.exists())
+            self.assertIn("status: blocked", (runtime.contract / "plans" / "P-01.md").read_text(encoding="utf-8"))
+            self.assertTrue((runtime.contract / "BLOCKED.md").is_file())
+
+            denied = runtime.run("resume", "--plan-id", "P-01", "--resolution-evidence", "dependency restored")
+            self.assertNotEqual(denied.returncode, 0)
+            resumed = runtime.run(
+                "resume", "--plan-id", "P-01", "--resolution-evidence", "dependency restored",
+                "--approve-resume",
+            )
+            self.assertEqual(resumed.returncode, 0, resumed.stdout)
+            self.assertIn("status: pending", (runtime.contract / "plans" / "P-01.md").read_text(encoding="utf-8"))
+            self.assertTrue((runtime.contract / "resolved-blocks" / "P-01.md").is_file())
 
     def test_dependency_ready_plan_selection_and_transitions_are_stable(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

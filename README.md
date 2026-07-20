@@ -49,7 +49,7 @@ Use the interactive updater and select only skills installed from this repositor
 npx skills update
 ```
 
-For GitHub-backed installations with update hashes, the CLI supports `npx skills update -p -y`. Review the detected scope before using a non-interactive update in a workspace containing unrelated skills. With `skills@1.5.19`, a project installation from a local repository is recorded as `sourceType=local`; native update can exit successfully without refreshing those copies. The smoke wrapper detects that no-op by comparing every installed entrypoint hash and falls back to the same local `skills add ... --copy -y` command as the supported local-source refresh path. This does not verify remote GitHub update behavior.
+For GitHub-backed installations with update hashes, the CLI supports `npx skills update -p -y`. Review the detected scope before using a non-interactive update in a workspace containing unrelated skills. With `skills@1.5.19`, a project installation from a local repository is recorded as `sourceType=local`; native update can exit successfully without refreshing those copies. The smoke wrapper detects that no-op by comparing the complete relative file set and SHA256 for every public Skill tree, then falls back to the same local `skills add ... --copy -y` command as the supported local-source refresh path. This does not verify remote GitHub update behavior.
 
 The repository's offline smoke wrapper can verify both install and update using a supplied local fake CLI:
 
@@ -59,7 +59,7 @@ powershell -NoProfile -File scripts/test-install.ps1 `
   -VerifyUpdate
 ```
 
-This path verifies all 18 catalog Skills in project-local Codex and Claude Code targets without network access. Output distinguishes a working native update from an unsupported/no-op local update followed by a successful local-source refresh. The default command still invokes `npx` and therefore requires explicit approval.
+This path verifies all 18 catalog Skills in project-local Codex and Claude Code targets without network access. It rejects missing, extra, or stale nested resources as well as stale entrypoints. Output distinguishes a working native update from an unsupported/no-op local update followed by a successful local-source refresh. The default command still invokes `npx` and therefore requires explicit approval.
 
 ## Uninstall
 
@@ -106,7 +106,7 @@ Reproduce the three isolated Harness V2 pilots and their JSON, Markdown, and Com
 python scripts/run-v2-pilots.py
 ```
 
-The recorded pilots are deterministic repo-local helper simulations. They execute the real Contract approval, runtime state transition, evidence, close, and archive helpers, but are not live host `/goal` sessions. Simulated timing fields are explicitly labeled; success and residual-state fields are measured from each temporary repository. See `docs/pilots/harness-v2-pilots.md`.
+The recorded pilots are real temporary implementation cycles through a repo-local host adapter. They start from assertion-failing source and unittest fixtures, apply one explicit source change per Plan, execute measured Targeted, Feature, and Fast subprocess checks per Plan and exactly one Full suite per Goal, then use the real Contract approval, runtime state transition, evidence, close, and archive helpers. They are not live host `/goal` sessions. See `docs/pilots/harness-v2-pilots.md`.
 
 The install wrapper uses an isolated temporary destination but downloads and executes the current third-party `skills` package through `npx`; it requires explicit approval after reviewing that external execution:
 
@@ -114,4 +114,13 @@ The install wrapper uses an isolated temporary destination but downloads and exe
 powershell -NoProfile -File scripts/test-install.ps1 -VerifyUpdate
 ```
 
-The automated install-wrapper tests substitute a local fake CLI and cover both a working native update and an exit-0/no-op local update. They do not prove remote GitHub update behavior. Record an explicitly approved real isolated install/local-refresh smoke before release; remote GitHub update verification remains post-release work.
+The automated install-wrapper tests substitute a local fake CLI and cover a working native update, an exit-0/no-op local update, nested-resource tampering, and missing resources. They do not prove remote GitHub update behavior. The release-candidate record therefore keeps that gate `not_verified` until this explicitly approved network command succeeds and writes its machine-readable evidence:
+
+```powershell
+powershell -NoProfile -File scripts/test-install.ps1 `
+  -RepositoryRoot . `
+  -SourcePackage young-sub/Skill_Management `
+  -SourceType github `
+  -VerifyUpdate `
+  -EvidencePath distribution/evidence/remote-github-update.json
+```

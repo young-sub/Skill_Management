@@ -2,12 +2,12 @@
 
 ## Status
 
-- Phase: run preparation
+- Phase: completion review
 - Branch: `wp-20260719-002-harness-v2-core-release`
 - Base: `develop` at `f16598a`
 - Tracker channel: `none` (local markdown is authoritative)
 - Confirmation: supplied by the user in the active goal
-- Git publish state: `local_only`
+- Git publish state: `implementation_complete_local`
 - Tracker publish state: `local_pending`
 
 ## Objective
@@ -151,7 +151,7 @@ git diff --check
 WP-06 additionally runs, only with explicit external-execution approval:
 
 ```powershell
-powershell -NoProfile -File scripts/test-install.ps1
+powershell -NoProfile -File scripts/test-install.ps1 -VerifyUpdate
 ```
 
 Verification records must capture command, runner, cwd, branch/ref, exit code, pass/fail/skip counts where available, notable diagnostics, and unrun checks.
@@ -169,14 +169,14 @@ Stop for destructive deletion, secret/credential handling, live provider calls b
 
 ## Phase Handoff Capsule
 
-- updated_at: 2026-07-19T23:32:54+09:00
+- updated_at: 2026-07-20T09:10:00+09:00
 - source_ref: `harness_v2_implementation_plan.md`
 - updated_by: main session
-- phase: run preparation
+- phase: completion review
 - scope: WP-02 through WP-06
-- current gate: delegated implementation
+- current gate: independent remediation re-review
 - accepted decisions: self-contained generated resources; Python stdlib helpers; local markdown tracker; five slice commits
-- open decisions: none blocking
+- open decisions: remote GitHub-backed update evidence requires publishing an intermediate branch revision and remains unverified; local-source install and refresh is the authorized release evidence
 - files read: implementation plan, parent plan excerpts, inventory, workflow, README, authoring resource map, distribution catalog
 - files changed: Work Packet; WP-02 bootstrap resources; WP-03 contract resources; WP-04 Goal runtime, `execute-codex-goal`, rewritten `diagnose`, runtime fixtures, and tests
 - tracker/PR/doc mutations: local Work Packet created
@@ -196,6 +196,9 @@ Stop for destructive deletion, secret/credential handling, live provider calls b
 - external verification WP-06 first run: approved `skills@1.5.19` local-source install completed for all 18 public Skills in both Codex and Claude Code targets, created project `skills-lock.json` entries with `sourceType=local`, and list discovery saw the installed Skills; native `skills update -p -y` then exited successfully while reporting no project Skills or updates and left deliberately stale copies unchanged, because upstream update filters to GitHub-backed hash entries; the wrapper fix was pending at the end of that run
 - delegated WP-06 update regression: fake native update exit-0/no-op RED failed on the first stale `finance-research` Codex entrypoint; GREEN now detects stale hashes, reports native local update as unsupported/no-op, reruns the exact local `skills add <resolvedRoot> --skill '*' -a codex -a claude-code --copy -y` refresh, and verifies all 18 Skills across both targets; the existing native-update-success case still passes without fallback; focused release tests passed 6/6, full suite passed 64/64, resource drift verified 24 generated targets, distribution validation passed, and `git diff --check` passed
 - external verification WP-06 corrected rerun: approved `skills@1.5.19` smoke exited 0 after installing all 18 public Skills into both Codex and Claude Code targets, detecting the native local update no-op, rerunning the local-source add refresh, and restoring hashes for all 36 provider entrypoints; final evidence included `Local source refresh passed for 18 public skills across codex and claude-code.` and `Install and update smoke test passed for 18 public skills across codex and claude-code.`
-- risks: remote GitHub-backed update remains unverified and is post-release scope; live GitHub release is not authorized
-- next mode: run
-- next stop condition: independent review of the complete WP-02 through WP-06 implementation
+- independent review findings: the first read-only review blocked merge on fail-open close gates, simulated-only pilots, incomplete install-tree comparison, weak runtime transaction and Goal-state controls, incomplete maintenance checks, reparse-point containment, repo-relative executable resolution, and visible HTML generated headers
+- review remediation: close now revalidates the approved canonical contract and completed plans, requires nonempty passing Targeted/Feature/Fast/Full evidence, and fails closed on git inspection; runtime persists a Goal-bound baseline, enforces one in-progress plan and transaction recovery approval; bootstrap rejects reparse-point escapes and resolves commands from the project root; maintenance compares a bundled full resource manifest and reports budget, trend, stale-work, and duplicate findings; pilots execute real temporary-fixture source changes and subprocess checks; install smoke compares every public Skill file by relative path and SHA256; generated HTML headers are comments
+- final local verification: `python -m unittest discover -s tests -p "test_*.py"` passed 80/80; resource drift check passed; distribution validation passed; `scripts/run-v2-pilots.py` passed 3/3 with one measured Full check per Goal; `git diff --check develop` passed; approved `scripts/test-install.ps1 -VerifyUpdate` passed for all 18 public Skills across Codex and Claude Code with complete-tree SHA256 comparison and local-source refresh evidence in `distribution/evidence/local-source-install-refresh.json`
+- risks: remote GitHub-backed native update remains unverified because it requires an intermediate branch publication not covered by the final-push authorization; live GitHub release is not authorized
+- next mode: review
+- next stop condition: independent re-review of the remediated complete diff

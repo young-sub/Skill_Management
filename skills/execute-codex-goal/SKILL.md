@@ -13,7 +13,7 @@ If the host does not expose an active Goal, do not mutate source or contract fil
 
 ## Preflight
 
-Use `scripts/goal_runtime.py preflight` with `--contract-root`, `--source-root`, and the host-provided `--goal-state` JSON file. Continue only when active state, objective Work ID/path/hash, approved contract and DAG, and byte hashes for `AGENTS.md` and `CLAUDE.md` all match. Preserve the returned dirty baseline; it identifies pre-existing work and is not cleanup scope.
+Use `scripts/goal_runtime.py preflight` with `--contract-root`, `--source-root`, and the host-provided `--goal-state` JSON file. The state must be a fresh serialization of the host `get_goal` result, never inferred or invented: it includes `active: true`, a nonempty `goal_id`, `retrieved_at`, a host marker, and the exact objective Work ID/path/hash. Continue only when those fields, the approved contract and DAG, and byte hashes for `AGENTS.md` and `CLAUDE.md` all match. The first successful preflight atomically persists the dirty baseline beside that Goal state, keyed by Goal ID and objective fingerprint; every later command reuses and verifies it.
 
 ## Slice Loop
 
@@ -24,9 +24,11 @@ Use `scripts/goal_runtime.py preflight` with `--contract-root`, `--source-root`,
 5. Use `complete` only after the Plan evidence is sufficient. It atomically transitions `in_progress` to `completed`.
 6. Preserve existing dirty files and never perform broad cleanup.
 
+Only one Plan may be `in_progress`. A blocked Plan can return to `pending` only with `resume --approve-resume --resolution-evidence <evidence>` after the exact Goal and Contract preflight succeeds; resolved blocker evidence is retained under `resolved-blocks/`.
+
 ## Hard Stop
 
-For a contract Hard Stop, stop implementation immediately. Use `block` to atomically mark the active Plan `blocked` and create `BLOCKED.md` with the interruption point, completed Plans, evidence, blocker, impact, attempts, recommended decision, alternatives, and exact resume conditions. Ask no broad follow-up questions beyond the approved Hard Stop boundary.
+For a contract Hard Stop, stop implementation immediately. Use `block` to durably create a transaction marker and `BLOCKED.md` before marking the active Plan `blocked`, so a blocked state can never exist without its report. An incomplete marker fails closed; use `recover-block --approve-recovery` to finish that exact transaction. Ask no broad follow-up questions beyond the approved Hard Stop boundary.
 
 ## Evidence
 

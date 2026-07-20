@@ -4,6 +4,8 @@ param(
     [switch]$Check
 )
 
+$ErrorActionPreference = 'Stop'
+
 if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
     $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
     $RepositoryRoot = Join-Path $scriptDirectory '..'
@@ -25,6 +27,7 @@ if ($resourceMap.schema_version -ne 1) {
 }
 $utf8WithoutBom = [System.Text.UTF8Encoding]::new($false)
 $driftFound = $false
+$manifestResource = $null
 
 foreach ($resource in $resourceMap.resources) {
     $sourcePath = [System.IO.Path]::GetFullPath((Join-Path $authoringRoot $resource.source))
@@ -34,6 +37,14 @@ foreach ($resource in $resourceMap.resources) {
     )) {
         Write-Output "ERROR source escapes authoring directory: '$($resource.source)'"
         exit 1
+    }
+    if ($resource.source -eq 'public-resource-manifest.json') {
+        if ($null -ne $manifestResource) {
+            Write-Output 'ERROR duplicate public resource manifest mapping'
+            exit 1
+        }
+        $manifestResource = $resource
+        continue
     }
     $sourceHash = (Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256).Hash.ToLowerInvariant()
     $sourceContent = Get-Content -LiteralPath $sourcePath -Raw -Encoding utf8
@@ -52,7 +63,7 @@ foreach ($resource in $resourceMap.resources) {
             # JSON has no comment syntax. Preserve valid JSON byte-for-byte.
             $generatedContent = $sourceContent
         } else {
-            $header = if ($extension -eq '.md') {
+            $header = if ($extension -in @('.md', '.html')) {
                 @(
                     '<!-- Generated file. Do not edit directly. -->'
                     "<!-- Source: authoring/$($resource.source) -->"
@@ -65,7 +76,26 @@ foreach ($resource in $resourceMap.resources) {
                     "# Source-SHA256: $sourceHash"
                 )
             }
-            $generatedContent = @($header; ''; $sourceContent) -join "`n"
+            if ($extension -eq '.html') {
+                $doctypeMatch = [Regex]::Match(
+                    $sourceContent,
+                    '\A(?<doctype><!doctype[^>]*>)(?:\r?\n)?',
+                    [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
+                )
+                if ($doctypeMatch.Success) {
+                    $body = $sourceContent.Substring($doctypeMatch.Length)
+                    $generatedContent = @(
+                        $doctypeMatch.Groups['doctype'].Value
+                        $header
+                        ''
+                        $body
+                    ) -join "`n"
+                } else {
+                    $generatedContent = @($header; ''; $sourceContent) -join "`n"
+                }
+            } else {
+                $generatedContent = @($header; ''; $sourceContent) -join "`n"
+            }
         }
 
         if ($Check) {
@@ -92,6 +122,101 @@ foreach ($resource in $resourceMap.resources) {
             $utf8WithoutBom
         )
         Write-Output "Synced $($resource.source) -> $target"
+    }
+}
+
+if ($null -ne $manifestResource) {
+    $manifestSourcePath = [System.IO.Path]::GetFullPath(
+        (Join-Path $authoringRoot $manifestResource.source)
+    )
+    $manifestTargetPaths = [System.Collections.Generic.List[string]]::new()
+    foreach ($target in $manifestResource.targets) {
+        $targetPath = [System.IO.Path]::GetFullPath((Join-Path $skillsRoot $target))
+        if (-not $targetPath.StartsWith(
+            $skillsRootPrefix,
+            [System.StringComparison]::OrdinalIgnoreCase
+        )) {
+            Write-Output "ERROR target escapes skills directory: '$target'"
+            exit 1
+        }
+        $manifestTargetPaths.Add($targetPath)
+    }
+
+    $manifestFiles = [ordered]@{}
+    $publicSkillDirectories = Get-ChildItem -LiteralPath $skillsRoot -Directory |
+        Where-Object {
+            Test-Path -LiteralPath (Join-Path $_.FullName 'SKILL.md') -PathType Leaf
+        } |
+        Sort-Object Name
+    foreach ($skillDirectory in $publicSkillDirectories) {
+        $files = Get-ChildItem -LiteralPath $skillDirectory.FullName -File -Recurse |
+            Where-Object {
+                $_.FullName -notmatch '[\\/]__pycache__[\\/]' -and
+                $_.Extension -ne '.pyc' -and
+                $manifestTargetPaths -notcontains $_.FullName
+            } |
+            Sort-Object FullName
+        foreach ($file in $files) {
+            $relative = $file.FullName.Substring($skillsRootPrefix.Length).Replace('\', '/')
+            $manifestFiles[$relative] = (
+                Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256
+            ).Hash.ToLowerInvariant()
+        }
+    }
+    $manifest = [ordered]@{
+        schema_version = 1
+        algorithm = 'sha256'
+        root = 'skills'
+        excludes = @('maintain-agent-harness/resources/public-resource-manifest.json')
+        files = $manifestFiles
+    }
+    $manifestContent = ($manifest | ConvertTo-Json -Depth 5) + "`n"
+
+    if ($Check) {
+        $sourceContent = if (Test-Path -LiteralPath $manifestSourcePath -PathType Leaf) {
+            [System.IO.File]::ReadAllText($manifestSourcePath)
+        } else {
+            $null
+        }
+        if ($sourceContent -ne $manifestContent) {
+            Write-Output "ERROR generated resource drift: 'authoring/$($manifestResource.source)'"
+            $driftFound = $true
+        } else {
+            Write-Output "Verified authoring/$($manifestResource.source)"
+        }
+        foreach ($index in 0..($manifestResource.targets.Count - 1)) {
+            $target = $manifestResource.targets[$index]
+            $targetPath = $manifestTargetPaths[$index]
+            $targetContent = if (Test-Path -LiteralPath $targetPath -PathType Leaf) {
+                [System.IO.File]::ReadAllText($targetPath)
+            } else {
+                $null
+            }
+            if ($targetContent -ne $manifestContent) {
+                Write-Output "ERROR generated resource drift: '$target'"
+                $driftFound = $true
+            } else {
+                Write-Output "Verified $target"
+            }
+        }
+    } else {
+        [System.IO.File]::WriteAllText(
+            $manifestSourcePath,
+            $manifestContent,
+            $utf8WithoutBom
+        )
+        foreach ($index in 0..($manifestResource.targets.Count - 1)) {
+            $target = $manifestResource.targets[$index]
+            $targetPath = $manifestTargetPaths[$index]
+            New-Item -ItemType Directory -Path (Split-Path -Parent $targetPath) -Force |
+                Out-Null
+            [System.IO.File]::WriteAllText(
+                $targetPath,
+                $manifestContent,
+                $utf8WithoutBom
+            )
+            Write-Output "Synced $($manifestResource.source) -> $target"
+        }
     }
 }
 
