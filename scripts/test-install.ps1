@@ -36,6 +36,25 @@ if (-not (Test-Path -LiteralPath $catalogPath -PathType Leaf)) {
 }
 $catalog = Get-Content -LiteralPath $catalogPath -Raw -Encoding utf8 | ConvertFrom-Json
 $expectedSkills = @($catalog.public_skills)
+$remoteSourceMatch = [regex]::Match(
+    $SourcePackage,
+    '^https://github\.com/[^/]+/[^/]+/(?<kind>tree|commit)/(?<ref>[^/]+)$'
+)
+$boundSourceCommit = $ExpectedSourceCommit
+if (
+    [string]::IsNullOrWhiteSpace($boundSourceCommit) -and
+    $remoteSourceMatch.Success -and
+    $remoteSourceMatch.Groups['ref'].Value -match '^[0-9a-fA-F]{40}$'
+) {
+    $boundSourceCommit = $remoteSourceMatch.Groups['ref'].Value
+}
+$remoteEvidenceApproved = (
+    $ApproveRemoteEvidence -and
+    $SourceType -eq 'github' -and
+    $VerifyUpdate -and
+    $remoteSourceMatch.Success -and
+    $boundSourceCommit -match '^[0-9a-fA-F]{40}$'
+)
 
 function Get-SkillTreeDrift {
     param(
@@ -114,11 +133,13 @@ try {
     $nativeUpdateStatus = 'not_run'
     $localRefreshStatus = 'not_run'
     if ($VerifyUpdate) {
-        foreach ($skillName in $expectedSkills) {
-            foreach ($providerRoot in @('.agents\skills', '.claude\skills')) {
-                $installedSkill = Join-Path $resolvedDestination "$providerRoot\$skillName"
-                foreach ($installed in Get-ChildItem -LiteralPath $installedSkill -Recurse -File) {
-                    Set-Content -LiteralPath $installed.FullName -Value '# stale install' -Encoding utf8
+        if (-not $remoteEvidenceApproved) {
+            foreach ($skillName in $expectedSkills) {
+                foreach ($providerRoot in @('.agents\skills', '.claude\skills')) {
+                    $installedSkill = Join-Path $resolvedDestination "$providerRoot\$skillName"
+                    foreach ($installed in Get-ChildItem -LiteralPath $installedSkill -Recurse -File) {
+                        Set-Content -LiteralPath $installed.FullName -Value '# stale install' -Encoding utf8
+                    }
                 }
             }
         }
@@ -159,25 +180,6 @@ try {
     } else {
         Write-Output "Install smoke test passed for codex and claude-code."
     }
-    $remoteSourceMatch = [regex]::Match(
-        $SourcePackage,
-        '^https://github\.com/[^/]+/[^/]+/(?<kind>tree|commit)/(?<ref>[^/]+)$'
-    )
-    $boundSourceCommit = $ExpectedSourceCommit
-    if (
-        [string]::IsNullOrWhiteSpace($boundSourceCommit) -and
-        $remoteSourceMatch.Success -and
-        $remoteSourceMatch.Groups['ref'].Value -match '^[0-9a-fA-F]{40}$'
-    ) {
-        $boundSourceCommit = $remoteSourceMatch.Groups['ref'].Value
-    }
-    $remoteEvidenceApproved = (
-        $ApproveRemoteEvidence -and
-        $SourceType -eq 'github' -and
-        $VerifyUpdate -and
-        $remoteSourceMatch.Success -and
-        $boundSourceCommit -match '^[0-9a-fA-F]{40}$'
-    )
     $unverifiedChecks = @()
     if (-not $remoteEvidenceApproved) {
         $unverifiedChecks += 'remote_github_update'

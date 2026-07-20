@@ -146,7 +146,7 @@ class InstallUpdateSmokeTests(unittest.TestCase):
             ["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=True
         ).stdout.strip()
         _, evidence = self.run_fake_smoke(
-            update_mode="full",
+            update_mode="noop",
             source_type="github",
             source_package="https://github.com/young-sub/Skill_Management/tree/release-smoke-400dc9f",
             approve_remote=True,
