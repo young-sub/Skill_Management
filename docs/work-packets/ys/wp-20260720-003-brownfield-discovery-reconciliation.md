@@ -343,17 +343,19 @@ Add a mutation sentinel test that snapshots every file before and after `reconci
 - git_publish_state: local_only
 - tracker_publish_state: local_pending
 - published_body_ref:
-- verification evidence: focused setup+brownfield suite 15 passed; full suite 92 passed; resource sync check passed; distribution validation passed; git diff check passed
-- delegated evidence: `/root/wp003_baseline_verifier` executed RED/GREEN and regression commands; independent completion review remains scheduled after WP-005
+- verification evidence: final focused brownfield suite 10/10 passed; final repository suite 122/122 passed; resource sync, distribution, and diff checks passed
+- delegated evidence: `/root/wp003_baseline_verifier` executed RED/GREEN; independent reviewer `/root/wp003_independent_review` found CRLF, Git fail-open, authority, and tracked-ignore gaps, verified their remediation, and returned PASS with no remaining High/Medium findings
 - risks: conservative detection may require human resolution for uncommon toolchains
-- next mode: WP-004 run
-- next stop condition: WP-004 precondition or transaction acceptance evidence incomplete
+- next mode: goal close
+- next stop condition: final evidence or repository verification failure
 
-## Close Report Skeleton
+## Close Report
 
+- Final status: completed
 - Outcome: completed. `reconcile` emits a deterministic, read-only, digest-bound PlanArtifact.
 - Implemented slices: evidence inventory; authority and thin router proposals; byte-preserving TESTING merge proposal; Git-backed path policy and repository boundaries; apply-ready immutable mutation contract.
-- Verification evidence: 15 focused tests passed; 92 full tests passed; resource drift, distribution, and diff checks passed.
+- Verification evidence: 10/10 final focused tests and 122/122 final repository tests passed; resource drift, distribution, and diff checks passed.
+- Independent review: PASS after remediation of byte preservation, Git-unavailable and tracked-ignore fail-closed behavior, prohibited path inspection, rank-2 CI authority, unknown evidence retention, and ambiguous-router suppression.
 - Architecture review: detectors are isolated functions, repository content is never executed, nested/reparse boundaries are excluded, canonical authoring remains the single source copied into the public Skill.
 - Docs updated: `skills/setup-agent-harness/SKILL.md`, `README.md`, `docs/architecture/skill-inventory.md`.
 - Remaining risks: conservative command detection intentionally creates human decisions for ambiguous multi-command repositories.

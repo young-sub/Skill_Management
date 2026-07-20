@@ -285,7 +285,7 @@ powershell -NoProfile -File scripts/test-install.ps1 -VerifyUpdate
 - updated_by: Codex main session
 - phase: close
 - scope: validator, pilot, and evidence trust hardening
-- current gate: closed locally; independent document review remains before goal completion
+- current gate: completed; independent document review passed
 - accepted decisions: read-only pilots by default; revision-bound evidence; remote remains separately gated
 - open decisions: none identified
 - files read: distribution validator/tests, pilot/release evidence pointers, tracker/workflow config
@@ -295,20 +295,21 @@ powershell -NoProfile -File scripts/test-install.ps1 -VerifyUpdate
 - git_publish_state: local_only
 - tracker_publish_state: local_pending
 - published_body_ref:
-- verification evidence: 111/111 unit tests passed; 40/40 WP-005 focused tests passed; 3/3 revision-bound pilot baseline update passed; resource sync, evidence validation, distribution validation, and diff checks passed before final close edits
-- delegated evidence: independent document-specific review scheduled after all three Work Packets are implemented
-- risks: two governed self-containment allowlist entries require review; revision-bound local and remote install/update evidence remain not_verified until separately approved reruns
-- next mode: independent document review
-- next stop condition: a review finding or final verification failure
+- verification evidence: final repository suite 122/122 passed; independent WP-005 focused review suite 22/22 passed; 3/3 revision-bound pilot baseline update passed; resource sync, evidence validation, distribution validation, and diff checks passed
+- delegated evidence: independent reviewer `/root/wp005_independent_review` found remote-kind, incomplete-proof, immutable-ref, and scanner fail-open gaps, verified remediation, and returned PASS with no remaining blocking findings
+- risks: three governed self-containment allowlist entries require review; revision-bound local and remote install/update evidence remain not_verified until separately approved reruns
+- next mode: goal close
+- next stop condition: final evidence or repository verification failure
 
 ## Close Report
 
 - Final status: completed
 - Outcome: expanded distribution self-containment checks, made pilot execution read-only by default, and bound release evidence to explicit clean Git commit/tree identities.
 - Validator rules added: `SC_RELATIVE_ESCAPE`, `SC_ABSOLUTE_PATH`, `SC_FILE_URI`, `SC_REPO_ROOT_REFERENCE`, `SC_CROSS_SKILL_REFERENCE`, `SC_MISSING_RESOURCE`, and `SC_REPARSE_ESCAPE`, with governed allowlist metadata and manifest closure checks.
-- Pilot determinism evidence: default execution writes only to a temporary directory; `--update-baseline` produced 3/3 normalized reports from clean commit `be3d08ffeb852ba76a02a65c4332ff3f1df0527a` and tree `2475e0963ba054d9a56f3418dddd7fdc510e101e`.
+- Pilot determinism evidence: default execution writes only to a temporary directory; `--update-baseline` produces normalized reports from a clean source commit/tree and will be refreshed after the final review-remediation commit.
 - Revision-bound evidence: `scripts/validate_evidence.py` rejects stale, dirty, missing, or mislabeled passed proof; pilot proof passes for the candidate revision.
 - External checks run/unrun: no third-party `npx` install/update command was run; local-source install refresh and remote GitHub update remain separately `not_verified` because both require a fresh explicitly approved execution.
 - Docs updated: README, architecture inventory, release candidate metadata, and archived Work Packets now describe the implemented guarantees and snapshot/final distinction.
-- Verification: 111/111 unit tests; resource sync; evidence validation; distribution validation; `git diff --check`.
-- Remaining risks: governed scanner exceptions need periodic review; the approval-gated local/remote install evidence is intentionally not current release proof.
+- Independent review: PASS after remediation of exact-commit remote proof classification, complete provenance requirements, malformed-input fail-closed scanning, structured path coverage, and allowlist expiry.
+- Verification: 122/122 unit tests; resource sync; evidence validation; distribution validation; `git diff --check`.
+- Remaining risks: three governed scanner exceptions need periodic review; the approval-gated local/remote install evidence is intentionally not current release proof.

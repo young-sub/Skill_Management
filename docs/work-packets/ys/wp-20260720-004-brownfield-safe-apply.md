@@ -335,18 +335,20 @@ Windows에서는 symlink/junction permission 차이를 고려해 가능한 repar
 - git_publish_state: local_only
 - tracker_publish_state: local_pending
 - published_body_ref:
-- verification evidence: 23 focused tests passed including all 8 mutation boundaries; 100 full tests passed; resource sync, distribution, and diff checks passed
-- delegated evidence: `/root/wp003_baseline_verifier` executed RED/GREEN, fault-boundary, focused, and broad regression commands; independent completion review remains scheduled after WP-005
-- risks: transaction recovery and cross-platform filesystem semantics
-- next mode: WP-005 run
-- next stop condition: WP-005 evidence-hardening acceptance incomplete
+- verification evidence: final focused safe-apply suite 9/9 passed, including all 8 persisted operation boundaries and the target-write crash window; final repository suite 122/122 passed; resource sync, distribution, and diff checks passed
+- delegated evidence: independent reviewer `/root/wp004_independent_review` found the write-ahead crash window and premature idempotency shortcut, verified remediation, and returned PASS with no remaining High/Medium findings
+- risks: a hard kill during staging can leave an unjournaled temporary staging directory, but no repository target has been mutated; cross-platform filesystem semantics remain bounded by the documented atomicity claim
+- next mode: goal close
+- next stop condition: final evidence or repository verification failure
 
-## Close Report Skeleton
+## Close Report
 
+- Final status: completed
 - Outcome: completed. Exact reviewed plans apply only after digest, schema, repository, blocker, approval, input, Git, ignore, and boundary revalidation.
 - Applied PlanArtifact schema version: 1.
-- Fault-injection evidence: every one of 8 mutation boundaries produced a journaled rollback in tests; rollback-failure injection produced `recovery_required`.
+- Fault-injection evidence: every one of 8 persisted operation boundaries produced a journaled rollback; a crash after target write remained `committing/applying` and explicit recovery restored the exact pre-state; rollback-failure injection produced `recovery_required`.
 - Git path-policy evidence: ignored `.harness/project.yaml` blocks before transaction; `.harness/` remains tracked intent; no automatic staging occurs; `must_be_committed` reports tracked outputs.
-- Recovery/idempotency evidence: incomplete transactions block apply; explicit `recover-apply` restores state; a second successful apply is `already_applied` with zero mutations.
+- Recovery/idempotency evidence: incomplete transactions block apply; explicit `recover-apply` restores state; a second successful apply is `already_applied` only after non-mutated input and boundary revalidation.
+- Independent review: PASS with no remaining High/Medium findings.
 - Docs updated: `skills/setup-agent-harness/SKILL.md`, project `AGENTS.md` template, `README.md`.
 - Remaining risks: true cross-filesystem atomicity is intentionally not claimed; ambiguous recovery fails closed for manual resolution.
