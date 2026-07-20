@@ -20,7 +20,7 @@ def _git(root: Path, *arguments: str) -> str | None:
         text=True,
         check=False,
     )
-    return result.stdout.strip() if result.returncode == 0 else None
+    return result.stdout.rstrip("\r\n") if result.returncode == 0 else None
 
 
 def _file_digest(path: Path) -> str | None:

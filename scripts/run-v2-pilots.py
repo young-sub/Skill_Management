@@ -533,6 +533,14 @@ def main() -> int:
         output = args.output_dir.resolve()
     else:
         output = Path(tempfile.mkdtemp(prefix="harness-v2-pilot-evidence-")).resolve()
+    provenance = build_provenance(
+        ROOT,
+        command=[sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]],
+        source_type="local_checkout",
+        source_package=ROOT.as_posix(),
+        result="pending",
+        unverified_checks=["remote_github_update"],
+    )
     output.mkdir(parents=True, exist_ok=True)
     try:
         pilots = [run_pilot(output, *definition) for definition in PILOTS]
@@ -549,14 +557,8 @@ def main() -> int:
             "result": "passed" if passed else "failed",
             "pilots": pilots,
         }
-        report["evidence"] = build_provenance(
-            ROOT,
-            command=[sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]],
-            source_type="local_checkout",
-            source_package=ROOT.as_posix(),
-            result=report["result"],
-            unverified_checks=["remote_github_update"],
-        )
+        provenance["result"] = report["result"]
+        report["evidence"] = provenance
         serialized_report = normalized_baseline(report) if args.update_baseline else report
         (output / "harness-v2-pilots.json").write_text(
             json.dumps(serialized_report, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n"

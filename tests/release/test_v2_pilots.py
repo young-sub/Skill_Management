@@ -179,6 +179,9 @@ class V2PilotTests(unittest.TestCase):
                 all("docs/pilots/" in line for line in changed.splitlines()), changed
             )
             report_text = (checkout / "docs/pilots/harness-v2-pilots.json").read_text(encoding="utf-8")
+            report = json.loads(report_text)
+            self.assertFalse(report["evidence"]["git_dirty"])
+            self.assertEqual(report["evidence"]["dirty_paths"], [])
             self.assertNotIn('"duration_seconds"', report_text)
             self.assertIn('"duration_bucket"', report_text)
 
