@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This inventory defines WP-01 distribution ownership. `harness_v2_implementation_plan.md` is authoritative; this document records its mapping against the current worktree.
+This inventory defines current distribution ownership. The completed V2 record is archived at `docs/archive/plans/harness_v2_implementation_plan.md`; this document records its mapping against the current worktree.
 
 ## Public Skills
 
@@ -11,9 +11,10 @@ These skills remain discoverable under `skills/<name>/SKILL.md` and retain their
 | Class | Skills |
 | --- | --- |
 | Compatibility and support | `multi-agent-review`, `prototype`, `webapp-testing`, `zoom-out` |
+| Harness V2 Core | `setup-agent-harness`, `explore-idea`, `design-goal`, `execute-codex-goal`, `diagnose`, `close-goal`, `maintain-agent-harness` |
 | Professional and domain | `finance-research`, `find-skills`, `frontend-design`, `teach`, `theme-factory`, `web-artifacts-builder`, `write-a-skill` |
 
-Expected public catalog count: 11.
+Expected public catalog count: 18.
 
 ## Preserved Legacy Skills
 
@@ -28,9 +29,9 @@ Expected preserved legacy count: 12.
 - `caveman`: professional/excluded in the plan but intentionally removed in baseline commit `c9d3388`; WP-01 does not recreate it.
 - `codex-delegation`: replacement/archive candidate intentionally removed in baseline commit `c9d3388`; WP-01 does not recreate it.
 
-## Future Core Catalog
+## Harness V2 Core Catalog
 
-WP-02 through WP-05 will add `setup-agent-harness`, `explore-idea`, `design-goal`, `execute-codex-goal`, rewritten `diagnose`, `close-goal`, and `maintain-agent-harness`. WP-01 must not invent those behaviors merely to populate the catalog.
+WP-02 through WP-05 added all seven Core Skills. `future_core_skills` is now empty; WP-06 owns release and Pilot evidence rather than another Skill.
 
 ## Distribution Invariants
 

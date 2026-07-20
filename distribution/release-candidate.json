@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "version": "2.0.0",
+  "stage": "release-candidate",
+  "candidate_date": "2026-07-19",
+  "live_release": false,
+  "tag": null,
+  "catalog": "catalog.json",
+  "public_skill_count": 18,
+  "public_skills": [
+    "finance-research",
+    "find-skills",
+    "frontend-design",
+    "explore-idea",
+    "design-goal",
+    "execute-codex-goal",
+    "diagnose",
+    "close-goal",
+    "maintain-agent-harness",
+    "multi-agent-review",
+    "prototype",
+    "setup-agent-harness",
+    "teach",
+    "theme-factory",
+    "webapp-testing",
+    "web-artifacts-builder",
+    "write-a-skill",
+    "zoom-out"
+  ],
+  "future_core_skills": [],
+  "external_install_smoke": {
+    "status": "passed",
+    "cli_version": "skills@1.5.19",
+    "source_type": "local",
+    "comparison_scope": "complete_relative_file_set_sha256",
+    "install": {
+      "status": "passed",
+      "public_skill_count": 18,
+      "providers": ["codex", "claude-code"]
+    },
+    "native_update": {
+      "status": "unsupported_for_local_source",
+      "evidence": "exit 0 reported no project skills or updates and stale copies remained"
+    },
+    "local_source_refresh": {
+      "status": "passed",
+      "public_skill_count": 18,
+      "provider_entrypoint_count": 36,
+      "evidence": "native local update no-op was detected and local add refresh restored every Codex and Claude Code entrypoint hash"
+    },
+    "remote_github_update": {
+      "status": "not_verified",
+      "scope": "release_gate_requires_explicit_network_approval",
+      "source_package": "young-sub/Skill_Management",
+      "candidate_source_package": "https://github.com/young-sub/Skill_Management/tree/develop",
+      "command": "powershell -NoProfile -File scripts/test-install.ps1 -RepositoryRoot . -SourcePackage https://github.com/young-sub/Skill_Management/tree/develop -SourceType github -VerifyUpdate -EvidencePath distribution/evidence/remote-github-update.json",
+      "evidence_path": "distribution/evidence/remote-github-update.json"
+    }
+  },
+  "pilot_report": "../docs/pilots/harness-v2-pilots.json"
+}

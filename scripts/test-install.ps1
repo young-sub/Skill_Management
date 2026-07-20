@@ -2,8 +2,15 @@
 param(
     [string]$RepositoryRoot,
     [string]$DestinationRoot,
-    [string]$SkillsCommand = 'npx'
+    [string]$SkillsCommand = 'npx',
+    [string]$SourcePackage,
+    [ValidateSet('local', 'github')]
+    [string]$SourceType = 'local',
+    [string]$EvidencePath,
+    [switch]$VerifyUpdate
 )
+
+$ErrorActionPreference = 'Stop'
 
 if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
     $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -11,6 +18,9 @@ if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
 }
 
 $resolvedRoot = [System.IO.Path]::GetFullPath($RepositoryRoot)
+if ([string]::IsNullOrWhiteSpace($SourcePackage)) {
+    $SourcePackage = $resolvedRoot
+}
 $ownsDestination = [string]::IsNullOrWhiteSpace($DestinationRoot)
 if ($ownsDestination) {
     $DestinationRoot = Join-Path (
@@ -18,32 +28,149 @@ if ($ownsDestination) {
     ) "harness-install-$([Guid]::NewGuid().ToString('N'))"
 }
 $resolvedDestination = [System.IO.Path]::GetFullPath($DestinationRoot)
-$expectedSkills = Get-ChildItem -LiteralPath (Join-Path $resolvedRoot 'skills') -Directory |
-    Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'SKILL.md') } |
-    Select-Object -ExpandProperty Name
+$catalogPath = Join-Path $resolvedRoot 'distribution\catalog.json'
+if (-not (Test-Path -LiteralPath $catalogPath -PathType Leaf)) {
+    throw "Distribution catalog is missing: $catalogPath"
+}
+$catalog = Get-Content -LiteralPath $catalogPath -Raw -Encoding utf8 | ConvertFrom-Json
+$expectedSkills = @($catalog.public_skills)
+
+function Get-SkillTreeDrift {
+    param(
+        [string]$SourceRoot,
+        [string]$InstallRoot,
+        [string[]]$SkillNames
+    )
+    $drift = [System.Collections.Generic.List[string]]::new()
+    foreach ($skillName in $SkillNames) {
+        $sourceSkill = Join-Path $SourceRoot "skills\$skillName"
+        $sourceFiles = @{}
+        foreach ($sourceFile in Get-ChildItem -LiteralPath $sourceSkill -Recurse -File) {
+            if ($sourceFile.Extension -eq '.pyc' -or $sourceFile.FullName -match '[\\/]__pycache__[\\/]') { continue }
+            $relative = $sourceFile.FullName.Substring($sourceSkill.Length).TrimStart('\').Replace('\', '/')
+            $sourceFiles[$relative] = (Get-FileHash -LiteralPath $sourceFile.FullName -Algorithm SHA256).Hash
+        }
+        foreach ($providerRoot in @('.agents\skills', '.claude\skills')) {
+            $installedSkill = Join-Path $InstallRoot "$providerRoot\$skillName"
+            if (-not (Test-Path -LiteralPath $installedSkill -PathType Container)) {
+                $drift.Add("$providerRoot/$skillName:missing")
+                continue
+            }
+            $installedFiles = @{}
+            foreach ($installedFile in Get-ChildItem -LiteralPath $installedSkill -Recurse -File) {
+                if ($installedFile.Extension -eq '.pyc' -or $installedFile.FullName -match '[\\/]__pycache__[\\/]') { continue }
+                $relative = $installedFile.FullName.Substring($installedSkill.Length).TrimStart('\').Replace('\', '/')
+                $installedFiles[$relative] = (Get-FileHash -LiteralPath $installedFile.FullName -Algorithm SHA256).Hash
+            }
+            foreach ($relative in $sourceFiles.Keys) {
+                if (-not $installedFiles.ContainsKey($relative)) {
+                    $drift.Add("$providerRoot/$skillName/${relative}:missing")
+                } elseif ($sourceFiles[$relative] -ne $installedFiles[$relative]) {
+                    $drift.Add("$providerRoot/$skillName/${relative}:hash_mismatch")
+                }
+            }
+            foreach ($relative in $installedFiles.Keys) {
+                if (-not $sourceFiles.ContainsKey($relative)) {
+                    $drift.Add("$providerRoot/$skillName/${relative}:extra")
+                }
+            }
+        }
+    }
+    return @($drift | Sort-Object)
+}
+
+function Write-SmokeEvidence {
+    param([string]$Path, [hashtable]$Payload)
+    if ([string]::IsNullOrWhiteSpace($Path)) { return }
+    $resolvedEvidence = [System.IO.Path]::GetFullPath($Path)
+    $parent = Split-Path -Parent $resolvedEvidence
+    if (-not [string]::IsNullOrWhiteSpace($parent)) {
+        New-Item -ItemType Directory -Path $parent -Force | Out-Null
+    }
+    $Payload | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $resolvedEvidence -Encoding utf8
+}
 
 New-Item -ItemType Directory -Path $resolvedDestination -Force | Out-Null
 $previousLocation = Get-Location
 
 try {
     Set-Location -LiteralPath $resolvedDestination
-    & $SkillsCommand skills add $resolvedRoot --skill '*' -a codex -a claude-code --copy -y
+    $installArguments = @(
+        'skills', 'add', $SourcePackage, '--skill', '*',
+        '-a', 'codex', '-a', 'claude-code', '--copy', '-y'
+    )
+    & $SkillsCommand @installArguments
     if ($LASTEXITCODE -ne 0) {
         throw "skills CLI failed with exit code $LASTEXITCODE"
     }
 
-    foreach ($skillName in $expectedSkills) {
-        $codexEntrypoint = Join-Path $resolvedDestination ".agents\skills\$skillName\SKILL.md"
-        $claudeEntrypoint = Join-Path $resolvedDestination ".claude\skills\$skillName\SKILL.md"
-        if (-not (Test-Path -LiteralPath $codexEntrypoint -PathType Leaf)) {
-            throw "Codex install missing skill: $skillName"
-        }
-        if (-not (Test-Path -LiteralPath $claudeEntrypoint -PathType Leaf)) {
-            throw "Claude Code install missing skill: $skillName"
-        }
+    $installDrift = @(Get-SkillTreeDrift -SourceRoot $resolvedRoot -InstallRoot $resolvedDestination -SkillNames $expectedSkills)
+    if ($installDrift.Count -gt 0) {
+        throw "Installed public Skill trees differ from source: $($installDrift -join ', ')"
     }
 
-    Write-Output 'Install smoke test passed for codex and claude-code.'
+    $nativeUpdateStatus = 'not_run'
+    $localRefreshStatus = 'not_run'
+    if ($VerifyUpdate) {
+        foreach ($skillName in $expectedSkills) {
+            foreach ($providerRoot in @('.agents\skills', '.claude\skills')) {
+                $installedSkill = Join-Path $resolvedDestination "$providerRoot\$skillName"
+                foreach ($installed in Get-ChildItem -LiteralPath $installedSkill -Recurse -File) {
+                    Set-Content -LiteralPath $installed.FullName -Value '# stale install' -Encoding utf8
+                }
+            }
+        }
+
+        $updateArguments = @('skills', 'update', '-p', '-y')
+        & $SkillsCommand @updateArguments
+        if ($LASTEXITCODE -ne 0) {
+            throw "skills CLI update failed with exit code $LASTEXITCODE"
+        }
+
+        $treeDrift = @(Get-SkillTreeDrift `
+            -SourceRoot $resolvedRoot `
+            -InstallRoot $resolvedDestination `
+            -SkillNames $expectedSkills)
+        if ($treeDrift.Count -gt 0 -and $SourceType -eq 'github') {
+            throw "Remote GitHub update left stale public Skill trees: $($treeDrift -join ', ')"
+        }
+        if ($treeDrift.Count -gt 0) {
+            $nativeUpdateStatus = 'unsupported_for_local_source'
+            Write-Output 'Native update unsupported/no-op for local source; running local source refresh.'
+            & $SkillsCommand @installArguments
+            if ($LASTEXITCODE -ne 0) {
+                throw "skills CLI local source refresh failed with exit code $LASTEXITCODE"
+            }
+            $treeDrift = @(Get-SkillTreeDrift `
+                -SourceRoot $resolvedRoot `
+                -InstallRoot $resolvedDestination `
+                -SkillNames $expectedSkills)
+            if ($treeDrift.Count -gt 0) {
+                throw "Local source refresh left stale public Skill trees: $($treeDrift -join ', ')"
+            }
+            $localRefreshStatus = 'passed'
+            Write-Output "Local source refresh passed for $($expectedSkills.Count) public skills across codex and claude-code."
+        } else {
+            $nativeUpdateStatus = 'passed'
+        }
+        Write-Output "Install and update smoke test passed for $($expectedSkills.Count) public skills across codex and claude-code."
+    } else {
+        Write-Output "Install smoke test passed for codex and claude-code."
+    }
+    Write-SmokeEvidence -Path $EvidencePath -Payload @{
+        schema_version = 1
+        source_package = $SourcePackage
+        source_type = $SourceType
+        verification_mode = $(if ($VerifyUpdate) { 'install_and_update' } else { 'install' })
+        public_skill_count = $expectedSkills.Count
+        providers = @('codex', 'claude-code')
+        complete_skill_tree_comparison = @{ status = 'passed'; algorithm = 'SHA256' }
+        native_update = @{ status = $nativeUpdateStatus }
+        local_source_refresh = @{ status = $localRefreshStatus }
+        remote_github_update = @{
+            status = $(if ($SourceType -eq 'github' -and $VerifyUpdate) { 'passed' } else { 'not_verified' })
+        }
+    }
 } finally {
     Set-Location -LiteralPath $previousLocation
     if ($ownsDestination) {

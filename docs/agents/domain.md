@@ -2,7 +2,7 @@
 
 ## Product And Architecture
 
-- Product overview and active requirements: `harness_v2_implementation_plan.md`.
+- Product overview and completed V2 requirements: `docs/archive/plans/harness_v2_implementation_plan.md`.
 - Parent design and rationale: `skill_recreate_plan.md`.
 - Current implementation surface: distributable skills under `skills/`.
 - Planned boundaries: `authoring/`, `skills/`, `legacy-skills/`, `scripts/`, and `tests/` as defined by WP-01.
@@ -11,14 +11,14 @@
 
 ## Verification And Operations
 
-- Verification policy is currently specified in sections 10 and WP-01 of `harness_v2_implementation_plan.md`.
+- Verification policy is implemented by repository commands and tests; its design record is section 10 of `docs/archive/plans/harness_v2_implementation_plan.md`.
 - Repository test command: `python -m unittest discover -s tests -p "test_*.py"`.
 - Distribution verification must cover skill-directory/name matching, valid frontmatter, self-contained resources, legacy non-discovery, expected catalog, and clean Codex/Claude installation.
 - Runtime diagnostics are out of WP-01 scope.
 
 ## Active Planning And Archive
 
-- Active plan: `harness_v2_implementation_plan.md`.
+- Completed V2 plan: `docs/archive/plans/harness_v2_implementation_plan.md`.
 - Durable local Work Packets: `docs/work-packets/<owner-slug>/`.
 - Published Work Packet archive: `docs/archive/work-packets/<owner-slug>/`.
 - Completed/stale plans: `docs/archive/` after close.
