@@ -100,13 +100,15 @@ powershell -NoProfile -File scripts/validate-distribution.ps1
 git diff --check
 ```
 
-Reproduce the three isolated Harness V2 pilots and their JSON, Markdown, and Completion Review artifacts:
+Run the three isolated Harness V2 pilots with raw evidence in a temporary directory:
 
 ```powershell
 python scripts/run-v2-pilots.py
 ```
 
-The recorded pilots are real temporary implementation cycles through a repo-local host adapter. They start from assertion-failing source and unittest fixtures, apply one explicit source change per Plan, execute measured Targeted, Feature, and Fast subprocess checks per Plan and exactly one Full suite per Goal, then use the real Contract approval, runtime state transition, evidence, close, and archive helpers. They are not live host `/goal` sessions. See `docs/pilots/harness-v2-pilots.md`.
+The default command does not modify tracked files. Use `--update-baseline` only when intentionally refreshing the normalized tracked reports under `docs/pilots/`. The recorded pilots are real temporary implementation cycles through a repo-local host adapter. They start from assertion-failing source and unittest fixtures, apply one explicit source change per Plan, execute measured Targeted, Feature, and Fast subprocess checks per Plan and exactly one Full suite per Goal, then use the real Contract approval, runtime state transition, evidence, close, and archive helpers. They are not live host `/goal` sessions. See `docs/pilots/harness-v2-pilots.md`.
+
+Release evidence is accepted only when `distribution/release-candidate.json` and the proof record name the same clean Git commit and tree. Pilot, local-source install/refresh, and remote GitHub update are separate evidence kinds; one cannot substitute for another. Run `python scripts/validate_evidence.py --repository-root .` to verify that binding.
 
 The install wrapper uses an isolated temporary destination but downloads and executes the current third-party `skills` package through `npx`; it requires explicit approval after reviewing that external execution:
 
@@ -122,5 +124,6 @@ powershell -NoProfile -File scripts/test-install.ps1 `
   -SourcePackage https://github.com/young-sub/Skill_Management/tree/develop `
   -SourceType github `
   -VerifyUpdate `
+  -ApproveRemoteEvidence `
   -EvidencePath distribution/evidence/remote-github-update.json
 ```

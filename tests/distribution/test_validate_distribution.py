@@ -232,6 +232,36 @@ class ValidateDistributionTests(unittest.TestCase):
         diagnostics = f"{result.stdout}\n{result.stderr}"
         self.assertEqual(result.returncode, 1, diagnostics)
         self.assertIn("resource reference escapes skill directory", diagnostics)
+        self.assertIn("SC_RELATIVE_ESCAPE", diagnostics)
+
+    def test_distribution_validator_runs_structured_self_containment_rules(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            fixture_root = Path(temp_dir)
+            skill_dir = fixture_root / "skills" / "fixture-skill"
+            skill_dir.mkdir(parents=True)
+            (skill_dir / "SKILL.md").write_text(
+                "---\nname: fixture-skill\ndescription: fixture\n---\n\n"
+                "Machine path: `C:\\Users\\fixture\\secret.md`\n",
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [
+                    "powershell",
+                    "-NoProfile",
+                    "-File",
+                    str(VALIDATOR),
+                    "-RepositoryRoot",
+                    str(fixture_root),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+        diagnostics = f"{result.stdout}\n{result.stderr}"
+        self.assertEqual(result.returncode, 1, diagnostics)
+        self.assertIn("SC_ABSOLUTE_PATH", diagnostics)
 
     def test_rejects_instruction_mirror_drift(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

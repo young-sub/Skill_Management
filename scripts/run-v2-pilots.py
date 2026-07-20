@@ -11,6 +11,8 @@ import tempfile
 import time
 from typing import Any
 
+from evidence_provenance import build_provenance
+
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_ENGINE = ROOT / "authoring" / "scripts" / "contract_engine.py"
@@ -490,11 +492,47 @@ def render_markdown(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _duration_bucket(seconds: float) -> str:
+    if seconds < 1:
+        return "under-1s"
+    if seconds < 5:
+        return "1-5s"
+    if seconds < 30:
+        return "5-30s"
+    return "30s-or-more"
+
+
+def normalized_baseline(value: Any) -> Any:
+    if isinstance(value, list):
+        return [normalized_baseline(item) for item in value]
+    if not isinstance(value, dict):
+        return value
+    normalized: dict[str, Any] = {}
+    for key, item in value.items():
+        if key == "duration_seconds":
+            normalized["duration_bucket"] = _duration_bucket(float(item))
+        elif key == "generated_at":
+            normalized[key] = "normalized-at-baseline-update"
+        elif key in {"cwd", "source_package"} and isinstance(item, str):
+            normalized[key] = "<repository-root>"
+        else:
+            normalized[key] = normalized_baseline(item)
+    return normalized
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run three deterministic Harness V2 repository-local pilots.")
-    parser.add_argument("--output-dir", type=Path, default=ROOT / "docs" / "pilots")
+    parser.add_argument("--output-dir", type=Path)
+    parser.add_argument("--update-baseline", action="store_true")
     args = parser.parse_args()
-    output = args.output_dir.resolve()
+    if args.output_dir is not None and args.update_baseline:
+        parser.error("--output-dir and --update-baseline are mutually exclusive")
+    if args.update_baseline:
+        output = (ROOT / "docs" / "pilots").resolve()
+    elif args.output_dir is not None:
+        output = args.output_dir.resolve()
+    else:
+        output = Path(tempfile.mkdtemp(prefix="harness-v2-pilot-evidence-")).resolve()
     output.mkdir(parents=True, exist_ok=True)
     try:
         pilots = [run_pilot(output, *definition) for definition in PILOTS]
@@ -511,13 +549,23 @@ def main() -> int:
             "result": "passed" if passed else "failed",
             "pilots": pilots,
         }
+        report["evidence"] = build_provenance(
+            ROOT,
+            command=[sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]],
+            source_type="local_checkout",
+            source_package=ROOT.as_posix(),
+            result=report["result"],
+            unverified_checks=["remote_github_update"],
+        )
+        serialized_report = normalized_baseline(report) if args.update_baseline else report
         (output / "harness-v2-pilots.json").write_text(
-            json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n"
+            json.dumps(serialized_report, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n"
         )
         (output / "harness-v2-pilots.md").write_text(
-            render_markdown(report), encoding="utf-8", newline="\n"
+            render_markdown(serialized_report), encoding="utf-8", newline="\n"
         )
         print(f"{'PASS' if passed else 'FAIL'}: {sum(p['result_success'] for p in pilots)}/3 Harness V2 pilots")
+        print(f"Evidence directory: {output}")
         return 0 if passed else 1
     except Exception as error:
         print(f"FAIL: {error}", file=sys.stderr)

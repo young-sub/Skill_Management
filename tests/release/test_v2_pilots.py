@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+from hashlib import sha256
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -13,6 +15,30 @@ RUNNER = ROOT / "scripts" / "run-v2-pilots.py"
 
 
 class V2PilotTests(unittest.TestCase):
+    def _fixture_checkout(self, parent: Path) -> Path:
+        checkout = parent / "checkout"
+        shutil.copytree(
+            ROOT,
+            checkout,
+            ignore=shutil.ignore_patterns(".git", ".work", "back-up", "__pycache__", "*.pyc"),
+        )
+        subprocess.run(["git", "init", "-q"], cwd=checkout, check=True)
+        subprocess.run(["git", "config", "user.name", "Pilot Fixture"], cwd=checkout, check=True)
+        subprocess.run(["git", "config", "user.email", "pilot@example.test"], cwd=checkout, check=True)
+        subprocess.run(["git", "add", "."], cwd=checkout, check=True)
+        subprocess.run(["git", "commit", "-qm", "fixture"], cwd=checkout, check=True)
+        return checkout
+
+    def _tracked_hashes(self, checkout: Path) -> dict[str, str]:
+        files = subprocess.run(
+            ["git", "ls-files", "-z"], cwd=checkout, capture_output=True, check=True
+        ).stdout.split(b"\0")
+        return {
+            path.decode(): sha256((checkout / path.decode()).read_bytes()).hexdigest()
+            for path in files
+            if path
+        }
+
     def test_runner_freshly_reproduces_three_complete_pilots(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary) / "pilots"
@@ -80,6 +106,81 @@ class V2PilotTests(unittest.TestCase):
             self.assertEqual(report["pilots"][1]["plans"], ["P-01"])
             self.assertEqual(report["pilots"][2]["plans"], ["P-01", "P-02", "P-03"])
             self.assertTrue((output / "harness-v2-pilots.md").is_file())
+
+    def test_default_run_is_tracked_read_only_and_revision_bound(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            checkout = self._fixture_checkout(Path(temporary))
+            runner = checkout / "scripts/run-v2-pilots.py"
+            before_status = subprocess.run(
+                ["git", "status", "--porcelain"], cwd=checkout, capture_output=True, text=True, check=True
+            ).stdout
+            before_hashes = self._tracked_hashes(checkout)
+
+            result = subprocess.run(
+                [sys.executable, str(runner)],
+                cwd=checkout,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            after_status = subprocess.run(
+                ["git", "status", "--porcelain"], cwd=checkout, capture_output=True, text=True, check=True
+            ).stdout
+            self.assertEqual(after_status, before_status)
+            self.assertEqual(self._tracked_hashes(checkout), before_hashes)
+            evidence_line = next(
+                line for line in result.stdout.splitlines() if line.startswith("Evidence directory: ")
+            )
+            output = Path(evidence_line.removeprefix("Evidence directory: "))
+            report = json.loads((output / "harness-v2-pilots.json").read_text(encoding="utf-8"))
+            evidence = report["evidence"]
+            for field in (
+                "schema_version",
+                "generated_at",
+                "git_commit",
+                "git_tree",
+                "git_dirty",
+                "dirty_paths",
+                "branch",
+                "command",
+                "cwd",
+                "tool_versions",
+                "source_type",
+                "source_package",
+                "public_skill_count",
+                "catalog_sha256",
+                "resource_manifest_sha256",
+                "result",
+                "unverified_checks",
+            ):
+                self.assertIn(field, evidence)
+
+    def test_update_baseline_is_explicit_and_normalizes_durations(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            checkout = self._fixture_checkout(Path(temporary))
+            runner = checkout / "scripts/run-v2-pilots.py"
+
+            result = subprocess.run(
+                [sys.executable, str(runner), "--update-baseline"],
+                cwd=checkout,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            changed = subprocess.run(
+                ["git", "status", "--porcelain"], cwd=checkout, capture_output=True, text=True, check=True
+            ).stdout
+            self.assertTrue(changed)
+            self.assertTrue(
+                all("docs/pilots/" in line for line in changed.splitlines()), changed
+            )
+            report_text = (checkout / "docs/pilots/harness-v2-pilots.json").read_text(encoding="utf-8")
+            self.assertNotIn('"duration_seconds"', report_text)
+            self.assertIn('"duration_bucket"', report_text)
 
 
 if __name__ == "__main__":

@@ -1,3 +1,10 @@
+---
+title: "WP-20260719-002: Harness V2 Core Workflow And Release Candidate"
+status: completed
+created_at: 2026-07-19
+closed_at: 2026-07-20
+---
+
 # WP-20260719-002: Harness V2 Core Workflow And Release Candidate
 
 ## Status
@@ -167,9 +174,11 @@ Verification records must capture command, runner, cwd, branch/ref, exit code, p
 
 Stop for destructive deletion, secret/credential handling, live provider calls beyond the explicitly approved install smoke, irreversible migration, security-sensitive behavior, unresolved contract decisions, or verification failure without a credible diagnostic loop. Do not create a tag or GitHub Release. Do not merge or push until review and complete verification pass; the user's active goal explicitly authorizes merging this branch into `develop` and pushing `develop` after those gates pass.
 
-## Phase Handoff Capsule
+## Phase Handoff Capsule (Historical Snapshot)
 
 - updated_at: 2026-07-20T09:10:00+09:00
+- snapshot_at: 2026-07-20T09:10:00+09:00
+- superseded_by_close_report: true
 - source_ref: `docs/archive/plans/harness_v2_implementation_plan.md`
 - updated_by: main session
 - phase: completion review
@@ -208,6 +217,7 @@ Stop for destructive deletion, secret/credential handling, live provider calls b
 
 ## Close Report
 
+- Final status: completed
 - Outcome: WP-02..WP-06 delivered the seven self-contained Harness V2 Core Skills, deterministic project/contract/runtime/review helpers, release-candidate metadata, actual isolated pilots, and install/update smoke coverage.
 - Commits: `0db9821`, `be87141`, `9f033b0`, `94f5fa7`, `9d73977`, `49e01f8`, `188ad46`, `b409e8a`, `98a3d60`, `967c247`, `e7deff2`.
 - Verification: 86/86 unit tests; 3/3 actual pilots; resource sync and distribution validation passed; approved local-source external smoke passed for 18 Skills across Codex and Claude Code with complete-tree SHA256 comparison.

@@ -7,6 +7,20 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 class RepositoryDocsTests(unittest.TestCase):
+    def test_archived_work_packets_separate_historical_snapshots_from_final_state(self) -> None:
+        archive = REPO_ROOT / "docs" / "archive" / "work-packets" / "ys"
+        for path in sorted(archive.glob("wp-*.md")):
+            text = path.read_text(encoding="utf-8")
+            with self.subTest(path=path.name):
+                self.assertTrue(text.startswith("---\n"))
+                frontmatter = text.split("---\n", 2)[1]
+                self.assertIn("status: completed", frontmatter)
+                self.assertIn("## Close Report", text)
+                self.assertIn("- Final status: completed", text)
+                if "Phase Handoff Capsule" in text:
+                    self.assertIn("snapshot_at:", text)
+                    self.assertIn("superseded_by_close_report: true", text)
+
     def test_readme_documents_the_skill_installation_lifecycle(self) -> None:
         readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 

@@ -39,6 +39,8 @@ WP-02 through WP-05 added all seven Core Skills. `future_core_skills` is now emp
 
 - Public directory name equals frontmatter `name`.
 - Public frontmatter contains only `name` and `description`, both required.
-- Public resources do not resolve outside their owning Skill directory.
+- Public resources do not resolve outside their owning Skill directory. The self-containment scanner reports stable rule IDs for relative escape, absolute/file URI, repository-root, cross-Skill, missing-resource, and reparse-point violations; governed exceptions require an owner, reason, and review date in `distribution/self-containment-allowlist.json`.
 - `legacy-skills/` contains no discoverable `SKILL.md`.
 - Generated resources come from `authoring/resource-map.json` and include the canonical source SHA-256.
+- Pilot execution is read-only by default; only `--update-baseline` may refresh normalized tracked pilot reports.
+- Release proof is split into pilot, local-source install/refresh, and remote GitHub update evidence and is valid only when its clean Git commit/tree matches the release candidate.

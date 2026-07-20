@@ -3,8 +3,8 @@ param(
     [string]$RepositoryRoot
 )
 
+$scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
-    $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
     $RepositoryRoot = Join-Path $scriptDirectory '..'
 }
 
@@ -90,35 +90,29 @@ foreach ($skillDirectory in Get-ChildItem -LiteralPath $skillsRoot -Directory) {
         }
     }
 
-    $skillRootPath = [System.IO.Path]::GetFullPath($skillDirectory.FullName)
-    $skillRootPrefix = $skillRootPath.TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
-    $textExtensions = @('.json', '.md', '.ps1', '.py', '.sh', '.txt', '.yaml', '.yml')
-    foreach ($resourceFile in Get-ChildItem -LiteralPath $skillDirectory.FullName -File -Recurse) {
-        if ($textExtensions -notcontains $resourceFile.Extension.ToLowerInvariant()) {
-            continue
-        }
-        $resourceText = Get-Content -LiteralPath $resourceFile.FullName -Raw -Encoding utf8
-        $relativeReferences = [Regex]::Matches(
-            $resourceText,
-            '(?<path>(?:\.\.[/\\])+[A-Za-z0-9._/\\-]+)'
-        )
-        foreach ($relativeReference in $relativeReferences) {
-            $targetPath = [System.IO.Path]::GetFullPath(
-                (Join-Path $resourceFile.DirectoryName $relativeReference.Groups['path'].Value)
+}
+
+$selfContainmentValidator = Join-Path $scriptDirectory 'validate_self_containment.py'
+if (-not (Test-Path -LiteralPath $selfContainmentValidator -PathType Leaf)) {
+    $errors.Add('missing self-containment rule validator')
+} else {
+    $scannerText = (& python $selfContainmentValidator --repository-root $resolvedRoot 2>&1) -join "`n"
+    $scannerExitCode = $LASTEXITCODE
+    try {
+        $scannerPayload = $scannerText | ConvertFrom-Json
+        foreach ($finding in @($scannerPayload.findings)) {
+            $errors.Add(
+                "[$($finding.rule_id)] $($finding.skill)/$($finding.source_path) $($finding.locator): $($finding.evidence) -> $($finding.normalized_target)"
             )
-            $isInsideSkill = $targetPath.Equals(
-                $skillRootPath,
-                [System.StringComparison]::OrdinalIgnoreCase
-            ) -or $targetPath.StartsWith(
-                $skillRootPrefix,
-                [System.StringComparison]::OrdinalIgnoreCase
-            )
-            if (-not $isInsideSkill) {
-                $errors.Add(
-                    "resource reference escapes skill directory: '$($resourceFile.FullName)' -> '$($relativeReference.Groups['path'].Value)'"
-                )
-            }
         }
+        foreach ($allowlistError in @($scannerPayload.allowlist_errors)) {
+            $errors.Add("self-containment allowlist error: $allowlistError")
+        }
+        if ($scannerExitCode -ne 0 -and @($scannerPayload.findings).Count -eq 0 -and @($scannerPayload.allowlist_errors).Count -eq 0) {
+            $errors.Add("self-containment validator failed without findings: $scannerText")
+        }
+    } catch {
+        $errors.Add("invalid self-containment validator output: $scannerText")
     }
 }
 
@@ -170,7 +164,7 @@ if (Test-Path -LiteralPath $candidatePath -PathType Leaf) {
     try {
         $candidate = Get-Content -LiteralPath $candidatePath -Raw -Encoding utf8 |
             ConvertFrom-Json
-        if ($candidate.schema_version -ne 1) {
+        if ($candidate.schema_version -ne 2) {
             $errors.Add("unsupported release candidate schema: '$($candidate.schema_version)'")
         }
         if ($candidate.version -ne '2.0.0' -or $candidate.stage -ne 'release-candidate') {
@@ -193,6 +187,16 @@ if (Test-Path -LiteralPath $candidatePath -PathType Leaf) {
     }
 } else {
     $errors.Add('missing required distribution artifact: distribution/release-candidate.json')
+}
+
+$evidenceValidator = Join-Path $resolvedRoot 'scripts\validate_evidence.py'
+if (Test-Path -LiteralPath $evidenceValidator -PathType Leaf) {
+    $evidenceOutput = & python $evidenceValidator --repository-root $resolvedRoot 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        $errors.Add("release evidence validation failed: $($evidenceOutput -join ' ')")
+    }
+} else {
+    $errors.Add('missing required distribution validator: scripts/validate_evidence.py')
 }
 
 $agentsPath = Join-Path $resolvedRoot 'AGENTS.md'

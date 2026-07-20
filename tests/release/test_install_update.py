@@ -100,9 +100,24 @@ class InstallUpdateSmokeTests(unittest.TestCase):
         self.assertNotIn("Native update unsupported/no-op for local source", diagnostics)
 
     def test_local_source_noop_update_falls_back_to_add_refresh(self) -> None:
-        diagnostics, _ = self.run_fake_smoke(update_mode="noop")
+        diagnostics, evidence = self.run_fake_smoke(update_mode="noop")
         self.assertIn("Native update unsupported/no-op for local source", diagnostics)
         self.assertIn("Local source refresh passed for 18 public skills", diagnostics)
+        self.assertEqual(evidence["schema_version"], 2)
+        self.assertEqual(evidence["evidence_kind"], "local_source_install_refresh")
+        expected_commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=True
+        ).stdout.strip()
+        expected_tree = subprocess.run(
+            ["git", "rev-parse", "HEAD^{tree}"], cwd=ROOT, capture_output=True, text=True, check=True
+        ).stdout.strip()
+        self.assertEqual(evidence["git_commit"], expected_commit)
+        self.assertEqual(evidence["git_tree"], expected_tree)
+        self.assertIsInstance(evidence["git_dirty"], bool)
+        self.assertIsInstance(evidence["dirty_paths"], list)
+        self.assertIn("python", evidence["tool_versions"])
+        self.assertIn("skills_command", evidence["tool_versions"])
+        self.assertEqual(evidence["result"], "passed")
 
     def test_nested_resource_tamper_triggers_complete_tree_refresh(self) -> None:
         diagnostics, _ = self.run_fake_smoke(update_mode="tamper-resource")
@@ -112,11 +127,14 @@ class InstallUpdateSmokeTests(unittest.TestCase):
         _, evidence = self.run_fake_smoke(
             update_mode="full", source_type="github", source_package="young-sub/Skill_Management"
         )
-        self.assertEqual(evidence["schema_version"], 1)
+        self.assertEqual(evidence["schema_version"], 2)
         self.assertEqual(evidence["source_package"], "young-sub/Skill_Management")
         self.assertEqual(evidence["source_type"], "github")
         self.assertEqual(evidence["complete_skill_tree_comparison"]["status"], "passed")
-        self.assertEqual(evidence["remote_github_update"]["status"], "passed")
+        self.assertEqual(evidence["evidence_kind"], "install_and_update_smoke")
+        self.assertEqual(evidence["remote_github_update"]["status"], "not_verified")
+        self.assertIn("remote_github_update", evidence["unverified_checks"])
+        self.assertNotEqual(evidence["source_type"], "local_source_install_refresh")
 
 
 if __name__ == "__main__":

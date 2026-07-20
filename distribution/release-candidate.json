@@ -1,10 +1,14 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "version": "2.0.0",
   "stage": "release-candidate",
   "candidate_date": "2026-07-19",
   "live_release": false,
   "tag": null,
+  "source_revision": {
+    "git_commit": "ef5d2961874644cffe598a76ba78da8d6dc6302e",
+    "git_tree": "a2e5ba35677e116fbe4c5ac0b3b2bfe72a82cc0f"
+  },
   "catalog": "catalog.json",
   "public_skill_count": 18,
   "public_skills": [
@@ -57,5 +61,25 @@
       "evidence_path": "distribution/evidence/remote-github-update.json"
     }
   },
-  "pilot_report": "../docs/pilots/harness-v2-pilots.json"
+  "pilot_report": "../docs/pilots/harness-v2-pilots.json",
+  "evidence": {
+    "pilot_execution": {
+      "status": "not_verified",
+      "path": "../docs/pilots/harness-v2-pilots.json",
+      "evidence_kind": "pilot_execution",
+      "reason": "revision-bound baseline will be generated from the clean WP-005 source commit"
+    },
+    "local_source_install_refresh": {
+      "status": "not_verified",
+      "path": "evidence/local-source-install-refresh.json",
+      "evidence_kind": "local_source_install_refresh",
+      "reason": "historical schema-1 evidence is not bound to an exact Git commit and tree"
+    },
+    "remote_github_update": {
+      "status": "not_verified",
+      "path": "evidence/remote-github-update.json",
+      "evidence_kind": "remote_github_update",
+      "reason": "requires explicit approval and an exact remote commit or tree URL"
+    }
+  }
 }

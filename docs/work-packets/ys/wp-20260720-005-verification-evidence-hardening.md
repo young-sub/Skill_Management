@@ -1,6 +1,6 @@
 ---
 title: "WP-20260720-005: Verification And Evidence Hardening"
-status: confirmed
+status: in-progress
 labels:
   - test/eval
   - diagnostics
@@ -29,7 +29,7 @@ self-containment 검사를 절대경로·URI·cross-skill·reparse 경계까지 
 - Durable tracker: this file
 - Intake mode: `docs_grill_preflight`
 - Intent confidence: high
-- Status: `confirmed`
+- Status: `in-progress`
 - Dependency: independent of WP-003 implementation; brownfield acceptance fixtures should reuse its scenarios when available
 
 ## Background
@@ -269,6 +269,10 @@ powershell -NoProfile -File scripts/test-install.ps1 -VerifyUpdate
 - Will not change: no automatic network smoke or live release.
 - Verification signal: adversarial validator fixtures, zero-mutation pilot test, stale-revision test.
 
+## Scoped Overrides
+
+- Implementation branch: the user explicitly directed implementation on `develop` on 2026-07-20. `main` remains protected and no publish or external smoke action is authorized.
+
 ## Confirmation Status
 
 - Status: `confirmed`
@@ -279,11 +283,11 @@ powershell -NoProfile -File scripts/test-install.ps1 -VerifyUpdate
 - updated_at: 2026-07-20
 - source_ref: this Work Packet
 - updated_by: Codex main session
-- phase: init
+- phase: run
 - scope: validator, pilot, and evidence trust hardening
-- current gate: implementation confirmation
+- current gate: WP-005 TDD implementation
 - accepted decisions: read-only pilots by default; revision-bound evidence; remote remains separately gated
-- open decisions: none identified; user confirmation remains
+- open decisions: none identified
 - files read: distribution validator/tests, pilot/release evidence pointers, tracker/workflow config
 - files changed: this isolated Work Packet
 - tracker/PR/doc mutations: local Work Packet only
@@ -294,8 +298,8 @@ powershell -NoProfile -File scripts/test-install.ps1 -VerifyUpdate
 - verification evidence: documentation checks pending
 - delegated evidence: prior independent multi-agent review
 - risks: false positives from broader path detection
-- next mode: ready after confirmation
-- next stop condition: scope adjustment or confirmation withheld
+- next mode: close after implementation and verification
+- next stop condition: evidence scope or provenance acceptance incomplete
 
 ## Close Report Skeleton
 

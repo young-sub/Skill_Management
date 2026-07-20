@@ -7,13 +7,14 @@ param(
     [ValidateSet('local', 'github')]
     [string]$SourceType = 'local',
     [string]$EvidencePath,
-    [switch]$VerifyUpdate
+    [switch]$VerifyUpdate,
+    [switch]$ApproveRemoteEvidence
 )
 
 $ErrorActionPreference = 'Stop'
 
+$scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
-    $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
     $RepositoryRoot = Join-Path $scriptDirectory '..'
 }
 
@@ -157,20 +158,83 @@ try {
     } else {
         Write-Output "Install smoke test passed for codex and claude-code."
     }
-    Write-SmokeEvidence -Path $EvidencePath -Payload @{
-        schema_version = 1
+    $remoteEvidenceApproved = (
+        $ApproveRemoteEvidence -and
+        $SourceType -eq 'github' -and
+        $VerifyUpdate -and
+        $SourcePackage -match '^https://github\.com/[^/]+/[^/]+/(?:tree|commit)/[^/]+$'
+    )
+    $unverifiedChecks = @()
+    if (-not $remoteEvidenceApproved) {
+        $unverifiedChecks += 'remote_github_update'
+    }
+    $provenanceScript = Join-Path $scriptDirectory 'evidence_provenance.py'
+    $evidenceCommand = @(
+        'powershell', '-NoProfile', '-File', $MyInvocation.MyCommand.Path,
+        '-RepositoryRoot', $resolvedRoot, '-SourcePackage', $SourcePackage,
+        '-SourceType', $SourceType
+    )
+    if ($VerifyUpdate) { $evidenceCommand += '-VerifyUpdate' }
+    if ($ApproveRemoteEvidence) { $evidenceCommand += '-ApproveRemoteEvidence' }
+    $provenanceArguments = @(
+        $provenanceScript,
+        '--repository-root', $resolvedRoot,
+        '--source-type', $SourceType,
+        '--source-package', $SourcePackage,
+        '--result', 'passed'
+    )
+    foreach ($commandPart in $evidenceCommand) {
+        $encodedPart = [Convert]::ToBase64String(
+            [Text.Encoding]::UTF8.GetBytes([string]$commandPart)
+        )
+        $provenanceArguments += @('--command-part-base64', $encodedPart)
+    }
+    foreach ($check in $unverifiedChecks) {
+        $provenanceArguments += @('--unverified-check', $check)
+    }
+    foreach ($provider in @('codex', 'claude-code')) {
+        $provenanceArguments += @('--provider', $provider)
+    }
+    $provenanceText = (& python @provenanceArguments 2>&1) -join "`n"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Evidence provenance failed: $provenanceText"
+    }
+    $provenance = $provenanceText | ConvertFrom-Json
+    Write-SmokeEvidence -Path $EvidencePath -Payload ([ordered]@{
+        schema_version = 2
+        evidence_kind = $(if ($localRefreshStatus -eq 'passed') { 'local_source_install_refresh' } else { 'install_and_update_smoke' })
+        generated_at = $provenance.generated_at
+        repository = $provenance.repository
+        git_commit = $provenance.git_commit
+        git_tree = $provenance.git_tree
+        git_dirty = $provenance.git_dirty
+        dirty_paths = @($provenance.dirty_paths)
+        branch = $provenance.branch
+        command = @($provenance.command)
+        cwd = $provenance.cwd
+        tool_versions = [ordered]@{
+            python = $provenance.tool_versions.python
+            git = $provenance.tool_versions.git
+            powershell = $PSVersionTable.PSVersion.ToString()
+            skills_command = $SkillsCommand
+        }
         source_package = $SourcePackage
         source_type = $SourceType
         verification_mode = $(if ($VerifyUpdate) { 'install_and_update' } else { 'install' })
         public_skill_count = $expectedSkills.Count
         providers = @('codex', 'claude-code')
+        catalog_sha256 = $provenance.catalog_sha256
+        resource_manifest_sha256 = $provenance.resource_manifest_sha256
+        result = 'passed'
+        unverified_checks = $unverifiedChecks
         complete_skill_tree_comparison = @{ status = 'passed'; algorithm = 'SHA256' }
         native_update = @{ status = $nativeUpdateStatus }
         local_source_refresh = @{ status = $localRefreshStatus }
         remote_github_update = @{
-            status = $(if ($SourceType -eq 'github' -and $VerifyUpdate) { 'passed' } else { 'not_verified' })
+            status = $(if ($remoteEvidenceApproved) { 'passed' } else { 'not_verified' })
+            evidence_kind = 'remote_github_update'
         }
-    }
+    })
 } finally {
     Set-Location -LiteralPath $previousLocation
     if ($ownsDestination) {
