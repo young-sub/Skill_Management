@@ -3,6 +3,7 @@ param(
     [string]$RepositoryRoot,
     [string]$DestinationRoot,
     [string]$SkillsCommand = 'npx',
+    [string]$GitCommand = 'git',
     [string]$SourcePackage,
     [string]$ExpectedSourceCommit,
     [ValidateSet('local', 'github')]
@@ -38,7 +39,7 @@ $catalog = Get-Content -LiteralPath $catalogPath -Raw -Encoding utf8 | ConvertFr
 $expectedSkills = @($catalog.public_skills)
 $remoteSourceMatch = [regex]::Match(
     $SourcePackage,
-    '^https://github\.com/[^/]+/[^/]+/(?<kind>tree|commit)/(?<ref>[^/]+)$'
+    '^https://github\.com/(?<owner>[^/]+)/(?<repo>[^/]+)/(?<kind>tree|commit)/(?<ref>[^/]+)$'
 )
 $boundSourceCommit = $ExpectedSourceCommit
 if (
@@ -55,6 +56,24 @@ $remoteEvidenceApproved = (
     $remoteSourceMatch.Success -and
     $boundSourceCommit -match '^[0-9a-fA-F]{40}$'
 )
+$resolvedRemoteCommits = @()
+if ($remoteEvidenceApproved) {
+    $remoteRepository = "https://github.com/$($remoteSourceMatch.Groups['owner'].Value)/$($remoteSourceMatch.Groups['repo'].Value).git"
+    $remoteRef = $remoteSourceMatch.Groups['ref'].Value
+    $resolutionOutput = @(& $GitCommand ls-remote --exit-code $remoteRepository "refs/heads/$remoteRef" "refs/tags/$remoteRef" "refs/tags/$remoteRef^{}" 2>&1)
+    if ($LASTEXITCODE -ne 0) {
+        throw "Remote source ref could not be resolved: $($resolutionOutput -join [Environment]::NewLine)"
+    }
+    $resolvedRemoteCommits = @(
+        $resolutionOutput |
+            ForEach-Object { ([string]$_ -split '\s+')[0] } |
+            Where-Object { $_ -match '^[0-9a-fA-F]{40}$' } |
+            Sort-Object -Unique
+    )
+    if ($resolvedRemoteCommits -notcontains $boundSourceCommit.ToLowerInvariant()) {
+        throw "Remote source ref does not resolve to ExpectedSourceCommit: $remoteRef"
+    }
+}
 
 function Get-SkillTreeDrift {
     param(
@@ -100,6 +119,29 @@ function Get-SkillTreeDrift {
     return @($drift | Sort-Object)
 }
 
+function Get-PublicSkillTreeDigest {
+    param([string]$InstallRoot, [string[]]$SkillNames)
+    $entries = [System.Collections.Generic.List[string]]::new()
+    foreach ($skillName in $SkillNames) {
+        foreach ($providerRoot in @('.agents\skills', '.claude\skills')) {
+            $installedSkill = Join-Path $InstallRoot "$providerRoot\$skillName"
+            foreach ($installedFile in Get-ChildItem -LiteralPath $installedSkill -Recurse -File) {
+                if ($installedFile.Extension -eq '.pyc' -or $installedFile.FullName -match '[\\/]__pycache__[\\/]') { continue }
+                $relative = $installedFile.FullName.Substring($InstallRoot.Length).TrimStart('\').Replace('\', '/')
+                $hash = (Get-FileHash -LiteralPath $installedFile.FullName -Algorithm SHA256).Hash
+                $entries.Add("$relative=$hash")
+            }
+        }
+    }
+    $payload = [Text.Encoding]::UTF8.GetBytes((@($entries | Sort-Object) -join "`n"))
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try {
+        return ([BitConverter]::ToString($sha.ComputeHash($payload))).Replace('-', '')
+    } finally {
+        $sha.Dispose()
+    }
+}
+
 function Write-SmokeEvidence {
     param([string]$Path, [hashtable]$Payload)
     if ([string]::IsNullOrWhiteSpace($Path)) { return }
@@ -129,6 +171,7 @@ try {
     if ($installDrift.Count -gt 0) {
         throw "Installed public Skill trees differ from source: $($installDrift -join ', ')"
     }
+    $installedTreeBeforeUpdate = Get-PublicSkillTreeDigest -InstallRoot $resolvedDestination -SkillNames $expectedSkills
 
     $nativeUpdateStatus = 'not_run'
     $localRefreshStatus = 'not_run'
@@ -180,6 +223,7 @@ try {
     } else {
         Write-Output "Install smoke test passed for codex and claude-code."
     }
+    $installedTreeAfterUpdate = Get-PublicSkillTreeDigest -InstallRoot $resolvedDestination -SkillNames $expectedSkills
     $unverifiedChecks = @()
     if (-not $remoteEvidenceApproved) {
         $unverifiedChecks += 'remote_github_update'
@@ -250,6 +294,12 @@ try {
         }
         source_package = $SourcePackage
         expected_source_commit = $boundSourceCommit
+        installed_tree_before_update_sha256 = $installedTreeBeforeUpdate
+        installed_tree_after_update_sha256 = $installedTreeAfterUpdate
+        remote_source_resolution = @{
+            status = $(if ($remoteEvidenceApproved) { 'passed' } else { 'not_verified' })
+            resolved_commits = @($resolvedRemoteCommits)
+        }
         source_type = $SourceType
         verification_mode = $(if ($VerifyUpdate) { 'install_and_update' } else { 'install' })
         public_skill_count = $expectedSkills.Count

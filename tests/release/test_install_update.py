@@ -16,12 +16,14 @@ class InstallUpdateSmokeTests(unittest.TestCase):
         self, *, update_mode: str, expect_success: bool = True,
         source_type: str = "local", source_package: str | None = None,
         approve_remote: bool = False, expected_source_commit: str | None = None,
+        resolved_remote_commit: str | None = None,
     ) -> tuple[str, dict[str, object]]:
         with tempfile.TemporaryDirectory() as temporary:
             temp = Path(temporary)
             destination = temp / "destination"
             evidence = temp / "evidence.json"
             fake = temp / "fake-skills.ps1"
+            fake_git = temp / "fake-git.ps1"
             fake.write_text(
                 "param([Parameter(ValueFromRemainingArguments=$true)]$CliArgs)\n"
                 "$source = $env:HARNESS_FAKE_SOURCE\n"
@@ -60,9 +62,16 @@ class InstallUpdateSmokeTests(unittest.TestCase):
                 "Write-Error \"Unexpected arguments: $($CliArgs -join ' ')\"\nexit 2\n",
                 encoding="utf-8",
             )
+            fake_git.write_text(
+                "param([Parameter(ValueFromRemainingArguments=$true)]$GitArgs)\n"
+                "Write-Output \"$env:HARNESS_FAKE_REMOTE_COMMIT`trefs/tags/release-smoke-test\"\n"
+                "exit 0\n",
+                encoding="utf-8",
+            )
             env = dict(__import__("os").environ)
             env["HARNESS_FAKE_SOURCE"] = str(ROOT)
             env["HARNESS_FAKE_UPDATE_MODE"] = update_mode
+            env["HARNESS_FAKE_REMOTE_COMMIT"] = resolved_remote_commit or expected_source_commit or ""
             command = [
                 "powershell", "-NoProfile", "-File", str(SCRIPT),
                 "-RepositoryRoot", str(ROOT), "-DestinationRoot", str(destination),
@@ -74,7 +83,10 @@ class InstallUpdateSmokeTests(unittest.TestCase):
             if approve_remote:
                 command.append("-ApproveRemoteEvidence")
             if expected_source_commit is not None:
-                command.extend(("-ExpectedSourceCommit", expected_source_commit))
+                command.extend((
+                    "-ExpectedSourceCommit", expected_source_commit,
+                    "-GitCommand", str(fake_git),
+                ))
             result = subprocess.run(
                 command,
                 capture_output=True, text=True, check=False, env=env,
@@ -155,6 +167,26 @@ class InstallUpdateSmokeTests(unittest.TestCase):
         self.assertEqual(evidence["evidence_kind"], "remote_github_update")
         self.assertEqual(evidence["remote_github_update"]["status"], "passed")
         self.assertNotIn("remote_github_update", evidence["unverified_checks"])
+        self.assertEqual(
+            evidence["installed_tree_before_update_sha256"],
+            evidence["installed_tree_after_update_sha256"],
+        )
+        self.assertRegex(evidence["installed_tree_after_update_sha256"], r"^[0-9A-F]{64}$")
+
+    def test_approved_named_remote_ref_rejects_resolution_to_another_commit(self) -> None:
+        commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=True
+        ).stdout.strip()
+        diagnostics, _ = self.run_fake_smoke(
+            update_mode="noop",
+            source_type="github",
+            source_package="https://github.com/young-sub/Skill_Management/tree/release-smoke-test",
+            approve_remote=True,
+            expected_source_commit=commit,
+            resolved_remote_commit="0" * 40,
+            expect_success=False,
+        )
+        self.assertIn("Remote source ref does not resolve to ExpectedSourceCommit", diagnostics)
 
 
 if __name__ == "__main__":
