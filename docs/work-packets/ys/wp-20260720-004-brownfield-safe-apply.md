@@ -332,10 +332,10 @@ Windows에서는 symlink/junction permission 차이를 고려해 가능한 repar
 - files changed: canonical/generated bootstrap helper, safe-apply tests, setup skill contract, project AGENTS template, README, resource manifests, this Work Packet
 - tracker/PR/doc mutations: local Work Packet only
 - tracker_channel: none
-- git_publish_state: local_only
+- git_publish_state: branch_pushed
 - tracker_publish_state: local_pending
 - published_body_ref:
-- verification evidence: final focused safe-apply suite 9/9 passed, including all 8 persisted operation boundaries and the target-write crash window; final repository suite 122/122 passed; resource sync, distribution, and diff checks passed
+- verification evidence: final focused safe-apply suite 9/9 passed, including all 8 persisted operation boundaries and the target-write crash window; final repository suite 124/124 passed; resource sync, distribution, evidence, and diff checks passed
 - delegated evidence: independent reviewer `/root/wp004_independent_review` found the write-ahead crash window and premature idempotency shortcut, verified remediation, and returned PASS with no remaining High/Medium findings
 - risks: a hard kill during staging can leave an unjournaled temporary staging directory, but no repository target has been mutated; cross-platform filesystem semantics remain bounded by the documented atomicity claim
 - next mode: goal close

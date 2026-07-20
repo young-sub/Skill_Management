@@ -1,24 +1,46 @@
-﻿{
-    "remote_github_update":  {
-                                 "status":  "not_verified"
-                             },
-    "schema_version":  1,
-    "source_type":  "local",
-    "source_package":  "C:\\Users\\YS\\Desktop\\python\\Skill_Management",
-    "native_update":  {
-                          "status":  "unsupported_for_local_source"
-                      },
-    "verification_mode":  "install_and_update",
-    "providers":  [
-                      "codex",
-                      "claude-code"
-                  ],
-    "public_skill_count":  18,
-    "complete_skill_tree_comparison":  {
-                                           "algorithm":  "SHA256",
-                                           "status":  "passed"
-                                       },
-    "local_source_refresh":  {
-                                 "status":  "passed"
-                             }
+{
+  "schema_version": 2,
+  "evidence_kind": "local_source_install_refresh",
+  "generated_at": "2026-07-20T14:54:28.987220+00:00",
+  "repository": "Skill_Management",
+  "git_commit": "8b8864052a215d1ff211de16ebbe20ec99913a2a",
+  "git_tree": "6101aa65a4f4b20946366209339ab5ce59b0cb40",
+  "git_dirty": false,
+  "dirty_paths": [],
+  "branch": "develop",
+  "command": [
+    "powershell", "-NoProfile", "-File", "C:\\Users\\YS\\Desktop\\python\\Skill_Management\\scripts\\test-install.ps1",
+    "-RepositoryRoot", "C:\\Users\\YS\\Desktop\\python\\Skill_Management",
+    "-SourcePackage", "C:\\Users\\YS\\Desktop\\python\\Skill_Management",
+    "-SourceType", "local", "-VerifyUpdate"
+  ],
+  "cwd": "C:/Users/YS/Desktop/python/Skill_Management",
+  "tool_versions": {
+    "python": "3.12.10",
+    "git": "git version 2.50.1.windows.1",
+    "powershell": "5.1.19041.6456",
+    "skills_command": "npx"
+  },
+  "source_package": "C:\\Users\\YS\\Desktop\\python\\Skill_Management",
+  "expected_source_commit": "",
+  "source_type": "local",
+  "verification_mode": "install_and_update",
+  "public_skill_count": 18,
+  "providers": ["codex", "claude-code"],
+  "catalog_sha256": "4c5cd3731faca439fe00ca460b95193757ccd5c752b07ff12992d0f81dbaedfe",
+  "resource_manifest_sha256": "01c41b8863eb60f291d998fe9c3e2d8d8c0ee41f5a06aaf5f6084f6f36f213ff",
+  "result": "passed",
+  "unverified_checks": ["remote_github_update"],
+  "installed_tree_before_update_sha256": "110534D032863AC0DA2050C4BB5872D3084400CE71CBBAF5DB53F9A2CEB441C6",
+  "installed_tree_after_update_sha256": "110534D032863AC0DA2050C4BB5872D3084400CE71CBBAF5DB53F9A2CEB441C6",
+  "complete_skill_tree_comparison": {"status": "passed", "algorithm": "SHA256"},
+  "native_update": {"status": "unsupported_for_local_source"},
+  "local_source_refresh": {"status": "passed"},
+  "remote_source_resolution": {"status": "not_verified", "resolved_commits": []},
+  "remote_default_resolution": {"status": "not_verified", "branch": null, "commit": null},
+  "remote_github_update": {
+    "status": "not_verified",
+    "evidence_kind": "remote_github_update",
+    "verification_mode": "not_verified"
+  }
 }

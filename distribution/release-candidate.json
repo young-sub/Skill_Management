@@ -6,8 +6,8 @@
   "live_release": false,
   "tag": null,
   "source_revision": {
-    "git_commit": "a35644e84e8fa0f5bc34eeae38cd039518ea2348",
-    "git_tree": "f0b3ad0cf45edefb53f8c9f51a4560f7887e87c3"
+    "git_commit": "8b8864052a215d1ff211de16ebbe20ec99913a2a",
+    "git_tree": "6101aa65a4f4b20946366209339ab5ce59b0cb40"
   },
   "catalog": "catalog.json",
   "public_skill_count": 18,
@@ -53,11 +53,11 @@
       "evidence": "native local update no-op was detected and local add refresh restored every Codex and Claude Code entrypoint hash"
     },
     "remote_github_update": {
-      "status": "not_verified",
-      "scope": "release_gate_requires_explicit_network_approval",
+      "status": "passed",
+      "scope": "approved_immutable_tag_install_and_default_branch_update",
       "source_package": "young-sub/Skill_Management",
-      "candidate_source_package": "https://github.com/young-sub/Skill_Management/commit/a35644e84e8fa0f5bc34eeae38cd039518ea2348",
-      "command": "powershell -NoProfile -File scripts/test-install.ps1 -RepositoryRoot . -SourcePackage https://github.com/young-sub/Skill_Management/commit/a35644e84e8fa0f5bc34eeae38cd039518ea2348 -SourceType github -VerifyUpdate -ApproveRemoteEvidence -EvidencePath distribution/evidence/remote-github-update.json",
+      "candidate_source_package": "https://github.com/young-sub/Skill_Management/tree/release-smoke-8b8864052a215d1ff211de16ebbe20ec99913a2a",
+      "command": "powershell -NoProfile -File scripts/test-install.ps1 -RepositoryRoot . -SourcePackage https://github.com/young-sub/Skill_Management/tree/release-smoke-8b8864052a215d1ff211de16ebbe20ec99913a2a -ExpectedSourceCommit 8b8864052a215d1ff211de16ebbe20ec99913a2a -SourceType github -VerifyUpdate -ApproveRemoteEvidence -EvidencePath distribution/evidence/remote-github-update.json",
       "evidence_path": "distribution/evidence/remote-github-update.json"
     }
   },
@@ -70,16 +70,16 @@
       "reason": "normalized baseline was generated from the clean WP-005 source commit"
     },
     "local_source_install_refresh": {
-      "status": "not_verified",
+      "status": "passed",
       "path": "evidence/local-source-install-refresh.json",
       "evidence_kind": "local_source_install_refresh",
-      "reason": "historical schema-1 evidence is not bound to an exact Git commit and tree"
+      "reason": "approved local install and refresh passed on the clean candidate commit and tree"
     },
     "remote_github_update": {
-      "status": "not_verified",
+      "status": "passed",
       "path": "evidence/remote-github-update.json",
       "evidence_kind": "remote_github_update",
-      "reason": "requires explicit approval and an exact remote commit or tree URL"
+      "reason": "approved release-smoke tag install and default-main update passed with both refs bound to the candidate commit"
     }
   }
 }

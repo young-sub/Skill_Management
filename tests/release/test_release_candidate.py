@@ -53,18 +53,20 @@ class ReleaseCandidateTests(unittest.TestCase):
         self.assertIn("-ApproveRemoteEvidence", readme)
         self.assertIn("requires explicit approval", readme)
 
-    def test_remote_update_remains_unverified_with_an_executable_evidence_contract(self) -> None:
+    def test_remote_update_has_separate_revision_bound_passed_evidence(self) -> None:
         candidate = json.loads((ROOT / "distribution" / "release-candidate.json").read_text(encoding="utf-8"))
         smoke = candidate["external_install_smoke"]
         self.assertEqual(smoke["comparison_scope"], "complete_relative_file_set_sha256")
         remote = smoke["remote_github_update"]
-        self.assertEqual(remote["status"], "not_verified")
+        self.assertEqual(remote["status"], "passed")
         self.assertEqual(remote["source_package"], "young-sub/Skill_Management")
         self.assertIn("-SourceType github", remote["command"])
+        self.assertIn("-ExpectedSourceCommit", remote["command"])
+        self.assertIn("/tree/release-smoke-", remote["candidate_source_package"])
         self.assertTrue(remote["evidence_path"].endswith(".json"))
         evidence = candidate["evidence"]
-        self.assertEqual(evidence["local_source_install_refresh"]["status"], "not_verified")
-        self.assertEqual(evidence["remote_github_update"]["status"], "not_verified")
+        self.assertEqual(evidence["local_source_install_refresh"]["status"], "passed")
+        self.assertEqual(evidence["remote_github_update"]["status"], "passed")
         self.assertNotEqual(
             evidence["local_source_install_refresh"]["evidence_kind"],
             evidence["remote_github_update"]["evidence_kind"],

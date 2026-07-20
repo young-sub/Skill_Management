@@ -116,12 +116,13 @@ The install wrapper uses an isolated temporary destination but downloads and exe
 powershell -NoProfile -File scripts/test-install.ps1 -VerifyUpdate
 ```
 
-The automated install-wrapper tests substitute a local fake CLI and cover a working native update, an exit-0/no-op local update, nested-resource tampering, and missing resources. They do not prove remote GitHub update behavior. The normal repository source is `-SourcePackage young-sub/Skill_Management`; the release-candidate gate instead requires an immutable 40-character commit ref that matches the evidence checkout. The record keeps that gate `not_verified` until this explicitly approved network command succeeds and writes its machine-readable evidence:
+The automated install-wrapper tests substitute a local fake CLI and cover a working native update, an exit-0/no-op local update, nested-resource tampering, missing resources, named-ref mismatch, and default-branch mismatch. They do not by themselves prove remote GitHub behavior. The normal repository source is `-SourcePackage young-sub/Skill_Management`; an approved release-candidate check uses a non-moving `release-smoke-<commit>` tag plus `-ExpectedSourceCommit`. The wrapper resolves both that tag and the remote default branch to the expected commit before accepting update evidence, and records complete installed-tree digests before and after update. The current candidate's passed proof is stored separately under `distribution/evidence/`:
 
 ```powershell
 powershell -NoProfile -File scripts/test-install.ps1 `
   -RepositoryRoot . `
-  -SourcePackage https://github.com/young-sub/Skill_Management/commit/<40-character-commit-sha> `
+  -SourcePackage https://github.com/young-sub/Skill_Management/tree/release-smoke-<40-character-commit-sha> `
+  -ExpectedSourceCommit <40-character-commit-sha> `
   -SourceType github `
   -VerifyUpdate `
   -ApproveRemoteEvidence `

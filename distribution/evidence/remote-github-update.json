@@ -1,0 +1,54 @@
+{
+  "schema_version": 2,
+  "evidence_kind": "remote_github_update",
+  "generated_at": "2026-07-20T14:59:40.258786+00:00",
+  "repository": "Skill_Management",
+  "git_commit": "8b8864052a215d1ff211de16ebbe20ec99913a2a",
+  "git_tree": "6101aa65a4f4b20946366209339ab5ce59b0cb40",
+  "git_dirty": false,
+  "dirty_paths": [],
+  "branch": "main",
+  "command": [
+    "powershell", "-NoProfile", "-File", "C:\\Users\\YS\\Desktop\\python\\Skill_Management\\scripts\\test-install.ps1",
+    "-RepositoryRoot", "C:\\Users\\YS\\Desktop\\python\\Skill_Management",
+    "-SourcePackage", "https://github.com/young-sub/Skill_Management/tree/release-smoke-8b8864052a215d1ff211de16ebbe20ec99913a2a",
+    "-SourceType", "github", "-VerifyUpdate", "-ApproveRemoteEvidence",
+    "-ExpectedSourceCommit", "8b8864052a215d1ff211de16ebbe20ec99913a2a"
+  ],
+  "cwd": "C:/Users/YS/Desktop/python/Skill_Management",
+  "tool_versions": {
+    "python": "3.12.10",
+    "git": "git version 2.50.1.windows.1",
+    "powershell": "5.1.19041.6456",
+    "skills_command": "npx"
+  },
+  "source_package": "https://github.com/young-sub/Skill_Management/tree/release-smoke-8b8864052a215d1ff211de16ebbe20ec99913a2a",
+  "expected_source_commit": "8b8864052a215d1ff211de16ebbe20ec99913a2a",
+  "source_type": "github",
+  "verification_mode": "install_and_update",
+  "public_skill_count": 18,
+  "providers": ["codex", "claude-code"],
+  "catalog_sha256": "4c5cd3731faca439fe00ca460b95193757ccd5c752b07ff12992d0f81dbaedfe",
+  "resource_manifest_sha256": "7a6dd35055385d0ca701a64dfe63c80ee98c608bb3400c6f501f7ae19a0c40bf",
+  "result": "passed",
+  "unverified_checks": [],
+  "installed_tree_before_update_sha256": "BCA561CFD489B70CD48DFCFC99DC722C5222F5BF90791C4857833D0158A4BF47",
+  "installed_tree_after_update_sha256": "BCA561CFD489B70CD48DFCFC99DC722C5222F5BF90791C4857833D0158A4BF47",
+  "complete_skill_tree_comparison": {"status": "passed", "algorithm": "SHA256"},
+  "native_update": {"status": "passed"},
+  "local_source_refresh": {"status": "not_run"},
+  "remote_source_resolution": {
+    "status": "passed",
+    "resolved_commits": ["8b8864052a215d1ff211de16ebbe20ec99913a2a"]
+  },
+  "remote_default_resolution": {
+    "status": "passed",
+    "branch": "refs/heads/main",
+    "commit": "8b8864052a215d1ff211de16ebbe20ec99913a2a"
+  },
+  "remote_github_update": {
+    "status": "passed",
+    "evidence_kind": "remote_github_update",
+    "verification_mode": "idempotent_current_revision"
+  }
+}

@@ -340,10 +340,10 @@ Add a mutation sentinel test that snapshots every file before and after `reconci
 - files changed: canonical/generated bootstrap helper, brownfield tests, setup skill contract, README, architecture inventory, resource manifests, this Work Packet
 - tracker/PR/doc mutations: local Work Packet only
 - tracker_channel: none
-- git_publish_state: local_only
+- git_publish_state: branch_pushed
 - tracker_publish_state: local_pending
 - published_body_ref:
-- verification evidence: final focused brownfield suite 10/10 passed; final repository suite 122/122 passed; resource sync, distribution, and diff checks passed
+- verification evidence: final focused brownfield suite 10/10 passed; final repository suite 124/124 passed; resource sync, distribution, evidence, and diff checks passed
 - delegated evidence: `/root/wp003_baseline_verifier` executed RED/GREEN; independent reviewer `/root/wp003_independent_review` found CRLF, Git fail-open, authority, and tracked-ignore gaps, verified their remediation, and returned PASS with no remaining High/Medium findings
 - risks: conservative detection may require human resolution for uncommon toolchains
 - next mode: goal close
@@ -354,7 +354,7 @@ Add a mutation sentinel test that snapshots every file before and after `reconci
 - Final status: completed
 - Outcome: completed. `reconcile` emits a deterministic, read-only, digest-bound PlanArtifact.
 - Implemented slices: evidence inventory; authority and thin router proposals; byte-preserving TESTING merge proposal; Git-backed path policy and repository boundaries; apply-ready immutable mutation contract.
-- Verification evidence: 10/10 final focused tests and 122/122 final repository tests passed; resource drift, distribution, and diff checks passed.
+- Verification evidence: 10/10 final focused tests and 124/124 final repository tests passed; resource drift, distribution, evidence, and diff checks passed.
 - Independent review: PASS after remediation of byte preservation, Git-unavailable and tracked-ignore fail-closed behavior, prohibited path inspection, rank-2 CI authority, unknown evidence retention, and ambiguous-router suppression.
 - Architecture review: detectors are isolated functions, repository content is never executed, nested/reparse boundaries are excluded, canonical authoring remains the single source copied into the public Skill.
 - Docs updated: `skills/setup-agent-harness/SKILL.md`, `README.md`, `docs/architecture/skill-inventory.md`.

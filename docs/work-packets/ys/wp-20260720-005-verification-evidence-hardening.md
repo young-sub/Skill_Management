@@ -18,7 +18,7 @@ created_at: 2026-07-20
 
 ### 핵심 구현 사항
 
-self-containment 검사를 절대경로·URI·cross-skill·reparse 경계까지 강화하고, pilot 기본 실행을 tracked 문서 무변경 방식으로 전환한다. install/update evidence에는 commit/tree/tool identity를 기록하며 remote GitHub update는 별도 승인 전까지 계속 `not_verified`로 유지한다.
+self-containment 검사를 절대경로·URI·cross-skill·reparse 경계까지 강화하고, pilot 기본 실행을 tracked 문서 무변경 방식으로 전환한다. install/update evidence에는 commit/tree/tool identity를 기록하며 remote GitHub update는 별도 승인 전까지 `not_verified`로 유지하고 승인 실행 후에만 `passed`로 승격한다.
 
 > This Korean summary is for review speed only. If it conflicts with the English canonical sections, linked source-of-truth docs, or repository rules, the English canonical sections and source-of-truth docs prevail.
 
@@ -40,7 +40,7 @@ self-containment 검사를 절대경로·URI·cross-skill·reparse 경계까지 
 - absolute path, `file:` URI, repository-root reference, cross-skill dependency, reparse escape를 포괄적으로 증명하지 않는다.
 - pilot runner는 실행 시간 측정값을 tracked report/artifact에 다시 기록해 단순 검증이 dirty worktree를 만든다.
 - local install evidence는 성공 내용을 기록하지만 exact Git commit/tree identity가 없어 현재 HEAD와 직접 결박되지 않는다.
-- remote GitHub-backed native update는 의도적으로 `not_verified`이며 별도 external approval이 필요하다.
+- remote GitHub-backed native update는 별도 external approval 전까지 `not_verified`이며, 현재 candidate는 승인된 실행 증거를 보유한다.
 - 일부 archived Work Packet capsule은 역사적 phase 값과 최종 close 결과가 같은 문서에 있어 현재 상태로 오독될 수 있다.
 
 ## Purpose
@@ -59,7 +59,7 @@ self-containment 검사를 절대경로·URI·cross-skill·reparse 경계까지 
 - resource map과 generated hash drift 검사는 구현돼 있다.
 - distribution validator는 legacy discoverability와 일부 relative escape를 차단한다.
 - pilots는 실제 subprocess checks를 수행하지만 tracked output에 nondeterministic duration을 기록한다.
-- release candidate metadata는 remote GitHub update를 정직하게 `not_verified`로 표시한다.
+- release candidate metadata는 증거 부재 시 `not_verified`, 승인된 revision-bound 증거가 있을 때만 `passed`를 표시한다.
 - external smoke rerun은 explicit approval이 필요한 별도 gate다.
 
 ## Ideal Direction
@@ -286,18 +286,18 @@ powershell -NoProfile -File scripts/test-install.ps1 -VerifyUpdate
 - phase: close
 - scope: validator, pilot, and evidence trust hardening
 - current gate: completed; independent document review passed
-- accepted decisions: read-only pilots by default; revision-bound evidence; remote remains separately gated
+- accepted decisions: read-only pilots by default; revision-bound evidence; local and remote external checks are separately proven
 - open decisions: none identified
 - files read: distribution validator/tests, pilot/release evidence pointers, tracker/workflow config
 - files changed: self-containment/evidence validators, pilot/install evidence producers, release metadata, docs, archive records, tests, and this Work Packet
 - tracker/PR/doc mutations: local Work Packet only
 - tracker_channel: none
-- git_publish_state: local_only
+- git_publish_state: branch_pushed
 - tracker_publish_state: local_pending
 - published_body_ref:
-- verification evidence: final repository suite 122/122 passed; independent WP-005 focused review suite 22/22 passed; 3/3 revision-bound pilot baseline update passed; resource sync, evidence validation, distribution validation, and diff checks passed
-- delegated evidence: independent reviewer `/root/wp005_independent_review` found remote-kind, incomplete-proof, immutable-ref, and scanner fail-open gaps, verified remediation, and returned PASS with no remaining blocking findings
-- risks: three governed self-containment allowlist entries require review; revision-bound local and remote install/update evidence remain not_verified until separately approved reruns
+- verification evidence: final repository suite 124/124 passed; 3/3 revision-bound pilot baseline update passed; approved local refresh and remote GitHub install/update smokes passed; resource sync, evidence validation, distribution validation, and diff checks passed
+- delegated evidence: independent reviewers found remote-kind, incomplete-proof, immutable-ref, scanner fail-open, named-ref, and default-branch binding gaps; each finding was remediated and revalidated
+- risks: three governed self-containment allowlist entries require review; the external CLI reports a non-fatal deleted-skill check warning while still updating and verifying all 18 skill trees
 - next mode: goal close
 - next stop condition: final evidence or repository verification failure
 
@@ -306,10 +306,10 @@ powershell -NoProfile -File scripts/test-install.ps1 -VerifyUpdate
 - Final status: completed
 - Outcome: expanded distribution self-containment checks, made pilot execution read-only by default, and bound release evidence to explicit clean Git commit/tree identities.
 - Validator rules added: `SC_RELATIVE_ESCAPE`, `SC_ABSOLUTE_PATH`, `SC_FILE_URI`, `SC_REPO_ROOT_REFERENCE`, `SC_CROSS_SKILL_REFERENCE`, `SC_MISSING_RESOURCE`, and `SC_REPARSE_ESCAPE`, with governed allowlist metadata and manifest closure checks.
-- Pilot determinism evidence: default execution writes only to a temporary directory; `--update-baseline` produced 3/3 normalized reports from clean commit `a35644e84e8fa0f5bc34eeae38cd039518ea2348` and tree `f0b3ad0cf45edefb53f8c9f51a4560f7887e87c3` after all independent-review remediation.
+- Pilot determinism evidence: default execution writes only to a temporary directory; `--update-baseline` produced 3/3 normalized reports from clean commit `8b8864052a215d1ff211de16ebbe20ec99913a2a` and tree `6101aa65a4f4b20946366209339ab5ce59b0cb40`.
 - Revision-bound evidence: `scripts/validate_evidence.py` rejects stale, dirty, missing, or mislabeled passed proof; pilot proof passes for the candidate revision.
-- External checks run/unrun: no third-party `npx` install/update command was run; local-source install refresh and remote GitHub update remain separately `not_verified` because both require a fresh explicitly approved execution.
+- External checks: approved local-source install/refresh passed for 18 skills across Codex and Claude Code. Approved remote install from `release-smoke-8b8864052a215d1ff211de16ebbe20ec99913a2a` and update through `refs/heads/main` passed after both refs resolved to the same expected commit; update refreshed 18 skills and pre/post installed-tree digests matched.
 - Docs updated: README, architecture inventory, release candidate metadata, and archived Work Packets now describe the implemented guarantees and snapshot/final distinction.
-- Independent review: PASS after remediation of exact-commit remote proof classification, complete provenance requirements, malformed-input fail-closed scanning, structured path coverage, and allowlist expiry.
-- Verification: 122/122 unit tests; resource sync; evidence validation; distribution validation; `git diff --check`.
-- Remaining risks: three governed scanner exceptions need periodic review; the approval-gated local/remote install evidence is intentionally not current release proof.
+- Independent review: initial FAIL findings on named-ref and default-branch provenance were remediated with `ls-remote` commit binding, default-HEAD binding, and installed-tree before/after digests; final re-review returned PASS after the external smoke supplied the missing operational evidence.
+- Verification: 124/124 unit tests; 3/3 pilots; local and remote external smokes; resource sync; evidence validation; distribution validation; `git diff --check`.
+- Remaining risks: three governed scanner exceptions need periodic review; the external CLI emitted a non-fatal deleted-skill discovery warning but explicitly refreshed all 18 skills and the complete trees remained identical.
