@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/templates/project/AGENTS.md -->
-<!-- Source-SHA256: 59ad59947e9014d60b6957eb8bfe1f936737ad8d86abd210fb67bddbe2c8779d -->
+<!-- Source-SHA256: 04cb908a547709f1036a3510b3fd6df3935faa6e0e27c58d9fc9ed85bb156752 -->
 
 # Project Agent Instructions
 
@@ -18,6 +18,6 @@
 
 ## Harness
 
-- `.harness/project.yaml` is the machine-readable project configuration.
-- `.work/` is ephemeral local runtime state and must not be committed.
+- `.harness/project.yaml` is the tracked machine-readable project configuration; do not ignore `.harness/`.
+- `.work/` and `agent-env.*.md` are local-only runtime/profile state and must not be committed.
 - Require explicit approval before destructive, security-sensitive, or irreversible actions.

@@ -1,6 +1,6 @@
 ---
 title: "WP-20260720-004: Brownfield Approved Safe Apply"
-status: in-progress
+status: completed
 labels:
   - architecture
   - feature
@@ -29,7 +29,7 @@ WP-20260720-003의 immutable PlanArtifact를 입력으로 받아 precondition을
 - Durable tracker: this file
 - Intake mode: `architecture_first`
 - Intent confidence: high for direction, blocked on upstream schema
-- Status: `in-progress`
+- Status: `completed`
 - Dependency: WP-20260720-003 must close with a stable PlanArtifact schema
 - Enables: unattended apply only for fully approved, conflict-free plans
 
@@ -323,30 +323,30 @@ Windows에서는 symlink/junction permission 차이를 고려해 가능한 repar
 - updated_at: 2026-07-20
 - source_ref: this Work Packet
 - updated_by: Codex main session
-- phase: run
+- phase: close
 - scope: approved brownfield apply and recovery
-- current gate: WP-004 TDD implementation
+- current gate: completed
 - accepted decisions: exact plan digest; path-scoped local-only approval; `.harness/` tracked; no auto git add
 - open decisions: none; recovery journals remain under approved `.work/bootstrap-transactions/`
 - files read: bootstrap helper/skill/tests, tracker/workflow config
-- files changed: this isolated Work Packet
+- files changed: canonical/generated bootstrap helper, safe-apply tests, setup skill contract, project AGENTS template, README, resource manifests, this Work Packet
 - tracker/PR/doc mutations: local Work Packet only
 - tracker_channel: none
 - git_publish_state: local_only
 - tracker_publish_state: local_pending
 - published_body_ref:
-- verification evidence: documentation checks pending
-- delegated evidence: prior independent multi-agent review
+- verification evidence: 23 focused tests passed including all 8 mutation boundaries; 100 full tests passed; resource sync, distribution, and diff checks passed
+- delegated evidence: `/root/wp003_baseline_verifier` executed RED/GREEN, fault-boundary, focused, and broad regression commands; independent completion review remains scheduled after WP-005
 - risks: transaction recovery and cross-platform filesystem semantics
-- next mode: close after implementation and verification
-- next stop condition: transaction or precondition acceptance evidence incomplete
+- next mode: WP-005 run
+- next stop condition: WP-005 evidence-hardening acceptance incomplete
 
 ## Close Report Skeleton
 
-- Outcome:
-- Applied PlanArtifact schema version:
-- Fault-injection evidence:
-- Git path-policy evidence:
-- Recovery/idempotency evidence:
-- Docs updated:
-- Remaining risks:
+- Outcome: completed. Exact reviewed plans apply only after digest, schema, repository, blocker, approval, input, Git, ignore, and boundary revalidation.
+- Applied PlanArtifact schema version: 1.
+- Fault-injection evidence: every one of 8 mutation boundaries produced a journaled rollback in tests; rollback-failure injection produced `recovery_required`.
+- Git path-policy evidence: ignored `.harness/project.yaml` blocks before transaction; `.harness/` remains tracked intent; no automatic staging occurs; `must_be_committed` reports tracked outputs.
+- Recovery/idempotency evidence: incomplete transactions block apply; explicit `recover-apply` restores state; a second successful apply is `already_applied` with zero mutations.
+- Docs updated: `skills/setup-agent-harness/SKILL.md`, project `AGENTS.md` template, `README.md`.
+- Remaining risks: true cross-filesystem atomicity is intentionally not claimed; ambiguous recovery fails closed for manual resolution.

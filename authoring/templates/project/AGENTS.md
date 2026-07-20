@@ -14,6 +14,6 @@
 
 ## Harness
 
-- `.harness/project.yaml` is the machine-readable project configuration.
-- `.work/` is ephemeral local runtime state and must not be committed.
+- `.harness/project.yaml` is the tracked machine-readable project configuration; do not ignore `.harness/`.
+- `.work/` and `agent-env.*.md` are local-only runtime/profile state and must not be committed.
 - Require explicit approval before destructive, security-sensitive, or irreversible actions.
