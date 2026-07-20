@@ -1,12 +1,13 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/bootstrap_project.py
-# Source-SHA256: 6e99c137562dd9004b634e83104e6c6bb32e34194c36d19300d8c7dd7d8aff4d
+# Source-SHA256: 761ef834a823e5529eec58b89c66ed24f0cbacff245e86fb106f37e4e77fa42e
 
 """Deterministic project bootstrap planner, applier, and validator."""
 
 from __future__ import annotations
 
 import argparse
+import base64
 import difflib
 from hashlib import sha256
 import json
@@ -25,6 +26,16 @@ CLASSIFICATIONS = {
     "EXISTING_OVERGROWN",
     "DRIFT_REPAIR",
 }
+PLAN_SCHEMA_VERSION = 1
+TEXT_EVIDENCE_SUFFIXES = {
+    ".md",
+    ".json",
+    ".toml",
+    ".yaml",
+    ".yml",
+    ".txt",
+}
+DISCOVERY_EXCLUDED_PARTS = {".git", ".work", "node_modules", "vendor", "dist", "build"}
 REQUIRED_PROJECT_KEYS = (
     "version: 2",
     "authoritative: AGENTS.md",
@@ -205,6 +216,591 @@ def _unsafe_targets(root: Path) -> list[dict[str, str]]:
                 {"path": target.relative_to(root).as_posix(), "reason": reason}
             )
     return findings
+
+
+def _git(root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", "-C", str(root), *arguments],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def _relative(root: Path, path: Path) -> str:
+    return path.relative_to(root).as_posix()
+
+
+def _git_head(root: Path) -> str | None:
+    result = _git(root, "rev-parse", "HEAD")
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def _git_tree(root: Path) -> str | None:
+    result = _git(root, "rev-parse", "HEAD^{tree}")
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def _git_state(root: Path, relative_path: str) -> str:
+    tracked = _git(root, "ls-files", "--error-unmatch", "--", relative_path)
+    if tracked.returncode == 0:
+        return "tracked"
+    ignored = _git(root, "check-ignore", "-q", "--no-index", "--", relative_path)
+    if ignored.returncode == 0:
+        return "ignored"
+    return "untracked" if (root / relative_path).exists() else "absent"
+
+
+def _ignore_source(root: Path, relative_path: str) -> str | None:
+    result = _git(root, "check-ignore", "-v", "--no-index", "--", relative_path)
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip() or "git-ignore-source-unavailable"
+
+
+def _repository_boundaries(root: Path) -> list[dict[str, str]]:
+    boundaries: list[dict[str, str]] = []
+    for current, directories, _files in os.walk(root, followlinks=False):
+        current_path = Path(current)
+        relative = current_path.relative_to(root)
+        if relative.parts and relative.parts[0] in {".git", ".work"}:
+            directories[:] = []
+            continue
+        if current_path != root and (current_path / ".git").exists():
+            boundaries.append({"kind": "nested_repository", "path": relative.as_posix()})
+            directories[:] = []
+            continue
+        retained: list[str] = []
+        for name in directories:
+            candidate = current_path / name
+            candidate_relative = candidate.relative_to(root)
+            if name in {".git", ".work", "node_modules", "dist", "build"}:
+                continue
+            if _path_is_reparse(candidate):
+                boundaries.append(
+                    {"kind": "reparse_boundary", "path": candidate_relative.as_posix()}
+                )
+                continue
+            retained.append(name)
+        directories[:] = retained
+    submodules = _git(root, "submodule", "status", "--recursive")
+    if submodules.returncode == 0:
+        for line in submodules.stdout.splitlines():
+            parts = line.strip().split()
+            if len(parts) >= 2:
+                boundaries.append({"kind": "submodule", "path": parts[1]})
+    return sorted(boundaries, key=lambda item: (item["path"], item["kind"]))
+
+
+def _discovery_files(root: Path, boundaries: list[dict[str, str]]) -> list[Path]:
+    excluded_roots = {item["path"] for item in boundaries}
+    discovered: list[Path] = []
+    for current, directories, files in os.walk(root, followlinks=False):
+        current_path = Path(current)
+        relative_dir = current_path.relative_to(root).as_posix()
+        if relative_dir in excluded_roots:
+            directories[:] = []
+            continue
+        directories[:] = [
+            name
+            for name in directories
+            if name not in DISCOVERY_EXCLUDED_PARTS
+            and (current_path / name).relative_to(root).as_posix() not in excluded_roots
+            and not _path_is_reparse(current_path / name)
+        ]
+        for name in files:
+            path = current_path / name
+            relative = path.relative_to(root)
+            if any(part in DISCOVERY_EXCLUDED_PARTS for part in relative.parts):
+                continue
+            if path.suffix.lower() in TEXT_EVIDENCE_SUFFIXES or name in {"Makefile", "go.mod"}:
+                discovered.append(path)
+    return sorted(discovered, key=lambda path: _relative(root, path))
+
+
+def _read_text_untrusted(path: Path) -> tuple[str | None, str | None]:
+    try:
+        return path.read_text(encoding="utf-8"), None
+    except (OSError, UnicodeDecodeError) as error:
+        return None, f"read_failed:{type(error).__name__}"
+
+
+def _evidence_kind(relative_path: str) -> str | None:
+    name = Path(relative_path).name
+    lower = relative_path.lower()
+    if name in {"AGENTS.md", "CLAUDE.md", "copilot-instructions.md"} or name.startswith(".cursorrules"):
+        return "instructions"
+    if lower.startswith(".github/workflows/") or name in {".gitlab-ci.yml", "azure-pipelines.yml"}:
+        return "ci"
+    if name in {"pyproject.toml", "package.json", "Cargo.toml", "go.mod", "Makefile"} or name.endswith((".sln", ".csproj")):
+        return "manifest"
+    if name in {"TESTING.md", "CONTRIBUTING.md", "README.md", "CONTEXT.md"}:
+        return "documentation"
+    if lower.startswith("docs/architecture") or lower.startswith("docs/adr/") or lower == "docs/agents/domain.md":
+        return "architecture"
+    return None
+
+
+def _discover_commands(relative_path: str, text: str) -> list[dict[str, Any]]:
+    commands: list[dict[str, Any]] = []
+
+    def add(command: str, locator: str, confidence: str) -> None:
+        normalized = " ".join(command.strip().split())
+        if not normalized or normalized.startswith(("#", "<!--")):
+            return
+        if not re.match(r"^(python|python3|pytest|npm|pnpm|yarn|cargo|go|dotnet|make|powershell|pwsh)\b", normalized, re.I):
+            return
+        commands.append(
+            {
+                "command": normalized,
+                "source_pointer": f"{relative_path}:{locator}",
+                "confidence": confidence,
+                "state": "discovered",
+            }
+        )
+
+    if Path(relative_path).name == "package.json":
+        try:
+            package = json.loads(text)
+        except json.JSONDecodeError:
+            package = {}
+        scripts = package.get("scripts", {}) if isinstance(package, dict) else {}
+        if isinstance(scripts, dict):
+            for name, value in sorted(scripts.items()):
+                if isinstance(value, str) and (name == "test" or name.startswith(("test:", "lint", "type", "build"))):
+                    add("npm test" if name == "test" else f"npm run {name}", f"scripts.{name}", "high")
+    for number, line in enumerate(text.splitlines(), 1):
+        stripped = line.strip()
+        run_match = re.match(r"^-?\s*run:\s*[|>]?-?\s*(.+)$", stripped)
+        if run_match and run_match.group(1):
+            add(run_match.group(1), str(number), "high")
+        for inline in re.findall(r"`([^`\r\n]+)`", line):
+            add(inline, str(number), "medium")
+        if stripped and not stripped.startswith(("#", "```", "- `")):
+            add(stripped, str(number), "medium")
+    unique: dict[tuple[str, str], dict[str, Any]] = {}
+    for command in commands:
+        unique[(command["command"], command["source_pointer"])] = command
+    return list(unique.values())
+
+
+def _explicit_references(text: str, known_paths: set[str]) -> list[str]:
+    referenced: set[str] = set()
+    for candidate in known_paths:
+        if candidate in text:
+            referenced.add(candidate)
+    return sorted(referenced)
+
+
+def _input_record(root: Path, relative_path: str) -> dict[str, Any]:
+    path = root / relative_path
+    content = _read_bytes(path)
+    record: dict[str, Any] = {
+        "path": relative_path,
+        "existence": content is not None,
+        "content_sha256": sha256(content).hexdigest() if content is not None else None,
+        "git_state": _git_state(root, relative_path),
+        "ignore_source": _ignore_source(root, relative_path),
+    }
+    if content is not None:
+        try:
+            record["content_utf8"] = content.decode("utf-8")
+        except UnicodeDecodeError:
+            record["content_base64"] = base64.b64encode(content).decode("ascii")
+    return record
+
+
+def _path_policy_entry(root: Path, path: str, desired_state: str) -> dict[str, Any]:
+    probe = path.replace("**", "probe").replace("*", "fixture")
+    current_state = _git_state(root, probe)
+    ignore_source = _ignore_source(root, probe)
+    approval_required = desired_state == "local-only"
+    proposed_action = "none"
+    if desired_state == "tracked" and current_state == "ignored":
+        proposed_action = "resolve_ignore_conflict"
+    elif desired_state == "tracked" and current_state in {"absent", "untracked"}:
+        proposed_action = "create_or_review_tracked"
+    elif desired_state == "local-only" and current_state != "ignored":
+        proposed_action = "propose_ignore_rule"
+    return {
+        "path": path,
+        "desired_state": desired_state,
+        "current_state": current_state,
+        "ignore_source": ignore_source,
+        "evidence": [f"git_state:{current_state}"] + ([ignore_source] if ignore_source else []),
+        "proposed_action": proposed_action,
+        "approval_required": approval_required,
+    }
+
+
+def _canonical_json(value: Any) -> bytes:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def _plan_digest(plan: dict[str, Any]) -> str:
+    return sha256(_canonical_json({key: value for key, value in plan.items() if key != "plan_sha256"})).hexdigest()
+
+
+def _file_mutation(
+    root: Path,
+    relative_path: str,
+    after: bytes,
+    *,
+    desired_state: str,
+    approval_class: str,
+    additional_approval_classes: list[str] | None = None,
+) -> dict[str, Any] | None:
+    before = _read_bytes(root / relative_path)
+    if before == after:
+        return None
+    mutation: dict[str, Any] = {
+        "path": relative_path,
+        "operation": "create" if before is None else "replace",
+        "before_sha256": sha256(before).hexdigest() if before is not None else None,
+        "after_sha256": sha256(after).hexdigest(),
+        "after_content_base64": base64.b64encode(after).decode("ascii"),
+        "desired_state": desired_state,
+        "approval_class": approval_class,
+    }
+    if additional_approval_classes:
+        mutation["additional_approval_classes"] = additional_approval_classes
+    return mutation
+
+
+def build_reconciliation_plan(root: Path) -> dict[str, Any]:
+    root = root.absolute()
+    boundaries = _repository_boundaries(root)
+    files = _discovery_files(root, boundaries)
+    known_paths = {_relative(root, path) for path in files}
+    evidence: list[dict[str, Any]] = []
+    warnings: list[dict[str, str]] = []
+    commands: list[dict[str, Any]] = []
+    contents: dict[str, str] = {}
+    for path in files:
+        relative_path = _relative(root, path)
+        kind = _evidence_kind(relative_path)
+        if kind is None:
+            continue
+        text, warning = _read_text_untrusted(path)
+        if warning:
+            warnings.append({"path": relative_path, "warning": warning})
+            continue
+        assert text is not None
+        contents[relative_path] = text
+        evidence.append(
+            {
+                "path": relative_path,
+                "evidence_kind": kind,
+                "detector": "conservative-text-inventory",
+                "locator": relative_path,
+                "confidence": "high" if kind in {"instructions", "ci", "manifest"} else "medium",
+                "notes": "content treated as untrusted and was not executed",
+            }
+        )
+        if kind in {"ci", "manifest", "documentation"}:
+            commands.extend(_discover_commands(relative_path, text))
+    commands = sorted(
+        {(_item["command"], _item["source_pointer"]): _item for _item in commands}.values(),
+        key=lambda item: (item["command"], item["source_pointer"]),
+    )
+
+    authorities: list[dict[str, Any]] = []
+    instruction_paths = [path for path in ("AGENTS.md", "CLAUDE.md") if path in contents]
+    for index, path in enumerate(instruction_paths):
+        authorities.append(
+            {
+                "authority_kind": "instructions",
+                "path": path,
+                "precedence_basis": "root repository instruction surface",
+                "precedence_rank": index + 1,
+                "confidence": "high",
+                "conflicts": [],
+            }
+        )
+    for path in sorted(contents):
+        if path in {"TESTING.md", "CONTRIBUTING.md", "README.md"}:
+            authorities.append(
+                {
+                    "authority_kind": "verification",
+                    "path": path,
+                    "precedence_basis": "dedicated current documentation" if path == "TESTING.md" else "repository guidance",
+                    "precedence_rank": 3 if path == "TESTING.md" else 4,
+                    "confidence": "high" if path == "TESTING.md" else "medium",
+                    "conflicts": [],
+                }
+            )
+        elif _evidence_kind(path) == "architecture":
+            authorities.append(
+                {
+                    "authority_kind": "architecture",
+                    "path": path,
+                    "precedence_basis": "dedicated architecture document",
+                    "precedence_rank": 3,
+                    "confidence": "high",
+                    "conflicts": [],
+                }
+            )
+
+    instruction_references: set[str] = set()
+    for path in instruction_paths:
+        instruction_references.update(_explicit_references(contents[path], known_paths))
+    for authority in authorities:
+        if authority["path"] in instruction_references:
+            authority["precedence_basis"] = "explicitly referenced by repository instruction"
+            authority["precedence_rank"] = 1
+            authority["confidence"] = "high"
+
+    blockers: list[dict[str, Any]] = []
+    if len(instruction_paths) > 1 and contents[instruction_paths[0]].encode("utf-8") != contents[instruction_paths[1]].encode("utf-8"):
+        conflict = {
+            "kind": "conflicting_instruction_authority",
+            "severity": "high",
+            "paths": instruction_paths,
+            "reason": "root instruction surfaces differ",
+        }
+        blockers.append(conflict)
+        for authority in authorities:
+            if authority["authority_kind"] == "instructions":
+                authority["conflicts"].append("root instruction bytes differ")
+
+    command_values = sorted({item["command"] for item in commands})
+    conflicting_commands = command_values if len(command_values) > 1 else []
+    if conflicting_commands:
+        blockers.append(
+            {
+                "kind": "conflicting_verification_commands",
+                "severity": "medium",
+                "commands": conflicting_commands,
+                "reason": "multiple candidate commands require intent classification",
+            }
+        )
+
+    agents_content = contents.get("AGENTS.md") or contents.get("CLAUDE.md")
+    referenced = _explicit_references(agents_content or "", known_paths)
+    if agents_content is None:
+        pointer_lines = ["# AGENTS.md", "", "## Repository Sources"]
+        for path in sorted(
+            item["path"]
+            for item in authorities
+            if item["authority_kind"] in {"architecture", "verification"}
+        ):
+            pointer_lines.append(f"- `{path}`")
+        if command_values:
+            pointer_lines.extend(["", "## Verification", *[f"- `{command}`" for command in command_values]])
+        agents_content = "\n".join(pointer_lines).rstrip() + "\n"
+        referenced = sorted(
+            item["path"]
+            for item in authorities
+            if item["authority_kind"] in {"architecture", "verification"}
+        )
+    router_proposals = [
+        {
+            "path": "AGENTS.md",
+            "preserved": instruction_paths,
+            "referenced": referenced,
+            "new_router_lines": [] if "AGENTS.md" in contents else agents_content.splitlines(),
+            "unresolved": [item["kind"] for item in blockers if "instruction" in item["kind"]],
+            "proposed_content": agents_content,
+        }
+    ]
+    for nested_path in sorted(path for path in contents if path.endswith("/AGENTS.md")):
+        router_proposals.append(
+            {
+                "path": nested_path,
+                "preserved": [nested_path],
+                "referenced": _explicit_references(contents[nested_path], known_paths),
+                "new_router_lines": [],
+                "unresolved": [],
+                "proposed_content": contents[nested_path],
+            }
+        )
+
+    testing_existing = contents.get("TESTING.md", "")
+    additions = [item for item in commands if item["command"] not in testing_existing]
+    proposed_testing = testing_existing
+    if additions:
+        separator = "" if not proposed_testing or proposed_testing.endswith("\n") else "\n"
+        proposed_testing += separator + "\n## Discovered verification candidates\n\n"
+        proposed_testing += "\n".join(f"- `{item['command']}` ({item['source_pointer']})" for item in additions) + "\n"
+    testing_merge = {
+        "preserved_sections": ["existing TESTING.md bytes"] if testing_existing else [],
+        "preserved_content_utf8": testing_existing,
+        "detected_commands": commands,
+        "command_evidence": [{"command": item["command"], "source_pointer": item["source_pointer"], "confidence": item["confidence"]} for item in commands],
+        "proposed_additions": additions,
+        "conflicting_commands": conflicting_commands,
+        "human_decisions_required": ["classify conflicting verification commands"] if conflicting_commands else [],
+        "unified_diff_preview": _text_diff("TESTING.md", testing_existing.encode("utf-8"), proposed_testing.encode("utf-8")) if proposed_testing != testing_existing else "",
+        "proposed_content_utf8": proposed_testing,
+    }
+    if not proposed_testing:
+        proposed_testing = "# Testing\n\nNo verification command has been accepted.\n"
+        testing_merge["proposed_content_utf8"] = proposed_testing
+        testing_merge["unified_diff_preview"] = _text_diff(
+            "TESTING.md", b"", proposed_testing.encode("utf-8")
+        )
+
+    path_policy = [
+        _path_policy_entry(root, "AGENTS.md", "tracked"),
+        _path_policy_entry(root, "CLAUDE.md", "tracked"),
+        _path_policy_entry(root, "TESTING.md", "tracked"),
+        _path_policy_entry(root, ".harness/project.yaml", "tracked"),
+        _path_policy_entry(root, ".harness/**", "prohibited"),
+        _path_policy_entry(root, ".work/**", "local-only"),
+        _path_policy_entry(root, "agent-env.*.md", "local-only"),
+    ]
+    harness_entry = next(item for item in path_policy if item["path"] == ".harness/project.yaml")
+    if harness_entry["current_state"] == "ignored":
+        blockers.append(
+            {
+                "kind": "tracked_path_ignored",
+                "severity": "high",
+                "path": ".harness/project.yaml",
+                "ignore_source": harness_entry["ignore_source"],
+                "reason": ".harness/project.yaml must remain tracked",
+            }
+        )
+    for boundary in boundaries:
+        blockers.append(
+            {
+                "kind": "repository_boundary",
+                "severity": "high",
+                "path": boundary["path"],
+                "boundary_kind": boundary["kind"],
+                "reason": "excluded from automatic migration",
+            }
+        )
+
+    input_paths = sorted(
+        known_paths
+        | {"AGENTS.md", "CLAUDE.md", "TESTING.md", ".harness/project.yaml", ".gitignore"}
+    )
+    inputs = [_input_record(root, path) for path in input_paths]
+    fingerprint_material = {
+        "inputs": [{key: value for key, value in item.items() if key not in {"content_utf8", "content_base64"}} for item in inputs],
+        "head": _git_head(root),
+        "tree": _git_tree(root),
+        "boundaries": boundaries,
+    }
+    discovery_fingerprint = sha256(_canonical_json(fingerprint_material)).hexdigest()
+    instruction_bytes = agents_content.encode("utf-8")
+    recorded_commands = "\n".join(
+        f"    - {json.dumps(item['command'], ensure_ascii=False)}"
+        for item in commands
+    )
+    if not recorded_commands:
+        recorded_commands = "    []"
+    project_config = (
+        "version: 2\n"
+        "project:\n"
+        f"  name: {json.dumps(root.name, ensure_ascii=False)}\n"
+        "  classification: existing_brownfield\n"
+        "instructions:\n"
+        "  authoritative: AGENTS.md\n"
+        "  mirrors:\n"
+        "    - CLAUDE.md\n"
+        f"  sha256: {instruction_hash(instruction_bytes)}\n"
+        "work:\n"
+        "  root: .work\n"
+        "  retention_days: 90\n"
+        "  trash_grace_days: 30\n"
+        "verification:\n"
+        "  commands:\n"
+        f"{recorded_commands}\n"
+    ).encode("utf-8")
+    mutations: list[dict[str, Any]] = []
+    for relative_path, content in (
+        ("AGENTS.md", instruction_bytes),
+        ("CLAUDE.md", instruction_bytes),
+        ("TESTING.md", proposed_testing.encode("utf-8")),
+        (".harness/project.yaml", project_config),
+    ):
+        mutation = _file_mutation(
+            root,
+            relative_path,
+            content,
+            desired_state="tracked",
+            approval_class="plan",
+        )
+        if mutation:
+            mutations.append(mutation)
+    gitignore_path = root / ".gitignore"
+    gitignore_before = _read_bytes(gitignore_path) or b""
+    try:
+        gitignore_text = gitignore_before.decode("utf-8")
+    except UnicodeDecodeError:
+        gitignore_text = ""
+        blockers.append(
+            {
+                "kind": "unsupported_gitignore_encoding",
+                "severity": "high",
+                "path": ".gitignore",
+                "reason": "safe byte-preserving append requires UTF-8",
+            }
+        )
+    missing_rules = [
+        rule for rule in (".work/", "agent-env.*.md") if rule not in gitignore_text.splitlines()
+    ]
+    if missing_rules and not any(item["kind"] == "unsupported_gitignore_encoding" for item in blockers):
+        newline = b"\r\n" if b"\r\n" in gitignore_before else b"\n"
+        separator = b"" if not gitignore_before or gitignore_before.endswith((b"\n", b"\r")) else newline
+        gitignore_after = gitignore_before + separator + newline.join(rule.encode("utf-8") for rule in missing_rules) + newline
+        mutation = _file_mutation(
+            root,
+            ".gitignore",
+            gitignore_after,
+            desired_state="tracked",
+            approval_class="local-only:.work/",
+            additional_approval_classes=["local-only:agent-env.*.md"],
+        )
+        if mutation:
+            mutations.append(mutation)
+    for directory in (".work/active", ".work/archive", ".work/trash"):
+        if not (root / directory).is_dir():
+            mutations.append(
+                {
+                    "path": directory,
+                    "operation": "create_directory",
+                    "before_sha256": None,
+                    "after_sha256": None,
+                    "desired_state": "local-only",
+                    "approval_class": "local-only:.work/",
+                }
+            )
+
+    plan: dict[str, Any] = {
+        "schema_version": PLAN_SCHEMA_VERSION,
+        "mode": "brownfield-reconcile",
+        "plan_id": discovery_fingerprint[:16],
+        "repository_identity": {
+            "root": root.as_posix(),
+            "name": root.name,
+            "git_head": _git_head(root),
+            "git_tree": _git_tree(root),
+        },
+        "repository_root_fingerprint": discovery_fingerprint,
+        "created_from_git_head": _git_head(root),
+        "discovery_fingerprint": discovery_fingerprint,
+        "inputs": inputs,
+        "discovery": {
+            "evidence": evidence,
+            "warnings": warnings,
+            "repository_boundaries": boundaries,
+        },
+        "proposal": {
+            "authority_candidates": authorities,
+            "router_proposals": router_proposals,
+            "testing_merge_proposal": testing_merge,
+            "path_policy": path_policy,
+            "blocking_decisions": blockers,
+            "warnings": warnings,
+        },
+        "mutations": sorted(mutations, key=lambda item: item["path"]),
+        "blocking_decisions": blockers,
+        "warnings": warnings,
+    }
+    plan["plan_sha256"] = _plan_digest(plan)
+    return plan
 
 
 def _command_exists(root: Path, command: list[str]) -> bool:
@@ -456,12 +1052,30 @@ def _parser() -> argparse.ArgumentParser:
     apply_command.add_argument("--verify-command-json", action="append", default=[])
     hash_command = subparsers.add_parser("hash")
     hash_command.add_argument("--root", type=Path, required=True)
+    reconcile_command = subparsers.add_parser("reconcile")
+    reconcile_command.add_argument("--root", type=Path, required=True)
+    reconcile_command.add_argument("--report", type=Path)
     return parser
 
 
 def main() -> int:
     args = _parser().parse_args()
     root = args.root.absolute()
+    if args.action == "reconcile":
+        if not root.is_dir():
+            print(json.dumps({"status": "invalid_root", "root": str(root)}))
+            return 2
+        plan = build_reconciliation_plan(root)
+        rendered = json.dumps(plan, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+        if args.report is not None:
+            report = args.report.absolute()
+            if not _within(report, root) or _unsafe_write_target(root, report):
+                print(json.dumps({"status": "unsafe_report_path", "path": str(report)}))
+                return 4
+            report.parent.mkdir(parents=True, exist_ok=True)
+            report.write_text(rendered, encoding="utf-8", newline="\n")
+        print(rendered, end="")
+        return 0
     if args.action == "hash":
         content = _read_bytes(root / "AGENTS.md")
         if content is None:

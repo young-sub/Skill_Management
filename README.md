@@ -76,7 +76,7 @@ For automation, pass explicit skill names and Agent Providers. Avoid `--all` in 
 1. Run the interactive or non-interactive installation from the target project root without `-g`.
 2. Confirm Codex skills under `.agents/skills/` and Claude Code skills under `.claude/skills/`.
 3. Commit project-scoped copies or symlink metadata only when that target project's policy permits it.
-4. Run `setup-agent-harness` once per target repository. Review its dry-run classification and conflict diffs, then explicitly approve apply to generate evidence-backed project instructions and verification configuration.
+4. Run `setup-agent-harness` once per target repository. For an existing repository, start with `python scripts/bootstrap_project.py reconcile --root <repository-root>` and review the read-only PlanArtifact, authority decisions, router/TESTING proposals, Git path policy, and blockers. Greenfield repositories retain the `plan` then explicit `apply --approve` flow.
 
 The CLI's official supported-agent table documents Codex and Claude Code paths and environment overrides: [Supported Agents](https://www.mintlify.com/vercel-labs/skills/guides/supported-agents).
 

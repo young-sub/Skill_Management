@@ -31,6 +31,8 @@ Expected preserved legacy count: 12.
 
 ## Harness V2 Core Catalog
 
+`setup-agent-harness` has separate greenfield and brownfield boundaries. Greenfield keeps the deterministic `plan/apply/validate` compatibility flow. Brownfield begins with `reconcile`, which inventories existing instructions, docs, manifests, CI, verification commands, Git boundaries, and ignore state without executing repository content or mutating target files. Its deterministic PlanArtifact records authority/router/TESTING proposals and tracked/local-only policy for a separately approved apply workflow.
+
 WP-02 through WP-05 added all seven Core Skills. `future_core_skills` is now empty; WP-06 owns release and Pilot evidence rather than another Skill.
 
 ## Distribution Invariants
