@@ -5,9 +5,10 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
+. (Join-Path $scriptDirectory 'hash-utils.ps1')
 
 if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
-    $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
     $RepositoryRoot = Join-Path $scriptDirectory '..'
 }
 
@@ -51,7 +52,7 @@ function Get-StableFileHash([System.IO.FileInfo]$File) {
     if ($File.Extension.ToLowerInvariant() -in $textExtensions) {
         return Get-StableTextHash ([System.IO.File]::ReadAllText($File.FullName))
     }
-    return (Get-FileHash -LiteralPath $File.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+    return Get-Sha256Hex -LiteralPath $File.FullName
 }
 
 foreach ($resource in $resourceMap.resources) {

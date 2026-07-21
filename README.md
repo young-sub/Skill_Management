@@ -2,7 +2,25 @@
 
 Source repository for self-contained Agent Skills distributed through the open [`skills` CLI](https://github.com/vercel-labs/skills).
 
-Harness V2 is available as a verified **v2.0.0 release candidate**. This repository metadata is not a live tag or GitHub Release. All seven project bootstrap, design, execution, close, and maintenance Core Skills are public while replaced workflows remain preserved under non-discoverable `legacy-skills/`.
+Harness V2 is available as the verified **v2.0.0 stable release**. All seven project bootstrap, design, execution, close, and maintenance Core Skills are public while replaced workflows remain preserved under non-discoverable `legacy-skills/`.
+
+## Prerequisites
+
+- Git for fetching the repository-backed Skill package.
+- Node.js 22.20.0 or newer with `npm`/`npx`. This is the validated baseline for the current `skills` CLI; a future `@latest` version may raise its engine requirement.
+- Python 3.12 or newer for Harness bootstrap, runtime, pilot, and verification helpers.
+- PowerShell 5.1 or PowerShell 7 for the repository's `.ps1` verification wrappers. The install command itself can be written on one line in any shell supported by Node.js.
+
+Check the local toolchain before installation:
+
+```powershell
+git --version
+node --version
+npm --version
+npx --version
+python --version
+$PSVersionTable.PSVersion
+```
 
 ## Public catalog
 
@@ -25,6 +43,12 @@ npx skills@latest add young-sub/Skill_Management
 ```
 
 Project scope is the CLI default. Add `-g` only when you intentionally want a user-global installation.
+
+For a reproducible installation pinned to this stable release, use the immutable tag URL:
+
+```powershell
+npx skills@latest add https://github.com/young-sub/Skill_Management/tree/v2.0.0
+```
 
 ## Non-interactive installation
 
@@ -76,7 +100,19 @@ For automation, pass explicit skill names and Agent Providers. Avoid `--all` in 
 1. Run the interactive or non-interactive installation from the target project root without `-g`.
 2. Confirm Codex skills under `.agents/skills/` and Claude Code skills under `.claude/skills/`.
 3. Commit project-scoped copies or symlink metadata only when that target project's policy permits it.
-4. Run `setup-agent-harness` once per target repository. For an existing repository, start with `python scripts/bootstrap_project.py reconcile --root <repository-root>` and review the read-only PlanArtifact, authority decisions, router/TESTING proposals, Git path policy, blockers, and `plan_sha256`. Apply only that artifact with `apply-plan`, the exact digest, and explicit approvals for `.work/` and `agent-env.*.md`; interrupted transactions block new apply until explicit `recover-apply`. Greenfield repositories retain the `plan` then explicit `apply --approve` flow.
+4. Invoke the installed `setup-agent-harness` Skill once per target repository. The agent should resolve the helper relative to the installed Skill root. For a direct Codex project installation, start an existing-repository reconciliation with:
+
+   ```powershell
+   python .agents/skills/setup-agent-harness/scripts/bootstrap_project.py reconcile --root .
+   ```
+
+   For a direct Claude Code project installation, use:
+
+   ```powershell
+   python .claude/skills/setup-agent-harness/scripts/bootstrap_project.py reconcile --root .
+   ```
+
+   Review the read-only PlanArtifact, authority decisions, router/TESTING proposals, Git path policy, blockers, and `plan_sha256`. Apply only that artifact with `apply-plan`, the exact digest, and explicit approvals for `.work/` and `agent-env.*.md`; interrupted transactions block new apply until explicit `recover-apply`. Greenfield repositories retain the `plan` then explicit `apply --approve` flow. Global installs use provider-specific user directories, so prefer invoking the Skill through the agent instead of hard-coding a global home path.
 
 The CLI's official supported-agent table documents Codex and Claude Code paths and environment overrides: [Supported Agents](https://www.mintlify.com/vercel-labs/skills/guides/supported-agents).
 

@@ -15,9 +15,11 @@ class ReleaseCandidateTests(unittest.TestCase):
 
         self.assertEqual(candidate["schema_version"], 2)
         self.assertEqual(candidate["version"], "2.0.0")
-        self.assertEqual(candidate["stage"], "release-candidate")
-        self.assertFalse(candidate["live_release"])
-        self.assertIsNone(candidate["tag"])
+        self.assertEqual(candidate["stage"], "stable")
+        self.assertTrue(candidate["live_release"])
+        self.assertEqual(candidate["tag"], "v2.0.0")
+        self.assertEqual(candidate["release_date"], "2026-07-21")
+        self.assertEqual(candidate["release_notes"], "../docs/releases/v2.0.0.md")
         self.assertEqual(candidate["public_skill_count"], 18)
         self.assertEqual(candidate["public_skills"], catalog["public_skills"])
         self.assertEqual(candidate["future_core_skills"], [])
@@ -39,10 +41,16 @@ class ReleaseCandidateTests(unittest.TestCase):
         self.assertIn("scripts/validate-distribution.ps1", workflow)
         self.assertNotIn("npx skills", workflow)
 
-    def test_readme_documents_candidate_update_offline_smoke_and_pilot_limits(self) -> None:
+    def test_readme_documents_release_install_paths_prerequisites_and_verification(self) -> None:
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
-        self.assertIn("v2.0.0 release candidate", readme)
+        self.assertIn("v2.0.0 stable release", readme)
+        self.assertIn("## Prerequisites", readme)
+        self.assertIn("Node.js 22.20.0", readme)
+        self.assertIn("Python 3.12", readme)
+        self.assertIn(".agents/skills/setup-agent-harness/scripts/bootstrap_project.py", readme)
+        self.assertIn(".claude/skills/setup-agent-harness/scripts/bootstrap_project.py", readme)
+        self.assertIn("https://github.com/young-sub/Skill_Management/tree/v2.0.0", readme)
         self.assertIn("-VerifyUpdate", readme)
         self.assertIn("run-v2-pilots.py", readme)
         self.assertIn("real temporary implementation cycles", readme)
@@ -52,6 +60,21 @@ class ReleaseCandidateTests(unittest.TestCase):
         self.assertIn("-EvidencePath", readme)
         self.assertIn("-ApproveRemoteEvidence", readme)
         self.assertIn("requires explicit approval", readme)
+
+    def test_setup_skill_uses_an_explicit_installed_skill_root(self) -> None:
+        skill = (ROOT / "skills/setup-agent-harness/SKILL.md").read_text(encoding="utf-8")
+
+        self.assertIn("<skill-root>/scripts/bootstrap_project.py", skill)
+        self.assertNotIn("python scripts/bootstrap_project.py", skill)
+
+    def test_release_notes_exist_and_name_the_verified_surfaces(self) -> None:
+        notes = (ROOT / "docs/releases/v2.0.0.md").read_text(encoding="utf-8")
+
+        self.assertIn("# Personal Agent Harness v2.0.0", notes)
+        self.assertIn("18 public Skills", notes)
+        self.assertIn("Brownfield", notes)
+        self.assertIn("Verification", notes)
+        self.assertIn("https://github.com/young-sub/Skill_Management/tree/v2.0.0", notes)
 
     def test_remote_update_has_separate_revision_bound_passed_evidence(self) -> None:
         candidate = json.loads((ROOT / "distribution" / "release-candidate.json").read_text(encoding="utf-8"))

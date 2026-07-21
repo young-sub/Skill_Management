@@ -16,6 +16,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
+. (Join-Path $scriptDirectory 'hash-utils.ps1')
 if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
     $RepositoryRoot = Join-Path $scriptDirectory '..'
 }
@@ -104,7 +105,7 @@ function Get-SkillTreeDrift {
         foreach ($sourceFile in Get-ChildItem -LiteralPath $sourceSkill -Recurse -File) {
             if ($sourceFile.Extension -eq '.pyc' -or $sourceFile.FullName -match '[\\/]__pycache__[\\/]') { continue }
             $relative = $sourceFile.FullName.Substring($sourceSkill.Length).TrimStart('\').Replace('\', '/')
-            $sourceFiles[$relative] = (Get-FileHash -LiteralPath $sourceFile.FullName -Algorithm SHA256).Hash
+            $sourceFiles[$relative] = Get-Sha256Hex -LiteralPath $sourceFile.FullName
         }
         foreach ($providerRoot in @('.agents\skills', '.claude\skills')) {
             $installedSkill = Join-Path $InstallRoot "$providerRoot\$skillName"
@@ -116,7 +117,7 @@ function Get-SkillTreeDrift {
             foreach ($installedFile in Get-ChildItem -LiteralPath $installedSkill -Recurse -File) {
                 if ($installedFile.Extension -eq '.pyc' -or $installedFile.FullName -match '[\\/]__pycache__[\\/]') { continue }
                 $relative = $installedFile.FullName.Substring($installedSkill.Length).TrimStart('\').Replace('\', '/')
-                $installedFiles[$relative] = (Get-FileHash -LiteralPath $installedFile.FullName -Algorithm SHA256).Hash
+                $installedFiles[$relative] = Get-Sha256Hex -LiteralPath $installedFile.FullName
             }
             foreach ($relative in $sourceFiles.Keys) {
                 if (-not $installedFiles.ContainsKey($relative)) {
@@ -144,7 +145,7 @@ function Get-PublicSkillTreeDigest {
             foreach ($installedFile in Get-ChildItem -LiteralPath $installedSkill -Recurse -File) {
                 if ($installedFile.Extension -eq '.pyc' -or $installedFile.FullName -match '[\\/]__pycache__[\\/]') { continue }
                 $relative = $installedFile.FullName.Substring($InstallRoot.Length).TrimStart('\').Replace('\', '/')
-                $hash = (Get-FileHash -LiteralPath $installedFile.FullName -Algorithm SHA256).Hash
+                $hash = Get-Sha256Hex -LiteralPath $installedFile.FullName
                 $entries.Add("$relative=$hash")
             }
         }

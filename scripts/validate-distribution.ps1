@@ -3,7 +3,9 @@ param(
     [string]$RepositoryRoot
 )
 
+$ErrorActionPreference = 'Stop'
 $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
+. (Join-Path $scriptDirectory 'hash-utils.ps1')
 if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
     $RepositoryRoot = Join-Path $scriptDirectory '..'
 }
@@ -167,11 +169,26 @@ if (Test-Path -LiteralPath $candidatePath -PathType Leaf) {
         if ($candidate.schema_version -ne 2) {
             $errors.Add("unsupported release candidate schema: '$($candidate.schema_version)'")
         }
-        if ($candidate.version -ne '2.0.0' -or $candidate.stage -ne 'release-candidate') {
-            $errors.Add('invalid release candidate identity')
+        if ($candidate.version -ne '2.0.0') {
+            $errors.Add('invalid release metadata version')
         }
-        if ($candidate.live_release -ne $false -or $null -ne $candidate.tag) {
-            $errors.Add('release candidate must not claim a live release or tag')
+        if ($candidate.stage -eq 'release-candidate') {
+            if ($candidate.live_release -ne $false -or $null -ne $candidate.tag) {
+                $errors.Add('release candidate must not claim a live release or tag')
+            }
+        } elseif ($candidate.stage -eq 'stable') {
+            if ($candidate.live_release -ne $true -or $candidate.tag -ne 'v2.0.0') {
+                $errors.Add('stable release must claim the v2.0.0 live tag')
+            }
+            if ([string]$candidate.release_date -notmatch '^\d{4}-\d{2}-\d{2}$') {
+                $errors.Add('stable release must declare a release date')
+            }
+            $releaseNotesPath = Join-Path (Split-Path -Parent $candidatePath) ([string]$candidate.release_notes).Replace('/', '\')
+            if (-not (Test-Path -LiteralPath $releaseNotesPath -PathType Leaf)) {
+                $errors.Add('stable release notes are missing')
+            }
+        } else {
+            $errors.Add("unsupported release stage: '$($candidate.stage)'")
         }
         if ($candidate.public_skill_count -ne $expectedPublicSkills.Count) {
             $errors.Add('release candidate public skill count does not match catalog')
@@ -213,8 +230,8 @@ if (
     $agentsExists -and
     $claudeExists
 ) {
-    $agentsHash = (Get-FileHash -LiteralPath $agentsPath -Algorithm SHA256).Hash
-    $claudeHash = (Get-FileHash -LiteralPath $claudePath -Algorithm SHA256).Hash
+    $agentsHash = Get-Sha256Hex -LiteralPath $agentsPath
+    $claudeHash = Get-Sha256Hex -LiteralPath $claudePath
     if ($agentsHash -ne $claudeHash) {
         $errors.Add('instruction mirror drift: AGENTS.md and CLAUDE.md differ')
     }
