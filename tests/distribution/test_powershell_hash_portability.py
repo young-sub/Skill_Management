@@ -44,7 +44,8 @@ class PowerShellHashPortabilityTests(unittest.TestCase):
         sync_script = (ROOT / "scripts/sync-skill-resources.ps1").read_text(encoding="utf-8")
         manifest = (ROOT / "authoring/public-resource-manifest.json").read_text(encoding="utf-8")
 
-        self.assertIn("ConvertTo-Json -Depth 5 -Compress", sync_script)
+        self.assertIn("ConvertTo-StableManifestJson", sync_script)
+        self.assertNotIn("ConvertTo-Json -Depth 5", sync_script)
         self.assertEqual(manifest, manifest.strip() + "\n")
         self.assertNotIn("\n ", manifest)
 
