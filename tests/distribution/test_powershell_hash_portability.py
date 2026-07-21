@@ -40,6 +40,14 @@ class PowerShellHashPortabilityTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertEqual(result.stdout.strip(), hashlib.sha256(sample.read_bytes()).hexdigest())
 
+    def test_resource_manifest_serialization_is_powershell_version_independent(self) -> None:
+        sync_script = (ROOT / "scripts/sync-skill-resources.ps1").read_text(encoding="utf-8")
+        manifest = (ROOT / "authoring/public-resource-manifest.json").read_text(encoding="utf-8")
+
+        self.assertIn("ConvertTo-Json -Depth 5 -Compress", sync_script)
+        self.assertEqual(manifest, manifest.strip() + "\n")
+        self.assertNotIn("\n ", manifest)
+
 
 if __name__ == "__main__":
     unittest.main()
