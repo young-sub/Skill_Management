@@ -203,7 +203,9 @@ if ($null -ne $manifestResource) {
         $manifestTargetPaths.Add($targetPath)
     }
 
-    $manifestFiles = [ordered]@{}
+    $manifestFiles = [System.Collections.Generic.SortedDictionary[string, string]]::new(
+        [System.StringComparer]::Ordinal
+    )
     $publicSkillDirectories = Get-ChildItem -LiteralPath $skillsRoot -Directory |
         Where-Object {
             Test-Path -LiteralPath (Join-Path $_.FullName 'SKILL.md') -PathType Leaf

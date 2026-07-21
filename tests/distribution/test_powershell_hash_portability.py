@@ -46,6 +46,8 @@ class PowerShellHashPortabilityTests(unittest.TestCase):
 
         self.assertIn("ConvertTo-StableManifestJson", sync_script)
         self.assertNotIn("ConvertTo-Json -Depth 5", sync_script)
+        self.assertIn("SortedDictionary[string, string]", sync_script)
+        self.assertIn("[System.StringComparer]::Ordinal", sync_script)
         self.assertEqual(manifest, manifest.strip() + "\n")
         self.assertNotIn("\n ", manifest)
 
