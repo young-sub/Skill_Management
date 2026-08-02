@@ -1,61 +1,30 @@
 from pathlib import Path
-import json
+import re
 import unittest
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[2]
 
 
 class RepositoryDocsTests(unittest.TestCase):
-    def test_archived_work_packets_separate_historical_snapshots_from_final_state(self) -> None:
-        archive = REPO_ROOT / "docs" / "archive" / "work-packets" / "ys"
-        for path in sorted(archive.glob("wp-*.md")):
+    def test_current_documents_are_reachable_and_links_resolve(self) -> None:
+        index = ROOT / "docs" / "index.md"
+        text = index.read_text(encoding="utf-8")
+        links = re.findall(r"\[[^]]+\]\(([^)]+)\)", text)
+        self.assertTrue(links)
+        for target in links:
+            self.assertTrue((index.parent / target).resolve().is_file(), target)
+        for path in ROOT.joinpath("docs").rglob("*.md"):
+            if "releases" in path.parts:
+                continue
+            self.assertIn(path.relative_to(ROOT / "docs").as_posix(), [target.split("#", 1)[0] for target in links] + ["index.md"], path)
+
+    def test_current_docs_do_not_depend_on_removed_work_records(self) -> None:
+        current = [ROOT / "AGENTS.md", ROOT / "CLAUDE.md", ROOT / "README.md", *ROOT.joinpath("docs").rglob("*.md")]
+        for path in current:
             text = path.read_text(encoding="utf-8")
-            with self.subTest(path=path.name):
-                self.assertTrue(text.startswith("---\n"))
-                frontmatter = text.split("---\n", 2)[1]
-                self.assertIn("status: completed", frontmatter)
-                self.assertIn("## Close Report", text)
-                self.assertIn("- Final status: completed", text)
-                if "Phase Handoff Capsule" in text:
-                    self.assertIn("snapshot_at:", text)
-                    self.assertIn("superseded_by_close_report: true", text)
-
-    def test_readme_documents_the_skill_installation_lifecycle(self) -> None:
-        readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-
-        for heading in (
-            "## Interactive installation",
-            "## Non-interactive installation",
-            "## Update",
-            "## Uninstall",
-            "## Project setup",
-            "## Verification",
-        ):
-            with self.subTest(heading=heading):
-                self.assertIn(heading, readme)
-
-        self.assertIn("npx skills@latest add young-sub/Skill_Management", readme)
-        self.assertIn("-a codex", readme)
-        self.assertIn("-a claude-code", readme)
-        self.assertIn("npx skills update", readme)
-        self.assertIn("npx skills remove", readme)
-
-    def test_public_catalog_is_represented_in_human_inventory_docs(self) -> None:
-        catalog = json.loads(
-            (REPO_ROOT / "distribution" / "catalog.json").read_text(
-                encoding="utf-8"
-            )
-        )
-        readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-        inventory = (
-            REPO_ROOT / "docs" / "architecture" / "skill-inventory.md"
-        ).read_text(encoding="utf-8")
-
-        for skill_name in catalog["public_skills"]:
-            with self.subTest(skill_name=skill_name):
-                self.assertIn(f"`{skill_name}`", readme)
-                self.assertIn(f"`{skill_name}`", inventory)
+            self.assertNotIn("harness_v2_implementation_plan.md", text, path)
+            self.assertNotIn("docs/work-packets/", text, path)
 
 
 if __name__ == "__main__":

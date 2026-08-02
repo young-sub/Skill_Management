@@ -27,5 +27,5 @@ jobs:
       - name: Distribution contract
         shell: pwsh
         run: scripts/validate-distribution.ps1
-      - name: Reproduce isolated pilots
-        run: python scripts/run-v2-pilots.py --output-dir ${{ runner.temp }}/harness-v2-pilots
+      - name: Core-first representative workflows
+        run: python -m unittest tests.harness.test_core_first_setup tests.harness.test_core_first_design_execution tests.harness.test_core_first_close_lifecycle tests.harness.test_core_first_cutover tests.harness.test_core_first_forward_workflows

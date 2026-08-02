@@ -55,6 +55,7 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
         self.assertIn("✓ 완료", page)
         for forbidden in ("sha256:", "<pre", "frontmatter", "감사 부록", "```"):
             self.assertNotIn(forbidden, page)
+        self.assertNotIn("source-sha256", page.casefold())
         material = result_payload()
         material["items"][0]["delta"] = {"material": True, "summary": "공개 응답 변경", "approval": "required"}
         changed = core.render_result_review_v3(contract(), material)
@@ -79,7 +80,30 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
             manifest = json.loads((destination / "work.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["retain_until"], "2026-09-01T12:00:00+09:00")
             self.assertEqual(manifest["delete_after"], "2026-09-08T12:00:00+09:00")
+            self.assertEqual(manifest["owned_paths"], [".work/goals/completed/2026-08/W-1"])
             self.assertFalse(active.exists())
+
+    def test_close_and_sweep_roll_back_interrupted_manifest_and_move(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            active = root / ".work" / "goals" / "active" / "W-fault"
+            active.mkdir(parents=True)
+            manifest = {"schema_version":3,"work_id":"W-fault","state":"active","created_at":"2026-08-01T00:00:00+09:00","source_commit":"a","base_branch":"develop","feature_branch":"wp","contract_version":3,"integrity_digest":"x","owned_paths":[".work/goals/active/W-fault"]}
+            original = json.dumps(manifest)
+            (active / "work.json").write_text(original, encoding="utf-8")
+            failed = core.close_work(root, "W-fault", completed_at="2026-08-02T12:00:00+09:00", completed_days=30, trash_days=7, fault_after="move")
+            self.assertEqual(failed["status"], "rolled_back")
+            self.assertTrue(active.is_dir())
+            self.assertEqual(json.loads((active / "work.json").read_text(encoding="utf-8"))["state"], "active")
+
+            completed = root / ".work" / "goals" / "completed" / "2026-07" / "W-sweep"
+            completed.mkdir(parents=True)
+            (completed / "work.json").write_text(json.dumps({"schema_version":3,"work_id":"W-sweep","state":"completed","retain_until":"2026-08-01T00:00:00+09:00"}), encoding="utf-8")
+            swept = core.sweep_lifecycle(root, now="2026-08-02T00:00:00+09:00", fault_after="move")
+            self.assertEqual(swept["status"], "rolled_back")
+            self.assertTrue(completed.is_dir())
+            self.assertEqual(json.loads((completed / "work.json").read_text(encoding="utf-8"))["state"], "completed")
 
     def test_lifecycle_sweep_is_recoverable_idempotent_and_legacy_safe(self) -> None:
         core = load_core()
@@ -131,6 +155,16 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
             deleted = core.delete_trash(root, ".work/goals/trash/2026-08-02/W-delete", approved_exact_target=".work/goals/trash/2026-08-02/W-delete")
             self.assertEqual(deleted["status"], "deleted")
             self.assertFalse(trash.exists())
+
+    def test_owned_review_directory_is_not_an_orphan(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            work = root / ".work" / "goals" / "completed" / "2026-08" / "W-1"
+            (work / "review").mkdir(parents=True)
+            (work / "review" / "result.html").write_text("ok", encoding="utf-8")
+            (work / "work.json").write_text(json.dumps({"work_id":"W-1","state":"completed"}), encoding="utf-8")
+            self.assertNotIn("work.orphan", [finding["rule_id"] for finding in core.audit_work_lifecycle(root)["findings"]])
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 # Goal Execution Policy
 
-- A human declares the Codex Goal; Harness skills do not create a Goal wrapper.
-- Execution requires an active Goal, an approved Contract, matching Work ID and canonical contract hash, and a valid dependency DAG.
-- Execute the first dependency-ready pending Plan, record state transitions atomically, and verify each slice before advancing.
-- Stop only for contradictory approved requirements, unapproved public contracts, destructive migration risk, new secrets or cost, security/privacy risk, broad unapproved architecture, an invalid test seam, missing required environment, or no viable implementation path.
-- A Hard Stop records evidence, completed Plans, alternatives, impact, and the exact resume path in `BLOCKED.md`.
+- An approved canonical Item contract is execution authority; a host Goal is optional and hashes remain internal integrity data.
+- Capture the current branch and commit, create the configured feature branch, preserve the dirty baseline, and commit every verified Item.
+- Implement dependency-ready core Items before optional work. Use RED/GREEN for behavior changes and Impacted verification for completion.
+- Record an unambiguous low-risk user change as `approved_amendment`; request focused approval only for material or high-risk deltas.
+- Stop for destructive, security/privacy, secret, irreversible, costly external, publish/push, or genuinely blocked boundaries.

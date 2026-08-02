@@ -41,31 +41,20 @@ class ReleaseCandidateTests(unittest.TestCase):
         self.assertIn("scripts/validate-distribution.ps1", workflow)
         self.assertNotIn("npx skills", workflow)
 
-    def test_readme_documents_release_install_paths_prerequisites_and_verification(self) -> None:
+    def test_readme_routes_current_v3_and_preserves_release_evidence(self) -> None:
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
-        self.assertIn("v2.0.0 stable release", readme)
-        self.assertIn("## Prerequisites", readme)
-        self.assertIn("Node.js 22.20.0", readme)
-        self.assertIn("Python 3.12", readme)
-        self.assertIn(".agents/skills/setup-agent-harness/scripts/bootstrap_project.py", readme)
-        self.assertIn(".claude/skills/setup-agent-harness/scripts/bootstrap_project.py", readme)
-        self.assertIn("https://github.com/young-sub/Skill_Management/tree/v2.0.0", readme)
-        self.assertIn("-VerifyUpdate", readme)
-        self.assertIn("run-v2-pilots.py", readme)
-        self.assertIn("real temporary implementation cycles", readme)
-        self.assertIn("complete relative file set and SHA256", readme)
-        self.assertIn("-SourcePackage young-sub/Skill_Management", readme)
-        self.assertIn("-SourceType github", readme)
-        self.assertIn("-EvidencePath", readme)
-        self.assertIn("-ApproveRemoteEvidence", readme)
-        self.assertIn("requires explicit approval", readme)
+        self.assertIn("Agent Harness v3", readme)
+        self.assertIn("docs/index.md", readme)
+        self.assertIn(".harness/project.yaml", readme)
+        self.assertIn("docs/releases/v2.0.0.md", readme)
+        self.assertIn("별도 명시적 승인", readme)
 
     def test_setup_skill_uses_an_explicit_installed_skill_root(self) -> None:
         skill = (ROOT / "skills/setup-agent-harness/SKILL.md").read_text(encoding="utf-8")
 
-        self.assertIn("<skill-root>/scripts/bootstrap_project.py", skill)
-        self.assertNotIn("python scripts/bootstrap_project.py", skill)
+        self.assertIn("<skill-root>/scripts/core_harness.py", skill)
+        self.assertNotIn("python scripts/core_harness.py", skill)
 
     def test_release_notes_exist_and_name_the_verified_surfaces(self) -> None:
         notes = (ROOT / "docs/releases/v2.0.0.md").read_text(encoding="utf-8")

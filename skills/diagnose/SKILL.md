@@ -1,19 +1,15 @@
 ---
 name: diagnose
-description: Diagnose an implementation or verification failure with a bounded root-cause loop and durable evidence.
+description: Diagnose a current Harness v3 implementation or verification failure with a bounded root-cause loop.
 ---
 
-# Diagnose
+# Diagnose — Harness v3
 
-Use this bounded loop for a failure in the current approved work:
+1. Reproduce the exact observable failure with the smallest mapped check.
+2. Minimize the affected surface and state a falsifiable hypothesis.
+3. Instrument only the boundary needed to distinguish causes.
+4. Identify the Root cause from evidence; do not expand into unrelated baseline debt.
+5. Add the smallest Regression proof, observe RED, fix the root cause, and observe GREEN.
+6. Reverify only Impacted checks unless new evidence expands the mapping or triggers Full.
 
-1. Reproduce the exact observable failure.
-2. Minimize it to the smallest reliable case.
-3. Hypothesize a falsifiable cause.
-4. Instrument only the boundary needed to test that hypothesis.
-5. Identify the Root cause from evidence.
-6. Fix the root cause with the smallest contract-aligned change.
-7. Add a Regression test that fails before the fix and passes after it.
-8. Reverify the targeted check, then the approved broader checks.
-
-Read only project `TESTING.md`, `.harness/project.yaml`, and relevant durable project documents. Do not expand into unrelated live systems or add Live/Eval coverage outside the approved Test Envelope. Record the minimized reproduction, hypotheses, observations, root cause, fix, regression, and Reverify results in the current work's `RESULT.md` or the adjacent structured evidence record.
+Record failure, diagnosis, regression, retry, and result in the current `.work/goals/active/<work-id>/agent/evidence.jsonl`. Live/Eval remains separately authorized. Do not mutate tracker, global provider state, or unrelated work.

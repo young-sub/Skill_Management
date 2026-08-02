@@ -1,23 +1,21 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/templates/project/AGENTS.md -->
-<!-- Source-SHA256: 04cb908a547709f1036a3510b3fd6df3935faa6e0e27c58d9fc9ed85bb156752 -->
+<!-- Source-SHA256: ac38b610f8eae75842ed2b0876016c6ca61a95540cc014a9c0e48c96c0bb9c84 -->
 
 # Project Agent Instructions
 
-## Scope
+## Routing
 
-- Applies to this repository.
-- Read the nearest nested `AGENTS.md` before editing a path when one exists.
-- Preserve existing user changes and inspect repository evidence before mutation.
+- Read `docs/index.md` for current implementation knowledge and `.harness/project.yaml` for path ownership, impact, command, retention, and Git policy.
+- Read the nearest nested `AGENTS.md` before editing a path. Preserve user changes and map coherent brownfield structures before proposing moves.
 
-## Verification
+## Delivery
 
-- Use `TESTING.md` as the project verification source of truth.
-- Run the smallest relevant check first, then the broader required checks.
-- Do not claim completion without fresh verification evidence.
+- Implement dependency-ready core Items before optional work. Use RED/GREEN for behavior changes and impact-selected verification for Item completion.
+- Capture the current branch and commit as the base; do not assume a branch name. Preserve the dirty baseline and commit each independently verified Item.
+- Keep durable current truth under configured document roots. Contracts, reviews, evidence, logs, and transactions expire under `.work/`.
 
-## Harness
+## Risk
 
-- `.harness/project.yaml` is the tracked machine-readable project configuration; do not ignore `.harness/`.
-- `.work/` and `agent-env.*.md` are local-only runtime/profile state and must not be committed.
-- Require explicit approval before destructive, security-sensitive, or irreversible actions.
+- Require explicit approval for destructive actions, security/privacy or secret handling, irreversible migration, external cost, push, publish, or other high-risk state changes.
+- Unknown legacy work is quarantined and never swept or deleted automatically.

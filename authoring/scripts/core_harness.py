@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 from copy import deepcopy
 from collections import Counter
 from datetime import date, datetime, timedelta
@@ -37,7 +38,11 @@ def canonical_digest(value: Any) -> str:
 
 
 def _contract_payload(contract: dict[str, Any]) -> dict[str, Any]:
-    return {key: deepcopy(value) for key, value in contract.items() if key != "approval"}
+    payload = {key: deepcopy(value) for key, value in contract.items() if key != "approval"}
+    for amendment in payload.get("amendments", []):
+        if isinstance(amendment, dict):
+            amendment.pop("new_contract_digest", None)
+    return payload
 
 
 def preview_project_v3(legacy: dict[str, Any]) -> dict[str, Any]:
@@ -67,7 +72,14 @@ def preview_project_v3(legacy: dict[str, Any]) -> dict[str, Any]:
             "documentation_entrypoint": "docs/index.md",
         },
         "impact": {"rules": [], "feature_selectors": {}, "full_triggers": []},
-        "commands": {},
+        "commands": {
+            name: {
+                "argv": [], "working_directory": ".", "platform": "any",
+                "runtime": "none" if name in {"live", "eval"} else "unknown",
+                "env_keys": [], "capability": "disabled" if name in {"live", "eval"} else "mapping-required",
+            }
+            for name in ("targeted", "feature", "lint", "type", "build", "full", "live", "eval")
+        },
         "documents": {"boundaries": []},
         "work": {
             "retention": {
@@ -200,12 +212,43 @@ def static_inventory(root: Path, mapping: dict[str, Any] | None = None) -> dict[
                 if argv not in declared:
                     declared.append(argv)
     source_roots = list(mapping.get("source_roots", []))
+    git_directory = root / ".git"
+    head_path = git_directory / "HEAD"
+    branch = "unknown"
+    detached_commit: str | None = None
+    if head_path.is_file():
+        head = head_path.read_text(encoding="utf-8", errors="replace").strip()
+        if head.startswith("ref: refs/heads/"):
+            branch = head.removeprefix("ref: refs/heads/")
+        elif head:
+            branch = "detached"
+            detached_commit = head
+    worktrees_root = git_directory / "worktrees"
+    worktrees = sorted(path.name for path in worktrees_root.iterdir() if path.is_dir()) if worktrees_root.is_dir() else []
+    ci_root = root / ".github" / "workflows"
+    ci_files = sorted(path.relative_to(root).as_posix() for path in ci_root.rglob("*") if path.is_file()) if ci_root.is_dir() else []
+    authority_names = ("AGENTS.md", "CLAUDE.md", "docs/index.md", "README.md")
+    authority_candidates = [name for name in authority_names if (root / name).is_file()]
+    nested_repositories = sorted(
+        path.parent.relative_to(root).as_posix()
+        for path in root.rglob(".git")
+        if path != git_directory and ".work" not in path.parts
+    )
     return {
         "schema_version": SCHEMA_VERSION,
         "files": files,
         "paths": mapping,
         "production_hashes": _hash_roots(root, source_roots),
         "declared_commands": declared,
+        "git": {
+            "branch": branch,
+            "detached_commit": detached_commit,
+            "worktrees": worktrees,
+            "nested_repositories": nested_repositories,
+            "protection": "unknown_static_inventory",
+        },
+        "ci_files": ci_files,
+        "authority_candidates": authority_candidates,
         "dynamic_evidence": {
             "status": "unknown", "tests": "unknown", "collection": "unknown",
             "timings": "unknown", "reason": "static_inventory_does_not_execute_repository_content",
@@ -262,7 +305,16 @@ def validate_path_owners(
                     nested = True
                 except ValueError:
                     pass
-            if owner != other_owner and (same or nested):
+            compatible_nesting = False
+            if not same and {owner, other_owner} == {"tests", "fixtures"}:
+                test_path = path if owner == "tests" else other_path
+                fixture_path = path if owner == "fixtures" else other_path
+                try:
+                    fixture_path.relative_to(test_path)
+                    compatible_nesting = True
+                except ValueError:
+                    pass
+            if owner != other_owner and (same or nested) and not compatible_nesting:
                 errors.append(f"owner_overlap:{owner}:{relative}:{other_owner}:{other_relative}")
     return sorted(set(errors))
 
@@ -513,11 +565,26 @@ def _list_html(values: list[Any]) -> str:
 def _review_template(name: str) -> str:
     candidates = (
         Path(__file__).resolve().parents[1] / "templates" / "review" / name,
+        Path(__file__).resolve().parents[1] / "templates" / name,
         Path(__file__).resolve().parent / "templates" / "review" / name,
+        Path(__file__).resolve().parent / "templates" / name,
     )
     for candidate in candidates:
         if candidate.is_file():
-            return candidate.read_text(encoding="utf-8")
+            content = candidate.read_text(encoding="utf-8")
+            lines = content.splitlines(keepends=True)
+            prefix: list[str] = []
+            if lines and lines[0].lstrip().casefold().startswith("<!doctype"):
+                prefix.append(lines.pop(0))
+            generated_markers = (
+                "<!-- generated file.", "<!-- source:", "<!-- source-sha256:",
+            )
+            while lines and (
+                not lines[0].strip()
+                or lines[0].strip().casefold().startswith(generated_markers)
+            ):
+                lines.pop(0)
+            return "".join(prefix + lines)
     raise FileNotFoundError(f"review_template_missing:{name}")
 
 
@@ -640,6 +707,7 @@ def apply_amendment(
     if item is None or field not in ITEM_FIELDS:
         return {"status": "invalid_amendment", "errors": ["unknown_item_or_field"]}
     old_digest = canonical_digest(_contract_payload(contract))
+    amended.pop("approval", None)
     item[field] = value
     event = {
         "kind": "approved_amendment", "message_id": message_id, "item_id": item_id,
@@ -648,7 +716,12 @@ def apply_amendment(
     }
     amended.setdefault("amendments", []).append(event)
     event["new_contract_digest"] = canonical_digest(_contract_payload(amended))
-    return {"status": "applied", "contract": amended, "event": event}
+    review_html = render_design_review_v3(amended)
+    amended["approval"] = build_approval_bundle(
+        amended, review_html, utterance=f"approved_amendment:{message_id}",
+        actor=actor, approved_at=approved_at,
+    )
+    return {"status": "applied", "contract": amended, "event": event, "review_html": review_html}
 
 
 def commit_item(
@@ -662,17 +735,8 @@ def commit_item(
     add = subprocess.run(["git", "add", "--", *paths], cwd=root, capture_output=True, text=True, check=False)
     if add.returncode:
         return {"status": "git_error", "error": add.stderr.strip()}
-    staged = subprocess.run(
-        ["git", "diff", "--cached", "--name-only", "--"], cwd=root,
-        capture_output=True, text=True, check=False,
-    )
-    staged_paths = [line for line in staged.stdout.splitlines() if line]
-    unexpected = sorted(set(staged_paths) - set(paths))
-    if unexpected:
-        subprocess.run(["git", "restore", "--staged", "--", *unexpected], cwd=root, capture_output=True, check=False)
-        return {"status": "unexpected_staged_paths", "paths": unexpected}
     committed = subprocess.run(
-        ["git", "commit", "-m", f"feat(harness): complete {item_id}"], cwd=root,
+        ["git", "commit", "--only", "-m", f"feat(harness): complete {item_id}", "--", *paths], cwd=root,
         capture_output=True, text=True, check=False,
     )
     if committed.returncode:
@@ -680,7 +744,7 @@ def commit_item(
     revision = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True, check=False
     ).stdout.strip()
-    return {"status": "committed", "item_id": item_id, "commit": revision, "paths": staged_paths}
+    return {"status": "committed", "item_id": item_id, "commit": revision, "paths": sorted(paths)}
 
 
 def select_impacted_checks(
@@ -801,8 +865,50 @@ def render_result_review_v3(contract: dict[str, Any], result: dict[str, Any]) ->
     return _review_template("result-item-review.html").replace("{{SUMMARY}}", summary).replace("{{ITEMS}}", "".join(cards)).rstrip() + "\n"
 
 
+def _lifecycle_move(
+    root: Path, source: Path, destination: Path, manifest: dict[str, Any], *,
+    operation: str, fault_after: str | None = None,
+) -> dict[str, Any]:
+    """Move one work directory transactionally and restore its exact manifest on interruption."""
+    manifest_path = source / "work.json"
+    original_manifest = manifest_path.read_bytes()
+    transactions = root / ".work" / "transactions"
+    transactions.mkdir(parents=True, exist_ok=True)
+    journal_path = transactions / f"{operation}-{manifest.get('work_id', source.name)}.json"
+    journal = {
+        "schema_version": SCHEMA_VERSION, "operation": operation, "status": "applying",
+        "source": source.relative_to(root).as_posix(),
+        "destination": destination.relative_to(root).as_posix(),
+    }
+    journal_path.write_text(json.dumps(journal, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    try:
+        manifest_path.write_text(
+            json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        if fault_after == "manifest":
+            raise RuntimeError("injected_fault_after_manifest")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        os.replace(source, destination)
+        if fault_after == "move":
+            raise RuntimeError("injected_fault_after_move")
+    except BaseException as error:
+        if destination.exists() and not source.exists():
+            source.parent.mkdir(parents=True, exist_ok=True)
+            os.replace(destination, source)
+        if source.is_dir():
+            (source / "work.json").write_bytes(original_manifest)
+        journal.update({"status": "rolled_back", "error": type(error).__name__})
+        journal_path.write_text(json.dumps(journal, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+        return {"status": "rolled_back", "journal": journal_path.relative_to(root).as_posix()}
+    journal["status"] = "committed"
+    journal_path.write_text(json.dumps(journal, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    return {"status": "committed", "journal": journal_path.relative_to(root).as_posix()}
+
+
 def close_work(
-    root: Path, work_id: str, *, completed_at: str, completed_days: int, trash_days: int
+    root: Path, work_id: str, *, completed_at: str, completed_days: int, trash_days: int,
+    fault_after: str | None = None,
 ) -> dict[str, Any]:
     root = root.resolve()
     source = _safe_repo_path(root, f".work/goals/active/{work_id}")
@@ -821,10 +927,13 @@ def close_work(
     manifest.update({
         "state": "completed", "completed_at": moment.isoformat(),
         "retain_until": retain_until.isoformat(), "delete_after": delete_after.isoformat(),
+        "owned_paths": [destination.relative_to(root).as_posix()],
     })
-    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    os.replace(source, destination)
+    transaction = _lifecycle_move(
+        root, source, destination, manifest, operation="close", fault_after=fault_after,
+    )
+    if transaction["status"] != "committed":
+        return transaction
     return {"status": "completed", "path": destination.relative_to(root).as_posix(), "manifest": manifest}
 
 
@@ -836,8 +945,13 @@ def audit_work_lifecycle(root: Path) -> dict[str, Any]:
         state_root = goals / state
         if not state_root.is_dir():
             continue
-        for directory in sorted(path for path in state_root.rglob("*") if path.is_dir()):
-            if not any(child.is_dir() for child in directory.iterdir()) and not (directory / "work.json").is_file():
+        depth = 2 if state in {"completed", "trash"} else 1
+        directories = sorted(
+            path for path in state_root.rglob("*")
+            if path.is_dir() and len(path.relative_to(state_root).parts) == depth
+        )
+        for directory in directories:
+            if not (directory / "work.json").is_file():
                 findings.append({"rule_id": "work.orphan", "location": directory.relative_to(root).as_posix()})
     for manifest_path in goals.rglob("work.json") if goals.is_dir() else []:
         try:
@@ -858,7 +972,7 @@ def audit_work_lifecycle(root: Path) -> dict[str, Any]:
     return {"findings": findings, "work_ids": seen}
 
 
-def sweep_lifecycle(root: Path, *, now: str) -> dict[str, Any]:
+def sweep_lifecycle(root: Path, *, now: str, fault_after: str | None = None) -> dict[str, Any]:
     root = root.resolve()
     moment = datetime.fromisoformat(now)
     completed_root = root / ".work" / "goals" / "completed"
@@ -875,9 +989,13 @@ def sweep_lifecycle(root: Path, *, now: str) -> dict[str, Any]:
             if destination.exists():
                 continue
             manifest["state"] = "trash"
-            manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            os.replace(source, destination)
+            if "owned_paths" in manifest:
+                manifest["owned_paths"] = [destination.relative_to(root).as_posix()]
+            transaction = _lifecycle_move(
+                root, source, destination, manifest, operation="sweep", fault_after=fault_after,
+            )
+            if transaction["status"] != "committed":
+                return transaction
             moved.append(work_id)
     return {"status": "ok", "moved_to_trash": moved, "audit": audit_work_lifecycle(root)}
 
@@ -926,3 +1044,90 @@ def compare_findings_to_baseline(
         match = next((item for item in baseline if finding_is_baselined(item, finding, today=today)), None)
         (baselined if match else blocking).append(finding)
     return {"baselined": baselined, "blocking": blocking}
+
+
+def activate_v3(project: dict[str, Any], legacy_graph: dict[str, Any]) -> dict[str, Any]:
+    """Return a fully activated copy only when every cutover precondition is terminal."""
+    blockers = [
+        str(item.get("id", "unknown")) + ":" + str(item.get("state", "unknown"))
+        for item in legacy_graph.get("work", [])
+        if item.get("state") not in {"pending", "completed", "trash", "legacy-unclassified"}
+    ]
+    blockers.extend(str(item) for item in legacy_graph.get("incomplete_transactions", []))
+    if blockers:
+        return {"status": "cutover_blocked", "blockers": blockers}
+    activated = deepcopy(project)
+    if activated.get("schema_version") != SCHEMA_VERSION:
+        return {"status": "cutover_blocked", "blockers": ["project_schema_not_v3"]}
+    harness = activated.setdefault("harness", {})
+    harness.update({"active_cohort": "v3", "contract_version": 3, "runtime_version": 3, "dormant_cohorts": []})
+    harness["components"] = {name: {"supports": [3]} for name in COHORT_COMPONENTS}
+    errors = validate_cohort(3, {name: value["supports"] for name, value in harness["components"].items()})
+    if errors:
+        return {"status": "cutover_blocked", "blockers": errors}
+    activated.pop("migration", None)
+    return {"status": "activated", "project": activated}
+
+
+def _json_object(path: Path) -> dict[str, Any]:
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError(f"expected_object:{path}")
+    return value
+
+
+def _cli_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Core-First Agent Harness v3")
+    sub = parser.add_subparsers(dest="command", required=True)
+    inventory = sub.add_parser("inventory")
+    inventory.add_argument("--root", type=Path, required=True)
+    inventory.add_argument("--mapping", type=Path)
+    design = sub.add_parser("render-design")
+    design.add_argument("--contract", type=Path, required=True)
+    design.add_argument("--output", type=Path, required=True)
+    result = sub.add_parser("render-result")
+    result.add_argument("--contract", type=Path, required=True)
+    result.add_argument("--result", type=Path, required=True)
+    result.add_argument("--output", type=Path, required=True)
+    impact = sub.add_parser("impacted")
+    impact.add_argument("--project", type=Path, required=True)
+    impact.add_argument("--changed", action="append", default=[])
+    audit = sub.add_parser("audit-work")
+    audit.add_argument("--root", type=Path, required=True)
+    activation = sub.add_parser("activate")
+    activation.add_argument("--project", type=Path, required=True)
+    activation.add_argument("--legacy-graph", type=Path, required=True)
+    return parser
+
+
+def main() -> int:
+    args = _cli_parser().parse_args()
+    try:
+        if args.command == "inventory":
+            mapping = _json_object(args.mapping) if args.mapping else {}
+            payload = static_inventory(args.root, mapping)
+        elif args.command == "render-design":
+            page = render_design_review_v3(_json_object(args.contract))
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(page, encoding="utf-8", newline="\n")
+            payload = {"status": "rendered", "output": str(args.output)}
+        elif args.command == "render-result":
+            page = render_result_review_v3(_json_object(args.contract), _json_object(args.result))
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(page, encoding="utf-8", newline="\n")
+            payload = {"status": "rendered", "output": str(args.output)}
+        elif args.command == "impacted":
+            payload = select_impacted_checks(args.changed, _json_object(args.project))
+        elif args.command == "audit-work":
+            payload = audit_work_lifecycle(args.root)
+        else:
+            payload = activate_v3(_json_object(args.project), _json_object(args.legacy_graph))
+        print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+        return 0 if payload.get("status") not in {"cutover_blocked", "invalid"} else 2
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
+        print(json.dumps({"status": "invalid", "errors": [str(error)]}, ensure_ascii=False), file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

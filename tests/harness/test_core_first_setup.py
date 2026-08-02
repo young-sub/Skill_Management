@@ -75,6 +75,25 @@ class CoreFirstSetupTests(unittest.TestCase):
             self.assertTrue(any(error.startswith("owner_overlap:") for error in errors))
             self.assertEqual(tracked_snapshot(root), before)
 
+    def test_fixture_nesting_is_compatible_and_inventory_maps_static_git_ci_authority(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            for relative in ("src", "tests/fixtures", ".git/worktrees/feature", ".github/workflows", "docs"):
+                (root / relative).mkdir(parents=True)
+            (root / ".git" / "HEAD").write_text("ref: refs/heads/develop\n", encoding="utf-8")
+            (root / ".git" / "worktrees" / "feature" / "gitdir").write_text("C:/tmp/feature/.git\n", encoding="utf-8")
+            (root / ".github" / "workflows" / "ci.yml").write_text("run: python -m unittest\n", encoding="utf-8")
+            (root / "AGENTS.md").write_text("Read docs/index.md\n", encoding="utf-8")
+            (root / "docs" / "index.md").write_text("# Index\n", encoding="utf-8")
+            mapping = {"source_roots": ["src"], "test_roots": ["tests"], "fixture_roots": ["tests/fixtures"], "durable_document_roots": ["docs"]}
+            self.assertEqual(core.validate_path_owners(root, {"source": ["src"], "tests": ["tests"], "fixtures": ["tests/fixtures"], "documents": ["docs"]}), [])
+            inventory = core.static_inventory(root, mapping)
+            self.assertEqual(inventory["git"]["branch"], "develop")
+            self.assertEqual(inventory["git"]["worktrees"], ["feature"])
+            self.assertEqual(inventory["ci_files"], [".github/workflows/ci.yml"])
+            self.assertIn("AGENTS.md", inventory["authority_candidates"])
+
     def test_v2_migration_requires_bound_approval_and_rolls_back_fault(self) -> None:
         core = load_core()
         legacy = {"version": 2, "project": {"name": "sample"}, "work": {"root": ".work"}}

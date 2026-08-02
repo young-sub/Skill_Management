@@ -48,6 +48,7 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
         self.assertIn("✓ 결정 완료", page)
         for forbidden in ("sha256:", "<pre", "frontmatter", "감사 부록", "```"):
             self.assertNotIn(forbidden, page)
+        self.assertNotIn("source-sha256", page.casefold())
 
     def test_natural_approval_authorizes_without_host_goal_or_pasted_hash(self) -> None:
         core = load_core()
@@ -96,12 +97,15 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
             subprocess.run(["git", "add", "dirty.txt"], cwd=root, check=True)
             subprocess.run(["git", "commit", "-qm", "base"], cwd=root, check=True)
             (root / "dirty.txt").write_text("user change\n", encoding="utf-8")
+            (root / "staged.txt").write_text("preserve staged\n", encoding="utf-8")
+            subprocess.run(["git", "add", "staged.txt"], cwd=root, check=True)
             (root / "item.txt").write_text("implementation\n", encoding="utf-8")
             result = core.commit_item(root, "I-01", ["item.txt"], dirty_baseline=["dirty.txt"])
             self.assertEqual(result["status"], "committed")
             changed = subprocess.run(["git", "show", "--pretty=", "--name-only", "HEAD"], cwd=root, capture_output=True, text=True, check=True).stdout.splitlines()
             self.assertEqual(changed, ["item.txt"])
             self.assertIn("dirty.txt", subprocess.run(["git", "status", "--short"], cwd=root, capture_output=True, text=True, check=True).stdout)
+            self.assertEqual(subprocess.run(["git", "diff", "--cached", "--name-only"], cwd=root, capture_output=True, text=True, check=True).stdout.splitlines(), ["staged.txt"])
 
     def test_impacted_selection_requires_mapping_and_promotes_shared_changes(self) -> None:
         core = load_core()

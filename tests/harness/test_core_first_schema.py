@@ -80,19 +80,38 @@ class CoreFirstSchemaTests(unittest.TestCase):
         self.assertIn("mixed_cohort:close:2", core.validate_cohort(2, mixed))
         self.assertIn("unsupported_active_cohort:4", core.validate_cohort(4, compatible))
 
-    def test_versioned_schema_and_dormant_policy_assets_exist(self) -> None:
+    def test_versioned_schema_and_active_policy_assets_exist(self) -> None:
         for name in ("project.schema.json", "work.schema.json", "contract.schema.json"):
             payload = json.loads((ROOT / "authoring" / "schemas" / "v3" / name).read_text(encoding="utf-8"))
             self.assertEqual(payload["$schema"], "https://json-schema.org/draft/2020-12/schema")
-        cohort = ROOT / "authoring" / "cohorts" / "v3"
         for relative in (
-            "templates/project/AGENTS.md", "templates/project/CLAUDE.md", "templates/project/project.yaml",
-            "references/documentation-policy.md", "references/testing-policy.md",
-            "references/human-readability-policy.md", "references/goal-execution-policy.md",
+            "authoring/templates/project/AGENTS.md", "authoring/templates/project/CLAUDE.md", "authoring/templates/project/project.yaml",
+            "authoring/references/documentation-policy.md", "authoring/references/testing-policy.md",
+            "authoring/references/human-readability-policy.md", "authoring/references/goal-execution-policy.md",
         ):
-            self.assertTrue((cohort / relative).is_file(), relative)
+            self.assertTrue((ROOT / relative).is_file(), relative)
         for skill in ("setup-agent-harness", "design-goal", "execute-codex-goal", "close-goal", "maintain-agent-harness"):
-            self.assertTrue((ROOT / "skills" / skill / "resources" / "v3" / "core_harness.py").is_file(), skill)
+            self.assertTrue((ROOT / "skills" / skill / "scripts" / "core_harness.py").is_file(), skill)
+
+    def test_json_schemas_close_normative_objects_and_require_command_contract(self) -> None:
+        project = json.loads((ROOT / "authoring" / "schemas" / "v3" / "project.schema.json").read_text(encoding="utf-8"))
+        for section in ("harness", "paths", "impact", "commands", "documents", "work", "git", "baseline"):
+            self.assertFalse(project["properties"][section]["additionalProperties"], section)
+        self.assertEqual(set(project["properties"]["commands"]["required"]), {"targeted", "feature", "lint", "type", "build", "full", "live", "eval"})
+        descriptor = project["$defs"]["command"]
+        self.assertFalse(descriptor["additionalProperties"])
+        self.assertEqual(set(descriptor["required"]), {"argv", "working_directory", "platform", "runtime", "env_keys", "capability"})
+        contract_schema = json.loads((ROOT / "authoring" / "schemas" / "v3" / "contract.schema.json").read_text(encoding="utf-8"))
+        item = contract_schema["$defs"]["item"]
+        self.assertFalse(contract_schema["$defs"]["term"]["additionalProperties"])
+        self.assertFalse(contract_schema["$defs"]["decision"]["additionalProperties"])
+        self.assertFalse(contract_schema["$defs"]["approval"]["additionalProperties"])
+        self.assertFalse(contract_schema["$defs"]["amendment"]["additionalProperties"])
+        for field in ("terms", "tests", "done"):
+            self.assertIn("items", item["properties"][field], field)
+        for field in ("material_risks", "non_goals"):
+            self.assertEqual(item["properties"][field]["$ref"], "#/$defs/stringList")
+        self.assertEqual(item["properties"]["decision"]["$ref"], "#/$defs/decision")
 
 
 if __name__ == "__main__":
