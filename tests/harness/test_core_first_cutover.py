@@ -131,6 +131,17 @@ class CoreFirstCutoverTests(unittest.TestCase):
         self.assertEqual(workflow.count('python -m unittest discover -s tests -p "test_*.py"'), 1)
         self.assertNotIn("Core-first representative workflows", workflow)
 
+    def test_independent_skill_docs_do_not_trigger_full_but_shared_harness_resources_do(self) -> None:
+        core = load_core()
+        config = json.loads((ROOT / ".harness" / "project.yaml").read_text(encoding="utf-8"))
+
+        independent = core.select_impacted_checks(["skills/finance-research/SKILL.md"], config)
+        shared = core.select_impacted_checks(["skills/design-goal/SKILL.md"], config)
+
+        self.assertEqual(independent["unresolved"], [])
+        self.assertFalse(independent["full_required"])
+        self.assertTrue(shared["full_required"])
+
     def test_public_core_script_exposes_inventory_and_review_cli(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
