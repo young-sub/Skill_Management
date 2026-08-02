@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from collections import Counter
-from datetime import date
+from datetime import date, datetime, timedelta
 from hashlib import sha256
 import html
 import json
@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 import time
@@ -714,3 +715,214 @@ def select_impacted_checks(
         "matched_rules": matched_rules, "tests": tests, "features": features,
         "full_required": full_required, "unresolved": unresolved,
     }
+
+
+def evaluate_result(
+    contract: dict[str, Any], result: dict[str, Any], impact: dict[str, Any]
+) -> dict[str, Any]:
+    result_by_id = {item.get("id"): item for item in result.get("items", [])}
+    evaluated: list[dict[str, Any]] = []
+    errors: list[str] = []
+    for planned in contract.get("items", []):
+        actual = result_by_id.get(planned["id"])
+        item_errors: list[str] = []
+        if actual is None:
+            item_errors.append("missing_result")
+        else:
+            checks = actual.get("checks", [])
+            if not checks or any(check.get("status") not in {"passed", "not_required"} for check in checks):
+                item_errors.append("relevant_check_failed_or_unrun")
+            if not actual.get("done") or not all(actual.get("done", [])):
+                item_errors.append("completion_criteria_unmet")
+            if actual.get("delta", {}).get("material") and actual.get("delta", {}).get("approval") != "approved":
+                item_errors.append("material_delta_unapproved")
+        evaluated.append({"id": planned["id"], "status": "complete" if not item_errors else "incomplete", "errors": item_errors})
+        errors.extend(f"{planned['id']}:{error}" for error in item_errors)
+    if impact.get("unresolved"):
+        errors.append("unresolved_test_impact")
+    full_status = result.get("full", {}).get("status", "unrun")
+    if impact.get("full_required") and full_status != "passed":
+        errors.append("full_required_but_unrun")
+    if not impact.get("full_required") and full_status == "not_required" and not result.get("full", {}).get("rule"):
+        errors.append("full_not_required_rule_missing")
+    return {
+        "status": "complete" if not errors else "incomplete", "items": evaluated,
+        "full": "required" if impact.get("full_required") else full_status,
+        "errors": errors,
+    }
+
+
+def render_result_review_v3(contract: dict[str, Any], result: dict[str, Any]) -> str:
+    result_by_id = {item.get("id"): item for item in result.get("items", [])}
+    cards: list[str] = []
+    completed = 0
+    for planned in contract.get("items", []):
+        actual = result_by_id.get(planned["id"], {})
+        checks = actual.get("checks", [])
+        done = bool(actual.get("done")) and all(actual.get("done", []))
+        checks_ok = bool(checks) and all(check.get("status") in {"passed", "not_required"} for check in checks)
+        delta = actual.get("delta", {})
+        material = bool(delta.get("material"))
+        complete = done and checks_ok and (not material or delta.get("approval") == "approved")
+        completed += int(complete)
+        status = "✓ 완료" if complete else "! 미완료"
+        delta_text = "계획대로 구현됨 (implemented as planned)" if not material else "승인 필요: " + str(delta.get("summary", "material delta"))
+        flow = '<div class="flow actual-flow" aria-label="실제 동작 흐름">' + "".join(
+            '<span class="flow-step">' + html.escape(str(step)) + "</span>"
+            + ('<span class="arrow" aria-hidden="true">→</span>' if index < len(actual.get("actual_steps", [])) - 1 else "")
+            for index, step in enumerate(actual.get("actual_steps", []))
+        ) + "</div>"
+        check_rows = "".join(
+            "<li><strong>" + html.escape(str(check.get("kind", "Check"))) + "</strong> · "
+            + html.escape(str(check.get("status", "unknown"))) + " · "
+            + html.escape(str(check.get("command", ""))) + "</li>"
+            for check in checks
+        )
+        terms = "".join(
+            '<p class="term"><strong>' + html.escape(str(term.get("term", ""))) + "</strong>: "
+            + html.escape(str(term.get("explanation", ""))) + "</p>"
+            for term in planned.get("terms", [])
+        )
+        cards.append(
+            '<article class="item" data-item-id="' + html.escape(planned["id"]) + '"><header><span class="item-id">'
+            + html.escape(planned["id"]) + "</span><h2>" + html.escape(planned["title"])
+            + '</h2><span class="status">' + status + "</span></header>"
+            + '<section><h3>실제 구현</h3><p>' + html.escape(str(actual.get("actual", "결과 없음"))) + "</p></section>"
+            + '<section><h3>실제 동작</h3>' + flow + terms + "</section>"
+            + '<section><h3>관련 테스트</h3><ul>' + check_rows + "</ul></section>"
+            + '<section><h3>완료 기준</h3><p>' + ("충족" if done else "미충족") + "</p></section>"
+            + '<section><h3>계획 대비 실제</h3><p class="delta' + (" material" if material else "") + '">' + html.escape(delta_text) + "</p></section></article>"
+        )
+    summary = (
+        '<section class="summary"><div class="eyebrow">RESULT REVIEW</div><h1>'
+        + html.escape(contract.get("goal", "")) + "</h1><p>완료 " + str(completed)
+        + " / " + str(len(contract.get("items", []))) + "</p></section>"
+    )
+    return _review_template("result-item-review.html").replace("{{SUMMARY}}", summary).replace("{{ITEMS}}", "".join(cards)).rstrip() + "\n"
+
+
+def close_work(
+    root: Path, work_id: str, *, completed_at: str, completed_days: int, trash_days: int
+) -> dict[str, Any]:
+    root = root.resolve()
+    source = _safe_repo_path(root, f".work/goals/active/{work_id}")
+    manifest_path = source / "work.json"
+    if not manifest_path.is_file():
+        return {"status": "invalid_work", "errors": ["active_manifest_missing"]}
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("work_id") != work_id or manifest.get("state") != "active":
+        return {"status": "invalid_work", "errors": ["manifest_identity_or_state_invalid"]}
+    moment = datetime.fromisoformat(completed_at)
+    retain_until = moment + timedelta(days=completed_days)
+    delete_after = retain_until + timedelta(days=trash_days)
+    destination = _safe_repo_path(root, f".work/goals/completed/{moment:%Y-%m}/{work_id}")
+    if destination.exists():
+        return {"status": "conflict", "errors": ["completed_destination_exists"]}
+    manifest.update({
+        "state": "completed", "completed_at": moment.isoformat(),
+        "retain_until": retain_until.isoformat(), "delete_after": delete_after.isoformat(),
+    })
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    os.replace(source, destination)
+    return {"status": "completed", "path": destination.relative_to(root).as_posix(), "manifest": manifest}
+
+
+def audit_work_lifecycle(root: Path) -> dict[str, Any]:
+    goals = root / ".work" / "goals"
+    seen: dict[str, str] = {}
+    findings: list[dict[str, str]] = []
+    for state in ("active", "completed", "trash", "legacy-unclassified"):
+        state_root = goals / state
+        if not state_root.is_dir():
+            continue
+        for directory in sorted(path for path in state_root.rglob("*") if path.is_dir()):
+            if not any(child.is_dir() for child in directory.iterdir()) and not (directory / "work.json").is_file():
+                findings.append({"rule_id": "work.orphan", "location": directory.relative_to(root).as_posix()})
+    for manifest_path in goals.rglob("work.json") if goals.is_dir() else []:
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            findings.append({"rule_id": "work.invalid_manifest", "location": str(manifest_path)})
+            continue
+        work_id = str(manifest.get("work_id", ""))
+        location = manifest_path.parent.relative_to(root).as_posix()
+        if work_id in seen:
+            findings.append({"rule_id": "work.duplicate_id", "location": location})
+        seen[work_id] = location
+        expected_state = "legacy-unclassified" if "legacy-unclassified" in manifest_path.parts else next(
+            (state for state in ("active", "completed", "trash") if state in manifest_path.parts), "unknown"
+        )
+        if manifest.get("state") != expected_state:
+            findings.append({"rule_id": "work.invalid_state", "location": location})
+    return {"findings": findings, "work_ids": seen}
+
+
+def sweep_lifecycle(root: Path, *, now: str) -> dict[str, Any]:
+    root = root.resolve()
+    moment = datetime.fromisoformat(now)
+    completed_root = root / ".work" / "goals" / "completed"
+    moved: list[str] = []
+    if completed_root.is_dir():
+        for manifest_path in sorted(completed_root.rglob("work.json")):
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            retain_until = manifest.get("retain_until")
+            if not retain_until or datetime.fromisoformat(retain_until) > moment:
+                continue
+            work_id = str(manifest.get("work_id", ""))
+            source = manifest_path.parent
+            destination = root / ".work" / "goals" / "trash" / f"{moment:%Y-%m-%d}" / work_id
+            if destination.exists():
+                continue
+            manifest["state"] = "trash"
+            manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            os.replace(source, destination)
+            moved.append(work_id)
+    return {"status": "ok", "moved_to_trash": moved, "audit": audit_work_lifecycle(root)}
+
+
+def classify_legacy_work(root: Path) -> dict[str, Any]:
+    root = root.resolve()
+    archive = root / ".work" / "archive"
+    unclassified: list[str] = []
+    if archive.is_dir():
+        for entry in sorted(path for path in archive.iterdir() if path.is_dir()):
+            work_id = entry.name
+            destination = root / ".work" / "goals" / "legacy-unclassified" / work_id
+            if destination.exists():
+                continue
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            os.replace(entry, destination)
+            manifest = {
+                "schema_version": SCHEMA_VERSION, "work_id": work_id, "state": "legacy-unclassified",
+                "created_at": None, "source_commit": None, "reason": "trustworthy_completion_date_missing",
+            }
+            (destination / "work.json").write_text(json.dumps(manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+            unclassified.append(work_id)
+    return {"status": "classified", "unclassified": unclassified}
+
+
+def delete_trash(root: Path, relative_target: str, *, approved_exact_target: str | None) -> dict[str, Any]:
+    expected_prefix = ".work/goals/trash/"
+    normalized = relative_target.replace("\\", "/")
+    if approved_exact_target != normalized:
+        return {"status": "approval_required", "target": normalized}
+    if not normalized.startswith(expected_prefix):
+        return {"status": "invalid_target", "target": normalized}
+    target = _safe_repo_path(root.resolve(), normalized)
+    if not target.is_dir():
+        return {"status": "not_found", "target": normalized}
+    shutil.rmtree(target)
+    return {"status": "deleted", "target": normalized, "recoverable": False}
+
+
+def compare_findings_to_baseline(
+    baseline: list[dict[str, Any]], findings: list[dict[str, Any]], *, today: str
+) -> dict[str, Any]:
+    baselined: list[dict[str, Any]] = []
+    blocking: list[dict[str, Any]] = []
+    for finding in findings:
+        match = next((item for item in baseline if finding_is_baselined(item, finding, today=today)), None)
+        (baselined if match else blocking).append(finding)
+    return {"baselined": baselined, "blocking": blocking}

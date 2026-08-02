@@ -205,6 +205,14 @@
     {
       "source": "templates/review/design-item-review.html",
       "targets": ["design-goal/resources/v3/templates/review/design-item-review.html"]
+    },
+    {
+      "source": "scripts/render_result_review.py",
+      "targets": ["close-goal/resources/v3/render_result_review.py"]
+    },
+    {
+      "source": "templates/review/result-item-review.html",
+      "targets": ["close-goal/resources/v3/templates/review/result-item-review.html"]
     }
   ]
 }
