@@ -26,8 +26,16 @@ def contract() -> dict:
             "id": "I-01", "title": "핵심 구현", "behavior_type": "tool",
             "what": "공개 Skill이 Item 계약을 처리한다.", "steps": ["입력", "검증", "출력"],
             "terms": [{"term": "Item", "explanation": "독립 검증 가능한 구현 단위"}],
-            "tests": ["관찰 가능한 결과 확인"], "done": ["관련 검증 통과"],
+            "tests": [{"id": "T-01", "target": "observable result", "method": "python -m unittest test_feature", "expected": "pass", "selector": "python -m unittest test_feature"}],
+            "done": [{"id": "D-01", "criterion": "relevant verification passes"}],
             "depends_on": [], "non_goals": [], "decision": {"state": "resolved"},
+            "material_risks": [], "priority": "core",
+        }, {
+            "id": "I-02", "title": "결과 보고", "behavior_type": "tool",
+            "what": "실행 결과를 보고한다.", "steps": ["수집", "보고"], "terms": [],
+            "tests": [{"id": "T-01", "target": "result report", "method": "python -m unittest test_feature", "expected": "pass", "selector": "python -m unittest test_feature"}],
+            "done": [{"id": "D-01", "criterion": "relevant verification passes"}],
+            "depends_on": ["I-01"], "non_goals": [], "decision": {"state": "resolved"},
             "material_risks": [], "priority": "core",
         }],
     }
@@ -38,10 +46,16 @@ def result_payload() -> dict:
         "items": [{
             "id": "I-01", "actual": "공개 Skill이 계약을 처리했다.",
             "actual_steps": ["입력", "검증", "출력"],
-            "checks": [{"kind": "Impacted", "status": "passed", "command": "python -m unittest test_feature"}],
-            "done": [True], "delta": {"material": False},
+            "checks": [{"check_id": "T-01", "kind": "Impacted", "status": "passed", "command": "python -m unittest test_feature"}],
+            "criteria": [{"criterion_id": "D-01", "criterion": "relevant verification passes", "status": "passed", "evidence": "test passed"}],
+            "delta": {"material": False},
+        }, {
+            "id": "I-02", "actual": "결과를 보고했다.", "actual_steps": ["수집", "보고"],
+            "checks": [{"check_id": "T-01", "kind": "Impacted", "status": "passed", "command": "python -m unittest test_feature"}],
+            "criteria": [{"criterion_id": "D-01", "criterion": "relevant verification passes", "status": "passed", "evidence": "test passed"}],
+            "delta": {"material": False},
         }],
-        "full": {"status": "not_required", "rule": "independent-capability"},
+        "full": {"status": "not_required", "rule": "feature"},
     }
 
 
@@ -78,8 +92,8 @@ class CoreFirstForwardWorkflowTests(unittest.TestCase):
             self.assertEqual(committed["status"], "committed")
         impact = execute.select_impacted_checks(["feature.py"], {"impact": {"rules": [{
             "id": "feature", "source_prefixes": ["feature.py"], "tests": ["test_feature"],
-            "feature": "tiny", "full": False,
-        }]}})
+            "feature": "tiny", "triggers": [],
+        }], "feature_selectors": {"tiny": ["python", "-m", "unittest", "test_feature"]}, "full_triggers": []}})
         self.assertEqual(impact["tests"], ["test_feature"])
         evaluated = close.evaluate_result(approved, result_payload(), impact)
         self.assertEqual(evaluated["status"], "complete")
@@ -117,9 +131,10 @@ class CoreFirstForwardWorkflowTests(unittest.TestCase):
         execute = load_skill("execute-codex-goal", "forward_large_suite")
         rules = [{
             "id": f"cap-{index}", "source_prefixes": [f"src/cap_{index}/"],
-            "tests": [f"tests/test_cap_{index}.py"], "feature": f"cap-{index}", "full": False,
+            "tests": [f"tests/test_cap_{index}.py"], "feature": f"cap-{index}", "triggers": [],
         } for index in range(500)]
-        selected = execute.select_impacted_checks(["src/cap_347/feature.py"], {"impact": {"rules": rules}})
+        selectors = {f"cap-{index}": ["python", "-m", "unittest", f"tests.test_cap_{index}"] for index in range(500)}
+        selected = execute.select_impacted_checks(["src/cap_347/feature.py"], {"impact": {"rules": rules, "feature_selectors": selectors, "full_triggers": []}})
         self.assertEqual(selected["tests"], ["tests/test_cap_347.py"])
         self.assertEqual(selected["features"], ["cap-347"])
         self.assertFalse(selected["full_required"])

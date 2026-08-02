@@ -10,7 +10,8 @@
       "design": {"supports": [3]},
       "execute": {"supports": [3]},
       "close": {"supports": [3]},
-      "maintain": {"supports": [3]}
+      "maintain": {"supports": [3]},
+      "diagnose": {"supports": [3]}
     }
   },
   "project": {"name": "Skill_Management", "classification": "brownfield-mapped"},
@@ -26,30 +27,32 @@
   },
   "impact": {
     "rules": [
-      {"id": "harness-core", "source_prefixes": ["authoring/scripts/core_harness.py"], "tests": ["tests/harness/test_core_first_schema.py", "tests/harness/test_core_first_setup.py", "tests/harness/test_core_first_design_execution.py", "tests/harness/test_core_first_close_lifecycle.py", "tests/harness/test_core_first_cutover.py", "tests/harness/test_core_first_forward_workflows.py"], "feature": "harness-core", "full": true},
-      {"id": "generated-skills", "source_prefixes": ["authoring/", "skills/"], "tests": ["tests/distribution/test_sync_skill_resources.py", "tests/distribution/test_validate_distribution.py"], "feature": "distribution", "full": true},
-      {"id": "repository-docs", "source_prefixes": ["docs/", "AGENTS.md", "CLAUDE.md", "README.md"], "tests": ["tests/distribution/test_repository_docs.py", "tests/harness/test_core_first_cutover.py"], "feature": "documentation", "full": false},
-      {"id": "distribution-scripts", "source_prefixes": ["scripts/"], "tests": ["tests/distribution"], "feature": "distribution", "full": true},
-      {"id": "control-plane", "source_prefixes": [".harness/"], "tests": ["tests/harness/test_core_first_cutover.py"], "feature": "harness-core", "full": true},
-      {"id": "test-infrastructure", "source_prefixes": ["tests/"], "tests": ["tests"], "feature": "repository", "full": true},
-      {"id": "ci-workflow", "source_prefixes": [".github/"], "tests": ["tests/release/test_release_candidate.py"], "feature": "distribution", "full": true},
-      {"id": "retired-root-design", "source_prefixes": ["skill_recreate_plan.md"], "tests": ["tests/distribution/test_repository_docs.py"], "feature": "documentation", "full": false}
+      {"id": "harness-core", "source_prefixes": ["authoring/scripts/core_harness.py"], "tests": ["tests/harness/test_core_first_schema.py", "tests/harness/test_core_first_setup.py", "tests/harness/test_core_first_design_execution.py", "tests/harness/test_core_first_close_lifecycle.py", "tests/harness/test_core_first_cutover.py", "tests/harness/test_core_first_forward_workflows.py"], "feature": "harness-core", "triggers": ["shared_policy"]},
+      {"id": "generated-skills", "source_prefixes": ["authoring/", "skills/"], "tests": ["tests/distribution/test_sync_skill_resources.py", "tests/distribution/test_validate_distribution.py"], "feature": "distribution", "triggers": ["generated_resource"]},
+      {"id": "repository-docs", "source_prefixes": ["docs/", "AGENTS.md", "CLAUDE.md", "README.md"], "tests": ["tests/distribution/test_repository_docs.py", "tests/harness/test_core_first_cutover.py"], "feature": "documentation", "triggers": []},
+      {"id": "distribution-scripts", "source_prefixes": ["scripts/"], "tests": ["tests/distribution"], "feature": "distribution", "triggers": ["generated_resource"]},
+      {"id": "control-plane", "source_prefixes": [".harness/"], "tests": ["tests/harness/test_core_first_cutover.py"], "feature": "harness-core", "triggers": ["repository_workflow_cutover"]},
+      {"id": "test-infrastructure", "source_prefixes": ["tests/"], "tests": ["tests"], "feature": "repository", "triggers": ["test_discovery"]},
+      {"id": "ci-workflow", "source_prefixes": [".github/"], "tests": ["tests/release/test_release_candidate.py"], "feature": "distribution", "triggers": ["repository_workflow_cutover"]},
+      {"id": "retired-root-design", "source_prefixes": ["skill_recreate_plan.md"], "tests": ["tests/distribution/test_repository_docs.py"], "feature": "documentation", "triggers": []}
     ],
     "feature_selectors": {
       "harness-core": ["python", "-m", "unittest", "tests.harness.test_core_first_schema", "tests.harness.test_core_first_setup", "tests.harness.test_core_first_design_execution", "tests.harness.test_core_first_close_lifecycle", "tests.harness.test_core_first_cutover", "tests.harness.test_core_first_forward_workflows"],
-      "distribution": ["python", "-m", "unittest", "discover", "-s", "tests/distribution", "-p", "test_*.py"]
+      "distribution": ["python", "-m", "unittest", "discover", "-s", "tests/distribution", "-p", "test_*.py"],
+      "documentation": ["python", "-m", "unittest", "tests.distribution.test_repository_docs"],
+      "repository": ["python", "-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py"]
     },
     "full_triggers": ["shared_policy", "schema", "generated_resource", "test_discovery", "repository_workflow_cutover"]
   },
   "commands": {
-    "targeted": {"argv": ["python", "-m", "unittest"], "working_directory": ".", "platform": "any", "runtime": "python", "env_keys": [], "capability": "selected-test"},
-    "feature": {"argv": ["python", "-m", "unittest", "tests.harness.test_core_first_schema", "tests.harness.test_core_first_setup", "tests.harness.test_core_first_design_execution", "tests.harness.test_core_first_close_lifecycle", "tests.harness.test_core_first_cutover", "tests.harness.test_core_first_forward_workflows"], "working_directory": ".", "platform": "any", "runtime": "python", "env_keys": [], "capability": "harness-core"},
-    "lint": {"argv": ["git", "diff", "--check"], "working_directory": ".", "platform": "any", "runtime": "git", "env_keys": [], "capability": "format"},
-    "type": {"argv": [], "working_directory": ".", "platform": "any", "runtime": "none", "env_keys": [], "capability": "not-configured"},
-    "build": {"argv": [], "working_directory": ".", "platform": "any", "runtime": "none", "env_keys": [], "capability": "not-configured"},
-    "full": {"argv": ["python", "-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py"], "working_directory": ".", "platform": "any", "runtime": "python", "env_keys": [], "capability": "repository"},
-    "live": {"argv": [], "working_directory": ".", "platform": "any", "runtime": "none", "env_keys": [], "capability": "disabled"},
-    "eval": {"argv": [], "working_directory": ".", "platform": "any", "runtime": "none", "env_keys": [], "capability": "disabled"}
+    "targeted": {"id": "targeted", "argv": ["python", "-m", "unittest"], "working_directory": ".", "platform": "any", "runtime": "python", "capability": "selected-test"},
+    "feature": {"id": "feature", "argv": ["python", "-m", "unittest", "tests.harness.test_core_first_schema", "tests.harness.test_core_first_setup", "tests.harness.test_core_first_design_execution", "tests.harness.test_core_first_close_lifecycle", "tests.harness.test_core_first_cutover", "tests.harness.test_core_first_forward_workflows"], "working_directory": ".", "platform": "any", "runtime": "python", "capability": "harness-core"},
+    "lint": {"id": "lint", "argv": ["git", "diff", "--check"], "working_directory": ".", "platform": "any", "runtime": "git", "capability": "format"},
+    "type": {"id": "type", "argv": [], "working_directory": ".", "platform": "any", "runtime": "none", "capability": "not-configured"},
+    "build": {"id": "build", "argv": [], "working_directory": ".", "platform": "any", "runtime": "none", "capability": "not-configured"},
+    "full": {"id": "full", "argv": ["python", "-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py"], "working_directory": ".", "platform": "any", "runtime": "python", "capability": "repository"},
+    "live": {"id": "live", "argv": [], "working_directory": ".", "platform": "any", "runtime": "none", "capability": "disabled"},
+    "eval": {"id": "eval", "argv": [], "working_directory": ".", "platform": "any", "runtime": "none", "capability": "disabled"}
   },
   "documents": {"boundaries": [{"paths": ["authoring", "skills"], "documents": ["docs/architecture/harness-v3.md"]}, {"paths": ["tests", "scripts"], "documents": ["docs/testing.md"]}]},
   "work": {"retention": {"completed_days": 30, "trash_days": 7}, "states": ["active", "completed", "trash", "deleted"], "legacy_state": "legacy-unclassified"},

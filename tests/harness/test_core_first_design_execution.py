@@ -19,7 +19,7 @@ def load_core():
     return module
 
 
-def contract() -> dict:
+def _legacy_contract() -> dict:
     item = {
         "id": "I-01", "title": "핵심 API", "behavior_type": "api",
         "what": "요청을 처리한다", "steps": ["요청", "검증", "응답"],
@@ -32,6 +32,30 @@ def contract() -> dict:
     return {
         "schema_version": 3, "work_id": "W-20260802-003", "goal": "핵심 흐름을 전달한다",
         "scope": "승인된 API 흐름", "non_goals": ["무관한 정리"], "items": [item, optional],
+    }
+
+
+def contract() -> dict:
+    payload = _legacy_contract()
+    for candidate in payload["items"]:
+        candidate["tests"] = [{
+            "id": "T-01", "target": "normal request response",
+            "method": "python -m unittest auth", "expected": "the relevant check passes",
+            "selector": "python -m unittest auth",
+        }]
+        candidate["done"] = [{"id": "D-01", "criterion": "the relevant check passes"}]
+    return payload
+
+
+def v3_project() -> dict:
+    return {
+        "harness": {
+            "active_cohort": "v3",
+            "components": {
+                name: {"supports": [3]}
+                for name in ("project", "design", "execute", "close", "maintain", "diagnose")
+            },
+        }
     }
 
 
@@ -51,6 +75,8 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
             "material_risks": ["전환 중 기존 요청이 새 검증 경로와 섞이지 않아야 한다"],
         })
         source["items"][1]["depends_on"] = ["I-01"]
+        for index, test in enumerate(source["items"][0]["tests"], 1):
+            test["id"] = f"T-{index:02d}"
         page = core.render_design_review_v3(source)
         self.assertIn('lang="ko"', page)
         self.assertLess(page.index('data-item-id="I-01"'), page.index('data-item-id="I-02"'))
@@ -82,6 +108,53 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
         unresolved["items"][0]["decision"]["state"] = "unresolved"
         blocked = core.approve_review(unresolved, core.render_design_review_v3(unresolved), utterance="승인", actor="human", approved_at="2026-08-02T12:00:00+09:00")
         self.assertEqual(blocked["status"], "unresolved_decisions")
+
+    def test_valid_design_is_default_authorized_without_affirmative_text(self) -> None:
+        core = load_core()
+        authorized = core.authorize_design(
+            contract(), intent="default", actor="policy",
+            authorized_at="2026-08-02T12:00:00+09:00",
+        )
+        self.assertEqual(authorized["status"], "default_authorized")
+        self.assertEqual(authorized["contract"]["authorization"]["mode"], "default")
+        self.assertNotIn("utterance", authorized["contract"]["authorization"])
+        self.assertTrue(core.execution_authorized(
+            authorized["contract"], project=v3_project(), host_goal=None,
+        )["authorized"])
+
+    def test_veto_invalid_contract_and_high_risk_design_fail_closed(self) -> None:
+        core = load_core()
+        vetoed = core.authorize_design(
+            contract(), intent="veto", actor="human",
+            authorized_at="2026-08-02T12:00:00+09:00",
+        )
+        self.assertEqual(vetoed["status"], "vetoed")
+        self.assertFalse(core.execution_authorized(
+            vetoed["contract"], project=v3_project(), host_goal=None,
+        )["authorized"])
+
+        invalid = contract()
+        invalid["schema_version"] = 4
+        invalid["unknown"] = True
+        self.assertEqual(core.authorize_design(
+            invalid, intent="default", actor="policy",
+            authorized_at="2026-08-02T12:00:00+09:00",
+        )["status"], "invalid_contract")
+
+        high = contract()
+        high["items"][0]["material_risks"] = ["security"]
+        self.assertEqual(core.authorize_design(
+            high, intent="default", actor="policy",
+            authorized_at="2026-08-02T12:00:00+09:00",
+        )["status"], "explicit_approval_required")
+        explicit = core.authorize_design(
+            high, intent="explicit_approve", actor="human",
+            authorized_at="2026-08-02T12:01:00+09:00",
+        )
+        self.assertEqual(explicit["status"], "explicit_authorized")
+        self.assertTrue(core.execution_authorized(
+            explicit["contract"], project=v3_project(), host_goal=None,
+        )["authorized"])
 
     def test_legacy_pending_conversion_is_lossless_but_active_work_blocks(self) -> None:
         core = load_core()
@@ -197,15 +270,23 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
 
     def test_impacted_selection_requires_mapping_and_promotes_shared_changes(self) -> None:
         core = load_core()
-        project = {"impact": {"rules": [
-            {"id": "auth", "source_prefixes": ["src/auth/"], "tests": ["tests/auth"], "feature": "auth", "full": False},
-            {"id": "shared", "source_prefixes": ["src/core/"], "tests": ["tests/core"], "feature": "core", "full": True},
-        ]}}
+        project = {"impact": {
+            "rules": [
+                {"id": "auth", "source_prefixes": ["src/auth/"], "tests": ["tests/auth"], "feature": "auth", "triggers": []},
+                {"id": "shared", "source_prefixes": ["src/core/"], "tests": ["tests/core"], "feature": "core", "triggers": ["shared_policy"]},
+            ],
+            "feature_selectors": {"auth": ["python", "-m", "unittest", "tests.auth"], "core": ["python", "-m", "unittest", "tests.core"]},
+            "full_triggers": ["shared_policy"],
+        }}
         selected = core.select_impacted_checks(["src/auth/service.py"], project)
         self.assertEqual(selected["tests"], ["tests/auth"])
+        self.assertEqual(selected["feature_commands"], [{"feature": "auth", "argv": ["python", "-m", "unittest", "tests.auth"]}])
         self.assertFalse(selected["full_required"])
+        self.assertEqual(selected["not_required_rule_ids"], ["auth"])
         self.assertEqual(selected["unresolved"], [])
-        self.assertTrue(core.select_impacted_checks(["src/core/state.py"], project)["full_required"])
+        shared = core.select_impacted_checks(["src/core/state.py"], project)
+        self.assertTrue(shared["full_required"])
+        self.assertEqual(shared["full_trigger_ids"], ["shared_policy"])
         self.assertEqual(core.select_impacted_checks(["src/unknown.py"], project)["unresolved"], ["src/unknown.py"])
 
 

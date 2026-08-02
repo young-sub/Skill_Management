@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/core_harness.py
-# Source-SHA256: 460992d4af4ca71028d5ab93c36f71d5dc607346e1f4bca38e7d0c88913e3c7b
+# Source-SHA256: 0c245599ce503faafaa41ae8d0be58fa9c26d03bc9fcbcf3118e5805d58bb4a2
 
 #!/usr/bin/env python3
 """Deterministic Core-First Harness v3 contracts and compatibility checks."""
@@ -42,7 +42,10 @@ def canonical_digest(value: Any) -> str:
 
 
 def _contract_payload(contract: dict[str, Any]) -> dict[str, Any]:
-    payload = {key: deepcopy(value) for key, value in contract.items() if key != "approval"}
+    payload = {
+        key: deepcopy(value) for key, value in contract.items()
+        if key not in {"approval", "authorization"}
+    }
     for amendment in payload.get("amendments", []):
         if isinstance(amendment, dict):
             amendment.pop("new_contract_digest", None)
@@ -78,9 +81,9 @@ def preview_project_v3(legacy: dict[str, Any]) -> dict[str, Any]:
         "impact": {"rules": [], "feature_selectors": {}, "full_triggers": []},
         "commands": {
             name: {
-                "argv": [], "working_directory": ".", "platform": "any",
+                "id": name, "argv": [], "working_directory": ".", "platform": "any",
                 "runtime": "none" if name in {"live", "eval"} else "unknown",
-                "env_keys": [], "capability": "disabled" if name in {"live", "eval"} else "mapping-required",
+                "capability": "disabled" if name in {"live", "eval"} else "mapping-required",
             }
             for name in ("targeted", "feature", "lint", "type", "build", "full", "live", "eval")
         },
@@ -105,11 +108,22 @@ def preview_project_v3(legacy: dict[str, Any]) -> dict[str, Any]:
 
 def validate_contract_v3(contract: dict[str, Any]) -> list[str]:
     errors: list[str] = []
+    allowed_contract_fields = {
+        "schema_version", "work_id", "goal", "scope", "non_goals", "items",
+        "authorization", "amendments", "extensions",
+    }
+    for field in sorted(set(contract) - allowed_contract_fields):
+        errors.append(f"contract:unknown_field:{field}")
     if contract.get("schema_version") != SCHEMA_VERSION:
         errors.append(f"unsupported_contract_version:{contract.get('schema_version', 'missing')}")
+    for field in ("work_id", "goal", "scope"):
+        if not isinstance(contract.get(field), str) or not contract[field].strip():
+            errors.append(f"contract:missing:{field}")
+    if not isinstance(contract.get("non_goals"), list):
+        errors.append("contract:expected_list:non_goals")
     items = contract.get("items")
-    if not isinstance(items, list) or not 1 <= len(items) <= 5:
-        errors.append("items:count:1..5")
+    if not isinstance(items, list) or not 2 <= len(items) <= 5:
+        errors.append("items:count_out_of_range")
         return errors
     seen: set[str] = set()
     dependency_map: dict[str, list[str]] = {}
@@ -118,6 +132,8 @@ def validate_contract_v3(contract: dict[str, Any]) -> list[str]:
             errors.append(f"item:{index}:expected_object")
             continue
         item_id = str(item.get("id", index))
+        for field in sorted(set(item) - set(ITEM_FIELDS)):
+            errors.append(f"item:{item_id}:unknown_field:{field}")
         if item_id in seen:
             errors.append(f"item:{item_id}:duplicate_id")
         seen.add(item_id)
@@ -129,6 +145,39 @@ def validate_contract_v3(contract: dict[str, Any]) -> list[str]:
                 errors.append(f"item:{item_id}:expected_list:{field}")
         if item.get("decision", {}).get("state") not in {"resolved", "unresolved"}:
             errors.append(f"item:{item_id}:invalid_decision_state")
+        tests = item.get("tests")
+        if isinstance(tests, list):
+            test_ids: set[str] = set()
+            for test_index, test in enumerate(tests):
+                if not isinstance(test, dict):
+                    errors.append(f"item:{item_id}:test:{test_index}:expected_object")
+                    continue
+                allowed = {"id", "target", "method", "expected", "selector"}
+                for field in sorted(set(test) - allowed):
+                    errors.append(f"item:{item_id}:test:{test_index}:unknown_field:{field}")
+                for field in allowed:
+                    if not isinstance(test.get(field), str) or (field != "selector" and not test[field].strip()):
+                        errors.append(f"item:{item_id}:test:{test_index}:missing:{field}")
+                test_id = str(test.get("id", ""))
+                if test_id in test_ids:
+                    errors.append(f"item:{item_id}:test:{test_id}:duplicate_id")
+                test_ids.add(test_id)
+        done = item.get("done")
+        if isinstance(done, list):
+            done_ids: set[str] = set()
+            for done_index, criterion in enumerate(done):
+                if not isinstance(criterion, dict):
+                    errors.append(f"item:{item_id}:done:{done_index}:expected_object")
+                    continue
+                for field in sorted(set(criterion) - {"id", "criterion"}):
+                    errors.append(f"item:{item_id}:done:{done_index}:unknown_field:{field}")
+                for field in ("id", "criterion"):
+                    if not isinstance(criterion.get(field), str) or not criterion[field].strip():
+                        errors.append(f"item:{item_id}:done:{done_index}:missing:{field}")
+                criterion_id = str(criterion.get("id", ""))
+                if criterion_id in done_ids:
+                    errors.append(f"item:{item_id}:done:{criterion_id}:duplicate_id")
+                done_ids.add(criterion_id)
         dependency_map[item_id] = item.get("depends_on", []) if isinstance(item.get("depends_on"), list) else []
     for item_id, dependencies in dependency_map.items():
         for dependency in dependencies:
@@ -786,8 +835,13 @@ def compare_semantic_test_inventory(
 
 
 def _list_html(values: list[Any], *, class_name: str = "review-list") -> str:
+    def visible_text(value: Any) -> str:
+        if isinstance(value, dict):
+            return str(value.get("criterion") or value.get("target") or value.get("id") or "")
+        return str(value)
+
     return '<ul class="' + class_name + '">' + "".join(
-        f"<li>{html.escape(str(value))}</li>" for value in values
+        f"<li>{html.escape(visible_text(value))}</li>" for value in values
     ) + "</ul>"
 
 
@@ -956,32 +1010,134 @@ def render_design_review_v3(contract: dict[str, Any]) -> str:
     return _review_template("design-item-review.html").replace("{{SUMMARY}}", summary).replace("{{ITEMS}}", "".join(cards)).rstrip() + "\n"
 
 
+HIGH_RISK_TERMS = {
+    "destructive", "security", "privacy", "secret", "irreversible",
+    "external_cost", "external-cost", "costly_external", "push", "publish",
+}
+
+
+def _has_high_risk(contract: dict[str, Any]) -> bool:
+    for item in contract.get("items", []):
+        for risk in item.get("material_risks", []):
+            normalized = str(risk).strip().casefold().replace(" ", "_")
+            if normalized in HIGH_RISK_TERMS or any(term in normalized for term in HIGH_RISK_TERMS):
+                return True
+    return False
+
+
+def _authorization_record(
+    contract: dict[str, Any], *, mode: str, actor: str, authorized_at: str
+) -> dict[str, Any]:
+    payload = _contract_payload(contract)
+    review_html = render_design_review_v3(payload)
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "mode": mode,
+        "contract_digest": canonical_digest(payload),
+        "review_digest": canonical_digest(review_html),
+        "item_ids": [item["id"] for item in payload["items"]],
+        "actor": actor,
+        "authorized_at": authorized_at,
+    }
+
+
+def authorize_design(
+    contract: dict[str, Any], *, intent: str = "default", actor: str,
+    authorized_at: str,
+) -> dict[str, Any]:
+    """Bind a validated canonical Review to default authority, explicit approval, or veto."""
+    errors = validate_contract_v3(contract)
+    if errors:
+        return {"status": "invalid_contract", "errors": errors}
+    if any(item.get("decision", {}).get("state") != "resolved" for item in contract["items"]):
+        return {"status": "unresolved_decisions"}
+    if intent not in {"default", "veto", "explicit_approve"}:
+        return {"status": "ambiguous_intent"}
+    mode = {"default": "default", "veto": "vetoed", "explicit_approve": "explicit"}[intent]
+    if _has_high_risk(contract) and mode != "explicit":
+        if mode == "vetoed":
+            vetoed = deepcopy(_contract_payload(contract))
+            vetoed["authorization"] = _authorization_record(
+                vetoed, mode=mode, actor=actor, authorized_at=authorized_at
+            )
+            return {"status": "vetoed", "contract": vetoed}
+        return {"status": "explicit_approval_required"}
+    authorized = deepcopy(_contract_payload(contract))
+    authorized["authorization"] = _authorization_record(
+        authorized, mode=mode, actor=actor, authorized_at=authorized_at
+    )
+    return {
+        "status": {
+            "default": "default_authorized", "explicit": "explicit_authorized",
+            "vetoed": "vetoed",
+        }[mode],
+        "contract": authorized,
+    }
+
+
 def approve_review(
     contract: dict[str, Any], review_html: str, *, utterance: str, actor: str, approved_at: str
 ) -> dict[str, Any]:
-    if any(item.get("decision", {}).get("state") != "resolved" for item in contract.get("items", [])):
-        return {"status": "unresolved_decisions"}
-    normalized = utterance.strip().casefold().rstrip(".! ")
-    affirmative = normalized in {"승인", "승인합니다", "진행", "진행합니다", "approve", "approved", "yes"}
-    if not affirmative:
-        return {"status": "ambiguous_approval"}
-    approved = deepcopy(contract)
-    approved["approval"] = build_approval_bundle(
-        contract, review_html, utterance=utterance, actor=actor, approved_at=approved_at
+    """Compatibility entrypoint; external HTML is never an authorization input."""
+    del review_html
+    normalized = utterance.strip().casefold()
+    veto = any(token in normalized for token in ("아니", "거부", "중단", "취소", "reject", "deny", "stop", "cancel"))
+    outcome = authorize_design(
+        contract, intent="veto" if veto else "default", actor=actor, authorized_at=approved_at
     )
-    return {"status": "approved", "contract": approved}
+    if outcome.get("status") == "default_authorized":
+        outcome["status"] = "approved"
+    return outcome
 
 
 def execution_authorized(
-    contract: dict[str, Any], review_html: str, *, host_goal: dict[str, Any] | None
+    contract: dict[str, Any], review_html: str | None = None, *,
+    project: dict[str, Any] | None = None, host_goal: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    del host_goal  # tracking is optional; approval is the authority.
-    bundle = contract.get("approval")
-    if not isinstance(bundle, dict):
-        return {"authorized": False, "errors": ["approval_required"]}
-    if not approval_bundle_matches(bundle, contract, review_html):
-        return {"authorized": False, "errors": ["approval_bundle_drift"]}
-    return {"authorized": True, "errors": []}
+    del review_html, host_goal  # review is rendered server-side; Goal tracking is optional.
+    errors = validate_contract_v3(contract)
+    if errors:
+        return {"authorized": False, "errors": ["invalid_contract", *errors]}
+    authorization = contract.get("authorization")
+    if not isinstance(authorization, dict):
+        return {"authorized": False, "errors": ["authorization_required"]}
+    allowed_fields = {
+        "schema_version", "mode", "contract_digest", "review_digest", "item_ids",
+        "actor", "authorized_at",
+    }
+    if set(authorization) != allowed_fields:
+        return {"authorized": False, "errors": ["authorization_schema_invalid"]}
+    payload = _contract_payload(contract)
+    try:
+        canonical_review = render_design_review_v3(payload)
+    except ValueError:
+        return {"authorized": False, "errors": ["canonical_review_invalid"]}
+    expected = _authorization_record(
+        payload, mode=str(authorization.get("mode")), actor=str(authorization.get("actor")),
+        authorized_at=str(authorization.get("authorized_at")),
+    )
+    if authorization != expected:
+        return {"authorized": False, "errors": ["authorization_bundle_drift"]}
+    mode = authorization["mode"]
+    if mode == "vetoed":
+        return {"authorized": False, "errors": ["design_vetoed"]}
+    if mode not in {"default", "explicit"}:
+        return {"authorized": False, "errors": ["authorization_mode_invalid"]}
+    if _has_high_risk(payload) and mode != "explicit":
+        return {"authorized": False, "errors": ["explicit_approval_required"]}
+    if project is not None:
+        harness = project.get("harness", {})
+        active = harness.get("active_cohort")
+        active_version = 3 if active == "v3" else active
+        support = {
+            name: component.get("supports", [])
+            for name, component in harness.get("components", {}).items()
+            if isinstance(component, dict)
+        }
+        cohort_errors = validate_cohort(active_version, support)
+        if cohort_errors:
+            return {"authorized": False, "errors": cohort_errors}
+    return {"authorized": True, "errors": [], "review_digest": canonical_digest(canonical_review)}
 
 
 def convert_legacy_contract(legacy: dict[str, Any]) -> dict[str, Any]:
@@ -1033,6 +1189,7 @@ def apply_amendment(
         return {"status": "invalid_amendment", "errors": ["unknown_item_or_field"]}
     old_digest = canonical_digest(_contract_payload(contract))
     amended.pop("approval", None)
+    amended.pop("authorization", None)
     item[field] = value
     event = {
         "kind": "approved_amendment", "message_id": message_id, "item_id": item_id,
@@ -1041,12 +1198,14 @@ def apply_amendment(
     }
     amended.setdefault("amendments", []).append(event)
     event["new_contract_digest"] = canonical_digest(_contract_payload(amended))
-    review_html = render_design_review_v3(amended)
-    amended["approval"] = build_approval_bundle(
-        amended, review_html, utterance=f"approved_amendment:{message_id}",
-        actor=actor, approved_at=approved_at,
+    authorized = authorize_design(
+        amended, intent="default", actor=actor, authorized_at=approved_at
     )
-    return {"status": "applied", "contract": amended, "event": event, "review_html": review_html}
+    if "contract" not in authorized:
+        return {"status": "invalid_amendment", "errors": authorized.get("errors", [authorized["status"]])}
+    rebound = authorized["contract"]
+    review_html = render_design_review_v3(_contract_payload(rebound))
+    return {"status": "applied", "contract": rebound, "event": event, "review_html": review_html}
 
 
 def canonical_repo_identity(
@@ -1188,12 +1347,15 @@ def commit_item(
 def select_impacted_checks(
     changed_paths: list[str], project: dict[str, Any]
 ) -> dict[str, Any]:
-    rules = project.get("impact", {}).get("rules", [])
+    impact_config = project.get("impact", {})
+    rules = impact_config.get("rules", [])
+    feature_selectors = impact_config.get("feature_selectors", {})
+    full_triggers = set(impact_config.get("full_triggers", []))
     matched_rules: list[str] = []
     tests: list[str] = []
     features: list[str] = []
+    trigger_ids: list[str] = []
     unresolved: list[str] = []
-    full_required = False
     for path in changed_paths:
         matches = [
             rule for rule in rules
@@ -1212,19 +1374,38 @@ def select_impacted_checks(
             feature = rule.get("feature")
             if feature and feature not in features:
                 features.append(feature)
-            full_required = full_required or bool(rule.get("full"))
+            for trigger in rule.get("triggers", []):
+                if trigger not in trigger_ids:
+                    trigger_ids.append(trigger)
+    full_trigger_ids = [trigger for trigger in trigger_ids if trigger in full_triggers]
+    feature_commands = [
+        {"feature": feature, "argv": list(feature_selectors[feature])}
+        for feature in features if feature in feature_selectors
+    ]
+    missing_feature_selectors = [feature for feature in features if feature not in feature_selectors]
+    unresolved.extend(f"feature_selector:{feature}" for feature in missing_feature_selectors)
     return {
         "matched_rules": matched_rules, "tests": tests, "features": features,
-        "full_required": full_required, "unresolved": unresolved,
+        "feature_commands": feature_commands, "trigger_ids": trigger_ids,
+        "full_trigger_ids": full_trigger_ids,
+        "not_required_rule_ids": matched_rules if not full_trigger_ids and not unresolved else [],
+        "full_required": bool(full_trigger_ids), "unresolved": unresolved,
     }
 
 
 def evaluate_result(
     contract: dict[str, Any], result: dict[str, Any], impact: dict[str, Any]
 ) -> dict[str, Any]:
-    result_by_id = {item.get("id"): item for item in result.get("items", [])}
+    result_items = result.get("items", [])
+    result_ids = [item.get("id") for item in result_items if isinstance(item, dict)]
+    result_by_id = {item.get("id"): item for item in result_items if isinstance(item, dict)}
     evaluated: list[dict[str, Any]] = []
     errors: list[str] = []
+    if len(result_ids) != len(set(result_ids)):
+        errors.append("duplicate_result_item")
+    planned_item_ids = {item["id"] for item in contract.get("items", [])}
+    if set(result_ids) - planned_item_ids:
+        errors.append("additional_result_item")
     for planned in contract.get("items", []):
         actual = result_by_id.get(planned["id"])
         item_errors: list[str] = []
@@ -1232,17 +1413,51 @@ def evaluate_result(
             item_errors.append("missing_result")
         else:
             checks = actual.get("checks", [])
-            if not checks or any(check.get("status") not in {"passed", "not_required"} for check in checks):
-                item_errors.append("relevant_check_failed_or_unrun")
-            criteria = actual.get("criteria")
-            criteria_met = (
-                bool(criteria)
-                and all(criterion.get("status") in {"passed", "satisfied"} for criterion in criteria)
-                if isinstance(criteria, list)
-                else bool(actual.get("done")) and all(actual.get("done", []))
+            planned_checks = {test["id"]: test for test in planned.get("tests", []) if isinstance(test, dict)}
+            actual_check_ids = [check.get("check_id") for check in checks if isinstance(check, dict)]
+            actual_checks = {check.get("check_id"): check for check in checks if isinstance(check, dict)}
+            checks_match = (
+                len(actual_check_ids) == len(set(actual_check_ids))
+                and set(actual_check_ids) == set(planned_checks)
             )
-            if not criteria_met:
-                item_errors.append("completion_criteria_unmet")
+            if checks_match:
+                for check_id, planned_check in planned_checks.items():
+                    check = actual_checks[check_id]
+                    selector = planned_check.get("selector", "")
+                    if check.get("status") != "passed" or (selector and check.get("command") != selector):
+                        checks_match = False
+                        break
+            if not checks_match:
+                item_errors.append("planned_check_evidence_mismatch")
+            criteria = actual.get("criteria")
+            planned_criteria = {
+                criterion["id"]: criterion for criterion in planned.get("done", [])
+                if isinstance(criterion, dict)
+            }
+            criteria_match = isinstance(criteria, list)
+            if criteria_match:
+                actual_criterion_ids = [
+                    criterion.get("criterion_id") for criterion in criteria if isinstance(criterion, dict)
+                ]
+                actual_criteria = {
+                    criterion.get("criterion_id"): criterion for criterion in criteria if isinstance(criterion, dict)
+                }
+                criteria_match = (
+                    len(actual_criterion_ids) == len(set(actual_criterion_ids))
+                    and set(actual_criterion_ids) == set(planned_criteria)
+                )
+                if criteria_match:
+                    for criterion_id, planned_criterion in planned_criteria.items():
+                        observed = actual_criteria[criterion_id]
+                        if (
+                            observed.get("status") not in {"passed", "satisfied"}
+                            or observed.get("criterion") != planned_criterion.get("criterion")
+                            or not observed.get("evidence")
+                        ):
+                            criteria_match = False
+                            break
+            if not criteria_match:
+                item_errors.append("planned_done_evidence_mismatch")
             if actual.get("delta", {}).get("material") and actual.get("delta", {}).get("approval") != "approved":
                 item_errors.append("material_delta_unapproved")
         evaluated.append({"id": planned["id"], "status": "complete" if not item_errors else "incomplete", "errors": item_errors})
@@ -1252,8 +1467,10 @@ def evaluate_result(
     full_status = result.get("full", {}).get("status", "unrun")
     if impact.get("full_required") and full_status != "passed":
         errors.append("full_required_but_unrun")
-    if not impact.get("full_required") and full_status == "not_required" and not result.get("full", {}).get("rule"):
-        errors.append("full_not_required_rule_missing")
+    if not impact.get("full_required") and full_status == "not_required":
+        rule = result.get("full", {}).get("rule")
+        if not rule or rule not in impact.get("not_required_rule_ids", []):
+            errors.append("full_not_required_rule_invalid")
     return {
         "status": "complete" if not errors else "incomplete", "items": evaluated,
         "full": "required" if impact.get("full_required") else full_status,
@@ -1261,34 +1478,26 @@ def evaluate_result(
     }
 
 
-def render_result_review_v3(contract: dict[str, Any], result: dict[str, Any]) -> str:
+def render_result_review_v3(
+    contract: dict[str, Any], result: dict[str, Any], impact: dict[str, Any] | None = None
+) -> str:
+    if impact is None:
+        rule = result.get("full", {}).get("rule")
+        impact = {
+            "full_required": result.get("full", {}).get("status") == "passed",
+            "unresolved": [], "not_required_rule_ids": [rule] if rule else [],
+        }
+    evaluation = evaluate_result(contract, result, impact)
+    evaluated_by_id = {item["id"]: item for item in evaluation["items"]}
     result_by_id = {item.get("id"): item for item in result.get("items", [])}
     cards: list[str] = []
     completed = 0
     for planned in contract.get("items", []):
         actual = result_by_id.get(planned["id"], {})
         checks = actual.get("checks", [])
-        criteria = actual.get("criteria")
-        if isinstance(criteria, list):
-            criteria_rows = criteria
-            done = bool(criteria_rows) and all(
-                row.get("status") in {"passed", "satisfied"} for row in criteria_rows
-            )
-        else:
-            done_values = list(actual.get("done", []))
-            done = bool(done_values) and all(done_values)
-            criteria_rows = [
-                {
-                    "criterion": criterion,
-                    "status": "passed" if index < len(done_values) and done_values[index] else "failed",
-                    "evidence": "검증 결과에 따라 판정",
-                }
-                for index, criterion in enumerate(planned.get("done", []))
-            ]
-        checks_ok = bool(checks) and all(check.get("status") in {"passed", "not_required"} for check in checks)
         delta = actual.get("delta", {})
         material = bool(delta.get("material"))
-        complete = done and checks_ok and (not material or delta.get("approval") == "approved")
+        complete = evaluated_by_id.get(planned["id"], {}).get("status") == "complete"
         completed += int(complete)
         status = "✓ 완료" if complete else "! 미완료"
         delta_text = str(delta.get("summary") or ("계획대로 구현됨" if not material else "material delta"))

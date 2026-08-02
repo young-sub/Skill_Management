@@ -1,22 +1,22 @@
 # Generated file. Do not edit directly.
 # Source: authoring/templates/project/project.yaml
-# Source-SHA256: 4ac009edfa1d0331a98a689abf4a096199902d174aec1f63bb2e97d0cdc76926
+# Source-SHA256: d908a14cb79ce5aa65bda334be51ac72fc8ea2d90d4464fc68e39af651109ac7
 
 {
   "schema_version": 3,
-  "harness": {"active_cohort": "v3", "contract_version": 3, "runtime_version": 3, "dormant_cohorts": [], "components": {"project": {"supports": [3]}, "design": {"supports": [3]}, "execute": {"supports": [3]}, "close": {"supports": [3]}, "maintain": {"supports": [3]}}},
+  "harness": {"active_cohort": "v3", "contract_version": 3, "runtime_version": 3, "dormant_cohorts": [], "components": {"project": {"supports": [3]}, "design": {"supports": [3]}, "execute": {"supports": [3]}, "close": {"supports": [3]}, "maintain": {"supports": [3]}, "diagnose": {"supports": [3]}}},
   "project": {"name": "{{PROJECT_NAME}}", "classification": "{{CLASSIFICATION}}"},
   "paths": {"source_roots": [], "test_roots": [], "fixture_roots": [], "generated_roots": [], "durable_document_roots": ["docs"], "human_guide_roots": [], "ephemeral_work_root": ".work", "documentation_entrypoint": "docs/index.md"},
   "impact": {"rules": [], "feature_selectors": {}, "full_triggers": ["shared_policy", "schema", "generated_resource", "test_discovery", "repository_workflow_cutover"]},
   "commands": {
-    "targeted": {"argv": [], "working_directory": ".", "platform": "any", "runtime": "unknown", "env_keys": [], "capability": "mapping-required"},
-    "feature": {"argv": [], "working_directory": ".", "platform": "any", "runtime": "unknown", "env_keys": [], "capability": "mapping-required"},
-    "lint": {"argv": [], "working_directory": ".", "platform": "any", "runtime": "unknown", "env_keys": [], "capability": "mapping-required"},
-    "type": {"argv": [], "working_directory": ".", "platform": "any", "runtime": "unknown", "env_keys": [], "capability": "mapping-required"},
-    "build": {"argv": [], "working_directory": ".", "platform": "any", "runtime": "unknown", "env_keys": [], "capability": "mapping-required"},
-    "full": {"argv": [], "working_directory": ".", "platform": "any", "runtime": "unknown", "env_keys": [], "capability": "mapping-required"},
-    "live": {"argv": [], "working_directory": ".", "platform": "any", "runtime": "none", "env_keys": [], "capability": "disabled"},
-    "eval": {"argv": [], "working_directory": ".", "platform": "any", "runtime": "none", "env_keys": [], "capability": "disabled"}
+    "targeted": {"id": "targeted", "argv": [], "working_directory": ".", "platform": "any", "runtime": "unknown", "capability": "mapping-required"},
+    "feature": {"id": "feature", "argv": [], "working_directory": ".", "platform": "any", "runtime": "unknown", "capability": "mapping-required"},
+    "lint": {"id": "lint", "argv": [], "working_directory": ".", "platform": "any", "runtime": "unknown", "capability": "mapping-required"},
+    "type": {"id": "type", "argv": [], "working_directory": ".", "platform": "any", "runtime": "unknown", "capability": "mapping-required"},
+    "build": {"id": "build", "argv": [], "working_directory": ".", "platform": "any", "runtime": "unknown", "capability": "mapping-required"},
+    "full": {"id": "full", "argv": [], "working_directory": ".", "platform": "any", "runtime": "unknown", "capability": "mapping-required"},
+    "live": {"id": "live", "argv": [], "working_directory": ".", "platform": "any", "runtime": "none", "capability": "disabled"},
+    "eval": {"id": "eval", "argv": [], "working_directory": ".", "platform": "any", "runtime": "none", "capability": "disabled"}
   },
   "documents": {"boundaries": []},
   "work": {"retention": {"completed_days": 30, "trash_days": 7}, "states": ["active", "completed", "trash", "deleted"], "legacy_state": "legacy-unclassified"},

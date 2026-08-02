@@ -21,7 +21,7 @@ def load_core():
     return module
 
 
-def result_payload() -> dict:
+def _legacy_result_payload() -> dict:
     return {
         "items": [
             {"id": "I-01", "actual": "요청 검증과 응답 생성 경계를 분리해 공개 응답을 유지했다.", "actual_steps": ["요청 수신", "입력 검증", "응답 반환"], "actual_outcomes": ["정상 요청은 기존 응답 형식을 유지한다", "잘못된 요청은 명시적인 오류를 반환한다"], "checks": [{"kind": "Targeted", "summary": "정상·거부 요청의 공개 응답을 검증", "command": "python -m unittest auth", "status": "passed"}], "criteria": [{"criterion": "관련 공개 동작이 통과한다", "status": "passed", "evidence": "정상·거부 요청 회귀 테스트 통과"}], "done": [True], "delta": {"material": False, "summary": "승인된 설계와 동일", "impact": "추가 승인 불필요"}},
@@ -31,10 +31,29 @@ def result_payload() -> dict:
     }
 
 
+def result_payload() -> dict:
+    payload = _legacy_result_payload()
+    for item in payload["items"]:
+        for check in item.get("checks", []):
+            check["check_id"] = "T-01"
+            check["command"] = "python -m unittest auth"
+        criteria = item.get("criteria")
+        if criteria is None:
+            criteria = [{
+                "criterion_id": "D-01", "criterion": "the relevant check passes",
+                "status": "passed", "evidence": "observed",
+            }]
+            item["criteria"] = criteria
+        for criterion in criteria:
+            criterion["criterion_id"] = "D-01"
+            criterion["criterion"] = "the relevant check passes"
+    return payload
+
+
 class CoreFirstCloseLifecycleTests(unittest.TestCase):
     def test_close_is_item_based_and_full_is_conditional(self) -> None:
         core = load_core()
-        independent = core.evaluate_result(contract(), result_payload(), {"full_required": False, "unresolved": []})
+        independent = core.evaluate_result(contract(), result_payload(), {"full_required": False, "unresolved": [], "not_required_rule_ids": ["independent_capability"]})
         self.assertEqual(independent["status"], "complete")
         self.assertEqual(independent["full"], "not_required")
         shared = core.evaluate_result(contract(), result_payload(), {"full_required": True, "unresolved": []})
@@ -42,9 +61,29 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
         self.assertIn("full_required_but_unrun", shared["errors"])
         failed = result_payload()
         failed["items"][0]["checks"][0]["status"] = "failed"
-        evaluated = core.evaluate_result(contract(), failed, {"full_required": False, "unresolved": []})
+        evaluated = core.evaluate_result(contract(), failed, {"full_required": False, "unresolved": [], "not_required_rule_ids": ["independent_capability"]})
         self.assertEqual(evaluated["items"][0]["status"], "incomplete")
         self.assertEqual(evaluated["items"][1]["status"], "complete")
+
+    def test_close_requires_exact_planned_test_and_done_evidence(self) -> None:
+        core = load_core()
+        unrelated = result_payload()
+        unrelated["items"][0]["checks"] = [{
+            "check_id": "T-other", "kind": "Targeted", "command": "python -m unittest unrelated",
+            "status": "passed",
+        }]
+        unrelated["items"][0]["criteria"] = [{
+            "criterion_id": "D-other", "criterion": "different", "status": "passed", "evidence": "unrelated",
+        }]
+
+        evaluated = core.evaluate_result(
+            contract(), unrelated,
+            {"full_required": False, "unresolved": [], "not_required_rule_ids": ["independent_capability"]},
+        )
+
+        self.assertEqual(evaluated["items"][0]["status"], "incomplete")
+        self.assertIn("planned_check_evidence_mismatch", evaluated["items"][0]["errors"])
+        self.assertIn("planned_done_evidence_mismatch", evaluated["items"][0]["errors"])
 
     def test_korean_result_review_matches_design_identity_and_shows_actual_visual(self) -> None:
         core = load_core()

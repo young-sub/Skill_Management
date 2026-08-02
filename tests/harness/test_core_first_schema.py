@@ -49,8 +49,16 @@ class CoreFirstSchemaTests(unittest.TestCase):
                 "id": "I-01", "title": "Core behavior", "behavior_type": "tool",
                 "what": "Implement the capability", "steps": ["input", "process", "output"],
                 "terms": [{"term": "Impact rule", "explanation": "A mapping from change to checks."}],
-                "tests": ["The output is observable"], "done": ["The relevant check passes"],
+                "tests": [{"id": "T-01", "target": "output", "method": "run check", "expected": "observable", "selector": "tests.output"}],
+                "done": [{"id": "D-01", "criterion": "The relevant check passes"}],
                 "depends_on": [], "non_goals": [], "decision": {"state": "resolved"},
+                "material_risks": [], "priority": "core",
+            }, {
+                "id": "I-02", "title": "Result behavior", "behavior_type": "tool",
+                "what": "Report the result", "steps": ["read", "report"], "terms": [],
+                "tests": [{"id": "T-01", "target": "result", "method": "run check", "expected": "reported", "selector": "tests.result"}],
+                "done": [{"id": "D-01", "criterion": "The result is reported"}],
+                "depends_on": ["I-01"], "non_goals": [], "decision": {"state": "resolved"},
                 "material_risks": [], "priority": "core",
             }],
         }
@@ -58,6 +66,9 @@ class CoreFirstSchemaTests(unittest.TestCase):
         broken = json.loads(json.dumps(contract))
         del broken["items"][0]["done"]
         self.assertIn("item:I-01:missing:done", core.validate_contract_v3(broken))
+        one_item = json.loads(json.dumps(contract))
+        one_item["items"] = one_item["items"][:1]
+        self.assertIn("items:count_out_of_range", core.validate_contract_v3(one_item))
 
     def test_approval_bundle_binds_contract_review_and_visible_item_ids(self) -> None:
         core = load_core()
@@ -100,17 +111,17 @@ class CoreFirstSchemaTests(unittest.TestCase):
         self.assertEqual(set(project["properties"]["commands"]["required"]), {"targeted", "feature", "lint", "type", "build", "full", "live", "eval"})
         descriptor = project["$defs"]["command"]
         self.assertFalse(descriptor["additionalProperties"])
-        self.assertEqual(set(descriptor["required"]), {"argv", "working_directory", "platform", "runtime", "env_keys", "capability"})
+        self.assertEqual(set(descriptor["required"]), {"id", "argv", "working_directory", "platform", "runtime", "capability"})
         contract_schema = json.loads((ROOT / "authoring" / "schemas" / "v3" / "contract.schema.json").read_text(encoding="utf-8"))
         item = contract_schema["$defs"]["item"]
         self.assertIn("testCase", contract_schema["$defs"])
         test_case = contract_schema["$defs"]["testCase"]
-        self.assertEqual(set(test_case["required"]), {"target", "method", "expected", "selector"})
+        self.assertEqual(set(test_case["required"]), {"id", "target", "method", "expected", "selector"})
         self.assertFalse(test_case["additionalProperties"])
-        self.assertEqual(item["properties"]["tests"]["items"]["oneOf"][1]["$ref"], "#/$defs/testCase")
+        self.assertEqual(item["properties"]["tests"]["items"]["$ref"], "#/$defs/testCase")
         self.assertFalse(contract_schema["$defs"]["term"]["additionalProperties"])
         self.assertFalse(contract_schema["$defs"]["decision"]["additionalProperties"])
-        self.assertFalse(contract_schema["$defs"]["approval"]["additionalProperties"])
+        self.assertFalse(contract_schema["$defs"]["authorization"]["additionalProperties"])
         self.assertFalse(contract_schema["$defs"]["amendment"]["additionalProperties"])
         for field in ("terms", "tests", "done"):
             self.assertIn("items", item["properties"][field], field)

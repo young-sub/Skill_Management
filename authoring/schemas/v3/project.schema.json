@@ -16,13 +16,14 @@
         "dormant_cohorts": {"type": "array", "items": {"type": "integer"}, "uniqueItems": true},
         "components": {
           "type": "object",
-          "required": ["project", "design", "execute", "close", "maintain"],
+          "required": ["project", "design", "execute", "close", "maintain", "diagnose"],
           "properties": {
             "project": {"$ref": "#/$defs/component"},
             "design": {"$ref": "#/$defs/component"},
             "execute": {"$ref": "#/$defs/component"},
             "close": {"$ref": "#/$defs/component"},
-            "maintain": {"$ref": "#/$defs/component"}
+            "maintain": {"$ref": "#/$defs/component"},
+            "diagnose": {"$ref": "#/$defs/component"}
           },
           "additionalProperties": false
         }
@@ -106,19 +107,24 @@
     "component": {"type": "object", "required": ["supports"], "properties": {"supports": {"type": "array", "items": {"type": "integer"}, "uniqueItems": true}}, "additionalProperties": false},
     "pathList": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
     "command": {
-      "type": "object", "required": ["argv", "working_directory", "platform", "runtime", "env_keys", "capability"],
+      "type": "object", "required": ["id", "argv", "working_directory", "platform", "runtime", "capability"],
       "properties": {
+        "id": {"type": "string", "minLength": 1},
         "argv": {"type": "array", "items": {"type": "string"}}, "working_directory": {"type": "string", "minLength": 1},
         "platform": {"type": "string", "minLength": 1}, "runtime": {"type": "string", "minLength": 1},
-        "env_keys": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}, "capability": {"type": "string", "minLength": 1}
+        "capability": {"type": "string", "minLength": 1},
+        "source_revision": {"type": "string"}, "inherit_env": {"type": "boolean"},
+        "env": {"type": "object", "additionalProperties": {"type": "string"}},
+        "timeout_seconds": {"type": "number", "exclusiveMinimum": 0}
       },
       "additionalProperties": false
     },
     "impactRule": {
-      "type": "object", "required": ["id", "source_prefixes", "tests", "feature", "full"],
+      "type": "object", "required": ["id", "source_prefixes", "tests", "feature", "triggers"],
       "properties": {
         "id": {"type": "string", "minLength": 1}, "source_prefixes": {"$ref": "#/$defs/pathList"},
-        "tests": {"$ref": "#/$defs/pathList"}, "feature": {"type": "string", "minLength": 1}, "full": {"type": "boolean"}
+        "tests": {"$ref": "#/$defs/pathList"}, "feature": {"type": "string", "minLength": 1},
+        "triggers": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
       },
       "additionalProperties": false
     },
