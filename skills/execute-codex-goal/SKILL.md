@@ -1,6 +1,6 @@
 ---
 name: execute-codex-goal
-description: Execute an approved Core-First Harness v3 Item contract with impact-selected verification and per-Item commits.
+description: Execute a default- or explicitly-authorized Core-First Harness v3 Item contract with impact-selected verification and per-Item commits.
 ---
 
 # Execute Codex Goal — Harness v3
