@@ -120,6 +120,38 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
             self.assertFalse((install_root / "execute-codex-goal" / "scripts" / "goal_runtime.py").exists())
             self.assertEqual((install_root / "unrelated" / "keep.txt").read_text(encoding="utf-8"), "keep\n")
             self.assertTrue(installed["tree_digest"].startswith("sha256:"))
+            expected = set(core._cohort_manifest_files(manifest)) | {
+                "maintain-agent-harness/resources/public-resource-manifest.json",
+            }
+            actual = {
+                path.relative_to(install_root).as_posix()
+                for skill in core.HARNESS_INSTALL_SKILLS
+                for path in (install_root / skill).rglob("*") if path.is_file()
+            }
+            self.assertEqual(actual, expected)
+            self.assertFalse(any(path.suffix == ".pyc" for path in install_root.rglob("*")))
+
+    def test_installed_cohort_rejects_undeclared_files_and_bytecode(self) -> None:
+        core = load_core()
+        manifest = json.loads((ROOT / "authoring" / "public-resource-manifest.json").read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as temp_dir:
+            install_root = Path(temp_dir) / "skills"
+            installed = core.install_harness_cohort(
+                ROOT / "skills", install_root, manifest,
+                approved_install_root=str(install_root),
+            )
+            self.assertEqual(installed["status"], "installed", installed)
+            extra = install_root / "design-goal" / "scripts" / "__pycache__" / "rogue.cpython-312.pyc"
+            extra.parent.mkdir(parents=True, exist_ok=True)
+            extra.write_bytes(b"legacy")
+
+            inspected = core.inspect_installed_cohort(install_root, manifest)
+
+            self.assertEqual(inspected["status"], "invalid")
+            self.assertIn(
+                "installed_resource_extra:design-goal/scripts/__pycache__/rogue.cpython-312.pyc",
+                inspected["blockers"],
+            )
 
     def test_atomic_cohort_install_restores_exact_previous_cohort_on_fault(self) -> None:
         core = load_core()

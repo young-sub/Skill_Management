@@ -209,6 +209,28 @@ module.close_work(Path(sys.argv[2]), 'W-crash', completed_at='2026-08-02T12:00:0
             self.assertEqual(migrated["unclassified"], ["unknown"])
             self.assertTrue((root / ".work" / "goals" / "legacy-unclassified" / "unknown").is_dir())
 
+    def test_lifecycle_sweep_rejects_manifest_work_id_escape_before_creating_paths(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            completed = root / ".work" / "goals" / "completed" / "2026-07" / "W-safe"
+            completed.mkdir(parents=True)
+            (completed / "work.json").write_text(json.dumps({
+                "schema_version": 3,
+                "work_id": "../../../../outside",
+                "state": "completed",
+                "retain_until": "2026-08-01T00:00:00+09:00",
+                "delete_after": "2026-08-08T00:00:00+09:00",
+            }), encoding="utf-8")
+
+            result = core.sweep_lifecycle(root, now="2026-08-02T00:00:00+09:00")
+
+            self.assertEqual(result["status"], "invalid_work")
+            self.assertEqual(result["errors"], ["manifest_identity_or_state_invalid"])
+            self.assertTrue(completed.is_dir())
+            self.assertFalse((root / "outside").exists())
+            self.assertFalse((root / ".work" / "transactions").exists())
+
     def test_legacy_classification_distinguishes_trustworthy_missing_and_contradictory_dates(self) -> None:
         core = load_core()
         with tempfile.TemporaryDirectory() as temp_dir:

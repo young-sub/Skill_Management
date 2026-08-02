@@ -6,7 +6,7 @@
   "required": ["schema_version", "work_id", "state", "created_at", "source_commit", "base_branch", "feature_branch", "contract_version", "integrity_digest", "owned_paths"],
   "properties": {
     "schema_version": {"const": 3},
-    "work_id": {"type": "string", "minLength": 1},
+    "work_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
     "state": {"enum": ["active", "completed", "trash", "deleted", "legacy-unclassified"]},
     "created_at": {"type": "string"},
     "source_commit": {"type": "string"},

@@ -23,6 +23,7 @@ import unicodedata
 
 
 SCHEMA_VERSION = 3
+WORK_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 COHORT_COMPONENTS = ("project", "design", "execute", "close", "maintain", "diagnose")
 HARNESS_INSTALL_SKILLS = (
     "setup-agent-harness", "design-goal", "execute-codex-goal", "close-goal",
@@ -39,6 +40,13 @@ def canonical_digest(value: Any) -> str:
         value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
     ).encode("utf-8")
     return "sha256:" + sha256(encoded).hexdigest()
+
+
+def validate_work_id(work_id: Any) -> str:
+    value = str(work_id)
+    if not WORK_ID_PATTERN.fullmatch(value):
+        raise ValueError(f"invalid_work_id:{value}")
+    return value
 
 
 def _contract_payload(contract: dict[str, Any]) -> dict[str, Any]:
@@ -1351,6 +1359,10 @@ def start_work(
 ) -> dict[str, Any]:
     """Capture Git/base/baseline state and create one idempotent feature-work manifest."""
     root = root.resolve()
+    try:
+        work_id = validate_work_id(work_id)
+    except ValueError as error:
+        return {"status": "invalid_work", "errors": [str(error)]}
     authorization = execution_authorized(contract)
     if not authorization["authorized"]:
         return {"status": "authorization_failed", "errors": authorization["errors"]}
@@ -1658,6 +1670,12 @@ def _lifecycle_move(
     operation: str, fault_after: str | None = None, crash_after: str | None = None,
 ) -> dict[str, Any]:
     """Move one work directory with durable recovery across process interruption."""
+    try:
+        work_id = validate_work_id(manifest.get("work_id"))
+        source.relative_to(root)
+        destination.relative_to(root)
+    except ValueError as error:
+        return {"status": "invalid_work", "errors": [str(error)]}
     recovery = recover_transactions(root)
     if recovery["status"] == "recovery_failed":
         return {"status": "precondition_failed", "errors": recovery["errors"]}
@@ -1665,7 +1683,8 @@ def _lifecycle_move(
     manifest_existed = manifest_path.is_file()
     original_manifest = manifest_path.read_bytes() if manifest_existed else b""
     transactions = root / ".work" / "transactions"
-    transaction_root = transactions / f"{operation}-{manifest.get('work_id', source.name)}"
+    transaction_identity = canonical_digest({"operation": operation, "work_id": work_id})
+    transaction_root = transactions / f"{operation}-{transaction_identity.removeprefix('sha256:')[:16]}"
     transaction_root.mkdir(parents=True, exist_ok=True)
     journal_path = transaction_root / "journal.json"
     backup_path = transaction_root / "work.json.preimage"
@@ -1717,6 +1736,10 @@ def close_work(
     fault_after: str | None = None, crash_after: str | None = None,
 ) -> dict[str, Any]:
     root = root.resolve()
+    try:
+        work_id = validate_work_id(work_id)
+    except ValueError as error:
+        return {"status": "invalid_work", "errors": [str(error)]}
     source = _safe_repo_path(root, f".work/goals/active/{work_id}")
     manifest_path = source / "work.json"
     if not manifest_path.is_file():
@@ -1768,6 +1791,12 @@ def audit_work_lifecycle(root: Path) -> dict[str, Any]:
             continue
         work_id = str(manifest.get("work_id", ""))
         location = manifest_path.parent.relative_to(root).as_posix()
+        try:
+            validate_work_id(work_id)
+        except ValueError:
+            findings.append({"rule_id": "work.invalid_id", "location": location})
+        if manifest_path.parent.name != work_id:
+            findings.append({"rule_id": "work.identity_mismatch", "location": location})
         if work_id in seen:
             findings.append({"rule_id": "work.duplicate_id", "location": location})
         seen[work_id] = location
@@ -1792,9 +1821,22 @@ def sweep_lifecycle(
             retain_until = manifest.get("retain_until")
             if not retain_until or datetime.fromisoformat(retain_until) > moment:
                 continue
-            work_id = str(manifest.get("work_id", ""))
             source = manifest_path.parent
-            destination = root / ".work" / "goals" / "trash" / f"{moment:%Y-%m-%d}" / work_id
+            try:
+                work_id = validate_work_id(manifest.get("work_id"))
+                source_relative = source.relative_to(completed_root)
+                date.fromisoformat(source_relative.parts[0] + "-01")
+            except (ValueError, IndexError):
+                return {"status": "invalid_work", "errors": ["manifest_identity_or_state_invalid"]}
+            if (
+                manifest.get("state") != "completed"
+                or len(source_relative.parts) != 2
+                or source_relative.parts[1] != work_id
+            ):
+                return {"status": "invalid_work", "errors": ["manifest_identity_or_state_invalid"]}
+            destination = _safe_repo_path(
+                root, f".work/goals/trash/{moment:%Y-%m-%d}/{work_id}"
+            )
             if destination.exists():
                 continue
             manifest["state"] = "trash"
@@ -2041,12 +2083,33 @@ def _cohort_manifest_files(resource_manifest: dict[str, Any]) -> dict[str, str]:
     }
 
 
+COHORT_MANIFEST_RESOURCE = "maintain-agent-harness/resources/public-resource-manifest.json"
+
+
+def _installed_cohort_files(installed_root: Path) -> set[str]:
+    observed: set[str] = set()
+    for skill in HARNESS_INSTALL_SKILLS:
+        skill_root = installed_root / skill
+        if not skill_root.is_dir():
+            continue
+        for path in skill_root.rglob("*"):
+            if path.is_file():
+                observed.add(path.relative_to(installed_root).as_posix())
+    return observed
+
+
 def inspect_installed_cohort(installed_root: Path, resource_manifest: dict[str, Any]) -> dict[str, Any]:
     installed_root = installed_root.resolve()
     blockers: list[str] = []
     files = _cohort_manifest_files(resource_manifest)
     if resource_manifest.get("root") != "skills" or not files:
         return {"status": "invalid_manifest", "blockers": ["installed_manifest_invalid"], "components": {}}
+    expected_files = set(files) | {COHORT_MANIFEST_RESOURCE}
+    observed_files = _installed_cohort_files(installed_root)
+    for relative in sorted(observed_files - expected_files):
+        blockers.append(f"installed_resource_extra:{relative}")
+    for relative in sorted(expected_files - observed_files):
+        blockers.append(f"installed_resource_missing:{relative}")
     for relative, expected in sorted(files.items()):
         try:
             path = _safe_repo_path(installed_root, str(relative))
@@ -2059,6 +2122,15 @@ def inspect_installed_cohort(installed_root: Path, resource_manifest: dict[str, 
         actual = _manifest_file_hash(path, resource_manifest.get("hash_mode"))
         if actual != expected:
             blockers.append(f"installed_resource_drift:{relative}")
+    manifest_resource = installed_root / COHORT_MANIFEST_RESOURCE
+    if manifest_resource.is_file():
+        try:
+            installed_manifest = json.loads(manifest_resource.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            blockers.append(f"installed_resource_drift:{COHORT_MANIFEST_RESOURCE}")
+        else:
+            if installed_manifest != resource_manifest:
+                blockers.append(f"installed_resource_drift:{COHORT_MANIFEST_RESOURCE}")
     legacy_helpers = (
         "contract_engine.py", "goal_runtime.py", "close_goal.py",
         "maintain_harness.py", "render_completion_review.py",
@@ -2109,8 +2181,14 @@ def install_harness_cohort(
     try:
         staging.mkdir()
         backup.mkdir()
-        for skill in HARNESS_INSTALL_SKILLS:
-            shutil.copytree(source_root / skill, staging / skill)
+        for relative in sorted(files):
+            source = _safe_repo_path(source_root, relative)
+            target = _safe_repo_path(staging, relative)
+            if not source.is_file() or _path_is_alias(source):
+                raise ValueError(f"invalid_source_resource:{relative}")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
+        _durable_write_json(staging / COHORT_MANIFEST_RESOURCE, resource_manifest)
         staged = inspect_installed_cohort(staging, resource_manifest)
         if staged["status"] != "complete":
             raise RuntimeError("staging_invalid:" + ";".join(staged["blockers"]))
@@ -2128,12 +2206,13 @@ def install_harness_cohort(
         observed = inspect_installed_cohort(install_root, resource_manifest)
         if observed["status"] != "complete":
             raise RuntimeError("installed_cohort_verification_failed:" + ";".join(observed["blockers"]))
-        tree = {
+        tree: dict[str, str] = {
             relative: _manifest_file_hash(install_root / relative, resource_manifest.get("hash_mode"))
             for relative in sorted(files)
         }
-        if tree != files:
+        if tree != files or _installed_cohort_files(install_root) != set(files) | {COHORT_MANIFEST_RESOURCE}:
             raise RuntimeError("installed_tree_manifest_mismatch")
+        tree[COHORT_MANIFEST_RESOURCE] = canonical_digest(resource_manifest)
         shutil.rmtree(backup)
         shutil.rmtree(staging)
         return {
