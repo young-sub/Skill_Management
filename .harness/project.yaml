@@ -34,7 +34,10 @@
       {"id": "repository-docs", "source_prefixes": ["docs/", "AGENTS.md", "CLAUDE.md", "README.md"], "tests": ["tests/distribution/test_repository_docs.py", "tests/harness/test_core_first_cutover.py"], "feature": "documentation", "triggers": []},
       {"id": "distribution-scripts", "source_prefixes": ["scripts/"], "tests": ["tests/distribution"], "feature": "distribution", "triggers": []},
       {"id": "control-plane", "source_prefixes": [".harness/"], "tests": ["tests/harness/test_core_first_cutover.py"], "feature": "harness-core", "triggers": ["repository_workflow_cutover"]},
-      {"id": "test-infrastructure", "source_prefixes": ["tests/"], "tests": ["tests"], "feature": "repository", "triggers": ["test_discovery"]},
+      {"id": "harness-tests", "source_prefixes": ["tests/harness/"], "tests": ["tests/harness"], "feature": "harness-core", "triggers": []},
+      {"id": "distribution-tests", "source_prefixes": ["tests/distribution/"], "tests": ["tests/distribution"], "feature": "distribution", "triggers": []},
+      {"id": "release-tests", "source_prefixes": ["tests/release/"], "tests": ["tests/release"], "feature": "release", "triggers": []},
+      {"id": "test-discovery-controls", "source_prefixes": ["tests/__init__.py", "tests/harness/__init__.py", "tests/distribution/__init__.py", "tests/release/__init__.py"], "tests": ["tests"], "feature": "repository", "triggers": ["test_discovery"]},
       {"id": "ci-workflow", "source_prefixes": [".github/"], "tests": ["tests/release/test_release_candidate.py"], "feature": "distribution", "triggers": ["repository_workflow_cutover"]},
       {"id": "retired-root-design", "source_prefixes": ["skill_recreate_plan.md"], "tests": ["tests/distribution/test_repository_docs.py"], "feature": "documentation", "triggers": []},
       {"id": "distribution-metadata", "source_prefixes": ["distribution/"], "tests": ["tests/distribution", "tests/release"], "feature": "distribution", "triggers": []},
@@ -44,6 +47,7 @@
     "feature_selectors": {
       "harness-core": ["python", "-m", "unittest", "tests.harness.test_core_first_schema", "tests.harness.test_core_first_setup", "tests.harness.test_core_first_design_execution", "tests.harness.test_core_first_close_lifecycle", "tests.harness.test_core_first_cutover", "tests.harness.test_core_first_forward_workflows", "tests.harness.test_core_first_cli_maintain", "tests.harness.test_core_first_installed_cli_e2e"],
       "distribution": ["python", "-m", "unittest", "discover", "-s", "tests/distribution", "-p", "test_*.py"],
+      "release": ["python", "-m", "unittest", "discover", "-s", "tests/release", "-p", "test_*.py"],
       "documentation": ["python", "-m", "unittest", "tests.distribution.test_repository_docs"],
       "repository": ["python", "-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py"]
     },

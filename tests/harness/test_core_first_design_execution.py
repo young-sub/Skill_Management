@@ -227,6 +227,26 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
         high = core.apply_amendment(source, item_id="I-01", field="what", value="공개 API를 파괴한다", message_id="m2", actor="human", approved_at="2026-08-02T13:00:00+09:00", risk="public_contract")
         self.assertEqual(high["status"], "focused_approval_required")
 
+    def test_every_canonical_material_risk_blocks_default_amendment_rebinding(self) -> None:
+        core = load_core()
+        source = contract()
+
+        for risk in sorted(core.MATERIAL_RISK_FLAGS):
+            with self.subTest(risk=risk):
+                outcome = core.apply_amendment(
+                    source, item_id="I-01", field="what", value="changed",
+                    message_id=f"risk-{risk}", actor="human",
+                    approved_at="2026-08-02T13:00:00+09:00", risk=risk,
+                )
+                self.assertEqual(outcome["status"], "focused_approval_required")
+
+        low = core.apply_amendment(
+            source, item_id="I-01", field="what", value="safe change",
+            message_id="risk-low", actor="human",
+            approved_at="2026-08-02T13:00:00+09:00", risk="low",
+        )
+        self.assertEqual(low["status"], "applied")
+
     def test_item_commit_excludes_preexisting_dirty_baseline(self) -> None:
         core = load_core()
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -120,6 +120,11 @@ class CoreFirstCutoverTests(unittest.TestCase):
             self.assertFalse((ROOT / relative).exists(), relative)
         self.assertFalse((ROOT / "skills" / "project-agent-bootstrap").exists())
         self.assertNotIn("project-agent-bootstrap", load_core().HARNESS_INSTALL_SKILLS)
+        workflow = (ROOT / "docs" / "agents" / "workflow.md").read_text(encoding="utf-8")
+        self.assertIn(
+            "Use the Goal contract lifecycle only when the global Work Packet threshold is met or the user explicitly selects it.",
+            workflow,
+        )
 
     def test_repository_impact_and_ci_descriptors_cover_cutover_surfaces(self) -> None:
         core = load_core()
@@ -147,6 +152,24 @@ class CoreFirstCutoverTests(unittest.TestCase):
         self.assertFalse(shared["full_required"])
         self.assertFalse(template["full_required"])
         self.assertTrue(runtime["full_required"])
+
+    def test_ordinary_test_edits_are_impacted_only_but_discovery_controls_require_full(self) -> None:
+        core = load_core()
+        config = json.loads((ROOT / ".harness" / "project.yaml").read_text(encoding="utf-8"))
+
+        ordinary = core.select_impacted_checks(
+            ["tests/harness/test_core_first_design_execution.py"], config,
+        )
+        discovery = core.select_impacted_checks(["tests/harness/__init__.py"], config)
+
+        self.assertEqual(ordinary["unresolved"], [])
+        self.assertFalse(ordinary["full_required"])
+        self.assertEqual(
+            ordinary["feature_commands"],
+            [{"feature": "harness-core", "argv": config["impact"]["feature_selectors"]["harness-core"]}],
+        )
+        self.assertTrue(discovery["full_required"])
+        self.assertIn("test_discovery", discovery["full_trigger_ids"])
 
     def test_public_core_script_exposes_inventory_and_review_cli(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -153,6 +153,32 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
                 inspected["blockers"],
             )
 
+    def test_installed_cohort_rejects_retired_alias_but_allows_unrelated_skill(self) -> None:
+        core = load_core()
+        manifest = json.loads((ROOT / "authoring" / "public-resource-manifest.json").read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as temp_dir:
+            install_root = Path(temp_dir) / "skills"
+            installed = core.install_harness_cohort(
+                ROOT / "skills", install_root, manifest,
+                approved_install_root=str(install_root),
+            )
+            self.assertEqual(installed["status"], "installed", installed)
+            unrelated = install_root / "unrelated-skill" / "SKILL.md"
+            unrelated.parent.mkdir(parents=True)
+            unrelated.write_text("unrelated\n", encoding="utf-8")
+            alias = install_root / "project-agent-bootstrap" / "SKILL.md"
+            alias.parent.mkdir(parents=True)
+            alias.write_text("retired\n", encoding="utf-8")
+
+            inspected = core.inspect_installed_cohort(install_root, manifest)
+
+            self.assertEqual(inspected["status"], "invalid")
+            self.assertIn(
+                "retired_skill_present:project-agent-bootstrap",
+                inspected["blockers"],
+            )
+            self.assertFalse(any("unrelated-skill" in blocker for blocker in inspected["blockers"]))
+
     def test_atomic_cohort_install_restores_exact_previous_cohort_on_fault(self) -> None:
         core = load_core()
         manifest = json.loads((ROOT / "authoring" / "public-resource-manifest.json").read_text(encoding="utf-8"))

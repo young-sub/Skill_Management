@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/core_harness.py
-# Source-SHA256: c2757744797ad2972add48fc186e1f1ee8c13677348755ea242d1b0e03daa75e
+# Source-SHA256: 069c5fc90ed2984b1668dd0f363c54e164258f599ba6d6e04d1809c0e53920cd
 
 #!/usr/bin/env python3
 """Deterministic Core-First Harness v3 contracts and compatibility checks."""
@@ -33,6 +33,7 @@ HARNESS_INSTALL_SKILLS = (
     "setup-agent-harness", "design-goal", "execute-codex-goal", "close-goal",
     "maintain-agent-harness", "diagnose",
 )
+RETIRED_HARNESS_SKILLS = ("project-agent-bootstrap",)
 ITEM_FIELDS = (
     "id", "title", "behavior_type", "what", "steps", "terms", "tests", "done",
     "depends_on", "non_goals", "decision", "material_risks", "priority",
@@ -1329,7 +1330,11 @@ def apply_amendment(
     contract: dict[str, Any], *, item_id: str, field: str, value: Any, message_id: str,
     actor: str, approved_at: str, risk: str,
 ) -> dict[str, Any]:
-    if risk in {"public_contract", "high", "destructive", "security", "privacy", "irreversible", "external_cost"}:
+    material_amendment_risks = MATERIAL_RISK_FLAGS | {
+        "public_contract", "acceptance", "architecture", "high",
+        "security", "privacy", "secret", "irreversible",
+    }
+    if risk in material_amendment_risks:
         return {"status": "focused_approval_required", "item_id": item_id, "field": field, "risk": risk}
     amended = deepcopy(contract)
     item = next((candidate for candidate in amended.get("items", []) if candidate.get("id") == item_id), None)
@@ -2252,6 +2257,10 @@ def inspect_installed_cohort(installed_root: Path, resource_manifest: dict[str, 
         return {"status": "invalid_manifest", "blockers": ["installed_manifest_invalid"], "components": {}}
     expected_files = set(files) | {COHORT_MANIFEST_RESOURCE}
     observed_files = _installed_cohort_files(installed_root)
+    for skill in RETIRED_HARNESS_SKILLS:
+        retired_path = installed_root / skill
+        if retired_path.exists() or retired_path.is_symlink():
+            blockers.append(f"retired_skill_present:{skill}")
     for relative in sorted(observed_files - expected_files):
         blockers.append(f"installed_resource_extra:{relative}")
     for relative in sorted(expected_files - observed_files):
