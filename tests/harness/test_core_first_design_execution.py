@@ -97,6 +97,11 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
         self.assertIn("No public API changes", page)
         self.assertIn("No public response changes", page)
         self.assertIn("비가역 마이그레이션", page)
+        self.assertIn("우선순위", page)
+        self.assertIn("핵심", page)
+        self.assertIn("선택", page)
+        self.assertIn("선행 Item", page)
+        self.assertIn("I-01 이후", page)
         for removed in ("검토 요청", "변경 후 달라지는 점", "동작 설계", "완료 판정 기준", "의존성과 작업 경계", "리스크와 검토 포인트", "review-facts", "기술 세부 정보", "tests.api.test_contract"):
             self.assertNotIn(removed, page)
         for forbidden in ("sha256:", "<pre", "frontmatter", "감사 부록", "```"):

@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/core_harness.py
-# Source-SHA256: 582da5d7ae8cd52fbd88fbb0397f2bf0b6e4b97c1737ec48534938a610558025
+# Source-SHA256: c2757744797ad2972add48fc186e1f1ee8c13677348755ea242d1b0e03daa75e
 
 #!/usr/bin/env python3
 """Deterministic Core-First Harness v3 contracts and compatibility checks."""
@@ -1019,7 +1019,16 @@ def _risk_label(risk: str) -> str:
 
 
 def _design_context(item: dict[str, Any]) -> str:
-    details: list[str] = []
+    priority = {"core": "핵심", "optional": "선택"}.get(
+        str(item.get("priority", "core")), str(item.get("priority", "core"))
+    )
+    dependencies = [str(value) for value in item.get("depends_on", [])]
+    dependency_text = " · ".join(dependencies) + " 이후" if dependencies else "없음"
+    details: list[str] = [
+        '<p class="item-metadata"><span><strong>우선순위</strong> '
+        + html.escape(priority) + '</span><span><strong>선행 Item</strong> '
+        + html.escape(dependency_text) + "</span></p>"
+    ]
     terms = item.get("terms", [])
     if terms:
         details.append(

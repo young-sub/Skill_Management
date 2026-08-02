@@ -1015,7 +1015,16 @@ def _risk_label(risk: str) -> str:
 
 
 def _design_context(item: dict[str, Any]) -> str:
-    details: list[str] = []
+    priority = {"core": "핵심", "optional": "선택"}.get(
+        str(item.get("priority", "core")), str(item.get("priority", "core"))
+    )
+    dependencies = [str(value) for value in item.get("depends_on", [])]
+    dependency_text = " · ".join(dependencies) + " 이후" if dependencies else "없음"
+    details: list[str] = [
+        '<p class="item-metadata"><span><strong>우선순위</strong> '
+        + html.escape(priority) + '</span><span><strong>선행 Item</strong> '
+        + html.escape(dependency_text) + "</span></p>"
+    ]
     terms = item.get("terms", [])
     if terms:
         details.append(
