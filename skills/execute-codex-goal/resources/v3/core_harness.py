@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/core_harness.py
-# Source-SHA256: c35e46592a272cb44f04fdba51708900f6fd15c705c9e4d9def571dcac249f5d
+# Source-SHA256: 2ada2300aae0cec3d388d7d95494005bcbbd1b29cb3b1db7d1b261dcd8cf0b9e
 
 #!/usr/bin/env python3
 """Deterministic Core-First Harness v3 contracts and compatibility checks."""
@@ -11,6 +11,7 @@ from copy import deepcopy
 from collections import Counter
 from datetime import date
 from hashlib import sha256
+import html
 import json
 import os
 from pathlib import Path
@@ -36,6 +37,10 @@ def canonical_digest(value: Any) -> str:
         value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
     ).encode("utf-8")
     return "sha256:" + sha256(encoded).hexdigest()
+
+
+def _contract_payload(contract: dict[str, Any]) -> dict[str, Any]:
+    return {key: deepcopy(value) for key, value in contract.items() if key != "approval"}
 
 
 def preview_project_v3(legacy: dict[str, Any]) -> dict[str, Any]:
@@ -125,7 +130,7 @@ def build_approval_bundle(
 ) -> dict[str, Any]:
     return {
         "schema_version": SCHEMA_VERSION,
-        "contract_digest": canonical_digest(contract),
+        "contract_digest": canonical_digest(_contract_payload(contract)),
         "review_digest": canonical_digest(review_html),
         "item_ids": [item.get("id") for item in contract.get("items", [])],
         "utterance": utterance,
@@ -139,7 +144,7 @@ def approval_bundle_matches(
 ) -> bool:
     return (
         bundle.get("schema_version") == SCHEMA_VERSION
-        and bundle.get("contract_digest") == canonical_digest(contract)
+        and bundle.get("contract_digest") == canonical_digest(_contract_payload(contract))
         and bundle.get("review_digest") == canonical_digest(review_html)
         and bundle.get("item_ids") == [item.get("id") for item in contract.get("items", [])]
     )
@@ -502,3 +507,214 @@ def compare_semantic_test_inventory(
             for record in records
         )
     return [] if semantic(before) == semantic(after) else ["semantic_test_inventory_changed"]
+
+
+def _list_html(values: list[Any]) -> str:
+    return "<ul>" + "".join(f"<li>{html.escape(str(value))}</li>" for value in values) + "</ul>"
+
+
+def _review_template(name: str) -> str:
+    candidates = (
+        Path(__file__).resolve().parents[1] / "templates" / "review" / name,
+        Path(__file__).resolve().parent / "templates" / "review" / name,
+    )
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate.read_text(encoding="utf-8")
+    raise FileNotFoundError(f"review_template_missing:{name}")
+
+
+def render_design_review_v3(contract: dict[str, Any]) -> str:
+    """Render the canonical Item projection; never embed contract source text."""
+    errors = validate_contract_v3(contract)
+    structural = [error for error in errors if "invalid_decision_state" not in error]
+    if structural:
+        raise ValueError("invalid_contract:" + ";".join(structural))
+    cards: list[str] = []
+    unresolved = 0
+    for item in contract["items"]:
+        decision = item.get("decision", {}).get("state")
+        if decision == "unresolved":
+            unresolved += 1
+        status = "✓ 결정 완료" if decision == "resolved" else "! 결정 필요"
+        terms = "".join(
+            '<p class="term"><strong>' + html.escape(str(term.get("term", ""))) + "</strong>: "
+            + html.escape(str(term.get("explanation", ""))) + "</p>"
+            for term in item.get("terms", [])
+        )
+        flow = '<div class="flow" aria-label="동작 흐름">' + "".join(
+            '<span class="flow-step">' + html.escape(str(step)) + "</span>"
+            + ('<span class="arrow" aria-hidden="true">→</span>' if index < len(item["steps"]) - 1 else "")
+            for index, step in enumerate(item["steps"])
+        ) + "</div>"
+        cards.append(
+            '<article class="item" data-item-id="' + html.escape(item["id"]) + '">'
+            '<header><span class="item-id">' + html.escape(item["id"]) + "</span><h2>"
+            + html.escape(item["title"]) + '</h2><span class="status">' + status + "</span></header>"
+            + '<section><h3>무엇을 구현하나요</h3><p>' + html.escape(item["what"]) + "</p></section>"
+            + '<section><h3>어떻게 동작하나요</h3>' + flow + terms + "</section>"
+            + '<section><h3>어떻게 테스트하나요</h3>' + _list_html(item["tests"]) + "</section>"
+            + '<section><h3>완료 기준</h3>' + _list_html(item["done"]) + "</section></article>"
+        )
+    decision_text = "결정 대기 없음" if unresolved == 0 else f"결정 필요 {unresolved}건"
+    summary = (
+        '<section class="summary"><div class="eyebrow">DESIGN REVIEW</div><h1>'
+        + html.escape(contract.get("goal", "")) + "</h1><p>"
+        + html.escape(contract.get("scope", "")) + '</p><p class="boundary">범위 밖: '
+        + html.escape("; ".join(contract.get("non_goals", []))) + "</p><p>Item "
+        + str(len(contract["items"])) + "개 · " + decision_text + "</p></section>"
+    )
+    return _review_template("design-item-review.html").replace("{{SUMMARY}}", summary).replace("{{ITEMS}}", "".join(cards)).rstrip() + "\n"
+
+
+def approve_review(
+    contract: dict[str, Any], review_html: str, *, utterance: str, actor: str, approved_at: str
+) -> dict[str, Any]:
+    if any(item.get("decision", {}).get("state") != "resolved" for item in contract.get("items", [])):
+        return {"status": "unresolved_decisions"}
+    normalized = utterance.strip().casefold().rstrip(".! ")
+    affirmative = normalized in {"승인", "승인합니다", "진행", "진행합니다", "approve", "approved", "yes"}
+    if not affirmative:
+        return {"status": "ambiguous_approval"}
+    approved = deepcopy(contract)
+    approved["approval"] = build_approval_bundle(
+        contract, review_html, utterance=utterance, actor=actor, approved_at=approved_at
+    )
+    return {"status": "approved", "contract": approved}
+
+
+def execution_authorized(
+    contract: dict[str, Any], review_html: str, *, host_goal: dict[str, Any] | None
+) -> dict[str, Any]:
+    del host_goal  # tracking is optional; approval is the authority.
+    bundle = contract.get("approval")
+    if not isinstance(bundle, dict):
+        return {"authorized": False, "errors": ["approval_required"]}
+    if not approval_bundle_matches(bundle, contract, review_html):
+        return {"authorized": False, "errors": ["approval_bundle_drift"]}
+    return {"authorized": True, "errors": []}
+
+
+def convert_legacy_contract(legacy: dict[str, Any]) -> dict[str, Any]:
+    status = legacy.get("status", "pending")
+    if status in {"in_progress", "blocked", "crash_interrupted"}:
+        return {"status": "cutover_blocked", "reason": f"legacy_work_{status}"}
+    requirements = list(legacy.get("requirements", []))
+    objective = str(legacy.get("objective", ""))
+    unresolved = [field for field in ("behavior_type", "observable_tests", "completion_criteria") if not legacy.get(field)]
+    item = {
+        "id": "I-01", "title": objective or "Legacy work", "behavior_type": legacy.get("behavior_type", "migration"),
+        "what": objective, "steps": requirements or [objective], "terms": [],
+        "tests": list(legacy.get("observable_tests", requirements or ["Resolve observable tests"])),
+        "done": list(legacy.get("completion_criteria", requirements or ["Resolve completion criteria"])),
+        "depends_on": [], "non_goals": list(legacy.get("non_goals", [])),
+        "decision": {"state": "unresolved" if unresolved else "resolved"},
+        "material_risks": [], "priority": "core",
+    }
+    return {
+        "status": "converted",
+        "contract": {
+            "schema_version": SCHEMA_VERSION, "work_id": legacy.get("work_id", ""),
+            "goal": objective, "scope": objective, "non_goals": list(legacy.get("non_goals", [])),
+            "items": [item],
+        },
+        "unresolved_fields": unresolved,
+    }
+
+
+def next_item(contract: dict[str, Any], state: dict[str, str]) -> dict[str, Any] | None:
+    ready = [
+        item for item in contract.get("items", [])
+        if state.get(item["id"], "pending") == "pending"
+        and all(state.get(dependency) == "completed" for dependency in item.get("depends_on", []))
+    ]
+    ready.sort(key=lambda item: (item.get("priority") != "core", contract["items"].index(item)))
+    return deepcopy(ready[0]) if ready else None
+
+
+def apply_amendment(
+    contract: dict[str, Any], *, item_id: str, field: str, value: Any, message_id: str,
+    actor: str, approved_at: str, risk: str,
+) -> dict[str, Any]:
+    if risk in {"public_contract", "high", "destructive", "security", "privacy", "irreversible", "external_cost"}:
+        return {"status": "focused_approval_required", "item_id": item_id, "field": field, "risk": risk}
+    amended = deepcopy(contract)
+    item = next((candidate for candidate in amended.get("items", []) if candidate.get("id") == item_id), None)
+    if item is None or field not in ITEM_FIELDS:
+        return {"status": "invalid_amendment", "errors": ["unknown_item_or_field"]}
+    old_digest = canonical_digest(_contract_payload(contract))
+    item[field] = value
+    event = {
+        "kind": "approved_amendment", "message_id": message_id, "item_id": item_id,
+        "field": field, "actor": actor, "approved_at": approved_at,
+        "old_contract_digest": old_digest,
+    }
+    amended.setdefault("amendments", []).append(event)
+    event["new_contract_digest"] = canonical_digest(_contract_payload(amended))
+    return {"status": "applied", "contract": amended, "event": event}
+
+
+def commit_item(
+    root: Path, item_id: str, paths: list[str], *, dirty_baseline: list[str]
+) -> dict[str, Any]:
+    overlap = sorted(set(paths) & set(dirty_baseline))
+    if overlap:
+        return {"status": "dirty_baseline_conflict", "paths": overlap}
+    for relative in paths:
+        _safe_repo_path(root.resolve(), relative)
+    add = subprocess.run(["git", "add", "--", *paths], cwd=root, capture_output=True, text=True, check=False)
+    if add.returncode:
+        return {"status": "git_error", "error": add.stderr.strip()}
+    staged = subprocess.run(
+        ["git", "diff", "--cached", "--name-only", "--"], cwd=root,
+        capture_output=True, text=True, check=False,
+    )
+    staged_paths = [line for line in staged.stdout.splitlines() if line]
+    unexpected = sorted(set(staged_paths) - set(paths))
+    if unexpected:
+        subprocess.run(["git", "restore", "--staged", "--", *unexpected], cwd=root, capture_output=True, check=False)
+        return {"status": "unexpected_staged_paths", "paths": unexpected}
+    committed = subprocess.run(
+        ["git", "commit", "-m", f"feat(harness): complete {item_id}"], cwd=root,
+        capture_output=True, text=True, check=False,
+    )
+    if committed.returncode:
+        return {"status": "git_error", "error": (committed.stderr or committed.stdout).strip()}
+    revision = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True, check=False
+    ).stdout.strip()
+    return {"status": "committed", "item_id": item_id, "commit": revision, "paths": staged_paths}
+
+
+def select_impacted_checks(
+    changed_paths: list[str], project: dict[str, Any]
+) -> dict[str, Any]:
+    rules = project.get("impact", {}).get("rules", [])
+    matched_rules: list[str] = []
+    tests: list[str] = []
+    features: list[str] = []
+    unresolved: list[str] = []
+    full_required = False
+    for path in changed_paths:
+        matches = [
+            rule for rule in rules
+            if any(path.replace("\\", "/").startswith(prefix.replace("\\", "/")) for prefix in rule.get("source_prefixes", []))
+        ]
+        if not matches:
+            unresolved.append(path)
+            continue
+        for rule in matches:
+            rule_id = str(rule.get("id", "unnamed"))
+            if rule_id not in matched_rules:
+                matched_rules.append(rule_id)
+            for test in rule.get("tests", []):
+                if test not in tests:
+                    tests.append(test)
+            feature = rule.get("feature")
+            if feature and feature not in features:
+                features.append(feature)
+            full_required = full_required or bool(rule.get("full"))
+    return {
+        "matched_rules": matched_rules, "tests": tests, "features": features,
+        "full_required": full_required, "unresolved": unresolved,
+    }

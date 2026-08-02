@@ -197,6 +197,14 @@
     {
       "source": "cohorts/v3/references/goal-execution-policy.md",
       "targets": ["execute-codex-goal/resources/v3/references/goal-execution-policy.md", "diagnose/resources/v3/references/goal-execution-policy.md"]
+    },
+    {
+      "source": "scripts/render_item_review.py",
+      "targets": ["design-goal/resources/v3/render_item_review.py"]
+    },
+    {
+      "source": "templates/review/design-item-review.html",
+      "targets": ["design-goal/resources/v3/templates/review/design-item-review.html"]
     }
   ]
 }
