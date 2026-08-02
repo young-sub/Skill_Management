@@ -22,7 +22,7 @@ def load_core():
 def result_payload() -> dict:
     return {
         "items": [
-            {"id": "I-01", "actual": "요청을 검증하고 응답한다", "actual_steps": ["요청", "검증", "응답"], "checks": [{"kind": "Targeted", "command": "python -m unittest auth", "status": "passed"}], "done": [True], "delta": {"material": False}},
+            {"id": "I-01", "actual": "요청 검증과 응답 생성 경계를 분리해 공개 응답을 유지했다.", "actual_steps": ["요청 수신", "입력 검증", "응답 반환"], "actual_outcomes": ["정상 요청은 기존 응답 형식을 유지한다", "잘못된 요청은 명시적인 오류를 반환한다"], "checks": [{"kind": "Targeted", "summary": "정상·거부 요청의 공개 응답을 검증", "command": "python -m unittest auth", "status": "passed"}], "criteria": [{"criterion": "관련 공개 동작이 통과한다", "status": "passed", "evidence": "정상·거부 요청 회귀 테스트 통과"}], "done": [True], "delta": {"material": False, "summary": "승인된 설계와 동일", "impact": "추가 승인 불필요"}},
             {"id": "I-02", "actual": "선택 기능을 제공한다", "actual_steps": ["입력", "처리", "출력"], "checks": [{"kind": "Feature", "command": "python -m unittest optional", "status": "passed"}], "done": [True], "delta": {"material": False}},
         ],
         "full": {"status": "not_required", "rule": "independent_capability"},
@@ -49,9 +49,15 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
         page = core.render_result_review_v3(contract(), result_payload())
         self.assertIn('lang="ko"', page)
         self.assertLess(page.index('data-item-id="I-01"'), page.index('data-item-id="I-02"'))
-        self.assertIn("계획대로 구현됨", page)
-        self.assertIn("실제 동작", page)
-        self.assertIn("flow-step", page)
+        for label in ("구현된 변화", "실제 동작과 관찰 결과", "검증 근거", "완료 기준별 판정", "계획 대비 변경"):
+            self.assertIn(label, page)
+        self.assertIn("정상 요청은 기존 응답 형식을 유지한다", page)
+        self.assertIn("정상·거부 요청의 공개 응답을 검증", page)
+        self.assertIn("관련 공개 동작이 통과한다", page)
+        self.assertIn("정상·거부 요청 회귀 테스트 통과", page)
+        self.assertIn("승인된 설계와 동일", page)
+        self.assertIn("추가 승인 불필요", page)
+        self.assertIn("criteria-table", page)
         self.assertIn("✓ 완료", page)
         for forbidden in ("sha256:", "<pre", "frontmatter", "감사 부록", "```"):
             self.assertNotIn(forbidden, page)

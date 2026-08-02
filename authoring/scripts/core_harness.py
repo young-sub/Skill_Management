@@ -558,8 +558,73 @@ def compare_semantic_test_inventory(
     return [] if semantic(before) == semantic(after) else ["semantic_test_inventory_changed"]
 
 
-def _list_html(values: list[Any]) -> str:
-    return "<ul>" + "".join(f"<li>{html.escape(str(value))}</li>" for value in values) + "</ul>"
+def _list_html(values: list[Any], *, class_name: str = "review-list") -> str:
+    return '<ul class="' + class_name + '">' + "".join(
+        f"<li>{html.escape(str(value))}</li>" for value in values
+    ) + "</ul>"
+
+
+def _behavior_label(behavior_type: str) -> str:
+    return {
+        "migration": "전환 설계", "tool": "도구 흐름", "api": "요청 처리 흐름",
+        "ui": "사용자 경험 흐름", "bugfix": "문제 교정 흐름",
+    }.get(behavior_type, "동작 흐름")
+
+
+def _step_roles(behavior_type: str, steps: list[Any]) -> list[str]:
+    count = len(steps)
+    if count == 0:
+        return []
+    if behavior_type == "migration":
+        roles = ["전환"] * count
+        roles[0] = "전제 조건"
+        rollback = any(token in str(steps[-1]).casefold() for token in ("rollback", "복구", "되돌"))
+        roles[-1] = "복구" if rollback else "완료 상태"
+        if count > 2:
+            roles[-2] = "검증"
+        return roles
+    if behavior_type in {"tool", "api"}:
+        roles = ["처리"] * count
+        roles[0] = "입력"
+        roles[-1] = "관찰 결과"
+        if count > 3:
+            roles[-2] = "검증"
+        return roles
+    if behavior_type == "ui":
+        roles = ["상태 변화"] * count
+        roles[0] = "사용자 행동"
+        roles[-1] = "화면 결과"
+        return roles
+    if behavior_type == "bugfix":
+        names = ["실패 증상", "원인", "교정 동작", "회귀 검증"]
+        return [names[min(index, len(names) - 1)] for index in range(count)]
+    return [f"단계 {index + 1}" for index in range(count)]
+
+
+def _behavior_visual(behavior_type: str, steps: list[Any], *, actual: bool = False) -> str:
+    roles = _step_roles(behavior_type, steps)
+    nodes = "".join(
+        '<li class="flow-step"><span class="stage-label">' + html.escape(role)
+        + '</span><p>' + html.escape(str(step)) + "</p></li>"
+        for role, step in zip(roles, steps)
+    )
+    qualifier = "실제 " if actual else ""
+    return (
+        '<figure class="behavior-visual" data-visual="' + html.escape(behavior_type)
+        + '"><figcaption>' + qualifier + _behavior_label(behavior_type)
+        + '</figcaption><ol class="behavior-map">' + nodes + "</ol></figure>"
+    )
+
+
+def _terms_html(terms: list[dict[str, Any]]) -> str:
+    if not terms:
+        return ""
+    entries = "".join(
+        '<div class="term-entry"><dt>' + html.escape(str(term.get("term", "")))
+        + '</dt><dd>' + html.escape(str(term.get("explanation", ""))) + "</dd></div>"
+        for term in terms
+    )
+    return '<aside class="term-note"><h4>용어 안내</h4><dl>' + entries + "</dl></aside>"
 
 
 def _review_template(name: str) -> str:
@@ -601,32 +666,48 @@ def render_design_review_v3(contract: dict[str, Any]) -> str:
         if decision == "unresolved":
             unresolved += 1
         status = "✓ 결정 완료" if decision == "resolved" else "! 결정 필요"
-        terms = "".join(
-            '<p class="term"><strong>' + html.escape(str(term.get("term", ""))) + "</strong>: "
-            + html.escape(str(term.get("explanation", ""))) + "</p>"
-            for term in item.get("terms", [])
+        behavior_type = str(item.get("behavior_type", "tool"))
+        dependencies = item.get("depends_on", [])
+        dependency_text = [f"{dependency} 완료 후 시작" for dependency in dependencies]
+        boundaries = dependency_text + [
+            "이번 Item에서 하지 않음: " + str(value) for value in item.get("non_goals", [])
+        ]
+        boundary_section = (
+            '<section class="review-section boundary-section"><h3><span>05</span>의존성과 작업 경계</h3>'
+            + _list_html(boundaries, class_name="boundary-list") + "</section>"
+            if boundaries else ""
         )
-        flow = '<div class="flow" aria-label="동작 흐름">' + "".join(
-            '<span class="flow-step">' + html.escape(str(step)) + "</span>"
-            + ('<span class="arrow" aria-hidden="true">→</span>' if index < len(item["steps"]) - 1 else "")
-            for index, step in enumerate(item["steps"])
-        ) + "</div>"
+        risks = list(item.get("material_risks", []))
+        risk_section = (
+            '<section class="review-section risk-section"><h3><span>06</span>리스크와 검토 포인트</h3>'
+            + _list_html(risks, class_name="risk-list") + "</section>"
+            if risks else ""
+        )
         cards.append(
             '<article class="item" data-item-id="' + html.escape(item["id"]) + '">'
-            '<header><span class="item-id">' + html.escape(item["id"]) + "</span><h2>"
-            + html.escape(item["title"]) + '</h2><span class="status">' + status + "</span></header>"
-            + '<section><h3>무엇을 구현하나요</h3><p>' + html.escape(item["what"]) + "</p></section>"
-            + '<section><h3>어떻게 동작하나요</h3>' + flow + terms + "</section>"
-            + '<section><h3>어떻게 테스트하나요</h3>' + _list_html(item["tests"]) + "</section>"
-            + '<section><h3>완료 기준</h3>' + _list_html(item["done"]) + "</section></article>"
+            '<header class="item-heading"><div><span class="item-id">' + html.escape(item["id"])
+            + '</span><span class="item-kind">' + html.escape(_behavior_label(behavior_type))
+            + '</span></div><h2>' + html.escape(item["title"])
+            + '</h2><span class="status">' + status + "</span></header>"
+            + '<section class="review-section change-section"><h3><span>01</span>변경 후 달라지는 점</h3><p class="lead-copy">'
+            + html.escape(item["what"]) + "</p>" + _terms_html(item.get("terms", [])) + "</section>"
+            + '<section class="review-section visual-section"><h3><span>02</span>동작 설계</h3>'
+            + _behavior_visual(behavior_type, item["steps"]) + "</section>"
+            + '<div class="evidence-grid"><section class="review-section"><h3><span>03</span>검증 시나리오</h3>'
+            + _list_html(item["tests"]) + '</section><section class="review-section"><h3><span>04</span>완료 판정 기준</h3>'
+            + _list_html(item["done"], class_name="criteria-list") + "</section></div>"
+            + boundary_section + risk_section + "</article>"
         )
     decision_text = "결정 대기 없음" if unresolved == 0 else f"결정 필요 {unresolved}건"
     summary = (
-        '<section class="summary"><div class="eyebrow">DESIGN REVIEW</div><h1>'
-        + html.escape(contract.get("goal", "")) + "</h1><p>"
-        + html.escape(contract.get("scope", "")) + '</p><p class="boundary">범위 밖: '
-        + html.escape("; ".join(contract.get("non_goals", []))) + "</p><p>Item "
-        + str(len(contract["items"])) + "개 · " + decision_text + "</p></section>"
+        '<header class="review-masthead"><div class="document-mark"><span>설계 검토</span><strong>DESIGN / '
+        + html.escape(str(contract.get("work_id", ""))) + '</strong></div><h1>'
+        + html.escape(contract.get("goal", "")) + '</h1><p class="standfirst">구현에 앞서 변화의 범위, 동작, 검증, 완료 조건을 Item별로 확인합니다.</p>'
+        + '<dl class="review-facts"><div><dt>변경 목표</dt><dd>' + html.escape(contract.get("goal", ""))
+        + '</dd></div><div><dt>적용 범위</dt><dd>' + html.escape(contract.get("scope", ""))
+        + '</dd></div><div><dt>제외 범위</dt><dd>' + html.escape("; ".join(contract.get("non_goals", [])))
+        + '</dd></div><div><dt>결정 현황</dt><dd>Item ' + str(len(contract["items"]))
+        + "개 · " + decision_text + "</dd></div></dl></header>"
     )
     return _review_template("design-item-review.html").replace("{{SUMMARY}}", summary).replace("{{ITEMS}}", "".join(cards)).rstrip() + "\n"
 
@@ -796,7 +877,14 @@ def evaluate_result(
             checks = actual.get("checks", [])
             if not checks or any(check.get("status") not in {"passed", "not_required"} for check in checks):
                 item_errors.append("relevant_check_failed_or_unrun")
-            if not actual.get("done") or not all(actual.get("done", [])):
+            criteria = actual.get("criteria")
+            criteria_met = (
+                bool(criteria)
+                and all(criterion.get("status") in {"passed", "satisfied"} for criterion in criteria)
+                if isinstance(criteria, list)
+                else bool(actual.get("done")) and all(actual.get("done", []))
+            )
+            if not criteria_met:
                 item_errors.append("completion_criteria_unmet")
             if actual.get("delta", {}).get("material") and actual.get("delta", {}).get("approval") != "approved":
                 item_errors.append("material_delta_unapproved")
@@ -823,44 +911,77 @@ def render_result_review_v3(contract: dict[str, Any], result: dict[str, Any]) ->
     for planned in contract.get("items", []):
         actual = result_by_id.get(planned["id"], {})
         checks = actual.get("checks", [])
-        done = bool(actual.get("done")) and all(actual.get("done", []))
+        criteria = actual.get("criteria")
+        if isinstance(criteria, list):
+            criteria_rows = criteria
+            done = bool(criteria_rows) and all(
+                row.get("status") in {"passed", "satisfied"} for row in criteria_rows
+            )
+        else:
+            done_values = list(actual.get("done", []))
+            done = bool(done_values) and all(done_values)
+            criteria_rows = [
+                {
+                    "criterion": criterion,
+                    "status": "passed" if index < len(done_values) and done_values[index] else "failed",
+                    "evidence": "검증 결과에 따라 판정",
+                }
+                for index, criterion in enumerate(planned.get("done", []))
+            ]
         checks_ok = bool(checks) and all(check.get("status") in {"passed", "not_required"} for check in checks)
         delta = actual.get("delta", {})
         material = bool(delta.get("material"))
         complete = done and checks_ok and (not material or delta.get("approval") == "approved")
         completed += int(complete)
         status = "✓ 완료" if complete else "! 미완료"
-        delta_text = "계획대로 구현됨 (implemented as planned)" if not material else "승인 필요: " + str(delta.get("summary", "material delta"))
-        flow = '<div class="flow actual-flow" aria-label="실제 동작 흐름">' + "".join(
-            '<span class="flow-step">' + html.escape(str(step)) + "</span>"
-            + ('<span class="arrow" aria-hidden="true">→</span>' if index < len(actual.get("actual_steps", [])) - 1 else "")
-            for index, step in enumerate(actual.get("actual_steps", []))
-        ) + "</div>"
+        delta_text = str(delta.get("summary") or ("계획대로 구현됨" if not material else "material delta"))
+        delta_impact = str(delta.get("impact") or ("추가 승인 불필요" if not material else "승인 필요"))
         check_rows = "".join(
-            "<li><strong>" + html.escape(str(check.get("kind", "Check"))) + "</strong> · "
-            + html.escape(str(check.get("status", "unknown"))) + " · "
-            + html.escape(str(check.get("command", ""))) + "</li>"
+            '<li class="check-row"><div><span class="check-kind">' + html.escape(str(check.get("kind", "Check")))
+            + '</span><strong>' + html.escape(str(check.get("summary") or "관련 동작 검증"))
+            + '</strong></div><span class="check-status ' + html.escape(str(check.get("status", "unknown")))
+            + '">' + ("✓ 통과" if check.get("status") == "passed" else html.escape(str(check.get("status", "unknown"))))
+            + '</span><code>' + html.escape(str(check.get("command", ""))) + "</code></li>"
             for check in checks
         )
-        terms = "".join(
-            '<p class="term"><strong>' + html.escape(str(term.get("term", ""))) + "</strong>: "
-            + html.escape(str(term.get("explanation", ""))) + "</p>"
-            for term in planned.get("terms", [])
+        outcome_values = list(actual.get("actual_outcomes", []))
+        outcomes = _list_html(outcome_values, class_name="outcome-list") if outcome_values else ""
+        criteria_html = "".join(
+            '<div class="criteria-row"><span class="criterion-status ' + html.escape(str(row.get("status", "unknown")))
+            + '">' + ("✓ 충족" if row.get("status") in {"passed", "satisfied"} else "! 미충족")
+            + '</span><strong>' + html.escape(str(row.get("criterion", "")))
+            + '</strong><p>' + html.escape(str(row.get("evidence", ""))) + "</p></div>"
+            for row in criteria_rows
         )
+        behavior_type = str(planned.get("behavior_type", "tool"))
         cards.append(
-            '<article class="item" data-item-id="' + html.escape(planned["id"]) + '"><header><span class="item-id">'
-            + html.escape(planned["id"]) + "</span><h2>" + html.escape(planned["title"])
-            + '</h2><span class="status">' + status + "</span></header>"
-            + '<section><h3>실제 구현</h3><p>' + html.escape(str(actual.get("actual", "결과 없음"))) + "</p></section>"
-            + '<section><h3>실제 동작</h3>' + flow + terms + "</section>"
-            + '<section><h3>관련 테스트</h3><ul>' + check_rows + "</ul></section>"
-            + '<section><h3>완료 기준</h3><p>' + ("충족" if done else "미충족") + "</p></section>"
-            + '<section><h3>계획 대비 실제</h3><p class="delta' + (" material" if material else "") + '">' + html.escape(delta_text) + "</p></section></article>"
+            '<article class="item" data-item-id="' + html.escape(planned["id"]) + '"><header class="item-heading"><div><span class="item-id">'
+            + html.escape(planned["id"]) + '</span><span class="item-kind">' + html.escape(_behavior_label(behavior_type))
+            + '</span></div><h2>' + html.escape(planned["title"]) + '</h2><span class="status">' + status + "</span></header>"
+            + '<section class="review-section change-section"><h3><span>01</span>구현된 변화</h3><p class="lead-copy">'
+            + html.escape(str(actual.get("actual", "결과 없음"))) + "</p>" + _terms_html(planned.get("terms", [])) + "</section>"
+            + '<section class="review-section visual-section"><h3><span>02</span>실제 동작과 관찰 결과</h3>'
+            + _behavior_visual(behavior_type, list(actual.get("actual_steps", [])), actual=True) + outcomes + "</section>"
+            + '<section class="review-section"><h3><span>03</span>검증 근거</h3><ul class="check-list">' + check_rows + "</ul></section>"
+            + '<section class="review-section"><h3><span>04</span>완료 기준별 판정</h3><div class="criteria-table" role="table">'
+            + criteria_html + "</div></section>"
+            + '<section class="review-section delta-section' + (" material" if material else "")
+            + '"><h3><span>05</span>계획 대비 변경</h3><div class="delta-copy"><strong>'
+            + html.escape(delta_text) + '</strong><p>' + html.escape(delta_impact) + "</p></div></section></article>"
         )
+    full = result.get("full", {})
+    full_label = "Full 통과" if full.get("status") == "passed" else (
+        "Full 제외" if full.get("status") == "not_required" else "Full 미실행"
+    )
     summary = (
-        '<section class="summary"><div class="eyebrow">RESULT REVIEW</div><h1>'
-        + html.escape(contract.get("goal", "")) + "</h1><p>완료 " + str(completed)
-        + " / " + str(len(contract.get("items", []))) + "</p></section>"
+        '<header class="review-masthead result-masthead"><div class="document-mark"><span>구현 결과 검토</span><strong>RESULT / '
+        + html.escape(str(contract.get("work_id", ""))) + '</strong></div><h1>'
+        + html.escape(contract.get("goal", "")) + '</h1><p class="standfirst">승인된 설계가 실제 동작과 검증 결과로 충족되었는지 Item별로 확인합니다.</p>'
+        + '<dl class="review-facts"><div><dt>완료 현황</dt><dd>' + str(completed) + " / "
+        + str(len(contract.get("items", []))) + ' Item</dd></div><div><dt>검증 범위</dt><dd>'
+        + html.escape(full_label) + '</dd></div><div><dt>최종 판정</dt><dd>'
+        + ("모든 Item 완료" if completed == len(contract.get("items", [])) else "미완료 Item 있음")
+        + '</dd></div></dl></header>'
     )
     return _review_template("result-item-review.html").replace("{{SUMMARY}}", summary).replace("{{ITEMS}}", "".join(cards)).rstrip() + "\n"
 

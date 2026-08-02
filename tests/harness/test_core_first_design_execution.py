@@ -37,15 +37,31 @@ def contract() -> dict:
 class CoreFirstDesignExecutionTests(unittest.TestCase):
     def test_korean_design_review_is_item_bound_visual_and_human_readable(self) -> None:
         core = load_core()
-        page = core.render_design_review_v3(contract())
+        source = contract()
+        source["items"][0].update({
+            "behavior_type": "migration",
+            "what": "기존 API 계약을 유지하면서 새 검증 경로로 안전하게 전환하고, 실패하면 이전 상태를 보존한다.",
+            "steps": ["기존 요청 경로와 기준선을 확인한다", "새 검증 경로를 활성화한다", "대표 요청의 응답을 비교한다", "오류가 나면 기존 경로로 복구한다"],
+            "non_goals": ["공개 API 응답 형식 변경"],
+            "material_risks": ["전환 중 기존 요청이 새 검증 경로와 섞이지 않아야 한다"],
+        })
+        source["items"][1]["depends_on"] = ["I-01"]
+        page = core.render_design_review_v3(source)
         self.assertIn('lang="ko"', page)
         self.assertLess(page.index('data-item-id="I-01"'), page.index('data-item-id="I-02"'))
-        for label in ("무엇을 구현하나요", "어떻게 동작하나요", "어떻게 테스트하나요", "완료 기준"):
+        for label in ("변경 후 달라지는 점", "동작 설계", "검증 시나리오", "완료 판정 기준", "의존성과 작업 경계", "리스크와 검토 포인트"):
             self.assertIn(label, page)
+        for summary_label in ("변경 목표", "적용 범위", "제외 범위", "결정 현황"):
+            self.assertIn(summary_label, page)
         self.assertIn("Impact rule", page)
-        self.assertIn("변경과 검사를 연결하는 규칙", page)
-        self.assertIn("flow-step", page)
+        self.assertIn('data-visual="migration"', page)
+        self.assertIn("전제 조건", page)
+        self.assertIn("복구", page)
+        self.assertIn("I-01 완료 후 시작", page)
+        self.assertIn("공개 API 응답 형식 변경", page)
+        self.assertIn("전환 중 기존 요청이 새 검증 경로와 섞이지 않아야 한다", page)
         self.assertIn("✓ 결정 완료", page)
+        self.assertIn("review-masthead", page)
         for forbidden in ("sha256:", "<pre", "frontmatter", "감사 부록", "```"):
             self.assertNotIn(forbidden, page)
         self.assertNotIn("source-sha256", page.casefold())
