@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -6,10 +7,11 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[2]
+SKILLS_ROOT = Path(os.environ.get("HARNESS_SKILLS_ROOT", str(ROOT / "skills")))
 
 
 def cli(skill: str) -> Path:
-    return ROOT / "skills" / skill / "scripts" / "core_harness.py"
+    return SKILLS_ROOT / skill / "scripts" / "core_harness.py"
 
 
 def run_cli(skill: str, *args: str, cwd: Path | None = None) -> dict:
