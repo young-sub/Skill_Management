@@ -103,7 +103,8 @@ class InstallUpdateSmokeTests(unittest.TestCase):
             self.assertEqual(result.returncode == 0, expect_success, diagnostics)
             if not expect_success:
                 return diagnostics, {}
-            self.assertIn("Install and update smoke test passed for 18 public skills", diagnostics)
+            public_skill_count = len(list((ROOT / "skills").glob("*/SKILL.md")))
+            self.assertIn(f"Install and update smoke test passed for {public_skill_count} public skills", diagnostics)
             for skill in (ROOT / "skills").glob("*/SKILL.md"):
                 for provider in (".agents", ".claude"):
                     source_root = skill.parent
@@ -126,7 +127,8 @@ class InstallUpdateSmokeTests(unittest.TestCase):
     def test_local_source_noop_update_falls_back_to_add_refresh(self) -> None:
         diagnostics, evidence = self.run_fake_smoke(update_mode="noop")
         self.assertIn("Native update unsupported/no-op for local source", diagnostics)
-        self.assertIn("Local source refresh passed for 18 public skills", diagnostics)
+        public_skill_count = len(list((ROOT / "skills").glob("*/SKILL.md")))
+        self.assertIn(f"Local source refresh passed for {public_skill_count} public skills", diagnostics)
         self.assertEqual(evidence["schema_version"], 2)
         self.assertEqual(evidence["evidence_kind"], "local_source_install_refresh")
         expected_commit = subprocess.run(
