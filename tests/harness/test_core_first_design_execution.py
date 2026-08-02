@@ -72,7 +72,7 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
                 {"target": "실패 복구", "method": "새 경로에서 오류를 발생시킨다", "expected": "기존 경로로 복구된다", "selector": "tests.api.test_rollback"},
             ],
             "non_goals": ["공개 API 응답 형식 변경"],
-            "material_risks": ["전환 중 기존 요청이 새 검증 경로와 섞이지 않아야 한다"],
+            "material_risks": ["irreversible_migration"],
         })
         source["items"][1]["depends_on"] = ["I-01"]
         for index, test in enumerate(source["items"][0]["tests"], 1):
@@ -142,7 +142,7 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
         )["status"], "invalid_contract")
 
         high = contract()
-        high["items"][0]["material_risks"] = ["security"]
+        high["items"][0]["material_risks"] = ["security_privacy"]
         self.assertEqual(core.authorize_design(
             high, intent="default", actor="policy",
             authorized_at="2026-08-02T12:00:00+09:00",
@@ -156,17 +156,53 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
             explicit["contract"], project=v3_project(), host_goal=None,
         )["authorized"])
 
+        repeated = core.authorize_design(
+            vetoed["contract"], intent="default", actor="policy",
+            authorized_at="2026-08-02T12:02:00+09:00",
+        )
+        self.assertEqual(repeated["status"], "vetoed")
+        self.assertEqual(repeated["contract"]["authorization"]["mode"], "vetoed")
+
     def test_legacy_pending_conversion_is_lossless_but_active_work_blocks(self) -> None:
         core = load_core()
         legacy = {"work_id": "W-old", "status": "pending", "objective": "deliver", "requirements": ["A", "B"], "non_goals": ["C"]}
         converted = core.convert_legacy_contract(legacy)
         self.assertEqual(converted["status"], "converted")
+        self.assertEqual(core.validate_contract_v3(converted["contract"]), [])
         serialized = json.dumps(converted["contract"], ensure_ascii=False)
         for value in ("deliver", "A", "B", "C"):
             self.assertIn(value, serialized)
         self.assertTrue(converted["unresolved_fields"])
         active = dict(legacy, status="in_progress")
         self.assertEqual(core.convert_legacy_contract(active)["status"], "cutover_blocked")
+
+    def test_start_revalidates_the_actual_project_cohort_before_git_mutation(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            subprocess.run(["git", "init", "-b", "develop"], cwd=root, check=True, capture_output=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+            (root / "README.md").write_text("baseline\n", encoding="utf-8")
+            subprocess.run(["git", "add", "README.md"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-m", "baseline"], cwd=root, check=True, capture_output=True)
+            source = contract()
+            source["work_id"] = "W-start"
+            authorized = core.authorize_design(
+                source, intent="default", actor="policy",
+                authorized_at="2026-08-02T12:00:00+09:00",
+            )["contract"]
+            mixed = v3_project()
+            mixed["harness"]["components"]["close"] = {"supports": [2]}
+
+            result = core.start_work(root, "W-start", "feature", authorized, project=mixed)
+
+            self.assertEqual(result["status"], "authorization_failed")
+            self.assertIn("mixed_cohort:close:3", result["errors"])
+            branch = subprocess.run(
+                ["git", "branch", "--show-current"], cwd=root, text=True, capture_output=True, check=True,
+            ).stdout.strip()
+            self.assertEqual(branch, "develop")
 
     def test_core_item_precedes_optional_and_amendments_are_risk_based(self) -> None:
         core = load_core()

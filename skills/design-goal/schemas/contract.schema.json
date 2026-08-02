@@ -8,14 +8,15 @@
     "schema_version": {"const": 3}, "work_id": {"type": "string", "minLength": 1},
     "goal": {"type": "string", "minLength": 1}, "scope": {"type": "string", "minLength": 1},
     "non_goals": {"$ref": "#/$defs/stringList"},
-    "items": {"type": "array", "minItems": 2, "maxItems": 5, "items": {"$ref": "#/$defs/item"}},
+    "items": {"type": "array", "minItems": 1, "maxItems": 5, "items": {"$ref": "#/$defs/item"}},
     "authorization": {"$ref": "#/$defs/authorization"},
     "amendments": {"type": "array", "items": {"$ref": "#/$defs/amendment"}},
     "extensions": {"type": "object"}
   },
   "$defs": {
     "stringList": {"type": "array", "items": {"type": "string"}},
-    "term": {"type": "object", "required": ["term", "explanation"], "properties": {"term": {"type": "string"}, "explanation": {"type": "string"}}, "additionalProperties": false},
+    "riskList": {"type": "array", "uniqueItems": true, "items": {"enum": ["destructive", "security_privacy", "secret_handling", "irreversible_migration", "external_cost", "push", "publish", "global_configuration"]}},
+    "term": {"type": "object", "required": ["term", "explanation"], "properties": {"term": {"type": "string", "minLength": 1}, "explanation": {"type": "string", "minLength": 1}}, "additionalProperties": false},
     "testCase": {
       "type": "object",
       "required": ["id", "target", "method", "expected", "selector"],
@@ -40,7 +41,7 @@
         "tests": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/testCase"}},
         "done": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/doneCriterion"}},
         "depends_on": {"$ref": "#/$defs/stringList"}, "non_goals": {"$ref": "#/$defs/stringList"},
-        "decision": {"$ref": "#/$defs/decision"}, "material_risks": {"$ref": "#/$defs/stringList"},
+        "decision": {"$ref": "#/$defs/decision"}, "material_risks": {"$ref": "#/$defs/riskList"},
         "priority": {"enum": ["core", "optional"]}
       },
       "additionalProperties": false

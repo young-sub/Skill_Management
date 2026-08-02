@@ -33,6 +33,13 @@ ITEM_FIELDS = (
     "id", "title", "behavior_type", "what", "steps", "terms", "tests", "done",
     "depends_on", "non_goals", "decision", "material_risks", "priority",
 )
+BEHAVIOR_TYPES = {"tool", "api", "ui", "bugfix", "migration"}
+ITEM_PRIORITIES = {"core", "optional"}
+MATERIAL_RISK_FLAGS = {
+    "destructive", "security_privacy", "secret_handling",
+    "irreversible_migration", "external_cost", "push", "publish",
+    "global_configuration",
+}
 
 
 def canonical_digest(value: Any) -> str:
@@ -127,10 +134,20 @@ def validate_contract_v3(contract: dict[str, Any]) -> list[str]:
     for field in ("work_id", "goal", "scope"):
         if not isinstance(contract.get(field), str) or not contract[field].strip():
             errors.append(f"contract:missing:{field}")
-    if not isinstance(contract.get("non_goals"), list):
+    if isinstance(contract.get("work_id"), str):
+        try:
+            validate_work_id(contract["work_id"])
+        except ValueError:
+            errors.append("contract:invalid:work_id")
+    contract_non_goals = contract.get("non_goals")
+    if not isinstance(contract_non_goals, list):
         errors.append("contract:expected_list:non_goals")
+    else:
+        for index, value in enumerate(contract_non_goals):
+            if not isinstance(value, str):
+                errors.append(f"contract:non_goals:{index}:expected_string")
     items = contract.get("items")
-    if not isinstance(items, list) or not 2 <= len(items) <= 5:
+    if not isinstance(items, list) or not 1 <= len(items) <= 5:
         errors.append("items:count_out_of_range")
         return errors
     seen: set[str] = set()
@@ -148,13 +165,47 @@ def validate_contract_v3(contract: dict[str, Any]) -> list[str]:
         for field in ITEM_FIELDS:
             if field not in item or item[field] in (None, ""):
                 errors.append(f"item:{item_id}:missing:{field}")
-        for field in ("steps", "tests", "done", "depends_on", "non_goals", "material_risks"):
+        for field in ("id", "title", "what"):
+            if field in item and (not isinstance(item[field], str) or not item[field].strip()):
+                errors.append(f"item:{item_id}:invalid:{field}")
+        if item.get("behavior_type") not in BEHAVIOR_TYPES:
+            errors.append(f"item:{item_id}:invalid_behavior_type")
+        if item.get("priority") not in ITEM_PRIORITIES:
+            errors.append(f"item:{item_id}:invalid_priority")
+        for field in ("steps", "terms", "tests", "done", "depends_on", "non_goals", "material_risks"):
             if field in item and not isinstance(item[field], list):
                 errors.append(f"item:{item_id}:expected_list:{field}")
-        if item.get("decision", {}).get("state") not in {"resolved", "unresolved"}:
+        for field in ("steps", "depends_on", "non_goals"):
+            values = item.get(field)
+            if isinstance(values, list):
+                if field == "steps" and not values:
+                    errors.append(f"item:{item_id}:steps:empty")
+                for value_index, value in enumerate(values):
+                    if not isinstance(value, str) or (field == "steps" and not value.strip()):
+                        errors.append(f"item:{item_id}:{field}:{value_index}:expected_string")
+        risks = item.get("material_risks")
+        if isinstance(risks, list):
+            for risk in risks:
+                if risk not in MATERIAL_RISK_FLAGS:
+                    errors.append(f"item:{item_id}:invalid_material_risk:{risk}")
+        terms = item.get("terms")
+        if isinstance(terms, list):
+            for term_index, term in enumerate(terms):
+                if not isinstance(term, dict):
+                    errors.append(f"item:{item_id}:term:{term_index}:expected_object")
+                    continue
+                if set(term) != {"term", "explanation"}:
+                    errors.append(f"item:{item_id}:term:{term_index}:schema_invalid")
+                for field in ("term", "explanation"):
+                    if not isinstance(term.get(field), str) or not term[field].strip():
+                        errors.append(f"item:{item_id}:term:{term_index}:missing:{field}")
+        decision = item.get("decision")
+        if not isinstance(decision, dict) or set(decision) != {"state"} or decision.get("state") not in {"resolved", "unresolved"}:
             errors.append(f"item:{item_id}:invalid_decision_state")
         tests = item.get("tests")
         if isinstance(tests, list):
+            if not tests:
+                errors.append(f"item:{item_id}:tests:empty")
             test_ids: set[str] = set()
             for test_index, test in enumerate(tests):
                 if not isinstance(test, dict):
@@ -172,6 +223,8 @@ def validate_contract_v3(contract: dict[str, Any]) -> list[str]:
                 test_ids.add(test_id)
         done = item.get("done")
         if isinstance(done, list):
+            if not done:
+                errors.append(f"item:{item_id}:done:empty")
             done_ids: set[str] = set()
             for done_index, criterion in enumerate(done):
                 if not isinstance(criterion, dict):
@@ -191,6 +244,25 @@ def validate_contract_v3(contract: dict[str, Any]) -> list[str]:
         for dependency in dependencies:
             if dependency not in seen:
                 errors.append(f"item:{item_id}:missing_dependency:{dependency}")
+    visiting: set[str] = set()
+    visited: set[str] = set()
+
+    def visit(item_id: str) -> bool:
+        if item_id in visiting:
+            return True
+        if item_id in visited:
+            return False
+        visiting.add(item_id)
+        cycle = any(
+            dependency in dependency_map and visit(dependency)
+            for dependency in dependency_map.get(item_id, [])
+        )
+        visiting.remove(item_id)
+        visited.add(item_id)
+        return cycle
+
+    if any(visit(item_id) for item_id in dependency_map):
+        errors.append("items:dependency_cycle")
     return sorted(set(errors))
 
 
@@ -1020,19 +1092,8 @@ def render_design_review_v3(contract: dict[str, Any]) -> str:
     return _review_template("design-item-review.html").replace("{{SUMMARY}}", summary).replace("{{ITEMS}}", "".join(cards)).rstrip() + "\n"
 
 
-HIGH_RISK_TERMS = {
-    "destructive", "security", "privacy", "secret", "irreversible",
-    "external_cost", "external-cost", "costly_external", "push", "publish",
-}
-
-
 def _has_high_risk(contract: dict[str, Any]) -> bool:
-    for item in contract.get("items", []):
-        for risk in item.get("material_risks", []):
-            normalized = str(risk).strip().casefold().replace(" ", "_")
-            if normalized in HIGH_RISK_TERMS or any(term in normalized for term in HIGH_RISK_TERMS):
-                return True
-    return False
+    return any(item.get("material_risks") for item in contract.get("items", []))
 
 
 def _authorization_record(
@@ -1063,6 +1124,14 @@ def authorize_design(
         return {"status": "unresolved_decisions"}
     if intent not in {"default", "veto", "explicit_approve"}:
         return {"status": "ambiguous_intent"}
+    existing = contract.get("authorization")
+    if (
+        intent == "default"
+        and isinstance(existing, dict)
+        and existing.get("mode") == "vetoed"
+        and existing.get("contract_digest") == canonical_digest(_contract_payload(contract))
+    ):
+        return {"status": "vetoed", "contract": deepcopy(contract)}
     mode = {"default": "default", "veto": "vetoed", "explicit_approve": "explicit"}[intent]
     if _has_high_risk(contract) and mode != "explicit":
         if mode == "vetoed":
@@ -1157,11 +1226,22 @@ def convert_legacy_contract(legacy: dict[str, Any]) -> dict[str, Any]:
     requirements = list(legacy.get("requirements", []))
     objective = str(legacy.get("objective", ""))
     unresolved = [field for field in ("behavior_type", "observable_tests", "completion_criteria") if not legacy.get(field)]
+    test_values = list(legacy.get("observable_tests", requirements or ["Resolve observable tests"]))
+    done_values = list(legacy.get("completion_criteria", requirements or ["Resolve completion criteria"]))
     item = {
         "id": "I-01", "title": objective or "Legacy work", "behavior_type": legacy.get("behavior_type", "migration"),
         "what": objective, "steps": requirements or [objective], "terms": [],
-        "tests": list(legacy.get("observable_tests", requirements or ["Resolve observable tests"])),
-        "done": list(legacy.get("completion_criteria", requirements or ["Resolve completion criteria"])),
+        "tests": [
+            {
+                "id": f"T-{index:02d}", "target": str(value),
+                "method": str(value), "expected": str(value), "selector": "",
+            }
+            for index, value in enumerate(test_values, 1)
+        ],
+        "done": [
+            {"id": f"D-{index:02d}", "criterion": str(value)}
+            for index, value in enumerate(done_values, 1)
+        ],
         "depends_on": [], "non_goals": list(legacy.get("non_goals", [])),
         "decision": {"state": "unresolved" if unresolved else "resolved"},
         "material_risks": [], "priority": "core",
@@ -1355,7 +1435,8 @@ def commit_item(
 
 
 def start_work(
-    root: Path, work_id: str, slug: str, contract: dict[str, Any],
+    root: Path, work_id: str, slug: str, contract: dict[str, Any], *,
+    project: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Capture Git/base/baseline state and create one idempotent feature-work manifest."""
     root = root.resolve()
@@ -1363,7 +1444,15 @@ def start_work(
         work_id = validate_work_id(work_id)
     except ValueError as error:
         return {"status": "invalid_work", "errors": [str(error)]}
-    authorization = execution_authorized(contract)
+    if contract.get("work_id") != work_id:
+        return {"status": "invalid_work", "errors": ["contract_work_id_mismatch"]}
+    if project is None:
+        project_path = root / ".harness" / "project.yaml"
+        try:
+            project = json.loads(project_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            return {"status": "authorization_failed", "errors": ["project_configuration_required"]}
+    authorization = execution_authorized(contract, project=project)
     if not authorization["authorized"]:
         return {"status": "authorization_failed", "errors": authorization["errors"]}
     work_root = _safe_repo_path(root, f".work/goals/active/{work_id}")

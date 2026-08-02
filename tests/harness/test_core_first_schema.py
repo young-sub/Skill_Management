@@ -68,7 +68,37 @@ class CoreFirstSchemaTests(unittest.TestCase):
         self.assertIn("item:I-01:missing:done", core.validate_contract_v3(broken))
         one_item = json.loads(json.dumps(contract))
         one_item["items"] = one_item["items"][:1]
-        self.assertIn("items:count_out_of_range", core.validate_contract_v3(one_item))
+        self.assertEqual(core.validate_contract_v3(one_item), [])
+
+    def test_runtime_validator_rejects_schema_invalid_item_values_and_dependency_cycles(self) -> None:
+        core = load_core()
+        source = {
+            "schema_version": 3, "work_id": "W-valid", "goal": "deliver", "scope": "feature",
+            "non_goals": [], "items": [],
+        }
+        for item_id, dependency in (("I-01", "I-02"), ("I-02", "I-01")):
+            source["items"].append({
+                "id": item_id, "title": item_id, "behavior_type": "tool", "what": "deliver",
+                "steps": ["input", "output"], "terms": [],
+                "tests": [{"id": "T-01", "target": "output", "method": "run", "expected": "pass", "selector": ""}],
+                "done": [{"id": "D-01", "criterion": "delivered"}],
+                "depends_on": [dependency], "non_goals": [], "decision": {"state": "resolved"},
+                "material_risks": [], "priority": "core",
+            })
+        self.assertIn("items:dependency_cycle", core.validate_contract_v3(source))
+
+        invalid = json.loads(json.dumps(source))
+        invalid["items"][0].update({
+            "behavior_type": "nonsense", "priority": "urgent", "terms": ["not-an-object"],
+            "non_goals": [42], "material_risks": ["보안 변경"],
+        })
+        errors = core.validate_contract_v3(invalid)
+        for expected in (
+            "item:I-01:invalid_behavior_type", "item:I-01:invalid_priority",
+            "item:I-01:term:0:expected_object", "item:I-01:non_goals:0:expected_string",
+            "item:I-01:invalid_material_risk:보안 변경",
+        ):
+            self.assertIn(expected, errors)
 
     def test_approval_bundle_binds_contract_review_and_visible_item_ids(self) -> None:
         core = load_core()
@@ -125,8 +155,8 @@ class CoreFirstSchemaTests(unittest.TestCase):
         self.assertFalse(contract_schema["$defs"]["amendment"]["additionalProperties"])
         for field in ("terms", "tests", "done"):
             self.assertIn("items", item["properties"][field], field)
-        for field in ("material_risks", "non_goals"):
-            self.assertEqual(item["properties"][field]["$ref"], "#/$defs/stringList")
+        self.assertEqual(item["properties"]["non_goals"]["$ref"], "#/$defs/stringList")
+        self.assertEqual(item["properties"]["material_risks"]["$ref"], "#/$defs/riskList")
         self.assertEqual(item["properties"]["decision"]["$ref"], "#/$defs/decision")
 
 
