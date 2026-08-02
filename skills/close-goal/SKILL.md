@@ -5,7 +5,7 @@ description: Close a Harness v3 contract Item by Item, render the Korean Result 
 
 # Close Goal — Harness v3
 
-Use `scripts/core_harness.py`, `scripts/render_result_review.py`, and the bundled schemas/templates.
+Use [the runtime](scripts/core_harness.py), [the result renderer](scripts/render_result_review.py), [the contract schema](schemas/contract.schema.json), [the work schema](schemas/work.schema.json), [the testing policy](references/testing-policy.md), and [the documentation policy](references/documentation-policy.md).
 
 1. Match Result Items to Design Item IDs and order. Each Item needs observable implementation, relevant check results, Done status, and planned-versus-actual delta.
 2. Require Impacted checks for that Item. Require Full only when cumulative impact matches a configured trigger or the human requested it; otherwise record `not_required` with the matched rule.

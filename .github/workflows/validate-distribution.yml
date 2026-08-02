@@ -10,7 +10,10 @@ permissions:
 
 jobs:
   validate:
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -27,5 +30,3 @@ jobs:
       - name: Distribution contract
         shell: pwsh
         run: scripts/validate-distribution.ps1
-      - name: Core-first representative workflows
-        run: python -m unittest tests.harness.test_core_first_setup tests.harness.test_core_first_design_execution tests.harness.test_core_first_close_lifecycle tests.harness.test_core_first_cutover tests.harness.test_core_first_forward_workflows

@@ -5,7 +5,7 @@ description: Audit Harness v3 configuration, mappings, resources, work lifecycle
 
 # Maintain Agent Harness — Harness v3
 
-Use `scripts/core_harness.py` and default to report-only.
+Use [the runtime](scripts/core_harness.py), [the project schema](schemas/project.schema.json), [the work schema](schemas/work.schema.json), and [the testing policy](references/testing-policy.md). Default to the `maintain` report-only command.
 
 Audit instruction/resource cohort drift, `docs/index.md` reachability and authority, source-document boundaries, source-to-test mapping and selector budgets, baseline fingerprints, typed work namespaces, transaction markers, branches, and worktrees. Report new/worsened findings separately from exact unexpired baseline debt.
 

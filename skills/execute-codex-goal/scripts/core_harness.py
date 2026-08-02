@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/core_harness.py
-# Source-SHA256: 0c245599ce503faafaa41ae8d0be58fa9c26d03bc9fcbcf3118e5805d58bb4a2
+# Source-SHA256: 014f84f97d420d32d5d884546b29cc354ed8ac0f198271b4d8a9e51302dbcc3f
 
 #!/usr/bin/env python3
 """Deterministic Core-First Harness v3 contracts and compatibility checks."""
@@ -225,7 +225,7 @@ def validate_cohort(active_version: int, support: dict[str, list[int]]) -> list[
 
 RESERVED_INVENTORY_ROOTS = {
     ".git", ".work", ".scratch", ".venv", "venv", "__pycache__",
-    ".cache", ".pytest_cache", ".mypy_cache", "node_modules", "build", "dist",
+    ".cache", ".pytest_cache", ".mypy_cache", "node_modules", "build", "dist", "back-up",
 }
 
 
@@ -789,8 +789,10 @@ def run_dynamic_baseline(
         working_directory = _safe_repo_path(root.resolve(), descriptor.get("working_directory", "."))
     except ValueError as error:
         return {"status": "invalid_descriptor", "errors": [str(error)]}
-    inherited = descriptor.get("inherit_env", ["SystemRoot", "WINDIR", "TEMP", "TMP"])
-    environment = {key: os.environ[key] for key in inherited if key in os.environ}
+    inherit_env = descriptor.get("inherit_env", True)
+    if not isinstance(inherit_env, bool):
+        return {"status": "invalid_descriptor", "errors": ["inherit_env_must_be_boolean"]}
+    environment = dict(os.environ) if inherit_env else {}
     for key, value in descriptor.get("env", {}).items():
         if not isinstance(key, str) or not isinstance(value, str):
             return {"status": "invalid_descriptor", "errors": ["env_must_be_string_map"]}
@@ -1342,6 +1344,60 @@ def commit_item(
         ["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True, check=False
     ).stdout.strip()
     return {"status": "committed", "item_id": item_id, "commit": revision, "paths": sorted(normalized_paths)}
+
+
+def start_work(
+    root: Path, work_id: str, slug: str, contract: dict[str, Any],
+) -> dict[str, Any]:
+    """Capture Git/base/baseline state and create one idempotent feature-work manifest."""
+    root = root.resolve()
+    authorization = execution_authorized(contract)
+    if not authorization["authorized"]:
+        return {"status": "authorization_failed", "errors": authorization["errors"]}
+    work_root = _safe_repo_path(root, f".work/goals/active/{work_id}")
+    manifest_path = work_root / "work.json"
+    if manifest_path.is_file():
+        existing = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if existing.get("work_id") == work_id:
+            return {"status": "already_started", "manifest": existing}
+        return {"status": "conflict", "errors": ["work_identity_conflict"]}
+    base_branch = subprocess.run(
+        ["git", "branch", "--show-current"], cwd=root, capture_output=True, text=True, check=False
+    )
+    base_revision = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True, check=False
+    )
+    if base_branch.returncode or base_revision.returncode or not base_branch.stdout.strip():
+        return {"status": "git_error", "errors": ["captured_base_unavailable"]}
+    normalized_slug = re.sub(r"[^a-z0-9-]+", "-", slug.casefold()).strip("-")
+    if not normalized_slug:
+        return {"status": "invalid_slug"}
+    feature_branch = f"wp-{work_id}-{normalized_slug}"
+    baseline = collect_git_baseline(root)
+    switched = subprocess.run(
+        ["git", "switch", "-c", feature_branch], cwd=root,
+        capture_output=True, text=True, check=False,
+    )
+    if switched.returncode:
+        return {"status": "git_error", "errors": [(switched.stderr or switched.stdout).strip()]}
+    manifest = {
+        "schema_version": SCHEMA_VERSION, "work_id": work_id, "state": "active",
+        "created_at": datetime.now().astimezone().isoformat(),
+        "source_commit": base_revision.stdout.strip(), "base_branch": base_branch.stdout.strip(),
+        "feature_branch": feature_branch, "contract_version": SCHEMA_VERSION,
+        "dirty_baseline": baseline,
+        "integrity_digest": canonical_digest(_contract_payload(contract)),
+        "owned_paths": [f".work/goals/active/{work_id}"],
+    }
+    try:
+        work_root.mkdir(parents=True, exist_ok=False)
+        _durable_write_json(manifest_path, manifest)
+        _durable_write_json(work_root / "contract.json", contract)
+    except OSError as error:
+        subprocess.run(["git", "switch", base_branch.stdout.strip()], cwd=root, capture_output=True, check=False)
+        subprocess.run(["git", "branch", "-D", feature_branch], cwd=root, capture_output=True, check=False)
+        return {"status": "precondition_failed", "errors": [str(error)]}
+    return {"status": "started", "manifest": manifest}
 
 
 def select_impacted_checks(
@@ -1953,6 +2009,121 @@ def inspect_installed_cohort(installed_root: Path, resource_manifest: dict[str, 
     return {"status": "complete" if not blockers else "invalid", "blockers": blockers, "components": components}
 
 
+def maintain_harness(
+    root: Path, project: dict[str, Any], *, installed_root: Path | None = None,
+    resource_manifest: dict[str, Any] | None = None, today: str | None = None,
+) -> dict[str, Any]:
+    """Return a deterministic, report-only audit with stable rule identities."""
+    root = root.resolve()
+    findings: list[dict[str, str]] = []
+    checks: dict[str, Any] = {}
+
+    def add(rule_id: str, location: str, message: str, severity: str = "medium") -> None:
+        findings.append({
+            "rule_id": rule_id, "location": location, "message": message,
+            "severity": severity,
+        })
+
+    agents = root / "AGENTS.md"
+    claude = root / "CLAUDE.md"
+    if agents.is_file() and claude.is_file() and agents.read_bytes() != claude.read_bytes():
+        add("MAINT-INSTRUCTION-DRIFT", "AGENTS.md|CLAUDE.md", "instruction mirrors differ")
+    checks["MAINT-INSTRUCTION-DRIFT"] = "checked"
+
+    entrypoint = str(project.get("paths", {}).get("documentation_entrypoint", "docs/index.md"))
+    try:
+        index = _safe_repo_path(root, entrypoint)
+    except ValueError:
+        index = root / "__invalid_documentation_entrypoint__"
+    if not index.is_file():
+        add("MAINT-DOC-REACHABILITY", entrypoint, "documentation entrypoint is missing")
+    else:
+        try:
+            content = index.read_text(encoding="utf-8")
+            links = re.findall(r"\[[^\]]*\]\(([^)#]+)(?:#[^)]+)?\)", content)
+            for link in links:
+                if re.match(r"^[a-z][a-z0-9+.-]*:", link, re.IGNORECASE):
+                    continue
+                target = (index.parent / link).resolve()
+                try:
+                    target.relative_to(root)
+                except ValueError:
+                    add("MAINT-DOC-REACHABILITY", link, "document link escapes repository")
+                    continue
+                if not target.exists():
+                    add("MAINT-DOC-REACHABILITY", link, "document link target is missing")
+        except (OSError, UnicodeError) as error:
+            add("MAINT-DOC-REACHABILITY", entrypoint, f"documentation entrypoint unreadable:{type(error).__name__}")
+    checks["MAINT-DOC-REACHABILITY"] = "checked"
+
+    impact = project.get("impact", {})
+    rules = impact.get("rules", [])
+    selectors = impact.get("feature_selectors", {})
+    mapped_prefixes = [
+        str(prefix).replace("\\", "/")
+        for rule in rules for prefix in rule.get("source_prefixes", [])
+    ]
+    for path in enumerate_repository_files(root):
+        normalized = path.relative_to(root).as_posix()
+        if normalized in {entrypoint, "AGENTS.md", "CLAUDE.md"} or normalized.startswith("docs/"):
+            continue
+        if not any(normalized.startswith(prefix) for prefix in mapped_prefixes):
+            add("MAINT-IMPACT-UNMAPPED", normalized, "tracked surface has no impact rule", "high")
+    for rule in rules:
+        feature = rule.get("feature")
+        if feature not in selectors:
+            add("MAINT-IMPACT-SELECTOR", str(rule.get("id", "unnamed")), "feature selector is missing", "high")
+    checks["MAINT-IMPACT-UNMAPPED"] = "checked"
+    checks["MAINT-IMPACT-SELECTOR"] = "checked"
+
+    current_day = date.fromisoformat(today) if today else date.today()
+    for baseline in project.get("baseline", {}).get("findings", []):
+        try:
+            if date.fromisoformat(str(baseline["review_until"])) < current_day:
+                add("MAINT-BASELINE-EXPIRED", str(baseline.get("location", "")), "baseline review date expired")
+        except (KeyError, ValueError):
+            add("MAINT-BASELINE-INVALID", str(baseline.get("location", "")), "baseline identity or date is invalid")
+    checks["MAINT-BASELINE"] = "checked"
+
+    lifecycle = audit_work_lifecycle(root)
+    for finding in lifecycle["findings"]:
+        add("MAINT-WORK-LIFECYCLE", finding["location"], finding["rule_id"])
+    checks["MAINT-WORK-LIFECYCLE"] = lifecycle
+
+    transactions = root / ".work" / "transactions"
+    if transactions.is_dir():
+        for journal_path in sorted(transactions.glob("*/journal.json")):
+            try:
+                journal = json.loads(journal_path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, json.JSONDecodeError):
+                add("MAINT-TRANSACTION", journal_path.relative_to(root).as_posix(), "transaction journal is invalid", "high")
+                continue
+            if journal.get("status") in {"applying", "rollback_failed"}:
+                add("MAINT-TRANSACTION", journal_path.relative_to(root).as_posix(), f"transaction is {journal.get('status')}", "high")
+    checks["MAINT-TRANSACTION"] = "checked"
+
+    branch = subprocess.run(
+        ["git", "branch", "--show-current"], cwd=root, capture_output=True, text=True, check=False
+    )
+    worktrees = subprocess.run(
+        ["git", "worktree", "list", "--porcelain"], cwd=root, capture_output=True, text=True, check=False
+    )
+    checks["MAINT-GIT-WORKTREE"] = {
+        "branch": branch.stdout.strip() if branch.returncode == 0 else None,
+        "worktrees": [line[9:] for line in worktrees.stdout.splitlines() if line.startswith("worktree ")]
+        if worktrees.returncode == 0 else [],
+    }
+
+    if installed_root is not None and resource_manifest is not None:
+        installed = inspect_installed_cohort(installed_root, resource_manifest)
+        for blocker in installed["blockers"]:
+            add("MAINT-INSTALLED-RESOURCE", str(installed_root), blocker, "high")
+        checks["MAINT-INSTALLED-RESOURCE"] = installed
+
+    findings.sort(key=lambda item: (item["rule_id"], item["location"], item["message"]))
+    return {"status": "ok" if not findings else "findings", "findings": findings, "checks": checks}
+
+
 def activate_v3(
     root: Path,
     project: dict[str, Any],
@@ -1995,6 +2166,11 @@ def _cli_parser() -> argparse.ArgumentParser:
     design = sub.add_parser("render-design")
     design.add_argument("--contract", type=Path, required=True)
     design.add_argument("--output", type=Path, required=True)
+    authorize = sub.add_parser("authorize")
+    authorize.add_argument("--contract", type=Path, required=True)
+    authorize.add_argument("--intent", choices=("default", "veto", "explicit_approve"), default="default")
+    authorize.add_argument("--actor", required=True)
+    authorize.add_argument("--at", required=True)
     result = sub.add_parser("render-result")
     result.add_argument("--contract", type=Path, required=True)
     result.add_argument("--result", type=Path, required=True)
@@ -2002,11 +2178,72 @@ def _cli_parser() -> argparse.ArgumentParser:
     impact = sub.add_parser("impacted")
     impact.add_argument("--project", type=Path, required=True)
     impact.add_argument("--changed", action="append", default=[])
+    cleanup_plan = sub.add_parser("cleanup-plan")
+    cleanup_plan.add_argument("--root", type=Path, required=True)
+    cleanup_plan.add_argument("--request", type=Path, required=True)
+    cleanup_apply = sub.add_parser("cleanup-apply")
+    cleanup_apply.add_argument("--root", type=Path, required=True)
+    cleanup_apply.add_argument("--plan", type=Path, required=True)
+    cleanup_apply.add_argument("--approval-digest", required=True)
+    recover = sub.add_parser("recover")
+    recover.add_argument("--root", type=Path, required=True)
+    baseline = sub.add_parser("baseline")
+    baseline.add_argument("--root", type=Path, required=True)
+    start = sub.add_parser("start")
+    start.add_argument("--root", type=Path, required=True)
+    start.add_argument("--work-id", required=True)
+    start.add_argument("--slug", required=True)
+    start.add_argument("--contract", type=Path, required=True)
+    amend = sub.add_parser("amend")
+    amend.add_argument("--contract", type=Path, required=True)
+    amend.add_argument("--item-id", required=True)
+    amend.add_argument("--field", required=True)
+    amend.add_argument("--value", type=Path, required=True)
+    amend.add_argument("--message-id", required=True)
+    amend.add_argument("--actor", required=True)
+    amend.add_argument("--at", required=True)
+    amend.add_argument("--risk", required=True)
+    complete = sub.add_parser("complete")
+    complete.add_argument("--contract", type=Path, required=True)
+    complete.add_argument("--result", type=Path, required=True)
+    complete.add_argument("--impact", type=Path, required=True)
+    commit = sub.add_parser("commit")
+    commit.add_argument("--root", type=Path, required=True)
+    commit.add_argument("--item-id", required=True)
+    commit.add_argument("--path", action="append", required=True)
+    commit.add_argument("--baseline", type=Path, required=True)
+    close = sub.add_parser("close")
+    close.add_argument("--root", type=Path, required=True)
+    close.add_argument("--work-id", required=True)
+    close.add_argument("--contract", type=Path, required=True)
+    close.add_argument("--result", type=Path, required=True)
+    close.add_argument("--impact", type=Path, required=True)
+    close.add_argument("--at", required=True)
+    close.add_argument("--completed-days", type=int, required=True)
+    close.add_argument("--trash-days", type=int, required=True)
+    sweep = sub.add_parser("sweep")
+    sweep.add_argument("--root", type=Path, required=True)
+    sweep.add_argument("--at", required=True)
+    delete = sub.add_parser("delete")
+    delete.add_argument("--root", type=Path, required=True)
+    delete.add_argument("--target", required=True)
+    delete.add_argument("--approved-exact-target", required=True)
+    delete.add_argument("--at", required=True)
+    delete.add_argument("--destructive-override", action="store_true")
+    delete.add_argument("--approved-override-target")
     audit = sub.add_parser("audit-work")
     audit.add_argument("--root", type=Path, required=True)
+    maintain = sub.add_parser("maintain")
+    maintain.add_argument("--root", type=Path, required=True)
+    maintain.add_argument("--project", type=Path, required=True)
+    maintain.add_argument("--installed-root", type=Path)
+    maintain.add_argument("--manifest", type=Path)
+    maintain.add_argument("--today")
     activation = sub.add_parser("activate")
+    activation.add_argument("--root", type=Path, required=True)
     activation.add_argument("--project", type=Path, required=True)
-    activation.add_argument("--legacy-graph", type=Path, required=True)
+    activation.add_argument("--installed-root", type=Path, required=True)
+    activation.add_argument("--manifest", type=Path, required=True)
     return parser
 
 
@@ -2021,6 +2258,11 @@ def main() -> int:
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(page, encoding="utf-8", newline="\n")
             payload = {"status": "rendered", "output": str(args.output)}
+        elif args.command == "authorize":
+            payload = authorize_design(
+                _json_object(args.contract), intent=args.intent, actor=args.actor,
+                authorized_at=args.at,
+            )
         elif args.command == "render-result":
             page = render_result_review_v3(_json_object(args.contract), _json_object(args.result))
             args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -2028,12 +2270,93 @@ def main() -> int:
             payload = {"status": "rendered", "output": str(args.output)}
         elif args.command == "impacted":
             payload = select_impacted_checks(args.changed, _json_object(args.project))
+        elif args.command == "cleanup-plan":
+            request = _json_object(args.request)
+            plan = build_cleanup_plan(
+                args.root, mode=str(request["mode"]),
+                source_roots=list(request.get("source_roots", [])),
+                ownership=request.get("ownership"), operations=list(request.get("operations", [])),
+            )
+            payload = {"status": "planned", "plan": plan}
+        elif args.command == "cleanup-apply":
+            plan_payload = _json_object(args.plan)
+            payload = apply_transaction(
+                args.root, plan_payload.get("plan", plan_payload), approval_digest=args.approval_digest
+            )
+        elif args.command == "recover":
+            payload = recover_transactions(args.root)
+        elif args.command == "baseline":
+            payload = {"status": "collected", "baseline": collect_git_baseline(args.root)}
+        elif args.command == "start":
+            payload = start_work(
+                args.root, args.work_id, args.slug, _json_object(args.contract)
+            )
+        elif args.command == "amend":
+            value = json.loads(args.value.read_text(encoding="utf-8"))
+            payload = apply_amendment(
+                _json_object(args.contract), item_id=args.item_id, field=args.field,
+                value=value, message_id=args.message_id, actor=args.actor,
+                approved_at=args.at, risk=args.risk,
+            )
+        elif args.command == "complete":
+            payload = evaluate_result(
+                _json_object(args.contract), _json_object(args.result), _json_object(args.impact)
+            )
+        elif args.command == "commit":
+            payload = commit_item(
+                args.root, args.item_id, args.path,
+                dirty_baseline=_json_object(args.baseline),
+            )
+        elif args.command == "close":
+            contract = _json_object(args.contract)
+            result = _json_object(args.result)
+            impact = _json_object(args.impact)
+            evaluation = evaluate_result(contract, result, impact)
+            if evaluation["status"] != "complete":
+                payload = evaluation
+            else:
+                active = _safe_repo_path(args.root.resolve(), f".work/goals/active/{args.work_id}")
+                _durable_write_json(active / "result.json", result)
+                _durable_write_bytes(
+                    active / "review" / "result.html",
+                    render_result_review_v3(contract, result, impact).encode("utf-8"),
+                )
+                payload = close_work(
+                    args.root, args.work_id, completed_at=args.at,
+                    completed_days=args.completed_days, trash_days=args.trash_days,
+                )
+        elif args.command == "sweep":
+            payload = sweep_lifecycle(args.root, now=args.at)
+        elif args.command == "delete":
+            payload = delete_trash(
+                args.root, args.target, approved_exact_target=args.approved_exact_target,
+                now=args.at, destructive_override=args.destructive_override,
+                approved_override_target=args.approved_override_target,
+            )
         elif args.command == "audit-work":
             payload = audit_work_lifecycle(args.root)
+            payload["status"] = "ok" if not payload["findings"] else "findings"
+        elif args.command == "maintain":
+            manifest = _json_object(args.manifest) if args.manifest else None
+            if (args.installed_root is None) != (manifest is None):
+                raise ValueError("installed_root_and_manifest_must_be_paired")
+            payload = maintain_harness(
+                args.root, _json_object(args.project), installed_root=args.installed_root,
+                resource_manifest=manifest, today=args.today,
+            )
         else:
-            payload = activate_v3(_json_object(args.project), _json_object(args.legacy_graph))
+            payload = activate_v3(
+                args.root, _json_object(args.project), installed_root=args.installed_root,
+                resource_manifest=_json_object(args.manifest),
+            )
         print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
-        return 0 if payload.get("status") not in {"cutover_blocked", "invalid"} else 2
+        return 0 if payload.get("status") not in {
+            "cutover_blocked", "invalid", "invalid_contract", "authorization_failed",
+            "approval_required", "precondition_failed", "incomplete", "conflict",
+            "git_error", "invalid_work", "invalid_target", "recovery_failed",
+            "explicit_approval_required", "focused_approval_required", "vetoed",
+            "unresolved_decisions", "ambiguous_intent", "invalid_amendment",
+        } else 2
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
         print(json.dumps({"status": "invalid", "errors": [str(error)]}, ensure_ascii=False), file=sys.stderr)
         return 2

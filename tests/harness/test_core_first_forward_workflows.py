@@ -127,6 +127,63 @@ class CoreFirstForwardWorkflowTests(unittest.TestCase):
             self.assertEqual(applied["production_hashes_before"], applied["production_hashes_after"])
             self.assertEqual((root / "docs" / "guide.md").read_bytes(), legacy_bytes)
 
+    def test_test_only_relocation_preserves_real_collection_outcome_and_production(self) -> None:
+        cli = ROOT / "skills" / "setup-agent-harness" / "scripts" / "core_harness.py"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "src").mkdir()
+            (root / "src" / "app.py").write_text("VALUE = 1\n", encoding="utf-8")
+            (root / "tests" / "old").mkdir(parents=True)
+            test_source = (
+                "import unittest\n\n"
+                "class FeatureTests(unittest.TestCase):\n"
+                "    def test_behavior(self):\n"
+                "        self.assertEqual(1, 1)\n"
+            )
+            (root / "tests" / "old" / "test_feature.py").write_text(test_source, encoding="utf-8")
+            before_hash = (root / "src" / "app.py").read_bytes()
+            before = subprocess.run(
+                ["python", "-m", "unittest", "discover", "-v", "-s", "tests/old"],
+                cwd=root, text=True, capture_output=True, check=False,
+            )
+            self.assertEqual(before.returncode, 0, before.stderr)
+
+            request = {
+                "mode": "test-only", "source_roots": ["src"],
+                "ownership": {"source_roots": ["src"], "test_roots": ["tests"]},
+                "operations": [{"action": "move", "source": "tests/old/test_feature.py", "target": "tests/new/test_feature.py"}],
+            }
+            request_path = root / "request.json"
+            request_path.write_text(json.dumps(request), encoding="utf-8")
+            planned = subprocess.run(
+                ["python", str(cli), "cleanup-plan", "--root", str(root), "--request", str(request_path)],
+                text=True, capture_output=True, check=False,
+            )
+            self.assertEqual(planned.returncode, 0, planned.stderr)
+            plan_payload = json.loads(planned.stdout)
+            plan_path = root / "plan.json"
+            plan_path.write_text(json.dumps(plan_payload), encoding="utf-8")
+            applied = subprocess.run(
+                ["python", str(cli), "cleanup-apply", "--root", str(root), "--plan", str(plan_path),
+                 "--approval-digest", plan_payload["plan"]["digest"]],
+                text=True, capture_output=True, check=False,
+            )
+            self.assertEqual(applied.returncode, 0, applied.stderr)
+            self.assertEqual(json.loads(applied.stdout)["status"], "committed")
+
+            after = subprocess.run(
+                ["python", "-m", "unittest", "discover", "-v", "-s", "tests/new"],
+                cwd=root, text=True, capture_output=True, check=False,
+            )
+            self.assertEqual(after.returncode, 0, after.stderr)
+            before_identity = [line for line in before.stderr.splitlines() if line.startswith("test_behavior")]
+            after_identity = [line for line in after.stderr.splitlines() if line.startswith("test_behavior")]
+            self.assertEqual(before_identity, after_identity)
+            self.assertEqual((root / "src" / "app.py").read_bytes(), before_hash)
+            local_selector = {"id": "local", "capability": "test-relocation", "argv": ["python", "-m", "unittest", "discover", "-s", "tests/new"]}
+            ci_selector = {"id": "ci", "capability": "test-relocation", "argv": ["python", "-m", "unittest", "discover", "-v", "-s", "tests/new"]}
+            self.assertEqual(local_selector["capability"], ci_selector["capability"])
+
     def test_large_suite_selects_only_impacted_capability(self) -> None:
         execute = load_skill("execute-codex-goal", "forward_large_suite")
         rules = [{

@@ -5,6 +5,8 @@ description: Diagnose a current Harness v3 implementation or verification failur
 
 # Diagnose — Harness v3
 
+Use [the execution policy](references/goal-execution-policy.md) for evidence and retry boundaries.
+
 1. Reproduce the exact observable failure with the smallest mapped check.
 2. Minimize the affected surface and state a falsifiable hypothesis.
 3. Instrument only the boundary needed to distinguish causes.

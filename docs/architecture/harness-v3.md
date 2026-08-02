@@ -6,13 +6,13 @@
 
 ## Work contract and reviews
 
-`contract.json` is the canonical, language-independent Item contract. Every Item has stable identity, a concrete changed outcome, ordered behavior steps, observable tests, completion criteria, dependencies, non-goals, decision state, risk, and core/optional priority. A test may remain a legacy string or use a structured target, method, expected result, and selector. Design and Result HTML are Korean decision documents with the same IDs and order.
+`contract.json` is the canonical, language-independent Item contract. Every Item has stable identity, a concrete changed outcome, ordered behavior steps, stable test IDs with target/method/expected/selector, stable Done IDs, dependencies, non-goals, decision state, risk, and core/optional priority. Contracts contain two to five Items. Design and Result HTML are Korean decision documents with the same IDs and order.
 
-Each Item exposes four primary blocks only: purpose, process, tests, and expected or actual result. Design test tables state what is verified, how it is tested, and the observable pass condition. Result tables state what was verified, which test ran, and what was observed. Exact commands, criterion-level evidence, and non-material plan deltas remain in agent records and are not rendered. Internal digests bind approval but are not shown to humans.
+Each Item exposes four primary blocks only: purpose, process, tests, and expected or actual result. Design test tables state what is verified, how it is tested, and the observable pass condition. Result tables state what was verified, which test ran, and what was observed. Exact commands, criterion-level evidence, and non-material plan deltas remain in agent records and are not rendered. Internal digests bind default or explicit authorization but are not shown to humans. Arbitrary caller-supplied HTML is never an authorization input; the server renders the canonical Review. Veto and high-risk boundaries fail closed.
 
 ## Runtime and state
 
-The runtime selects dependency-ready core Items before optional Items, preserves the dirty baseline, runs Impacted checks, and commits verified Items separately. A host Goal may track continuation but is not execution authority. Low-risk user changes become `approved_amendment`; material or high-risk deltas need focused approval.
+The runtime selects dependency-ready core Items before optional Items, records only Git-reported staged/unstaged/deleted/non-ignored untracked baseline entries, runs Impacted checks, and commits verified Items separately. Planned test and Done IDs must match retained evidence one-to-one. A host Goal may track continuation but is not execution authority. Low-risk user changes become `approved_amendment`; material or high-risk deltas need focused approval.
 
 ```text
 .work/goals/active/<id>
@@ -25,4 +25,4 @@ Manifest dates, not filesystem timestamps, drive retention. Transaction journals
 
 ## Distribution
 
-`authoring/` is canonical. `scripts/sync-skill-resources.ps1` generates self-contained public resources and the manifest. A cutover changes the active Skill instructions, shared implementation, schemas, templates, and manifest as one cohort.
+`authoring/` is canonical. `scripts/sync-skill-resources.ps1` generates self-contained public resources and the manifest. The public runtime exposes JSON CLI commands for authorization, cleanup/recovery, baseline/start/complete/commit, close/sweep/delete, maintain, and cutover. A cutover changes the active Skill instructions, shared implementation, schemas, templates, manifest, and installed cohort atomically.

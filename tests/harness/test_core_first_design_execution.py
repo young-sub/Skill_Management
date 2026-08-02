@@ -268,6 +268,21 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "path_alias"):
                 core.canonical_repo_identity(root, "alias/file.txt")
 
+    def test_canonical_repo_identity_normalizes_case_and_unicode_by_platform_policy(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            composed = "café.txt"
+            decomposed = "cafe\u0301.txt"
+            (root / composed).write_text("data\n", encoding="utf-8")
+
+            _, upper_identity = core.canonical_repo_identity(root, composed.upper(), case_sensitive=False)
+            _, decomposed_identity = core.canonical_repo_identity(root, decomposed, case_sensitive=False)
+            _, composed_identity = core.canonical_repo_identity(root, composed, case_sensitive=False)
+
+            self.assertEqual(upper_identity, composed_identity)
+            self.assertEqual(decomposed_identity, composed_identity)
+
     def test_impacted_selection_requires_mapping_and_promotes_shared_changes(self) -> None:
         core = load_core()
         project = {"impact": {

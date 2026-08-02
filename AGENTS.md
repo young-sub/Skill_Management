@@ -20,7 +20,7 @@
 
 ## Commands
 
-- Impacted Harness tests: `python -m unittest tests.harness.test_core_first_schema tests.harness.test_core_first_setup tests.harness.test_core_first_design_execution tests.harness.test_core_first_close_lifecycle tests.harness.test_core_first_cutover tests.harness.test_core_first_forward_workflows`
+- Impacted Harness tests: `python -m unittest tests.harness.test_core_first_schema tests.harness.test_core_first_setup tests.harness.test_core_first_design_execution tests.harness.test_core_first_close_lifecycle tests.harness.test_core_first_cutover tests.harness.test_core_first_forward_workflows tests.harness.test_core_first_cli_maintain`
 - Full: `python -m unittest discover -s tests -p "test_*.py"`
 - Resource drift: `powershell -NoProfile -File scripts/sync-skill-resources.ps1 -Check`
 - Distribution: `powershell -NoProfile -File scripts/validate-distribution.ps1`

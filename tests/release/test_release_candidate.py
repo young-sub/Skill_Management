@@ -20,7 +20,7 @@ class ReleaseCandidateTests(unittest.TestCase):
         self.assertEqual(candidate["tag"], "v2.0.0")
         self.assertEqual(candidate["release_date"], "2026-07-21")
         self.assertEqual(candidate["release_notes"], "../docs/releases/v2.0.0.md")
-        self.assertEqual(candidate["public_skill_count"], 18)
+        self.assertEqual(candidate["public_skill_count"], len(catalog["public_skills"]))
         self.assertEqual(candidate["public_skills"], catalog["public_skills"])
         self.assertEqual(candidate["future_core_skills"], [])
         self.assertEqual(catalog["future_core_skills"], [])

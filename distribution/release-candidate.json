@@ -12,7 +12,7 @@
     "git_tree": "6101aa65a4f4b20946366209339ab5ce59b0cb40"
   },
   "catalog": "catalog.json",
-  "public_skill_count": 18,
+  "public_skill_count": 19,
   "public_skills": [
     "finance-research",
     "find-skills",
@@ -25,6 +25,7 @@
     "maintain-agent-harness",
     "multi-agent-review",
     "prototype",
+    "project-agent-bootstrap",
     "setup-agent-harness",
     "teach",
     "theme-factory",
