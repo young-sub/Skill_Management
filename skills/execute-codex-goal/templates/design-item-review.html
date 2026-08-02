@@ -1,7 +1,7 @@
 <!doctype html>
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/templates/review/design-item-review.html -->
-<!-- Source-SHA256: 728558005bfddcad71ff106c774d5e6dcd6141d0db6b924cd6f96d9631da2136 -->
+<!-- Source-SHA256: 64817c2972b4a491bfb622d5972841d0b31b3c650b984bd58140e6f38efea8fa -->
 
 <html lang="ko">
 <head>
@@ -37,6 +37,7 @@
     .status { color: #8a321f; font-size: .78rem; font-weight: 900; }
     .review-section { display: grid; grid-template-columns: 142px minmax(0, 1fr); gap: 26px; padding: 28px 0; border-bottom: 1px solid var(--line); }
     .review-section h3 { margin: 2px 0 0; font-size: .82rem; line-height: 1.35; letter-spacing: .04em; }
+    .section-body { min-width: 0; grid-column: 2; }
     .lead-copy { max-width: 720px; margin: 0; font: 600 1.18rem/1.65 var(--serif); }
     .behavior-visual { min-width: 0; margin: 0; }
     .behavior-visual figcaption { display: none; }
@@ -55,15 +56,13 @@
     .result-section { border-bottom: 0; }
     .result-list { margin: 0; padding: 18px 22px 18px 42px; background: #f4ece7; }
     .result-list li + li { margin-top: 8px; }
-    .technical-details { margin-top: 14px; color: var(--muted); font-size: .82rem; }
-    .technical-details summary { cursor: pointer; font-weight: 800; }
-    .selector-list { margin: 10px 0 0; padding-left: 22px; font-family: ui-monospace, monospace; overflow-wrap: anywhere; }
     @media (max-width: 680px) {
       .review-shell { width: min(100% - 24px, 980px); margin-top: 18px; }
       .item { margin-top: 40px; }
       .item-heading { grid-template-columns: 58px 1fr; gap: 12px; }
       .item-heading .status { grid-column: 2; }
       .review-section { grid-template-columns: 1fr; gap: 12px; padding: 22px 0; }
+      .section-body { grid-column: 1; }
       .behavior-map { grid-template-columns: 1fr; gap: 10px; }
       .flow-step:not(:last-child)::after { content: "↓"; right: 16px; top: auto; bottom: -17px; z-index: 2; }
       .test-table, .test-table tbody, .test-table tr, .test-table th, .test-table td { display: block; width: 100%; }

@@ -618,34 +618,23 @@ def _behavior_visual(behavior_type: str, steps: list[Any], *, actual: bool = Fal
 
 def _design_test_table(tests: list[Any]) -> str:
     rows: list[str] = []
-    selectors: list[str] = []
     for index, test in enumerate(tests):
         if isinstance(test, dict):
             target = str(test.get("target", f"검증 항목 {index + 1}"))
             method = str(test.get("method", ""))
             expected = str(test.get("expected", ""))
-            selector = str(test.get("selector", ""))
         else:
             target = f"검증 항목 {index + 1}"
             method = str(test)
             expected = "계획한 동작이 확인된다"
-            selector = ""
         rows.append(
             '<tr><th scope="row">' + html.escape(target) + '</th><td>'
             + html.escape(method) + '</td><td>' + html.escape(expected) + "</td></tr>"
         )
-        if selector:
-            selectors.append(selector)
-    details = ""
-    if selectors:
-        details = (
-            '<details class="technical-details"><summary>기술 세부 정보</summary>'
-            + _list_html(selectors, class_name="selector-list") + "</details>"
-        )
     return (
         '<div class="table-wrap"><table class="test-table"><thead><tr><th>검증 대상</th>'
         '<th>수행할 테스트</th><th>통과 기준</th></tr></thead><tbody>'
-        + "".join(rows) + "</tbody></table></div>" + details
+        + "".join(rows) + "</tbody></table></div>"
     )
 
 
@@ -665,7 +654,6 @@ def _check_label(kind: Any) -> str:
 
 def _result_test_table(checks: list[dict[str, Any]]) -> str:
     rows: list[str] = []
-    commands: list[str] = []
     for check in checks:
         status = str(check.get("status", "unknown"))
         status_text = "✓ 통과" if status == "passed" else ("— 제외" if status == "not_required" else "! " + status)
@@ -675,20 +663,10 @@ def _result_test_table(checks: list[dict[str, Any]]) -> str:
             + '</td><td><span class="test-status ' + html.escape(status) + '">' + html.escape(status_text)
             + "</span></td></tr>"
         )
-        command = str(check.get("command", ""))
-        if command:
-            commands.append(command)
-    details = ""
-    if commands:
-        details = (
-            '<details class="technical-details"><summary>기술 세부 정보</summary>'
-            + "".join('<code>' + html.escape(command) + "</code>" for command in commands)
-            + "</details>"
-        )
     return (
         '<div class="table-wrap"><table class="test-table"><thead><tr><th>검증 대상</th>'
         '<th>수행한 테스트</th><th>확인 결과</th></tr></thead><tbody>'
-        + "".join(rows) + "</tbody></table></div>" + details
+        + "".join(rows) + "</tbody></table></div>"
     )
 
 
@@ -733,14 +711,14 @@ def render_design_review_v3(contract: dict[str, Any]) -> str:
             '<article class="item" data-item-id="' + html.escape(item["id"]) + '">'
             '<header class="item-heading"><span class="item-id">' + html.escape(item["id"])
             + '</span><h2>' + html.escape(item["title"]) + "</h2>" + decision_alert + "</header>"
-            + '<section class="review-section purpose-section"><h3>핵심 목적</h3><p class="lead-copy">'
-            + html.escape(item["what"]) + "</p></section>"
-            + '<section class="review-section process-section"><h3>핵심 프로세스</h3>'
-            + _behavior_visual(behavior_type, item["steps"]) + "</section>"
-            + '<section class="review-section test-section"><h3>핵심 테스트</h3>'
-            + _design_test_table(item["tests"]) + "</section>"
-            + '<section class="review-section result-section"><h3>예상 결과</h3>'
-            + _list_html(item["done"], class_name="result-list") + "</section></article>"
+            + '<section class="review-section purpose-section"><h3>핵심 목적</h3><div class="section-body"><p class="lead-copy">'
+            + html.escape(item["what"]) + "</p></div></section>"
+            + '<section class="review-section process-section"><h3>핵심 프로세스</h3><div class="section-body">'
+            + _behavior_visual(behavior_type, item["steps"]) + "</div></section>"
+            + '<section class="review-section test-section"><h3>핵심 테스트</h3><div class="section-body">'
+            + _design_test_table(item["tests"]) + "</div></section>"
+            + '<section class="review-section result-section"><h3>예상 결과</h3><div class="section-body">'
+            + _list_html(item["done"], class_name="result-list") + "</div></section></article>"
         )
     summary = (
         '<header class="review-masthead"><div class="document-mark"><span>구현 계획</span><strong>DESIGN / '
@@ -974,36 +952,25 @@ def render_result_review_v3(contract: dict[str, Any], result: dict[str, Any]) ->
         completed += int(complete)
         status = "✓ 완료" if complete else "! 미완료"
         delta_text = str(delta.get("summary") or ("계획대로 구현됨" if not material else "material delta"))
-        delta_impact = str(delta.get("impact") or ("추가 승인 불필요" if not material else "승인 필요"))
         outcome_values = list(actual.get("actual_outcomes", []))
         outcomes = _list_html(outcome_values, class_name="outcome-list") if outcome_values else ""
-        criteria_details = "".join(
-            '<li><strong>' + html.escape(str(row.get("criterion", ""))) + '</strong><span>'
-            + html.escape(str(row.get("evidence", ""))) + "</span></li>" for row in criteria_rows
-        )
         behavior_type = str(planned.get("behavior_type", "tool"))
-        delta_details = '<strong>' + html.escape(delta_text) + '</strong><span>' + html.escape(delta_impact) + "</span>"
         material_notice = (
             '<div class="material-notice"><strong>! 승인 필요</strong><span>' + html.escape(delta_text) + "</span></div>"
             if material else ""
-        )
-        technical = (
-            '<details class="technical-details result-details"><summary>기술 세부 정보</summary>'
-            '<h4>완료 기준 근거</h4><ul class="criteria-details">' + criteria_details
-            + '</ul><h4>계획과 비교</h4><p class="delta-detail">' + delta_details + "</p></details>"
         )
         cards.append(
             '<article class="item" data-item-id="' + html.escape(planned["id"]) + '"><header class="item-heading"><span class="item-id">'
             + html.escape(planned["id"]) + '</span><h2>' + html.escape(planned["title"])
             + '</h2><span class="status">' + status + "</span></header>"
-            + '<section class="review-section purpose-section"><h3>핵심 목적</h3><p class="lead-copy">'
-            + html.escape(str(planned.get("what", ""))) + "</p></section>"
-            + '<section class="review-section process-section"><h3>핵심 프로세스</h3>'
-            + _behavior_visual(behavior_type, list(actual.get("actual_steps", [])), actual=True) + "</section>"
-            + '<section class="review-section test-section"><h3>핵심 테스트</h3>'
-            + _result_test_table(checks) + "</section>"
-            + '<section class="review-section result-section"><h3>핵심 결과</h3><p class="lead-copy">'
-            + html.escape(str(actual.get("actual", "결과 없음"))) + "</p>" + outcomes + material_notice + technical + "</section></article>"
+            + '<section class="review-section purpose-section"><h3>핵심 목적</h3><div class="section-body"><p class="lead-copy">'
+            + html.escape(str(planned.get("what", ""))) + "</p></div></section>"
+            + '<section class="review-section process-section"><h3>핵심 프로세스</h3><div class="section-body">'
+            + _behavior_visual(behavior_type, list(actual.get("actual_steps", [])), actual=True) + "</div></section>"
+            + '<section class="review-section test-section"><h3>핵심 테스트</h3><div class="section-body">'
+            + _result_test_table(checks) + "</div></section>"
+            + '<section class="review-section result-section"><h3>핵심 결과</h3><div class="section-body"><p class="lead-copy">'
+            + html.escape(str(actual.get("actual", "결과 없음"))) + "</p>" + outcomes + material_notice + "</div></section></article>"
         )
     full = result.get("full", {})
     full_label = "Full 통과" if full.get("status") == "passed" else (

@@ -60,11 +60,11 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
         self.assertIn("기존 응답 유지", page)
         self.assertIn("전환 전후 대표 요청을 비교한다", page)
         self.assertIn("응답 형식과 값이 같다", page)
-        self.assertIn("tests.api.test_contract", page)
+        self.assertEqual(page.count('class="section-body"'), 8)
         self.assertIn('data-visual="migration"', page)
         self.assertIn("복구", page)
         self.assertIn("review-masthead", page)
-        for removed in ("검토 요청", "변경 후 달라지는 점", "동작 설계", "완료 판정 기준", "의존성과 작업 경계", "리스크와 검토 포인트", "Impact rule", "review-facts"):
+        for removed in ("검토 요청", "변경 후 달라지는 점", "동작 설계", "완료 판정 기준", "의존성과 작업 경계", "리스크와 검토 포인트", "Impact rule", "review-facts", "기술 세부 정보", "tests.api.test_contract"):
             self.assertNotIn(removed, page)
         for forbidden in ("sha256:", "<pre", "frontmatter", "감사 부록", "```"):
             self.assertNotIn(forbidden, page)

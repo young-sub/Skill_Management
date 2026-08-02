@@ -55,13 +55,10 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
             self.assertIn(table_label, page)
         self.assertIn("정상 요청은 기존 응답 형식을 유지한다", page)
         self.assertIn("정상·거부 요청의 공개 응답을 검증", page)
-        self.assertIn("관련 공개 동작이 통과한다", page)
-        self.assertIn("정상·거부 요청 회귀 테스트 통과", page)
-        self.assertIn("승인된 설계와 동일", page)
-        self.assertIn("추가 승인 불필요", page)
+        self.assertEqual(page.count('class="section-body"'), 8)
+        self.assertIn('<section class="review-section result-section"><h3>핵심 결과</h3><div class="section-body">', page)
         self.assertIn("✓ 완료", page)
-        self.assertIn("기술 세부 정보", page)
-        for removed in ("구현된 변화", "실제 동작과 관찰 결과", "검증 근거", "완료 기준별 판정", "계획 대비 변경", "criteria-table", "review-facts"):
+        for removed in ("구현된 변화", "실제 동작과 관찰 결과", "검증 근거", "완료 기준별 판정", "계획 대비 변경", "criteria-table", "review-facts", "기술 세부 정보", "python -m unittest auth", "관련 공개 동작이 통과한다", "정상·거부 요청 회귀 테스트 통과", "승인된 설계와 동일", "추가 승인 불필요"):
             self.assertNotIn(removed, page)
         for forbidden in ("sha256:", "<pre", "frontmatter", "감사 부록", "```"):
             self.assertNotIn(forbidden, page)

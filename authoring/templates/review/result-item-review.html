@@ -34,6 +34,7 @@
     .status { color: var(--accent); font-size: .82rem; font-weight: 900; }
     .review-section { display: grid; grid-template-columns: 142px minmax(0, 1fr); gap: 26px; padding: 28px 0; border-bottom: 1px solid var(--line); }
     .review-section h3 { margin: 2px 0 0; font-size: .82rem; line-height: 1.35; letter-spacing: .04em; }
+    .section-body { min-width: 0; grid-column: 2; }
     .lead-copy { max-width: 720px; margin: 0; font: 600 1.18rem/1.65 var(--serif); }
     .behavior-visual { min-width: 0; margin: 0; }
     .behavior-visual figcaption { display: none; }
@@ -55,20 +56,13 @@
     .outcome-list { margin: 18px 0 0; padding: 16px 22px 16px 42px; background: var(--soft); }
     .outcome-list li + li { margin-top: 8px; }
     .material-notice { display: grid; gap: 4px; margin-top: 16px; padding: 14px 16px; color: #772a1a; background: #f6dfd8; border-left: 4px solid var(--warn); }
-    .technical-details { margin-top: 14px; color: var(--muted); font-size: .82rem; }
-    .technical-details summary { cursor: pointer; font-weight: 800; }
-    .technical-details code { display: block; margin-top: 8px; padding: 8px 10px; background: #e8ece8; font: .78rem/1.45 ui-monospace, monospace; overflow-wrap: anywhere; }
-    .result-details h4 { margin: 16px 0 6px; color: var(--ink); }
-    .criteria-details { margin: 0; padding-left: 20px; }
-    .criteria-details li { margin-top: 8px; }
-    .criteria-details span { display: block; }
-    .delta-detail { display: grid; gap: 3px; margin: 0; }
     @media (max-width: 680px) {
       .review-shell { width: min(100% - 24px, 980px); margin-top: 18px; }
       .item { margin-top: 40px; }
       .item-heading { grid-template-columns: 58px 1fr; gap: 12px; }
       .item-heading .status { grid-column: 2; }
       .review-section { grid-template-columns: 1fr; gap: 12px; padding: 22px 0; }
+      .section-body { grid-column: 1; }
       .behavior-map { grid-template-columns: 1fr; gap: 10px; }
       .flow-step:not(:last-child)::after { content: "↓"; right: 16px; top: auto; bottom: -17px; z-index: 2; }
       .test-table, .test-table tbody, .test-table tr, .test-table th, .test-table td { display: block; width: 100%; }
