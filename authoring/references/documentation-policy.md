@@ -1,7 +1,6 @@
 # Documentation Policy
 
-- Keep active source-of-truth documents aligned with implemented behavior.
-- Keep active plans separate from completed or superseded plans; archive only after close verification.
-- `.work/` holds runtime contracts and evidence, is gitignored, and must never be referenced as durable authority by tracked documents.
-- Promote only durable architecture, domain, verification, and operational decisions into tracked docs.
-- Keep indexes derived where possible and avoid shared-file rewrites that create collaboration conflicts.
+- `docs/index.md` is the required agent entry point. Durable documents describe current boundaries, contracts, tests, or operations and remain reachable from it.
+- Human guidance uses the configured human entry point. Korean review HTML is an expiring decision surface, not technical authority.
+- Ordinary Goal contracts, plans, reviews, evidence, and logs live under `.work/`; do not create tracked completed-plan or decision archives.
+- Map coherent brownfield paths before moving them. Update durable documents only when their mapped current truth changes.

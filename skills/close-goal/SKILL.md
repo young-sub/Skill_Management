@@ -1,32 +1,16 @@
 ---
 name: close-goal
-description: Validate Harness completion gates, create a human-readable Completion Review, and archive eligible ephemeral work without deletion.
+description: Close a Harness v3 contract Item by Item, render the Korean Result Review, and transition retained work safely.
 ---
 
-# Close Goal
+# Close Goal — Harness v3
 
-Use after every approved Plan is complete and implementation verification has been recorded. Review the result across Spec, Standards, Maintainability, Architecture, and Diagnostics before invoking the deterministic helper.
+Use `scripts/core_harness.py`, `scripts/render_result_review.py`, and the bundled schemas/templates.
 
-## Inputs
-
-Prepare JSON files with `findings` and `checks` arrays. Each finding has `severity` and `title`. Targeted, Feature, Fast, and Full must each appear exactly once with `status: passed`, a nonempty exact command and evidence, and `returncode: 0`. Treat unrun Live or Eval checks as `unverified`, never as passed or failed.
-
-Run:
-
-```text
-python scripts/close_goal.py --contract-root <.work/active/work-id> --source-root <repository> --findings <findings.json> --verification <verification.json> --current-month <YYYY-MM>
-```
-
-## Gates
-
-- Any High finding blocks completion and archive.
-- The generated Contract engine must confirm the canonical approved hash, required sections, and DAG. Every GOAL Plan, or the SPEC runtime state, must be `completed`.
-- Missing, duplicated, failed, or evidence-free Targeted, Feature, Fast, or Full verification blocks completion.
-- Any git-tracked text document referencing `.work/` blocks completion. Move important decisions and structural knowledge into durable repository documents, then rerun the gate.
-- Failure to enumerate tracked files is a blocking gate, not absence of references.
-- Never claim an unrun check passed or failed.
-- Never overwrite an existing archive destination or delete work.
-
-On success the helper creates `RESULT.md` and escaped scriptless `artifacts/completion-review.html`. It creates `HANDOFF.md` only when `.harness/project.yaml` sets `handoff.target` to `local` or `both`, then moves the intact work directory to `.work/archive/YYYY-MM/<work-id>`.
-
-The Completion Review is a decision aid. The Markdown result and durable repository documentation remain authoritative.
+1. Match Result Items to Design Item IDs and order. Each Item needs observable implementation, relevant check results, Done status, and planned-versus-actual delta.
+2. Require Impacted checks for that Item. Require Full only when cumulative impact matches a configured trigger or the human requested it; otherwise record `not_required` with the matched rule.
+3. A failed or required-but-unrun check blocks only the affected Item. Unresolved impact blocks completion. A material delta needs focused approval.
+4. Update only mapped durable documents whose current truth changed. Ordinary work creates no tracked plan, decision, Review, or evidence archive.
+5. Render Korean `review/result.html` with the same Item identities and behavior visual grammar. Do not expose raw Markdown, hashes, frontmatter, detailed logs, or audit appendices.
+6. Write `completed_at`, `retain_until`, and `delete_after` to `work.json`, then move the intact active directory to `.work/goals/completed/YYYY-MM/<work-id>`.
+7. Re-resolve captured base movement and protection. Merge locally only when repository policy authorizes it and the base is unprotected; otherwise leave a verified branch and handoff. Never auto-push.

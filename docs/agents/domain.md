@@ -1,28 +1,10 @@
-# Domain And Source-Of-Truth Config
+# Domain And Source Of Truth
 
-## Product And Architecture
+- `authoring/` owns shared implementation, schemas, policies, and templates.
+- `skills/` is the generated, self-contained public distribution surface.
+- `.harness/project.yaml` owns project mapping, impact, commands, retention, Git policy, baseline debt, and active cohort.
+- `docs/index.md` owns technical navigation; `docs/architecture/harness-v3.md` owns Harness boundaries; `docs/testing.md` owns verification semantics.
+- `tests/harness/test_core_first_*.py` own behavior contracts. Distribution tests own generation, self-containment, catalog, and clean-install invariants.
+- `.work/goals`, `.work/runtime`, and `.work/transactions` are typed ephemeral state and never tracked authority.
 
-- Product overview and completed V2 requirements: `docs/archive/plans/harness_v2_implementation_plan.md`.
-- Parent design and rationale: `skill_recreate_plan.md`.
-- Current implementation surface: distributable skills under `skills/`.
-- Planned boundaries: `authoring/`, `skills/`, `legacy-skills/`, `scripts/`, and `tests/` as defined by WP-01.
-- Distribution architecture and inventory: `docs/architecture/skill-inventory.md`.
-- ADR directory is not configured yet; WP-01 introduces no hard-to-reverse ADR beyond the approved plan.
-
-## Verification And Operations
-
-- Verification policy is implemented by repository commands and tests; its design record is section 10 of `docs/archive/plans/harness_v2_implementation_plan.md`.
-- Repository test command: `python -m unittest discover -s tests -p "test_*.py"`.
-- Distribution verification must cover skill-directory/name matching, valid frontmatter, self-contained resources, legacy non-discovery, expected catalog, and clean Codex/Claude installation.
-- Runtime diagnostics are out of WP-01 scope.
-
-## Active Planning And Archive
-
-- Completed V2 plan: `docs/archive/plans/harness_v2_implementation_plan.md`.
-- Durable local Work Packets: `docs/work-packets/<owner-slug>/`.
-- Published Work Packet archive: `docs/archive/work-packets/<owner-slug>/`.
-- Completed/stale plans: `docs/archive/` after close.
-
-## Unresolved Decisions
-
-- Repository rename, public license, catalog registration, native provider plugins, global instruction installation, and final legacy storage format remain explicitly deferred by the active plan.
+The v2.0.0 release record is durable historical evidence. Removed Work Packets and implementation plans are recoverable from Git history but are not current sources of truth.

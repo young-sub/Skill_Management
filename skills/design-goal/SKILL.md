@@ -1,43 +1,16 @@
 ---
 name: design-goal
-description: Build an approvable implementation contract from repository evidence and human decisions, including vertical-slice plans, a dependency DAG, and static Design Review. Use when implementation scope is understood and must be converted into SPEC.md, GOAL.md, and independently verifiable plans.
+description: Create an Item-based Harness v3 contract and Korean Design Review from repository evidence and human decisions.
 ---
 
-# Design Goal
+# Design Goal — Harness v3
 
-## Preconditions
+Use `scripts/core_harness.py`, `scripts/render_item_review.py`, and `schemas/contract.schema.json`.
 
-- Investigate code, public interfaces, schemas, tests, ADRs, domain language, runtime, security, and operations before asking questions answerable from the repository.
-- If the requested behavior is already clear and repository evidence resolves the constraints, skip interviewing and proceed to the Contract workflow. Do not ask questions when no material decision remains.
-- Otherwise run a bounded interview for unresolved product, state, interface, failure, security, verification, completion, or architecture choices. Ask one related group of decision questions per round, include recommended answers and tradeoffs, and wait for the human response.
-- Repeat decision rounds only while material choices remain unresolved. Treat contradictions, uncertain inferences, and ambiguous acceptance scenarios as unresolved rather than silently choosing for the human.
-- Before drafting the Contract, restate the resolved human intent, observable acceptance scenarios, non-goals, and any remaining assumptions. Do not continue if a material decision is still open or the human says the summary is incorrect.
-- Never implement the proposed behavior during this workflow.
+1. Research repository evidence and close internal choices that follow convention. Interview only while product, state, permission, failure, or hard-to-reverse decisions remain open.
+2. Create `.work/goals/active/<work-id>/contract.json` with two to five behavior-oriented Items. Every Item defines stable ID, What, ordered How steps, first-use terms, observable Test, Done, dependencies, non-goals, decision state, material risks, and core/optional priority.
+3. Render `review/design.html` in Korean. It is a scriptless decision surface with behavior-matched visuals, not a Markdown dump or technical authority.
+4. Validate complete Item/test/done/dependency projection coverage. Required unresolved decisions block approval.
+5. Treat an unambiguous natural-language approval of the displayed Review as authority. Store the contract and rendered-review digests internally with the utterance, actor, time, and visible IDs; never ask the human to paste Work ID, path, or hash.
 
-## Contract workflow
-
-1. Choose a unique Work ID under the configured work root.
-2. For a small change, instantiate `templates/work/SPEC.md`. For medium work, instantiate `GOAL.md` and one or more `templates/work/PLAN.md` files under `plans/`.
-3. Keep every Plan a vertical, independently verifiable slice. Record dependencies as a JSON-array literal in `depends_on`.
-4. Run `python scripts/contract_engine.py validate --root <contract-root> --work-root <work-root>`.
-5. Render `design-review.html` with `python scripts/render_design_review.py --root <contract-root> --output <contract-root>/design-review.html` and present the human-readable contract for approval.
-6. After an explicit human approval response, run `python scripts/contract_engine.py approve --root <contract-root> --work-root <work-root> --approved-at <ISO-8601> --approved-by human`. Approval rechecks Work ID uniqueness in that work root; never reuse an earlier validation result.
-7. Re-run validation with `--require-approved`. Any contract hash drift requires new approval.
-
-The parser supports only the generated limited frontmatter and required `##` sections. Approval metadata, Plan runtime status, Results, Blocked reports, and Evidence section content are excluded from the canonical hash. Contract decisions, approval requirements, Plan identity, and dependencies are included.
-
-## Final output and stop
-
-Return this Goal declaration payload with the actual values:
-
-```text
-Use $execute-codex-goal.
-
-Work ID: <WORK_ID>
-Contract: <GOAL.md path>
-Approved contract hash: sha256:<canonical-contract-hash>
-Execute every approved slice in dependency order.
-Stop only for the contract's Hard Stop conditions.
-```
-
-Do not invoke `execute-codex-goal`, create a Codex Goal, or begin implementation. Provide the Goal declaration payload and stop.
+Do not begin implementation in this Skill. Return the approved work path and Item IDs; a host Goal may track the work but is not required.

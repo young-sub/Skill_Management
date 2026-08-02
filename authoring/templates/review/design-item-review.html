@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Design Review</title>
+  <style>
+    :root { color-scheme: light; --ink:#18212f; --muted:#5c6878; --line:#d8e0ea; --brand:#135f64; --surface:#f5f8fa; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--surface); color:var(--ink); font:16px/1.55 system-ui,sans-serif; }
+    main { max-width:960px; margin:auto; padding:40px 20px; }
+    .summary,.item { background:white; border:1px solid var(--line); border-radius:16px; padding:24px; margin-bottom:18px; }
+    .eyebrow,.item-id { color:var(--brand); font-weight:800; }
+    .summary h1 { margin:.2rem 0; }
+    .boundary { color:var(--muted); }
+    header { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    header h2 { margin:0; flex:1; }
+    .status { font-weight:700; }
+    .flow { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .flow-step { border:1px solid #8bb7ba; border-radius:999px; padding:7px 12px; background:#eef8f8; }
+    .arrow { color:var(--brand); font-weight:800; }
+    .term { border-left:3px solid #8bb7ba; padding-left:12px; }
+    @media(max-width:600px) { main{padding:20px 12px}.summary,.item{padding:18px}.arrow{transform:rotate(90deg)} }
+  </style>
+</head>
+<body><main>{{SUMMARY}}{{ITEMS}}</main></body>
+</html>

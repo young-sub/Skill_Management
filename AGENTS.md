@@ -1,59 +1,27 @@
-# AGENTS.md
+# Agent Instructions
 
-## Scope
+## Routing
 
-- Applies to this repository, the source distribution for the Personal Agent Harness skills.
-- Global agent instructions govern generic behavior; this file contains repository-specific routing only.
-- Read the nearest nested `AGENTS.md` before editing a path when one exists.
+- This repository distributes the Personal Agent Harness skills. Read `docs/index.md` for current implementation knowledge and `.harness/project.yaml` for path ownership, impact selection, commands, retention, and Git policy.
+- Read the nearest nested `AGENTS.md` before editing a path. `back-up/` is read-only unless a task explicitly targets it.
+- Canonical shared resources live under `authoring/`; generated public Skill resources live under `skills/`. Regenerate them with the configured resource-sync command instead of editing generated copies.
 
-## Repo Map
+## Delivery
 
-- `skills/`: publicly discoverable Agent Skills; each published skill must be self-contained.
-- `authoring/`: canonical shared policies and templates, generated into individual skills.
-- `legacy-skills/`: non-discoverable preservation area for replaced workflow skills.
-- `tests/` and `scripts/`: distribution, installation, contract, runtime, and release verification surfaces.
-- `back-up/`: historical snapshots; read only unless a task explicitly targets them.
+- Implement dependency-ready core Items before optional work. Use RED/GREEN for behavior changes; use baseline GREEN → structural change → equivalent GREEN for behavior-preserving document or test relocation.
+- Select verification from `.harness/project.yaml`. Unresolved relevant impact blocks completion; Full is required only by a configured cumulative-impact trigger or explicit human request.
+- Capture the current branch and commit as the base; never assume a branch name. Preserve the dirty baseline and commit each independently verified Item without unrelated files.
 
-## Source Of Truth
+## State And Risk
 
-- Completed V2 implementation record: `docs/archive/plans/harness_v2_implementation_plan.md`
-- Parent design record: `skill_recreate_plan.md`; implemented behavior and current architecture docs win on conflict.
-- Agent workflow: `docs/agents/workflow.md`
-- Tracker and durable records: `docs/agents/issue-tracker.md`
-- Triage vocabulary: `docs/agents/triage-labels.md`
-- Domain and architecture pointers: `docs/agents/domain.md`
-- Distribution inventory: `docs/architecture/skill-inventory.md`
+- Durable current technical truth is tracked under the configured documentation roots. Contracts, reviews, evidence, logs, transactions, and completed Goal state expire under `.work/`.
+- Require explicit approval for destructive actions, security/privacy or secret handling, irreversible migration, external cost, push, publish, or other high-risk state changes.
+- Do not edit global provider configuration or installed Skills. Do not publish releases, rename remotes, change licensing, or auto-merge protected branches.
 
 ## Commands
 
-- Test: `python -m unittest discover -s tests -p "test_*.py"`
+- Impacted Harness tests: `python -m unittest tests.harness.test_core_first_schema tests.harness.test_core_first_setup tests.harness.test_core_first_design_execution tests.harness.test_core_first_close_lifecycle tests.harness.test_core_first_cutover tests.harness.test_core_first_forward_workflows`
+- Full: `python -m unittest discover -s tests -p "test_*.py"`
 - Resource drift: `powershell -NoProfile -File scripts/sync-skill-resources.ps1 -Check`
 - Distribution: `powershell -NoProfile -File scripts/validate-distribution.ps1`
-- Install smoke: `powershell -NoProfile -File scripts/test-install.ps1` (downloads/executes the external `skills` package; requires explicit approval).
 - Formatting: `git diff --check`
-
-## Work Tracking
-
-- Tracker: local markdown under `docs/work-packets/<owner>/`; GitHub Issue/PR publication is optional.
-- Use `$work-packet` for non-trivial capability work; any live Issue/PR publication is a separate human-triggered step.
-- Implementation branches use `wp-<id>-<slug>` unless repository evidence establishes another convention.
-- `main` is the resolved integration branch and is treated as protected; do not auto-push or auto-merge into it.
-
-## Agent / Skill Use
-
-- Use `$project-agent-bootstrap` when this control plane drifts.
-- Use `$test-driven-development` for behavior changes: observe RED before implementation, then GREEN and refactor.
-- Keep the main session responsible for shared interfaces, root docs, source-of-truth docs, and final verification.
-
-## Repo Constraints
-
-- Do not edit `back-up/` or global provider configuration unless explicitly requested.
-- Do not expose replaced workflow skills through a public `SKILL.md`; preserve approved legacy copies in a non-discoverable form.
-- Do not publish releases, rename the remote, change licensing, modify global homes, or delete legacy content without explicit approval.
-- `.work/` is gitignored runtime state and must never be a tracked source of truth.
-
-## Verification And Done
-
-- Record commands, results, unrun checks, assumptions, and remaining risks.
-- Public skills must eventually pass frontmatter, self-containment, expected-catalog, and clean-install checks from WP-01.
-- Archive completed plans under `docs/archive/` only after implementation and verification are complete.

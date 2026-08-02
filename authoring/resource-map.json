@@ -1,141 +1,22 @@
 {
   "schema_version": 1,
   "resources": [
-    {
-      "source": "scripts/bootstrap_project.py",
-      "targets": [
-        "setup-agent-harness/scripts/bootstrap_project.py"
-      ]
-    },
-    {
-      "source": "templates/project/AGENTS.md",
-      "targets": [
-        "setup-agent-harness/templates/project/AGENTS.md"
-      ]
-    },
-    {
-      "source": "templates/project/TESTING.md",
-      "targets": [
-        "setup-agent-harness/templates/project/TESTING.md"
-      ]
-    },
-    {
-      "source": "templates/project/project.yaml",
-      "targets": [
-        "setup-agent-harness/templates/project/project.yaml"
-      ]
-    },
-    {
-      "source": "scripts/contract_engine.py",
-      "targets": [
-        "design-goal/scripts/contract_engine.py",
-        "execute-codex-goal/scripts/contract_engine.py",
-        "close-goal/scripts/contract_engine.py"
-      ]
-    },
-    {
-      "source": "scripts/goal_runtime.py",
-      "targets": [
-        "execute-codex-goal/scripts/goal_runtime.py"
-      ]
-    },
-    {
-      "source": "references/goal-execution-policy.md",
-      "targets": [
-        "execute-codex-goal/references/goal-execution-policy.md"
-      ]
-    },
-    {
-      "source": "scripts/render_design_review.py",
-      "targets": [
-        "design-goal/scripts/render_design_review.py"
-      ]
-    },
-    {
-      "source": "templates/review/design-review.html",
-      "targets": [
-        "design-goal/templates/design-review.html"
-      ]
-    },
-    {
-      "source": "templates/work/SPEC.md",
-      "targets": [
-        "design-goal/templates/work/SPEC.md"
-      ]
-    },
-    {
-      "source": "templates/work/GOAL.md",
-      "targets": [
-        "design-goal/templates/work/GOAL.md"
-      ]
-    },
-    {
-      "source": "templates/work/PLAN.md",
-      "targets": [
-        "design-goal/templates/work/PLAN.md"
-      ]
-    },
-    {
-      "source": "templates/work/RESULT.md",
-      "targets": [
-        "design-goal/templates/work/RESULT.md",
-        "execute-codex-goal/templates/work/RESULT.md"
-      ]
-    },
-    {
-      "source": "templates/work/BLOCKED.md",
-      "targets": [
-        "design-goal/templates/work/BLOCKED.md",
-        "execute-codex-goal/templates/work/BLOCKED.md"
-      ]
-    },
-    {
-      "source": "scripts/close_goal.py",
-      "targets": [
-        "close-goal/scripts/close_goal.py"
-      ]
-    },
-    {
-      "source": "scripts/render_completion_review.py",
-      "targets": [
-        "close-goal/scripts/render_completion_review.py"
-      ]
-    },
-    {
-      "source": "templates/review/completion-review.html",
-      "targets": [
-        "close-goal/templates/completion-review.html"
-      ]
-    },
-    {
-      "source": "templates/work/HANDOFF.md",
-      "targets": [
-        "close-goal/templates/work/HANDOFF.md"
-      ]
-    },
-    {
-      "source": "templates/work/RESULT.md",
-      "targets": [
-        "close-goal/templates/work/RESULT.md"
-      ]
-    },
-    {
-      "source": "references/review-policy.md",
-      "targets": [
-        "close-goal/references/review-policy.md"
-      ]
-    },
-    {
-      "source": "scripts/maintain_harness.py",
-      "targets": [
-        "maintain-agent-harness/scripts/maintain_harness.py"
-      ]
-    },
-    {
-      "source": "public-resource-manifest.json",
-      "targets": [
-        "maintain-agent-harness/resources/public-resource-manifest.json"
-      ]
-    }
+    {"source": "scripts/core_harness.py", "targets": ["setup-agent-harness/scripts/core_harness.py", "design-goal/scripts/core_harness.py", "execute-codex-goal/scripts/core_harness.py", "close-goal/scripts/core_harness.py", "maintain-agent-harness/scripts/core_harness.py"]},
+    {"source": "scripts/render_item_review.py", "targets": ["design-goal/scripts/render_item_review.py"]},
+    {"source": "scripts/render_result_review.py", "targets": ["close-goal/scripts/render_result_review.py"]},
+    {"source": "schemas/v3/project.schema.json", "targets": ["setup-agent-harness/schemas/project.schema.json", "maintain-agent-harness/schemas/project.schema.json"]},
+    {"source": "schemas/v3/work.schema.json", "targets": ["execute-codex-goal/schemas/work.schema.json", "close-goal/schemas/work.schema.json", "maintain-agent-harness/schemas/work.schema.json"]},
+    {"source": "schemas/v3/contract.schema.json", "targets": ["design-goal/schemas/contract.schema.json", "execute-codex-goal/schemas/contract.schema.json", "close-goal/schemas/contract.schema.json"]},
+    {"source": "templates/project/AGENTS.md", "targets": ["setup-agent-harness/templates/project/AGENTS.md"]},
+    {"source": "templates/project/CLAUDE.md", "targets": ["setup-agent-harness/templates/project/CLAUDE.md"]},
+    {"source": "templates/project/TESTING.md", "targets": ["setup-agent-harness/templates/project/TESTING.md"]},
+    {"source": "templates/project/project.yaml", "targets": ["setup-agent-harness/templates/project/project.yaml"]},
+      {"source": "templates/review/design-item-review.html", "targets": ["design-goal/templates/design-item-review.html", "execute-codex-goal/templates/design-item-review.html"]},
+    {"source": "templates/review/result-item-review.html", "targets": ["close-goal/templates/result-item-review.html"]},
+    {"source": "references/documentation-policy.md", "targets": ["setup-agent-harness/references/documentation-policy.md", "close-goal/references/documentation-policy.md"]},
+    {"source": "references/testing-policy.md", "targets": ["execute-codex-goal/references/testing-policy.md", "close-goal/references/testing-policy.md", "maintain-agent-harness/references/testing-policy.md"]},
+    {"source": "references/human-readability-policy.md", "targets": ["design-goal/references/human-readability-policy.md", "close-goal/references/human-readability-policy.md"]},
+    {"source": "references/goal-execution-policy.md", "targets": ["execute-codex-goal/references/goal-execution-policy.md", "diagnose/references/goal-execution-policy.md"]},
+    {"source": "public-resource-manifest.json", "targets": ["maintain-agent-harness/resources/public-resource-manifest.json"]}
   ]
 }

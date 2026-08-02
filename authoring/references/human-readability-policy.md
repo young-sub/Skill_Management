@@ -1,8 +1,6 @@
 # Human Readability Policy
 
-- Put the decision and outcome before implementation detail.
-- Keep canonical technical identifiers in English when translation would reduce precision; explain unfamiliar terms briefly.
-- Separate user-facing status, operator/developer diagnostics, and retained evidence.
-- Prefer concise structured summaries over raw logs. Include exact commands in verification evidence, not executive summaries.
-- Static HTML reviews must escape external text and must not execute untrusted scripts.
-- Korean summaries are non-normative review aids; canonical English sections and source-of-truth docs prevail on conflict.
+- Agent contracts and durable technical documents are English. Design and Result surfaces are Korean by default.
+- Reviews use the same stable Item IDs/order, show What, How, Test, and Done, and explain unfamiliar terms on first use.
+- Use behavior-matched flow/state/migration visuals. Do not expose raw Markdown, frontmatter, hashes, detailed logs, or audit appendices.
+- Status always has text and an icon in addition to color.
