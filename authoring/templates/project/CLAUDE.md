@@ -8,7 +8,7 @@
 ## Delivery
 
 - Implement dependency-ready core Items before optional work. Use RED/GREEN for behavior changes and impact-selected verification for Item completion.
-- Capture the current branch and commit as the base; do not assume a branch name. Preserve the dirty baseline and commit each independently verified Item.
+- Capture the current branch and commit as the base; do not assume a branch name. Preserve the dirty baseline. Commit independently reviewable slices when project policy or the user requires intermediate commits.
 - Keep durable current truth under configured document roots. Contracts, reviews, evidence, logs, and transactions expire under `.work/`.
 
 ## Risk

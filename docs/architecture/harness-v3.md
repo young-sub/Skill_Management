@@ -6,9 +6,9 @@
 
 ## Work contract and reviews
 
-`contract.json` is the canonical, language-independent Item contract. Every Item has stable identity, a concrete changed outcome, ordered behavior steps, stable test IDs with target/method/expected/selector, stable Done IDs, dependencies, non-goals, decision state, risk, and core/optional priority. Contracts contain two to five Items. Design and Result HTML are Korean decision documents with the same IDs and order.
+`contract.json` is the canonical, language-independent Item contract. Every Item has stable identity, a concrete changed outcome, ordered behavior steps, observable verification, and stable Done criteria. Terms, dependencies, non-goals, structured risk flags, and priority are present only when relevant. Contracts contain one to five Items. Design and Result HTML are Korean decision documents with the same IDs and order.
 
-Each Item exposes four primary blocks only: purpose, process, tests, and expected or actual result. Design test tables state what is verified, how it is tested, and the observable pass condition. Result tables state what was verified, which test ran, and what was observed. Exact commands, criterion-level evidence, and non-material plan deltas remain in agent records and are not rendered. Internal digests bind default or explicit authorization but are not shown to humans. Arbitrary caller-supplied HTML is never an authorization input; the server renders the canonical Review. Veto and high-risk boundaries fail closed.
+Each Item exposes four primary blocks only: purpose, process, tests, and expected or actual result. The purpose block may explain unfamiliar terms and material non-goal or risk boundaries. Design test tables state what is verified, how it is tested, and the observable pass condition. Result tables state what was verified and what was observed. Exact commands, criterion-level evidence, internal priority, and non-material plan deltas remain in agent records. Internal digests bind default or explicit authorization but are not shown to humans. Arbitrary caller-supplied HTML is never an authorization input; the server renders the canonical Review. Veto and structured high-risk boundaries fail closed.
 
 ## Runtime and state
 

@@ -85,6 +85,14 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
         self.assertIn("planned_check_evidence_mismatch", evaluated["items"][0]["errors"])
         self.assertIn("planned_done_evidence_mismatch", evaluated["items"][0]["errors"])
 
+        changed_command = result_payload()
+        changed_command["items"][0]["checks"][0]["command"] = "python -m unittest exact.runtime.case"
+        proportional = core.evaluate_result(
+            contract(), changed_command,
+            {"full_required": False, "unresolved": [], "not_required_rule_ids": ["independent_capability"]},
+        )
+        self.assertEqual(proportional["items"][0]["status"], "complete")
+
     def test_korean_result_review_matches_design_identity_and_shows_actual_visual(self) -> None:
         core = load_core()
         page = core.render_result_review_v3(contract(), result_payload())

@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/templates/project/AGENTS.md -->
-<!-- Source-SHA256: ac38b610f8eae75842ed2b0876016c6ca61a95540cc014a9c0e48c96c0bb9c84 -->
+<!-- Source-SHA256: 8867e8d27dcbd64dbd91a799ad594fdbf19c49d5ed7b83542fb8669a8499f85c -->
 
 # Project Agent Instructions
 
@@ -12,7 +12,7 @@
 ## Delivery
 
 - Implement dependency-ready core Items before optional work. Use RED/GREEN for behavior changes and impact-selected verification for Item completion.
-- Capture the current branch and commit as the base; do not assume a branch name. Preserve the dirty baseline and commit each independently verified Item.
+- Capture the current branch and commit as the base; do not assume a branch name. Preserve the dirty baseline and commit only independently reviewable slices when repository policy or the human requests commits.
 - Keep durable current truth under configured document roots. Contracts, reviews, evidence, logs, and transactions expire under `.work/`.
 
 ## Risk

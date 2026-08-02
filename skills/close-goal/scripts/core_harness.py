@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/core_harness.py
-# Source-SHA256: aa7561ebaffa962adb50af735ec2435331a473e6c04d5069c75d35a29279fb56
+# Source-SHA256: 582da5d7ae8cd52fbd88fbb0397f2bf0b6e4b97c1737ec48534938a610558025
 
 #!/usr/bin/env python3
 """Deterministic Core-First Harness v3 contracts and compatibility checks."""
@@ -31,7 +31,7 @@ WORK_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 COHORT_COMPONENTS = ("project", "design", "execute", "close", "maintain", "diagnose")
 HARNESS_INSTALL_SKILLS = (
     "setup-agent-harness", "design-goal", "execute-codex-goal", "close-goal",
-    "maintain-agent-harness", "diagnose", "project-agent-bootstrap",
+    "maintain-agent-harness", "diagnose",
 )
 ITEM_FIELDS = (
     "id", "title", "behavior_type", "what", "steps", "terms", "tests", "done",
@@ -1005,6 +1005,45 @@ def _design_test_table(tests: list[Any]) -> str:
     )
 
 
+def _risk_label(risk: str) -> str:
+    return {
+        "destructive": "파괴적 변경",
+        "security_privacy": "보안·개인정보 변경",
+        "secret_handling": "비밀정보 처리",
+        "irreversible_migration": "비가역 마이그레이션",
+        "external_cost": "외부 비용",
+        "push": "원격 push",
+        "publish": "외부 publish",
+        "global_configuration": "전역 설정 변경",
+    }.get(risk, risk)
+
+
+def _design_context(item: dict[str, Any]) -> str:
+    details: list[str] = []
+    terms = item.get("terms", [])
+    if terms:
+        details.append(
+            '<dl class="term-list">' + "".join(
+                '<div><dt>' + html.escape(str(term["term"])) + '</dt><dd>'
+                + html.escape(str(term["explanation"])) + "</dd></div>"
+                for term in terms if isinstance(term, dict)
+            ) + "</dl>"
+        )
+    non_goals = item.get("non_goals", [])
+    if non_goals:
+        details.append(
+            '<p class="decision-boundary"><strong>제외 범위</strong> '
+            + html.escape(" · ".join(str(value) for value in non_goals)) + "</p>"
+        )
+    risks = item.get("material_risks", [])
+    if risks:
+        details.append(
+            '<p class="decision-boundary risk"><strong>명시 승인 필요</strong> '
+            + html.escape(" · ".join(_risk_label(str(value)) for value in risks)) + "</p>"
+        )
+    return "".join(details)
+
+
 def _check_label(kind: Any) -> str:
     labels = {
         "targeted": "관련 동작",
@@ -1079,7 +1118,7 @@ def render_design_review_v3(contract: dict[str, Any]) -> str:
             '<header class="item-heading"><span class="item-id">' + html.escape(item["id"])
             + '</span><h2>' + html.escape(item["title"]) + "</h2>" + decision_alert + "</header>"
             + '<section class="review-section purpose-section"><h3>핵심 목적</h3><div class="section-body"><p class="lead-copy">'
-            + html.escape(item["what"]) + "</p></div></section>"
+            + html.escape(item["what"]) + "</p>" + _design_context(item) + "</div></section>"
             + '<section class="review-section process-section"><h3>핵심 프로세스</h3><div class="section-body">'
             + _behavior_visual(behavior_type, item["steps"]) + "</div></section>"
             + '<section class="review-section test-section"><h3>핵심 테스트</h3><div class="section-body">'
@@ -1091,7 +1130,13 @@ def render_design_review_v3(contract: dict[str, Any]) -> str:
         '<header class="review-masthead"><div class="document-mark"><span>구현 계획</span><strong>DESIGN / '
         + html.escape(str(contract.get("work_id", ""))) + '</strong></div><h1>'
         + html.escape(contract.get("goal", "")) + '</h1><p class="standfirst">'
-        + html.escape(contract.get("scope", "")) + "</p></header>"
+        + html.escape(contract.get("scope", ""))
+        + (
+            '<br><strong>제외 범위</strong> '
+            + html.escape(" · ".join(str(value) for value in contract.get("non_goals", [])))
+            if contract.get("non_goals") else ""
+        )
+        + "</p></header>"
     )
     return _review_template("design-item-review.html").replace("{{SUMMARY}}", summary).replace("{{ITEMS}}", "".join(cards)).rstrip() + "\n"
 
@@ -1646,8 +1691,7 @@ def evaluate_result(
             if checks_match:
                 for check_id, planned_check in planned_checks.items():
                     check = actual_checks[check_id]
-                    selector = planned_check.get("selector", "")
-                    if check.get("status") != "passed" or (selector and check.get("command") != selector):
+                    if check.get("status") != "passed":
                         checks_match = False
                         break
             if not checks_match:

@@ -118,6 +118,8 @@ class CoreFirstCutoverTests(unittest.TestCase):
             "authoring/scripts/render_completion_review.py", "authoring/scripts/maintain_harness.py",
         ):
             self.assertFalse((ROOT / relative).exists(), relative)
+        self.assertFalse((ROOT / "skills" / "project-agent-bootstrap").exists())
+        self.assertNotIn("project-agent-bootstrap", load_core().HARNESS_INSTALL_SKILLS)
 
     def test_repository_impact_and_ci_descriptors_cover_cutover_surfaces(self) -> None:
         core = load_core()
@@ -131,16 +133,20 @@ class CoreFirstCutoverTests(unittest.TestCase):
         self.assertEqual(workflow.count('python -m unittest discover -s tests -p "test_*.py"'), 1)
         self.assertNotIn("Core-first representative workflows", workflow)
 
-    def test_independent_skill_docs_do_not_trigger_full_but_shared_harness_resources_do(self) -> None:
+    def test_non_executable_skill_resources_do_not_trigger_full_but_shared_runtime_does(self) -> None:
         core = load_core()
         config = json.loads((ROOT / ".harness" / "project.yaml").read_text(encoding="utf-8"))
 
         independent = core.select_impacted_checks(["skills/finance-research/SKILL.md"], config)
         shared = core.select_impacted_checks(["skills/design-goal/SKILL.md"], config)
+        template = core.select_impacted_checks(["authoring/templates/review/design-item-review.html"], config)
+        runtime = core.select_impacted_checks(["authoring/scripts/core_harness.py"], config)
 
         self.assertEqual(independent["unresolved"], [])
         self.assertFalse(independent["full_required"])
-        self.assertTrue(shared["full_required"])
+        self.assertFalse(shared["full_required"])
+        self.assertFalse(template["full_required"])
+        self.assertTrue(runtime["full_required"])
 
     def test_public_core_script_exposes_inventory_and_review_cli(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

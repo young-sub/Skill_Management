@@ -10,7 +10,7 @@
 
 - Implement dependency-ready core Items before optional work. Use RED/GREEN for behavior changes; use baseline GREEN → structural change → equivalent GREEN for behavior-preserving document or test relocation.
 - Select verification from `.harness/project.yaml`. Unresolved relevant impact blocks completion; Full is required only by a configured cumulative-impact trigger or explicit human request.
-- Capture the current branch and commit as the base; never assume a branch name. Preserve the dirty baseline and commit each independently verified Item without unrelated files.
+- Capture the current branch and commit as the base; never assume a branch name. Preserve the dirty baseline and commit only independently reviewable slices when repository policy or the human requests commits.
 
 ## State And Risk
 

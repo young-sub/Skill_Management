@@ -27,18 +27,19 @@
   },
   "impact": {
     "rules": [
-      {"id": "harness-core", "source_prefixes": ["authoring/scripts/core_harness.py"], "tests": ["tests/harness/test_core_first_schema.py", "tests/harness/test_core_first_setup.py", "tests/harness/test_core_first_design_execution.py", "tests/harness/test_core_first_close_lifecycle.py", "tests/harness/test_core_first_cutover.py", "tests/harness/test_core_first_forward_workflows.py", "tests/harness/test_core_first_cli_maintain.py", "tests/harness/test_core_first_installed_cli_e2e.py"], "feature": "harness-core", "triggers": ["shared_policy"]},
+      {"id": "harness-core", "source_prefixes": ["authoring/scripts/core_harness.py"], "tests": ["tests/harness/test_core_first_schema.py", "tests/harness/test_core_first_setup.py", "tests/harness/test_core_first_design_execution.py", "tests/harness/test_core_first_close_lifecycle.py", "tests/harness/test_core_first_cutover.py", "tests/harness/test_core_first_forward_workflows.py", "tests/harness/test_core_first_cli_maintain.py", "tests/harness/test_core_first_installed_cli_e2e.py"], "feature": "harness-core", "triggers": ["shared_runtime"]},
+      {"id": "harness-schema", "source_prefixes": ["authoring/schemas/v3/"], "tests": ["tests/harness/test_core_first_schema.py", "tests/harness/test_core_first_design_execution.py", "tests/harness/test_core_first_close_lifecycle.py", "tests/harness/test_core_first_cutover.py"], "feature": "harness-core", "triggers": ["schema"]},
       {"id": "generated-skills", "source_prefixes": ["authoring/", "skills/"], "tests": ["tests/distribution/test_sync_skill_resources.py", "tests/distribution/test_validate_distribution.py"], "feature": "distribution", "triggers": []},
-      {"id": "shared-harness-resources", "source_prefixes": ["authoring/scripts/", "authoring/schemas/v3/", "authoring/templates/", "authoring/references/", "authoring/resource-map.json", "authoring/public-resource-manifest.json", "skills/setup-agent-harness/", "skills/design-goal/", "skills/execute-codex-goal/", "skills/close-goal/", "skills/maintain-agent-harness/", "skills/diagnose/"], "tests": ["tests/harness", "tests/distribution/test_sync_skill_resources.py", "tests/distribution/test_validate_distribution.py"], "feature": "harness-core", "triggers": ["generated_resource"]},
+      {"id": "shared-harness-resources", "source_prefixes": ["authoring/templates/", "authoring/references/", "authoring/resource-map.json", "authoring/public-resource-manifest.json", "skills/setup-agent-harness/", "skills/design-goal/", "skills/execute-codex-goal/", "skills/close-goal/", "skills/maintain-agent-harness/", "skills/diagnose/"], "tests": ["tests/harness", "tests/distribution/test_sync_skill_resources.py", "tests/distribution/test_validate_distribution.py"], "feature": "harness-core", "triggers": []},
       {"id": "repository-docs", "source_prefixes": ["docs/", "AGENTS.md", "CLAUDE.md", "README.md"], "tests": ["tests/distribution/test_repository_docs.py", "tests/harness/test_core_first_cutover.py"], "feature": "documentation", "triggers": []},
-      {"id": "distribution-scripts", "source_prefixes": ["scripts/"], "tests": ["tests/distribution"], "feature": "distribution", "triggers": ["generated_resource"]},
+      {"id": "distribution-scripts", "source_prefixes": ["scripts/"], "tests": ["tests/distribution"], "feature": "distribution", "triggers": []},
       {"id": "control-plane", "source_prefixes": [".harness/"], "tests": ["tests/harness/test_core_first_cutover.py"], "feature": "harness-core", "triggers": ["repository_workflow_cutover"]},
       {"id": "test-infrastructure", "source_prefixes": ["tests/"], "tests": ["tests"], "feature": "repository", "triggers": ["test_discovery"]},
       {"id": "ci-workflow", "source_prefixes": [".github/"], "tests": ["tests/release/test_release_candidate.py"], "feature": "distribution", "triggers": ["repository_workflow_cutover"]},
       {"id": "retired-root-design", "source_prefixes": ["skill_recreate_plan.md"], "tests": ["tests/distribution/test_repository_docs.py"], "feature": "documentation", "triggers": []},
-      {"id": "distribution-metadata", "source_prefixes": ["distribution/"], "tests": ["tests/distribution", "tests/release"], "feature": "distribution", "triggers": ["generated_resource"]},
+      {"id": "distribution-metadata", "source_prefixes": ["distribution/"], "tests": ["tests/distribution", "tests/release"], "feature": "distribution", "triggers": []},
       {"id": "legacy-preservation", "source_prefixes": ["legacy-skills/"], "tests": ["tests/distribution/test_validate_distribution.py"], "feature": "distribution", "triggers": []},
-      {"id": "repository-ignore", "source_prefixes": [".gitignore"], "tests": ["tests/harness/test_core_first_setup.py", "tests/harness/test_core_first_design_execution.py"], "feature": "harness-core", "triggers": ["shared_policy"]}
+      {"id": "repository-ignore", "source_prefixes": [".gitignore"], "tests": ["tests/harness/test_core_first_setup.py", "tests/harness/test_core_first_design_execution.py"], "feature": "harness-core", "triggers": []}
     ],
     "feature_selectors": {
       "harness-core": ["python", "-m", "unittest", "tests.harness.test_core_first_schema", "tests.harness.test_core_first_setup", "tests.harness.test_core_first_design_execution", "tests.harness.test_core_first_close_lifecycle", "tests.harness.test_core_first_cutover", "tests.harness.test_core_first_forward_workflows", "tests.harness.test_core_first_cli_maintain", "tests.harness.test_core_first_installed_cli_e2e"],
@@ -46,7 +47,7 @@
       "documentation": ["python", "-m", "unittest", "tests.distribution.test_repository_docs"],
       "repository": ["python", "-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py"]
     },
-    "full_triggers": ["shared_policy", "schema", "generated_resource", "test_discovery", "repository_workflow_cutover"]
+    "full_triggers": ["shared_runtime", "schema", "test_discovery", "repository_workflow_cutover"]
   },
   "commands": {
     "targeted": {"id": "targeted", "argv": ["python", "-m", "unittest"], "working_directory": ".", "platform": "any", "runtime": "python", "capability": "selected-test"},
@@ -60,7 +61,7 @@
   },
   "documents": {"boundaries": [{"paths": ["authoring", "skills"], "documents": ["docs/architecture/harness-v3.md"]}, {"paths": ["tests", "scripts"], "documents": ["docs/testing.md"]}]},
   "work": {"retention": {"completed_days": 30, "trash_days": 7}, "states": ["active", "completed", "trash", "deleted"], "legacy_state": "legacy-unclassified"},
-  "git": {"capture_current_base": true, "protected_branches": ["main"], "branch_pattern": "wp-{work_id}-{slug}", "commit_per_item": true, "worktrees_for_independent_items": true},
+  "git": {"capture_current_base": true, "protected_branches": ["main"], "branch_pattern": "wp-{work_id}-{slug}", "commit_per_item": false, "worktrees_for_independent_items": true},
   "baseline": {"findings": []},
   "extensions": {}
 }

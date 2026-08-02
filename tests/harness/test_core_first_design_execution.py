@@ -63,6 +63,7 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
     def test_korean_design_review_is_item_bound_visual_and_human_readable(self) -> None:
         core = load_core()
         source = contract()
+        source["non_goals"] = ["No public API changes"]
         source["items"][0].update({
             "behavior_type": "migration",
             "what": "기존 API 계약을 유지하면서 새 검증 경로로 안전하게 전환하고, 실패하면 이전 상태를 보존한다.",
@@ -71,7 +72,7 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
                 {"target": "기존 응답 유지", "method": "전환 전후 대표 요청을 비교한다", "expected": "응답 형식과 값이 같다", "selector": "tests.api.test_contract"},
                 {"target": "실패 복구", "method": "새 경로에서 오류를 발생시킨다", "expected": "기존 경로로 복구된다", "selector": "tests.api.test_rollback"},
             ],
-            "non_goals": ["공개 API 응답 형식 변경"],
+            "non_goals": ["No public response changes"],
             "material_risks": ["irreversible_migration"],
         })
         source["items"][1]["depends_on"] = ["I-01"]
@@ -91,7 +92,12 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
         self.assertIn('data-visual="migration"', page)
         self.assertIn("복구", page)
         self.assertIn("review-masthead", page)
-        for removed in ("검토 요청", "변경 후 달라지는 점", "동작 설계", "완료 판정 기준", "의존성과 작업 경계", "리스크와 검토 포인트", "Impact rule", "review-facts", "기술 세부 정보", "tests.api.test_contract"):
+        self.assertIn("Impact rule", page)
+        self.assertIn("변경과 검사를 연결하는 규칙", page)
+        self.assertIn("No public API changes", page)
+        self.assertIn("No public response changes", page)
+        self.assertIn("비가역 마이그레이션", page)
+        for removed in ("검토 요청", "변경 후 달라지는 점", "동작 설계", "완료 판정 기준", "의존성과 작업 경계", "리스크와 검토 포인트", "review-facts", "기술 세부 정보", "tests.api.test_contract"):
             self.assertNotIn(removed, page)
         for forbidden in ("sha256:", "<pre", "frontmatter", "감사 부록", "```"):
             self.assertNotIn(forbidden, page)

@@ -20,7 +20,6 @@ class PublicCatalogTests(unittest.TestCase):
             "maintain-agent-harness",
             "multi-agent-review",
             "prototype",
-            "project-agent-bootstrap",
             "setup-agent-harness",
             "teach",
             "theme-factory",

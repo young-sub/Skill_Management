@@ -35,6 +35,12 @@
     .review-section h3 { margin: 2px 0 0; font-size: .82rem; line-height: 1.35; letter-spacing: .04em; }
     .section-body { min-width: 0; grid-column: 2; }
     .lead-copy { max-width: 720px; margin: 0; font: 600 1.18rem/1.65 var(--serif); }
+    .term-list { display: grid; gap: 8px; margin: 20px 0 0; }
+    .term-list div { display: grid; grid-template-columns: minmax(110px, .28fr) 1fr; gap: 14px; }
+    .term-list dt { color: var(--accent); font-weight: 900; }
+    .term-list dd { margin: 0; color: var(--muted); }
+    .decision-boundary { margin: 16px 0 0; padding: 12px 14px; background: var(--soft); border-left: 3px solid #75817a; }
+    .decision-boundary.risk { color: #7d2e1d; background: #f4ece7; border-left-color: var(--accent); }
     .behavior-visual { min-width: 0; margin: 0; }
     .behavior-visual figcaption { display: none; }
     .behavior-map { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 22px; margin: 0; padding: 0; list-style: none; counter-reset: step; }
@@ -59,6 +65,7 @@
       .item-heading .status { grid-column: 2; }
       .review-section { grid-template-columns: 1fr; gap: 12px; padding: 22px 0; }
       .section-body { grid-column: 1; }
+      .term-list div { grid-template-columns: 1fr; gap: 2px; }
       .behavior-map { grid-template-columns: 1fr; gap: 10px; }
       .flow-step:not(:last-child)::after { content: "↓"; right: 16px; top: auto; bottom: -17px; z-index: 2; }
       .test-table, .test-table tbody, .test-table tr, .test-table th, .test-table td { display: block; width: 100%; }

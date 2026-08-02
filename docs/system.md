@@ -1,10 +1,10 @@
 # Core-First Harness System
 
-The Harness maps an existing repository before changing it, turns authorized work into two to five observable Items, implements dependency-ready core behavior first, selects tests from explicit impact rules, and retains work evidence only for a configured period.
+The Harness maps a repository only when setup is explicitly requested, turns authorized work into one to five observable Items, implements dependency-ready core behavior first, selects tests from explicit impact rules, and retains work evidence only for a configured period.
 
 ```text
 static inventory -> mapped project v3 -> Item contract -> canonical Korean Design Review -> default authorization
-       -> core-first implementation -> Impacted checks -> per-Item commit
+       -> core-first implementation -> Impacted checks -> policy-selected commits
        -> Korean Result Review -> completed -> trash -> exact-approved deletion
 ```
 

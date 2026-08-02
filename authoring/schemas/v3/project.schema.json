@@ -3,7 +3,7 @@
   "$id": "https://agent-harness.local/schemas/v3/project.schema.json",
   "title": "Agent Harness project configuration v3",
   "type": "object",
-  "required": ["schema_version", "harness", "project", "paths", "impact", "commands", "documents", "work", "git", "baseline"],
+  "required": ["schema_version", "harness", "project", "paths", "impact", "commands", "documents", "work", "git"],
   "properties": {
     "schema_version": {"const": 3},
     "harness": {
