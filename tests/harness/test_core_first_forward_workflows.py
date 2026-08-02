@@ -99,11 +99,12 @@ class CoreFirstForwardWorkflowTests(unittest.TestCase):
             (root / "README.md").write_text("See notes/guide.md\n", encoding="utf-8")
             mapping = {
                 "source_roots": ["src"], "test_roots": [], "fixture_roots": [],
-                "generated_roots": [], "durable_document_roots": ["docs", "handbook"],
+                "generated_roots": [], "durable_document_roots": ["docs"],
+                "human_guide_roots": ["handbook", "notes", "README.md"],
                 "documentation_entrypoint": "docs/index.md",
             }
             self.assertEqual(setup.build_mapping_plan(root, mapping)["unresolved"], [])
-            plan = setup.build_cleanup_plan(root, mode="document-only", source_roots=["src"], operations=[
+            plan = setup.build_cleanup_plan(root, mode="document-only", source_roots=["src"], ownership=mapping, operations=[
                 {"action": "move", "source": "notes/guide.md", "target": "docs/guide.md"},
                 {"action": "replace", "path": "README.md", "old": "notes/guide.md", "new": "docs/guide.md"},
             ])

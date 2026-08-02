@@ -74,7 +74,7 @@ class CoreFirstSchemaTests(unittest.TestCase):
 
     def test_unsupported_or_mixed_cohort_fails_closed(self) -> None:
         core = load_core()
-        compatible = {"project": [2, 3], "design": [2, 3], "execute": [2, 3], "close": [2, 3], "maintain": [2, 3]}
+        compatible = {"project": [2, 3], "design": [2, 3], "execute": [2, 3], "close": [2, 3], "maintain": [2, 3], "diagnose": [2, 3]}
         self.assertEqual(core.validate_cohort(2, compatible), [])
         mixed = dict(compatible, close=[3])
         self.assertIn("mixed_cohort:close:2", core.validate_cohort(2, mixed))

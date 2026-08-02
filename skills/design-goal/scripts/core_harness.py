@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/core_harness.py
-# Source-SHA256: 72cdd767fc9ca7c58e232b4b0fcd9fa8679678830f610087fe593132e4c10200
+# Source-SHA256: 460992d4af4ca71028d5ab93c36f71d5dc607346e1f4bca38e7d0c88913e3c7b
 
 #!/usr/bin/env python3
 """Deterministic Core-First Harness v3 contracts and compatibility checks."""
@@ -174,20 +174,72 @@ def validate_cohort(active_version: int, support: dict[str, list[int]]) -> list[
     return errors
 
 
+RESERVED_INVENTORY_ROOTS = {
+    ".git", ".work", ".scratch", ".venv", "venv", "__pycache__",
+    ".cache", ".pytest_cache", ".mypy_cache", "node_modules", "build", "dist",
+}
+
+
+def enumerate_repository_files(
+    root: Path, *, max_files: int = 10000, max_bytes: int = 128 * 1024 * 1024,
+    timeout_seconds: float = 2.0,
+) -> list[Path]:
+    root = root.resolve()
+    git_marker = root / ".git"
+    if git_marker.exists():
+        result = subprocess.run(
+            ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+            cwd=root, capture_output=True, check=False,
+        )
+        if result.returncode == 0:
+            relative_paths = [item.decode("utf-8", errors="surrogateescape") for item in result.stdout.split(b"\0") if item]
+            files: list[Path] = []
+            for relative in relative_paths:
+                parts = PurePosixPath(relative.replace("\\", "/")).parts
+                if any(part in RESERVED_INVENTORY_ROOTS for part in parts):
+                    continue
+                path = _safe_repo_path(root, relative)
+                if path.is_file() and not _path_is_alias(path):
+                    files.append(path)
+            return sorted(files, key=lambda path: path.relative_to(root).as_posix())
+
+    started = time.monotonic()
+    files = []
+    total_bytes = 0
+    for directory, names, filenames in os.walk(root, topdown=True, followlinks=False):
+        names[:] = sorted(
+            name for name in names
+            if name not in RESERVED_INVENTORY_ROOTS and not _path_is_alias(Path(directory) / name)
+        )
+        for filename in sorted(filenames):
+            path = Path(directory) / filename
+            if _path_is_alias(path):
+                continue
+            try:
+                size = path.stat().st_size
+            except OSError as error:
+                raise ValueError(f"inventory_stat_failed:{path}:{error}") from error
+            total_bytes += size
+            files.append(path)
+            if len(files) > max_files or total_bytes > max_bytes or time.monotonic() - started > timeout_seconds:
+                raise ValueError("non_git_inventory_budget_exceeded")
+    return sorted(files, key=lambda path: path.relative_to(root).as_posix())
+
+
 def _relative_files(root: Path) -> list[Path]:
-    return sorted(
-        (path for path in root.rglob("*") if path.is_file() and ".git" not in path.parts and ".work" not in path.parts),
-        key=lambda path: path.relative_to(root).as_posix(),
-    )
+    return enumerate_repository_files(root)
 
 
-def _hash_roots(root: Path, roots: list[str]) -> dict[str, str]:
+def _hash_roots(root: Path, roots: list[str], *, files: list[Path] | None = None) -> dict[str, str]:
     result: dict[str, str] = {}
+    candidates = files if files is not None else enumerate_repository_files(root)
     for relative_root in roots:
         base = _safe_repo_path(root, relative_root)
         if not base.exists():
             continue
-        paths = [base] if base.is_file() else sorted(path for path in base.rglob("*") if path.is_file())
+        paths = [base] if base.is_file() and base in candidates else [
+            path for path in candidates if path == base or base in path.parents
+        ]
         for path in paths:
             result[path.relative_to(root).as_posix()] = "sha256:" + sha256(path.read_bytes()).hexdigest()
     return result
@@ -197,10 +249,11 @@ def static_inventory(root: Path, mapping: dict[str, Any] | None = None) -> dict[
     """Inspect bytes and declarations only; never execute repository content."""
     root = root.resolve()
     mapping = deepcopy(mapping or {})
-    files = [path.relative_to(root).as_posix() for path in _relative_files(root)]
+    inventory_paths = _relative_files(root)
+    files = [path.relative_to(root).as_posix() for path in inventory_paths]
     declared: list[list[str]] = []
     command_pattern = re.compile(r"`([^`\r\n]+)`")
-    for path in _relative_files(root):
+    for path in inventory_paths:
         if path.suffix.lower() not in {".md", ".yml", ".yaml", ".toml", ".json"}:
             continue
         try:
@@ -229,20 +282,22 @@ def static_inventory(root: Path, mapping: dict[str, Any] | None = None) -> dict[
             detached_commit = head
     worktrees_root = git_directory / "worktrees"
     worktrees = sorted(path.name for path in worktrees_root.iterdir() if path.is_dir()) if worktrees_root.is_dir() else []
-    ci_root = root / ".github" / "workflows"
-    ci_files = sorted(path.relative_to(root).as_posix() for path in ci_root.rglob("*") if path.is_file()) if ci_root.is_dir() else []
+    ci_files = sorted(
+        path.relative_to(root).as_posix() for path in inventory_paths
+        if path.relative_to(root).as_posix().startswith(".github/workflows/")
+    )
     authority_names = ("AGENTS.md", "CLAUDE.md", "docs/index.md", "README.md")
     authority_candidates = [name for name in authority_names if (root / name).is_file()]
+    candidate_directories = {parent for path in inventory_paths for parent in path.parents if parent != root}
     nested_repositories = sorted(
-        path.parent.relative_to(root).as_posix()
-        for path in root.rglob(".git")
-        if path != git_directory and ".work" not in path.parts
+        path.relative_to(root).as_posix() for path in candidate_directories
+        if (path / ".git").exists()
     )
     return {
         "schema_version": SCHEMA_VERSION,
         "files": files,
         "paths": mapping,
-        "production_hashes": _hash_roots(root, source_roots),
+        "production_hashes": _hash_roots(root, source_roots, files=inventory_paths),
         "declared_commands": declared,
         "git": {
             "branch": branch,
@@ -323,18 +378,32 @@ def validate_path_owners(
     return sorted(set(errors))
 
 
-def build_mapping_plan(root: Path, mapping: dict[str, Any]) -> dict[str, Any]:
+def build_mapping_plan(
+    root: Path, mapping: dict[str, Any], *, impact: dict[str, Any] | None = None
+) -> dict[str, Any]:
     owners = {
         "source": list(mapping.get("source_roots", [])),
         "tests": list(mapping.get("test_roots", [])),
         "fixtures": list(mapping.get("fixture_roots", [])),
         "documents": list(mapping.get("durable_document_roots", [])),
+        "human": list(mapping.get("human_guide_roots", [])),
         "generated": list(mapping.get("generated_roots", [])),
+        "work": [str(mapping["ephemeral_work_root"])] if mapping.get("ephemeral_work_root") else [],
     }
     unresolved = validate_path_owners(root, owners)
     entrypoint = mapping.get("documentation_entrypoint")
     if entrypoint and not (root / entrypoint).is_file():
         unresolved.append(f"missing_documentation_entrypoint:{entrypoint}")
+    if impact is not None:
+        rules = list(impact.get("rules", []))
+        for source_root in mapping.get("source_roots", []):
+            normalized = str(source_root).replace("\\", "/").rstrip("/") + "/"
+            if not any(
+                normalized.startswith(str(prefix).replace("\\", "/").rstrip("/") + "/")
+                or str(prefix).replace("\\", "/").rstrip("/").startswith(normalized.rstrip("/"))
+                for rule in rules for prefix in rule.get("source_prefixes", [])
+            ):
+                unresolved.append(f"unknown_source_test_impact:{source_root}")
     return {
         "schema_version": SCHEMA_VERSION,
         "mode": "mapping-first",
@@ -364,25 +433,45 @@ def build_project_migration(root: Path, legacy: dict[str, Any]) -> dict[str, Any
     })
 
 
+def _owned_path_kind(root: Path, relative: str, ownership: dict[str, Any]) -> str | None:
+    groups = (
+        ("production", ownership.get("source_roots", [])),
+        ("tests", ownership.get("test_roots", [])),
+        ("fixtures", ownership.get("fixture_roots", [])),
+        ("documents", ownership.get("durable_document_roots", [])),
+        ("human", ownership.get("human_guide_roots", [])),
+        ("test_config", ownership.get("test_config_roots", [])),
+        ("ci", ownership.get("ci_roots", [".github/workflows"])),
+        ("config", ownership.get("config_roots", [".harness"])),
+    )
+    candidate = _safe_repo_path(root, relative)
+    for kind, roots in groups:
+        for configured in roots:
+            owner = _safe_repo_path(root, str(configured))
+            if candidate == owner or owner in candidate.parents:
+                return kind
+    return None
+
+
 def build_cleanup_plan(
-    root: Path, *, mode: str, source_roots: list[str], operations: list[dict[str, Any]]
+    root: Path, *, mode: str, source_roots: list[str], ownership: dict[str, Any] | None = None,
+    operations: list[dict[str, Any]],
 ) -> dict[str, Any]:
     if mode not in {"document-only", "test-only"}:
         raise ValueError(f"unsupported_cleanup_mode:{mode}")
     root = root.resolve()
+    ownership = deepcopy(ownership or {})
+    ownership.setdefault("source_roots", list(source_roots))
     production = _hash_roots(root, source_roots)
-    source_paths = [_safe_repo_path(root, item) for item in source_roots]
+    allowed = {"documents", "human"} if mode == "document-only" else {"tests", "fixtures", "test_config", "ci"}
     for operation in operations:
-        relevant = operation.get("path") or operation.get("source") or operation.get("target")
-        if not isinstance(relevant, str):
+        relevant_paths = _operation_paths(operation)
+        if not relevant_paths:
             raise ValueError("operation_path_missing")
-        candidate = _safe_repo_path(root, relevant)
-        for source_path in source_paths:
-            try:
-                candidate.relative_to(source_path)
-            except ValueError:
-                continue
-            raise ValueError(f"production_mutation_forbidden:{relevant}")
+        for relevant in relevant_paths:
+            kind = _owned_path_kind(root, relevant, ownership)
+            if kind not in allowed:
+                raise ValueError(f"mode_path_forbidden:{mode}:{relevant}:{kind or 'unowned'}")
     return _plan_with_digest({
         "schema_version": SCHEMA_VERSION,
         "mode": mode,
@@ -960,19 +1049,132 @@ def apply_amendment(
     return {"status": "applied", "contract": amended, "event": event, "review_html": review_html}
 
 
+def canonical_repo_identity(
+    root: Path, relative: str, *, case_sensitive: bool | None = None
+) -> tuple[str, str]:
+    root = root.resolve()
+    normalized_input = relative.replace("\\", "/")
+    pure = PurePosixPath(normalized_input)
+    if pure.is_absolute() or any(part == ".." for part in pure.parts):
+        raise ValueError(f"path_escape:{relative}")
+    probe = root
+    for part in pure.parts:
+        if part in {"", "."}:
+            continue
+        probe = probe / part
+        if probe.exists() and _path_is_alias(probe):
+            raise ValueError(f"path_alias:{relative}")
+    path = _safe_repo_path(root, normalized_input)
+    normalized = unicodedata.normalize("NFC", path.relative_to(root).as_posix())
+    if case_sensitive is None:
+        case_sensitive = os.name != "nt"
+    identity = normalized if case_sensitive else normalized.casefold()
+    return normalized, identity
+
+
+def _identities_overlap(left: str, right: str) -> bool:
+    return left == right or left.startswith(right.rstrip("/") + "/") or right.startswith(left.rstrip("/") + "/")
+
+
+def _git_paths(root: Path, args: list[str]) -> set[str]:
+    result = subprocess.run(["git", *args, "-z"], cwd=root, capture_output=True, check=False)
+    if result.returncode:
+        raise ValueError("git_baseline_failed:" + result.stderr.decode(errors="replace").strip())
+    return {
+        item.decode("utf-8", errors="surrogateescape").replace("\\", "/")
+        for item in result.stdout.split(b"\0") if item
+    }
+
+
+def collect_git_baseline(root: Path) -> dict[str, Any]:
+    root = root.resolve()
+    revision = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True, check=False,
+    )
+    if revision.returncode:
+        raise ValueError("git_base_revision_unavailable:" + revision.stderr.strip())
+    staged = _git_paths(root, ["diff", "--cached", "--name-only"])
+    unstaged = _git_paths(root, ["diff", "--name-only"])
+    deleted = (
+        _git_paths(root, ["diff", "--cached", "--diff-filter=D", "--name-only"])
+        | _git_paths(root, ["diff", "--diff-filter=D", "--name-only"])
+    )
+    untracked = _git_paths(root, ["ls-files", "--others", "--exclude-standard"])
+    paths = staged | unstaged | deleted | untracked
+    entries: list[dict[str, Any]] = []
+    for relative in sorted(paths):
+        normalized, identity = canonical_repo_identity(root, relative)
+        states = []
+        if relative in staged:
+            states.append("staged")
+        if relative in unstaged:
+            states.append("unstaged")
+        if relative in deleted:
+            states.append("deleted")
+        if relative in untracked:
+            states.append("untracked")
+        path = _safe_repo_path(root, normalized)
+        worktree_hash = None
+        if path.is_file() and not _path_is_alias(path):
+            worktree_hash = "sha256:" + sha256(path.read_bytes()).hexdigest()
+        index = subprocess.run(
+            ["git", "ls-files", "-s", "--", normalized], cwd=root,
+            capture_output=True, text=True, check=False,
+        )
+        index_oid = None
+        if index.returncode == 0 and index.stdout.strip():
+            fields = index.stdout.split("\t", 1)[0].split()
+            if len(fields) >= 2:
+                index_oid = fields[1]
+        entries.append({
+            "path": normalized, "identity": identity, "states": states,
+            "index_oid": index_oid, "worktree_hash": worktree_hash,
+        })
+    payload = {"base_revision": revision.stdout.strip(), "entries": entries}
+    return {**payload, "digest": canonical_digest(payload)}
+
+
 def commit_item(
-    root: Path, item_id: str, paths: list[str], *, dirty_baseline: list[str]
+    root: Path, item_id: str, paths: list[str], *, dirty_baseline: list[str] | dict[str, Any]
 ) -> dict[str, Any]:
-    overlap = sorted(set(paths) & set(dirty_baseline))
+    root = root.resolve()
+    try:
+        normalized_paths = [canonical_repo_identity(root, path)[0] for path in paths]
+        item_identities = [canonical_repo_identity(root, path)[1] for path in normalized_paths]
+        if isinstance(dirty_baseline, dict):
+            baseline_entries = list(dirty_baseline.get("entries", []))
+            baseline_identities = [str(entry.get("identity")) for entry in baseline_entries]
+        else:
+            baseline_entries = []
+            baseline_identities = [canonical_repo_identity(root, path)[1] for path in dirty_baseline]
+    except ValueError as error:
+        return {"status": "invalid_path", "error": str(error)}
+    overlap = sorted(
+        path for path, identity in zip(normalized_paths, item_identities)
+        if any(_identities_overlap(identity, baseline) for baseline in baseline_identities)
+    )
     if overlap:
         return {"status": "dirty_baseline_conflict", "paths": overlap}
-    for relative in paths:
-        _safe_repo_path(root.resolve(), relative)
-    add = subprocess.run(["git", "add", "--", *paths], cwd=root, capture_output=True, text=True, check=False)
+    if isinstance(dirty_baseline, dict):
+        current = collect_git_baseline(root)
+        baseline_by_id = {str(entry["identity"]): entry for entry in baseline_entries}
+        current_by_id = {str(entry["identity"]): entry for entry in current["entries"]}
+        drift = [
+            entry["path"] for identity, entry in baseline_by_id.items()
+            if current_by_id.get(identity) != entry
+        ]
+        unexpected = [
+            entry["path"] for identity, entry in current_by_id.items()
+            if identity not in baseline_by_id
+            and not any(_identities_overlap(identity, item_identity) for item_identity in item_identities)
+        ]
+        if drift or unexpected:
+            return {"status": "dirty_baseline_drift", "paths": sorted(set(drift + unexpected))}
+    add = subprocess.run(["git", "add", "--", *normalized_paths], cwd=root, capture_output=True, text=True, check=False)
     if add.returncode:
         return {"status": "git_error", "error": add.stderr.strip()}
     committed = subprocess.run(
-        ["git", "commit", "--only", "-m", f"feat(harness): complete {item_id}", "--", *paths], cwd=root,
+        ["git", "commit", "--only", "-m", f"feat(harness): complete {item_id}", "--", *normalized_paths], cwd=root,
         capture_output=True, text=True, check=False,
     )
     if committed.returncode:
@@ -980,7 +1182,7 @@ def commit_item(
     revision = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True, check=False
     ).stdout.strip()
-    return {"status": "committed", "item_id": item_id, "commit": revision, "paths": sorted(paths)}
+    return {"status": "committed", "item_id": item_id, "commit": revision, "paths": sorted(normalized_paths)}
 
 
 def select_impacted_checks(

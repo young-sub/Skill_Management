@@ -48,6 +48,50 @@ class CoreFirstSetupTests(unittest.TestCase):
             self.assertIn("odd-source/service.py", inventory["production_hashes"])
             self.assertIn(["python", "checks/check_service.py"], inventory["declared_commands"])
 
+    def test_git_inventory_never_opens_ignored_reserved_or_local_files(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            (root / "src").mkdir()
+            (root / "src" / "app.py").write_text("VALUE = 1\n", encoding="utf-8")
+            (root / ".gitignore").write_text(
+                ".venv/\nvenv/\n.cache/\n.scratch/\n.work/\nagent-env.*.md\nlocal-secret.json\n",
+                encoding="utf-8",
+            )
+            subprocess.run(["git", "add", ".gitignore", "src/app.py"], cwd=root, check=True)
+            for relative in (
+                ".venv/huge.json", "venv/locked.toml", ".cache/data.json",
+                ".scratch/note.md", ".work/private.json", "agent-env.ys.md", "local-secret.json",
+            ):
+                path = root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("secret\n", encoding="utf-8")
+            ignored = {str((root / relative).resolve()) for relative in (
+                ".venv/huge.json", "venv/locked.toml", ".cache/data.json",
+                ".scratch/note.md", ".work/private.json", "agent-env.ys.md", "local-secret.json",
+            )}
+            original_read_text = Path.read_text
+            original_read_bytes = Path.read_bytes
+
+            def guarded_read_text(path: Path, *args, **kwargs):
+                if str(path.resolve()) in ignored:
+                    raise AssertionError(f"ignored file read: {path}")
+                return original_read_text(path, *args, **kwargs)
+
+            def guarded_read_bytes(path: Path, *args, **kwargs):
+                if str(path.resolve()) in ignored:
+                    raise AssertionError(f"ignored file read: {path}")
+                return original_read_bytes(path, *args, **kwargs)
+
+            with mock.patch.object(Path, "read_text", guarded_read_text), mock.patch.object(Path, "read_bytes", guarded_read_bytes):
+                inventory = core.static_inventory(root, {"source_roots": ["src"], "test_roots": []})
+
+            self.assertIn("src/app.py", inventory["files"])
+            self.assertTrue(all(not any(path.startswith(prefix) for prefix in (".venv/", "venv/", ".cache/", ".scratch/", ".work/")) for path in inventory["files"]))
+            self.assertNotIn("agent-env.ys.md", inventory["files"])
+            self.assertNotIn("local-secret.json", inventory["files"])
+
     def test_mapping_first_plan_preserves_coherent_brownfield_paths(self) -> None:
         core = load_core()
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -169,7 +213,9 @@ module.apply_transaction(Path(sys.argv[2]), plan, approval_digest=plan['digest']
             original = b"# Guide\r\n"
             (root / "notes" / "guide.md").write_bytes(original)
             (root / "README.md").write_text("See notes/guide.md\n", encoding="utf-8")
-            plan = core.build_cleanup_plan(root, mode="document-only", source_roots=["src"], operations=[
+            plan = core.build_cleanup_plan(root, mode="document-only", source_roots=["src"], ownership={
+                "durable_document_roots": ["notes", "docs"], "human_guide_roots": ["README.md"],
+            }, operations=[
                 {"action": "move", "source": "notes/guide.md", "target": "docs/guide.md"},
                 {"action": "replace", "path": "README.md", "old": "notes/guide.md", "new": "docs/guide.md"},
             ])
@@ -178,6 +224,47 @@ module.apply_transaction(Path(sys.argv[2]), plan, approval_digest=plan['digest']
             self.assertEqual((root / "docs" / "guide.md").read_bytes(), original)
             self.assertIn("docs/guide.md", (root / "README.md").read_text(encoding="utf-8"))
             self.assertEqual(result["production_hashes_before"], result["production_hashes_after"])
+
+    def test_cleanup_modes_reject_cross_owner_paths_before_plan_creation(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            for relative in ("src", "tests", "docs", ".github/workflows"):
+                (root / relative).mkdir(parents=True)
+            (root / "README.md").write_text("current\n", encoding="utf-8")
+            ownership = {
+                "source_roots": ["src"], "test_roots": ["tests"],
+                "durable_document_roots": ["docs"], "human_guide_roots": ["README.md"],
+                "ci_roots": [".github/workflows"],
+            }
+
+            with self.assertRaisesRegex(ValueError, "mode_path_forbidden:test-only:README.md"):
+                core.build_cleanup_plan(
+                    root, mode="test-only", source_roots=["src"], ownership=ownership,
+                    operations=[{"action": "write", "path": "README.md", "content": "changed\n"}],
+                )
+            with self.assertRaisesRegex(ValueError, "mode_path_forbidden:document-only:tests"):
+                core.build_cleanup_plan(
+                    root, mode="document-only", source_roots=["src"], ownership=ownership,
+                    operations=[{"action": "write", "path": "tests/new_test.py", "content": "pass\n"}],
+                )
+
+    def test_mapping_validates_human_work_owners_and_unknown_test_impact(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            for relative in ("src", "docs", ".work"):
+                (root / relative).mkdir(parents=True)
+            (root / "docs" / "index.md").write_text("# docs\n", encoding="utf-8")
+            plan = core.build_mapping_plan(root, {
+                "source_roots": ["src"], "test_roots": [], "fixture_roots": [],
+                "generated_roots": [], "durable_document_roots": ["docs"],
+                "human_guide_roots": ["docs"], "ephemeral_work_root": ".work",
+                "documentation_entrypoint": "docs/index.md",
+            }, impact={"rules": []})
+
+            self.assertTrue(any(error.startswith("owner_overlap:documents:docs:human:") for error in plan["unresolved"]))
+            self.assertIn("unknown_source_test_impact:src", plan["unresolved"])
 
     def test_baseline_suppression_requires_exact_unexpired_fingerprint(self) -> None:
         core = load_core()

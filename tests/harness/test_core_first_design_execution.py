@@ -4,6 +4,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+import os
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -126,6 +127,73 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
             self.assertEqual(changed, ["item.txt"])
             self.assertIn("dirty.txt", subprocess.run(["git", "status", "--short"], cwd=root, capture_output=True, text=True, check=True).stdout)
             self.assertEqual(subprocess.run(["git", "diff", "--cached", "--name-only"], cwd=root, capture_output=True, text=True, check=True).stdout.splitlines(), ["staged.txt"])
+
+    def test_git_baseline_classifies_dirty_paths_without_ignored_files(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+            (root / ".gitignore").write_text("ignored.bin\n.venv/\n", encoding="utf-8")
+            for name in ("staged.txt", "unstaged.txt", "deleted.txt"):
+                (root / name).write_text("base\n", encoding="utf-8")
+            subprocess.run(["git", "add", "."], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "base"], cwd=root, check=True)
+            (root / "staged.txt").write_text("staged\n", encoding="utf-8")
+            subprocess.run(["git", "add", "staged.txt"], cwd=root, check=True)
+            (root / "unstaged.txt").write_text("unstaged\n", encoding="utf-8")
+            (root / "deleted.txt").unlink()
+            (root / "untracked.txt").write_text("untracked\n", encoding="utf-8")
+            (root / "ignored.bin").write_bytes(b"x" * 1024)
+            (root / ".venv").mkdir()
+            (root / ".venv" / "locked.bin").write_bytes(b"ignored")
+
+            baseline = core.collect_git_baseline(root)
+
+            self.assertEqual(baseline["base_revision"], subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True, check=True).stdout.strip())
+            by_path = {entry["path"]: entry for entry in baseline["entries"]}
+            self.assertEqual(set(by_path), {"deleted.txt", "staged.txt", "unstaged.txt", "untracked.txt"})
+            self.assertIn("staged", by_path["staged.txt"]["states"])
+            self.assertIn("unstaged", by_path["unstaged.txt"]["states"])
+            self.assertIn("deleted", by_path["deleted.txt"]["states"])
+            self.assertIn("untracked", by_path["untracked.txt"]["states"])
+
+    def test_item_commit_rejects_dot_alias_and_directory_dirty_overlap(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+            (root / "docs").mkdir()
+            (root / "docs" / "guide.md").write_text("base\n", encoding="utf-8")
+            subprocess.run(["git", "add", "."], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "base"], cwd=root, check=True)
+            (root / "docs" / "guide.md").write_text("user change\n", encoding="utf-8")
+            baseline = core.collect_git_baseline(root)
+
+            alias = core.commit_item(root, "I-01", ["./docs/guide.md"], dirty_baseline=baseline)
+            directory = core.commit_item(root, "I-01", ["docs"], dirty_baseline=baseline)
+
+            self.assertEqual(alias["status"], "dirty_baseline_conflict")
+            self.assertEqual(directory["status"], "dirty_baseline_conflict")
+
+    def test_canonical_repo_identity_rejects_filesystem_aliases(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            real = root / "real"
+            real.mkdir()
+            (real / "file.txt").write_text("data\n", encoding="utf-8")
+            alias = root / "alias"
+            try:
+                os.symlink(real, alias, target_is_directory=True)
+            except OSError as error:
+                self.skipTest(f"directory symlink unavailable: {error}")
+
+            with self.assertRaisesRegex(ValueError, "path_alias"):
+                core.canonical_repo_identity(root, "alias/file.txt")
 
     def test_impacted_selection_requires_mapping_and_promotes_shared_changes(self) -> None:
         core = load_core()
