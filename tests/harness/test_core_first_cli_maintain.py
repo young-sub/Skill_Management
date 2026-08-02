@@ -42,7 +42,7 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
         self.assertTrue({
             "inventory", "render-design", "authorize", "render-result", "impacted",
             "cleanup-plan", "cleanup-apply", "recover", "baseline", "start", "amend",
-            "complete", "commit", "close", "sweep", "delete", "maintain", "install-cohort", "activate",
+            "complete", "commit", "worktree-create", "worktree-integrate", "close", "sweep", "delete", "maintain", "install-cohort", "activate",
         }.issubset(commands))
 
     def test_installed_cli_default_authorizes_canonical_contract(self) -> None:

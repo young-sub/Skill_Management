@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/core_harness.py
-# Source-SHA256: ce796cf89199dd431334fb09d5c2437379865801a8d7879fb32807e27b7421d2
+# Source-SHA256: 947f0488cab226ea6dea7148f3011a71c04ee044268965301e81877a26e70f67
 
 #!/usr/bin/env python3
 """Deterministic Core-First Harness v3 contracts and compatibility checks."""
@@ -1404,6 +1404,68 @@ def start_work(
     return {"status": "started", "manifest": manifest}
 
 
+def create_worktree(root: Path, *, base: str, branch: str, path: Path) -> dict[str, Any]:
+    root = root.resolve()
+    destination = path.resolve()
+    if destination == root or destination in root.parents or not re.fullmatch(r"[A-Za-z0-9._/-]+", branch):
+        return {"status": "invalid_target"}
+    if destination.exists():
+        return {"status": "conflict", "errors": ["worktree_destination_exists"]}
+    created = subprocess.run(
+        ["git", "worktree", "add", "-b", branch, str(destination), base], cwd=root,
+        capture_output=True, text=True, check=False,
+    )
+    if created.returncode:
+        return {"status": "git_error", "errors": [(created.stderr or created.stdout).strip()]}
+    return {"status": "created", "branch": branch, "path": str(destination), "base": base}
+
+
+def integrate_worktree(
+    root: Path, *, base: str, branch: str, path: Path, project: dict[str, Any],
+    approved_exact_path: str | None,
+) -> dict[str, Any]:
+    root = root.resolve()
+    destination = path.resolve()
+    if approved_exact_path is None or Path(approved_exact_path).resolve() != destination:
+        return {"status": "approval_required", "target": str(destination)}
+    if destination == root or destination in root.parents or not destination.is_dir():
+        return {"status": "invalid_target", "target": str(destination)}
+    current = subprocess.run(
+        ["git", "branch", "--show-current"], cwd=root, capture_output=True, text=True, check=False
+    ).stdout.strip()
+    if current != base:
+        return {"status": "precondition_failed", "errors": ["base_branch_not_checked_out"]}
+    if base in project.get("git", {}).get("protected_branches", []):
+        return {"status": "approval_required", "errors": ["protected_base"]}
+    worktree_status = subprocess.run(
+        ["git", "status", "--porcelain"], cwd=destination, capture_output=True, text=True, check=False
+    )
+    if worktree_status.returncode or worktree_status.stdout.strip():
+        return {"status": "precondition_failed", "errors": ["worktree_not_clean"]}
+    merged = subprocess.run(
+        ["git", "merge", "--no-ff", "--no-edit", branch], cwd=root,
+        capture_output=True, text=True, check=False,
+    )
+    if merged.returncode:
+        subprocess.run(["git", "merge", "--abort"], cwd=root, capture_output=True, check=False)
+        return {"status": "git_error", "errors": [(merged.stderr or merged.stdout).strip()]}
+    removed = subprocess.run(
+        ["git", "worktree", "remove", str(destination)], cwd=root,
+        capture_output=True, text=True, check=False,
+    )
+    if removed.returncode:
+        return {"status": "cleanup_failed", "errors": [(removed.stderr or removed.stdout).strip()]}
+    deleted_branch = subprocess.run(
+        ["git", "branch", "-d", branch], cwd=root, capture_output=True, text=True, check=False
+    )
+    if deleted_branch.returncode:
+        return {"status": "cleanup_failed", "errors": [(deleted_branch.stderr or deleted_branch.stdout).strip()]}
+    revision = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True, check=False
+    ).stdout.strip()
+    return {"status": "integrated", "branch": branch, "base": base, "commit": revision}
+
+
 def select_impacted_checks(
     changed_paths: list[str], project: dict[str, Any]
 ) -> dict[str, Any]:
@@ -2311,6 +2373,18 @@ def _cli_parser() -> argparse.ArgumentParser:
     commit.add_argument("--item-id", required=True)
     commit.add_argument("--path", action="append", required=True)
     commit.add_argument("--baseline", type=Path, required=True)
+    worktree_create = sub.add_parser("worktree-create")
+    worktree_create.add_argument("--root", type=Path, required=True)
+    worktree_create.add_argument("--base", required=True)
+    worktree_create.add_argument("--branch", required=True)
+    worktree_create.add_argument("--path", type=Path, required=True)
+    worktree_integrate = sub.add_parser("worktree-integrate")
+    worktree_integrate.add_argument("--root", type=Path, required=True)
+    worktree_integrate.add_argument("--base", required=True)
+    worktree_integrate.add_argument("--branch", required=True)
+    worktree_integrate.add_argument("--path", type=Path, required=True)
+    worktree_integrate.add_argument("--project", type=Path, required=True)
+    worktree_integrate.add_argument("--approved-exact-path", required=True)
     close = sub.add_parser("close")
     close.add_argument("--root", type=Path, required=True)
     close.add_argument("--work-id", required=True)
@@ -2407,9 +2481,19 @@ def main() -> int:
                 _json_object(args.contract), _json_object(args.result), _json_object(args.impact)
             )
         elif args.command == "commit":
+            baseline_payload = _json_object(args.baseline)
             payload = commit_item(
                 args.root, args.item_id, args.path,
-                dirty_baseline=_json_object(args.baseline),
+                dirty_baseline=baseline_payload.get("baseline", baseline_payload),
+            )
+        elif args.command == "worktree-create":
+            payload = create_worktree(
+                args.root, base=args.base, branch=args.branch, path=args.path
+            )
+        elif args.command == "worktree-integrate":
+            payload = integrate_worktree(
+                args.root, base=args.base, branch=args.branch, path=args.path,
+                project=_json_object(args.project), approved_exact_path=args.approved_exact_path,
             )
         elif args.command == "close":
             contract = _json_object(args.contract)
@@ -2467,6 +2551,7 @@ def main() -> int:
             "unresolved_decisions", "ambiguous_intent", "invalid_amendment",
             "invalid_manifest", "invalid_source", "staging_invalid", "rolled_back",
             "rollback_failed",
+            "cleanup_failed",
         } else 2
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
         print(json.dumps({"status": "invalid", "errors": [str(error)]}, ensure_ascii=False), file=sys.stderr)
