@@ -11,7 +11,7 @@ from hashlib import sha256
 import html
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import shlex
 import shutil
@@ -23,7 +23,7 @@ import unicodedata
 
 
 SCHEMA_VERSION = 3
-COHORT_COMPONENTS = ("project", "design", "execute", "close", "maintain")
+COHORT_COMPONENTS = ("project", "design", "execute", "close", "maintain", "diagnose")
 ITEM_FIELDS = (
     "id", "title", "behavior_type", "what", "steps", "terms", "tests", "done",
     "depends_on", "non_goals", "decision", "material_risks", "priority",
@@ -393,6 +393,104 @@ def _operation_paths(operation: dict[str, Any]) -> list[str]:
     return [str(operation[key]) for key in ("path", "source", "target") if key in operation]
 
 
+def _durable_write_bytes(path: Path, content: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(path.name + ".tmp")
+    with temporary.open("wb") as stream:
+        stream.write(content)
+        stream.flush()
+        os.fsync(stream.fileno())
+    os.replace(temporary, path)
+
+
+def _durable_write_json(path: Path, payload: dict[str, Any]) -> None:
+    _durable_write_bytes(
+        path,
+        (json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8"),
+    )
+
+
+def _restore_transaction_files(root: Path, journal: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    for record in reversed(journal.get("files", [])):
+        try:
+            path = _safe_repo_path(root, str(record["path"]))
+            if record.get("existed"):
+                backup = _safe_repo_path(root, str(record["backup"]))
+                content = backup.read_bytes()
+                if record.get("pre_hash") != "sha256:" + sha256(content).hexdigest():
+                    raise ValueError(f"backup_hash_mismatch:{record['path']}")
+                _durable_write_bytes(path, content)
+            elif path.is_file() or path.is_symlink():
+                path.unlink()
+        except (OSError, ValueError, KeyError) as error:
+            errors.append(str(error))
+    return errors
+
+
+def _restore_lifecycle_move(root: Path, journal: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    try:
+        source = _safe_repo_path(root, str(journal["source"]))
+        destination = _safe_repo_path(root, str(journal["destination"]))
+        if source.exists() and destination.exists():
+            raise ValueError("lifecycle_recovery_conflict:source_and_destination_exist")
+        if destination.exists():
+            source.parent.mkdir(parents=True, exist_ok=True)
+            os.replace(destination, source)
+        if not source.is_dir():
+            raise ValueError("lifecycle_recovery_source_missing")
+        backup = _safe_repo_path(root, str(journal["manifest_backup"]))
+        content = backup.read_bytes()
+        if journal.get("pre_manifest_hash") != "sha256:" + sha256(content).hexdigest():
+            raise ValueError("lifecycle_manifest_backup_hash_mismatch")
+        manifest_path = source / "work.json"
+        if journal.get("manifest_existed"):
+            _durable_write_bytes(manifest_path, content)
+        elif manifest_path.exists():
+            manifest_path.unlink()
+    except (OSError, ValueError, KeyError) as error:
+        errors.append(str(error))
+    return errors
+
+
+def recover_transactions(root: Path) -> dict[str, Any]:
+    root = root.resolve()
+    transactions = root / ".work" / "transactions"
+    recovered: list[str] = []
+    errors: list[str] = []
+    if not transactions.is_dir():
+        return {"status": "clean", "recovered": [], "errors": []}
+    for journal_path in sorted(transactions.glob("*/journal.json")):
+        try:
+            journal = json.loads(journal_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as error:
+            errors.append(f"invalid_transaction_journal:{journal_path.parent.name}:{error}")
+            continue
+        if journal.get("status") != "applying":
+            continue
+        kind = journal.get("kind")
+        if kind == "file_transaction":
+            restore_errors = _restore_transaction_files(root, journal)
+        elif kind == "lifecycle_move":
+            restore_errors = _restore_lifecycle_move(root, journal)
+        else:
+            errors.append(f"unsupported_transaction_kind:{journal_path.parent.name}")
+            continue
+        if restore_errors:
+            errors.extend(restore_errors)
+            continue
+        journal["status"] = "recovered"
+        journal["recovered_at"] = datetime.now().astimezone().isoformat()
+        _durable_write_json(journal_path, journal)
+        recovered.append(journal_path.parent.name)
+    return {
+        "status": "recovery_failed" if errors else ("recovered" if recovered else "clean"),
+        "recovered": recovered,
+        "errors": errors,
+    }
+
+
 def _restore_snapshot(root: Path, snapshot: dict[str, bytes | None]) -> None:
     for relative, content in snapshot.items():
         path = _safe_repo_path(root, relative)
@@ -414,9 +512,17 @@ def _restore_snapshot(root: Path, snapshot: dict[str, bytes | None]) -> None:
 
 
 def apply_transaction(
-    root: Path, plan: dict[str, Any], *, approval_digest: str, fault_after: int | None = None
+    root: Path,
+    plan: dict[str, Any],
+    *,
+    approval_digest: str,
+    fault_after: int | None = None,
+    crash_after: int | None = None,
 ) -> dict[str, Any]:
     root = root.resolve()
+    recovery = recover_transactions(root)
+    if recovery["status"] == "recovery_failed":
+        return {"status": "precondition_failed", "errors": recovery["errors"]}
     expected = canonical_digest({key: value for key, value in plan.items() if key != "digest"})
     if approval_digest != plan.get("digest") or plan.get("digest") != expected:
         return {"status": "approval_required", "expected_digest": plan.get("digest")}
@@ -424,41 +530,55 @@ def apply_transaction(
         return {"status": "precondition_failed", "errors": ["root_drift"]}
     operations = plan.get("operations", [])
     affected = sorted(set(relative for operation in operations for relative in _operation_paths(operation)))
-    snapshot: dict[str, bytes | None] = {}
-    try:
-        for relative in affected:
-            path = _safe_repo_path(root, relative)
-            snapshot[relative] = path.read_bytes() if path.is_file() else None
-    except (OSError, ValueError) as error:
-        return {"status": "precondition_failed", "errors": [str(error)]}
     transaction_id = str(plan["digest"]).removeprefix("sha256:")[:16]
     transaction_root = root / ".work" / "transactions" / transaction_id
     transaction_root.mkdir(parents=True, exist_ok=True)
     journal_path = transaction_root / "journal.json"
-    journal = {"schema_version": SCHEMA_VERSION, "status": "applying", "plan_digest": plan["digest"], "completed_operations": 0}
-    journal_path.write_text(json.dumps(journal, sort_keys=True), encoding="utf-8")
+    records: list[dict[str, Any]] = []
+    try:
+        for index, relative in enumerate(affected):
+            path = _safe_repo_path(root, relative)
+            existed = path.is_file()
+            record: dict[str, Any] = {"path": relative, "existed": existed}
+            if existed:
+                content = path.read_bytes()
+                backup = transaction_root / "backups" / f"{index:04d}.bin"
+                _durable_write_bytes(backup, content)
+                record.update({
+                    "backup": backup.relative_to(root).as_posix(),
+                    "pre_hash": "sha256:" + sha256(content).hexdigest(),
+                })
+            records.append(record)
+    except (OSError, ValueError) as error:
+        return {"status": "precondition_failed", "errors": [str(error)]}
+    journal = {
+        "schema_version": SCHEMA_VERSION,
+        "kind": "file_transaction",
+        "status": "applying",
+        "plan_digest": plan["digest"],
+        "completed_operations": 0,
+        "files": records,
+    }
+    _durable_write_json(journal_path, journal)
     try:
         for number, operation in enumerate(operations, 1):
             action = operation.get("action")
             if action == "write":
                 target = _safe_repo_path(root, operation["path"])
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_text(operation["content"], encoding="utf-8", newline="\n")
+                _durable_write_bytes(target, str(operation["content"]).encode("utf-8"))
             elif action == "move":
                 source = _safe_repo_path(root, operation["source"])
                 target = _safe_repo_path(root, operation["target"])
                 if not source.is_file() or target.exists():
                     raise ValueError(f"move_precondition_failed:{operation['source']}:{operation['target']}")
-                content = source.read_bytes()
                 target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_bytes(content)
-                source.unlink()
+                os.replace(source, target)
             elif action == "replace":
                 target = _safe_repo_path(root, operation["path"])
                 text = target.read_text(encoding="utf-8")
                 if operation["old"] not in text:
                     raise ValueError(f"replace_precondition_failed:{operation['path']}")
-                target.write_text(text.replace(operation["old"], operation["new"]), encoding="utf-8", newline="\n")
+                _durable_write_bytes(target, text.replace(operation["old"], operation["new"]).encode("utf-8"))
             elif action == "remove":
                 target = _safe_repo_path(root, operation["path"])
                 if not target.is_file():
@@ -467,25 +587,39 @@ def apply_transaction(
             else:
                 raise ValueError(f"unsupported_operation:{action}")
             journal["completed_operations"] = number
-            journal_path.write_text(json.dumps(journal, sort_keys=True), encoding="utf-8")
+            _durable_write_json(journal_path, journal)
+            if crash_after == number:
+                os._exit(91)
             if fault_after == number:
                 raise RuntimeError(f"fault_injected_after:{number}")
         production_after = _hash_roots(root, list(plan.get("source_roots", [])))
         if production_after != plan.get("production_hashes_before", {}):
             raise RuntimeError("production_hash_drift")
         journal["status"] = "committed"
-        journal_path.write_text(json.dumps(journal, sort_keys=True), encoding="utf-8")
+        journal["post_hashes"] = {
+            relative: (
+                "sha256:" + sha256(_safe_repo_path(root, relative).read_bytes()).hexdigest()
+                if _safe_repo_path(root, relative).is_file()
+                else None
+            )
+            for relative in affected
+        }
+        _durable_write_json(journal_path, journal)
         return {
             "status": "committed", "transaction_id": transaction_id,
             "production_hashes_before": plan.get("production_hashes_before", {}),
             "production_hashes_after": production_after,
         }
     except (OSError, UnicodeError, ValueError, RuntimeError) as error:
-        _restore_snapshot(root, snapshot)
-        journal["status"] = "rolled_back"
+        restore_errors = _restore_transaction_files(root, journal)
+        journal["status"] = "rollback_failed" if restore_errors else "rolled_back"
         journal["error"] = str(error)
-        journal_path.write_text(json.dumps(journal, sort_keys=True), encoding="utf-8")
-        return {"status": "rolled_back", "transaction_id": transaction_id, "error": str(error)}
+        journal["restore_errors"] = restore_errors
+        _durable_write_json(journal_path, journal)
+        return {
+            "status": journal["status"], "transaction_id": transaction_id,
+            "error": str(error), "restore_errors": restore_errors,
+        }
 
 
 def finding_is_baselined(
@@ -988,48 +1122,66 @@ def render_result_review_v3(contract: dict[str, Any], result: dict[str, Any]) ->
 
 def _lifecycle_move(
     root: Path, source: Path, destination: Path, manifest: dict[str, Any], *,
-    operation: str, fault_after: str | None = None,
+    operation: str, fault_after: str | None = None, crash_after: str | None = None,
 ) -> dict[str, Any]:
-    """Move one work directory transactionally and restore its exact manifest on interruption."""
+    """Move one work directory with durable recovery across process interruption."""
+    recovery = recover_transactions(root)
+    if recovery["status"] == "recovery_failed":
+        return {"status": "precondition_failed", "errors": recovery["errors"]}
     manifest_path = source / "work.json"
-    original_manifest = manifest_path.read_bytes()
+    manifest_existed = manifest_path.is_file()
+    original_manifest = manifest_path.read_bytes() if manifest_existed else b""
     transactions = root / ".work" / "transactions"
-    transactions.mkdir(parents=True, exist_ok=True)
-    journal_path = transactions / f"{operation}-{manifest.get('work_id', source.name)}.json"
+    transaction_root = transactions / f"{operation}-{manifest.get('work_id', source.name)}"
+    transaction_root.mkdir(parents=True, exist_ok=True)
+    journal_path = transaction_root / "journal.json"
+    backup_path = transaction_root / "work.json.preimage"
+    _durable_write_bytes(backup_path, original_manifest)
     journal = {
-        "schema_version": SCHEMA_VERSION, "operation": operation, "status": "applying",
+        "schema_version": SCHEMA_VERSION, "kind": "lifecycle_move",
+        "operation": operation, "status": "applying",
         "source": source.relative_to(root).as_posix(),
         "destination": destination.relative_to(root).as_posix(),
+        "manifest_backup": backup_path.relative_to(root).as_posix(),
+        "manifest_existed": manifest_existed,
+        "pre_manifest_hash": "sha256:" + sha256(original_manifest).hexdigest(),
     }
-    journal_path.write_text(json.dumps(journal, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    _durable_write_json(journal_path, journal)
     try:
-        manifest_path.write_text(
-            json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
-            encoding="utf-8",
+        _durable_write_bytes(
+            manifest_path,
+            (json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8"),
         )
+        journal["post_manifest_hash"] = "sha256:" + sha256(manifest_path.read_bytes()).hexdigest()
+        _durable_write_json(journal_path, journal)
+        if crash_after == "manifest":
+            os._exit(92)
         if fault_after == "manifest":
             raise RuntimeError("injected_fault_after_manifest")
         destination.parent.mkdir(parents=True, exist_ok=True)
         os.replace(source, destination)
+        journal["moved"] = True
+        _durable_write_json(journal_path, journal)
+        if crash_after == "move":
+            os._exit(92)
         if fault_after == "move":
             raise RuntimeError("injected_fault_after_move")
     except BaseException as error:
-        if destination.exists() and not source.exists():
-            source.parent.mkdir(parents=True, exist_ok=True)
-            os.replace(destination, source)
-        if source.is_dir():
-            (source / "work.json").write_bytes(original_manifest)
-        journal.update({"status": "rolled_back", "error": type(error).__name__})
-        journal_path.write_text(json.dumps(journal, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-        return {"status": "rolled_back", "journal": journal_path.relative_to(root).as_posix()}
+        restore_errors = _restore_lifecycle_move(root, journal)
+        journal.update({
+            "status": "rollback_failed" if restore_errors else "rolled_back",
+            "error": type(error).__name__, "restore_errors": restore_errors,
+        })
+        _durable_write_json(journal_path, journal)
+        return {"status": journal["status"], "journal": journal_path.relative_to(root).as_posix()}
     journal["status"] = "committed"
-    journal_path.write_text(json.dumps(journal, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    _durable_write_json(journal_path, journal)
     return {"status": "committed", "journal": journal_path.relative_to(root).as_posix()}
 
 
 def close_work(
     root: Path, work_id: str, *, completed_at: str, completed_days: int, trash_days: int,
-    fault_after: str | None = None,
+    fault_after: str | None = None, crash_after: str | None = None,
 ) -> dict[str, Any]:
     root = root.resolve()
     source = _safe_repo_path(root, f".work/goals/active/{work_id}")
@@ -1052,6 +1204,7 @@ def close_work(
     })
     transaction = _lifecycle_move(
         root, source, destination, manifest, operation="close", fault_after=fault_after,
+        crash_after=crash_after,
     )
     if transaction["status"] != "committed":
         return transaction
@@ -1093,7 +1246,9 @@ def audit_work_lifecycle(root: Path) -> dict[str, Any]:
     return {"findings": findings, "work_ids": seen}
 
 
-def sweep_lifecycle(root: Path, *, now: str, fault_after: str | None = None) -> dict[str, Any]:
+def sweep_lifecycle(
+    root: Path, *, now: str, fault_after: str | None = None, crash_after: str | None = None
+) -> dict[str, Any]:
     root = root.resolve()
     moment = datetime.fromisoformat(now)
     completed_root = root / ".work" / "goals" / "completed"
@@ -1114,6 +1269,7 @@ def sweep_lifecycle(root: Path, *, now: str, fault_after: str | None = None) -> 
                 manifest["owned_paths"] = [destination.relative_to(root).as_posix()]
             transaction = _lifecycle_move(
                 root, source, destination, manifest, operation="sweep", fault_after=fault_after,
+                crash_after=crash_after,
             )
             if transaction["status"] != "committed":
                 return transaction
@@ -1121,37 +1277,155 @@ def sweep_lifecycle(root: Path, *, now: str, fault_after: str | None = None) -> 
     return {"status": "ok", "moved_to_trash": moved, "audit": audit_work_lifecycle(root)}
 
 
-def classify_legacy_work(root: Path) -> dict[str, Any]:
+def _legacy_completion_evidence(entry: Path) -> tuple[str, datetime | None]:
+    values: list[datetime] = []
+    invalid = False
+    for name in ("work.json", "result.json"):
+        path = entry / name
+        if not path.is_file():
+            continue
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            value = payload.get("completed_at")
+            if value:
+                values.append(datetime.fromisoformat(str(value)))
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+            invalid = True
+    markdown = entry / "RESULT.md"
+    if markdown.is_file():
+        try:
+            match = re.search(r"(?im)^completed_at\s*:\s*(\S+)\s*$", markdown.read_text(encoding="utf-8"))
+            if match:
+                values.append(datetime.fromisoformat(match.group(1)))
+        except (OSError, UnicodeError, ValueError):
+            invalid = True
+    identities = {value.isoformat() for value in values}
+    if invalid or len(identities) > 1:
+        return "contradictory", None
+    if not values:
+        return "missing", None
+    return "trustworthy", values[0]
+
+
+def classify_legacy_work(
+    root: Path, *, completed_days: int = 30, trash_days: int = 7,
+    fault_after: str | None = None, crash_after: str | None = None,
+) -> dict[str, Any]:
     root = root.resolve()
     archive = root / ".work" / "archive"
+    completed: list[str] = []
     unclassified: list[str] = []
+    unresolved: list[str] = []
     if archive.is_dir():
         for entry in sorted(path for path in archive.iterdir() if path.is_dir()):
             work_id = entry.name
-            destination = root / ".work" / "goals" / "legacy-unclassified" / work_id
+            evidence, completed_at = _legacy_completion_evidence(entry)
+            if evidence == "contradictory":
+                unresolved.append(work_id)
+                continue
+            if completed_at is None:
+                destination = root / ".work" / "goals" / "legacy-unclassified" / work_id
+                manifest = {
+                    "schema_version": SCHEMA_VERSION, "work_id": work_id,
+                    "state": "legacy-unclassified", "created_at": None,
+                    "source_commit": None, "reason": "trustworthy_completion_date_missing",
+                }
+                outcome = unclassified
+            else:
+                destination = root / ".work" / "goals" / "completed" / f"{completed_at:%Y-%m}" / work_id
+                retain_until = completed_at + timedelta(days=completed_days)
+                delete_after = retain_until + timedelta(days=trash_days)
+                manifest = {
+                    "schema_version": SCHEMA_VERSION, "work_id": work_id, "state": "completed",
+                    "created_at": None, "source_commit": None, "base_branch": "legacy",
+                    "feature_branch": "legacy", "contract_version": SCHEMA_VERSION,
+                    "integrity_digest": "legacy-classified", "completed_at": completed_at.isoformat(),
+                    "retain_until": retain_until.isoformat(), "delete_after": delete_after.isoformat(),
+                    "owned_paths": [destination.relative_to(root).as_posix()],
+                }
+                outcome = completed
             if destination.exists():
                 continue
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            os.replace(entry, destination)
-            manifest = {
-                "schema_version": SCHEMA_VERSION, "work_id": work_id, "state": "legacy-unclassified",
-                "created_at": None, "source_commit": None, "reason": "trustworthy_completion_date_missing",
-            }
-            (destination / "work.json").write_text(json.dumps(manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-            unclassified.append(work_id)
-    return {"status": "classified", "unclassified": unclassified}
+            transaction = _lifecycle_move(
+                root, entry, destination, manifest, operation="classify-legacy",
+                fault_after=fault_after, crash_after=crash_after,
+            )
+            if transaction["status"] != "committed":
+                return {
+                    **transaction, "completed": completed,
+                    "unclassified": unclassified, "unresolved": unresolved,
+                }
+            outcome.append(work_id)
+    return {
+        "status": "classified", "completed": completed,
+        "unclassified": unclassified, "unresolved": unresolved,
+    }
 
 
-def delete_trash(root: Path, relative_target: str, *, approved_exact_target: str | None) -> dict[str, Any]:
-    expected_prefix = ".work/goals/trash/"
+def _path_is_alias(path: Path) -> bool:
+    try:
+        metadata = path.lstat()
+    except OSError:
+        return False
+    return path.is_symlink() or bool(getattr(metadata, "st_file_attributes", 0) & 0x400)
+
+
+def delete_trash(
+    root: Path,
+    relative_target: str,
+    *,
+    approved_exact_target: str | None,
+    now: str | None = None,
+    destructive_override: bool = False,
+    approved_override_target: str | None = None,
+) -> dict[str, Any]:
     normalized = relative_target.replace("\\", "/")
+    expected_parts = (".work", "goals", "trash")
+    parts = PurePosixPath(normalized).parts
     if approved_exact_target != normalized:
         return {"status": "approval_required", "target": normalized}
-    if not normalized.startswith(expected_prefix):
+    if (
+        len(parts) != 5
+        or parts[:3] != expected_parts
+        or any(part in {"", ".", ".."} for part in parts)
+        or PurePosixPath(normalized).is_absolute()
+    ):
         return {"status": "invalid_target", "target": normalized}
-    target = _safe_repo_path(root.resolve(), normalized)
-    if not target.is_dir():
+    try:
+        date.fromisoformat(parts[3])
+    except ValueError:
+        return {"status": "invalid_target", "target": normalized}
+
+    root = root.resolve()
+    raw_target = root.joinpath(*parts)
+    probe = root
+    for part in parts:
+        probe = probe / part
+        if probe.exists() and _path_is_alias(probe):
+            return {"status": "invalid_target", "target": normalized, "reason": "path_alias"}
+    if not raw_target.is_dir():
         return {"status": "not_found", "target": normalized}
+    trash_root = (root / ".work" / "goals" / "trash").resolve(strict=True)
+    target = raw_target.resolve(strict=True)
+    if target.parent.parent != trash_root or target.name != parts[4]:
+        return {"status": "invalid_target", "target": normalized}
+
+    manifest_path = target / "work.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return {"status": "invalid_work", "target": normalized, "reason": "manifest_missing_or_invalid"}
+    if manifest.get("work_id") != parts[4] or manifest.get("state") != "trash":
+        return {"status": "invalid_work", "target": normalized, "reason": "manifest_identity_or_state_invalid"}
+    try:
+        delete_after = datetime.fromisoformat(str(manifest["delete_after"]))
+        moment = datetime.fromisoformat(str(now))
+    except (KeyError, TypeError, ValueError):
+        return {"status": "invalid_work", "target": normalized, "reason": "delete_after_or_now_invalid"}
+    if moment < delete_after:
+        override_approved = destructive_override and approved_override_target == normalized
+        if not override_approved:
+            return {"status": "retention_active", "target": normalized, "delete_after": delete_after.isoformat()}
     shutil.rmtree(target)
     return {"status": "deleted", "target": normalized, "recoverable": False}
 
@@ -1167,22 +1441,122 @@ def compare_findings_to_baseline(
     return {"baselined": baselined, "blocking": blocking}
 
 
-def activate_v3(project: dict[str, Any], legacy_graph: dict[str, Any]) -> dict[str, Any]:
-    """Return a fully activated copy only when every cutover precondition is terminal."""
-    blockers = [
-        str(item.get("id", "unknown")) + ":" + str(item.get("state", "unknown"))
-        for item in legacy_graph.get("work", [])
-        if item.get("state") not in {"pending", "completed", "trash", "legacy-unclassified"}
-    ]
-    blockers.extend(str(item) for item in legacy_graph.get("incomplete_transactions", []))
+def inspect_legacy_graph(root: Path) -> dict[str, Any]:
+    root = root.resolve()
+    work: list[dict[str, str]] = []
+    blockers: list[str] = []
+    goals = root / ".work" / "goals"
+    if goals.is_dir():
+        for manifest_path in sorted(goals.rglob("work.json")):
+            try:
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, json.JSONDecodeError):
+                blockers.append(f"invalid_work_manifest:{manifest_path.relative_to(root).as_posix()}")
+                continue
+            work_id = str(manifest.get("work_id") or manifest_path.parent.name)
+            state = str(manifest.get("state", "unknown"))
+            work.append({"id": work_id, "state": state})
+            if state == "pending":
+                conversion = manifest_path.parent / "conversion.json"
+                try:
+                    evidence = json.loads(conversion.read_text(encoding="utf-8"))
+                except (OSError, UnicodeError, json.JSONDecodeError):
+                    evidence = {}
+                if not all(evidence.get(key) for key in ("source_digest", "target_digest", "lossless")):
+                    blockers.append(f"pending_conversion_unproven:{work_id}")
+            elif state not in {"completed", "trash", "legacy-unclassified", "deleted"}:
+                blockers.append(f"legacy_work:{work_id}:{state}")
+    archive = root / ".work" / "archive"
+    if archive.is_dir():
+        blockers.extend(f"unclassified_legacy_archive:{path.name}" for path in sorted(archive.iterdir()) if path.is_dir())
+    runtime = root / ".work" / "runtime"
+    if runtime.is_dir():
+        blockers.extend(
+            f"legacy_runtime:{path.relative_to(root).as_posix()}"
+            for path in sorted(runtime.rglob("*")) if path.is_file()
+        )
+    transactions = root / ".work" / "transactions"
+    if transactions.is_dir():
+        for journal_path in sorted(transactions.glob("*/journal.json")):
+            try:
+                journal = json.loads(journal_path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, json.JSONDecodeError):
+                blockers.append(f"invalid_transaction:{journal_path.parent.name}")
+                continue
+            if journal.get("status") in {"applying", "rollback_failed"}:
+                blockers.append(f"incomplete_transaction:{journal_path.parent.name}")
+    return {"work": work, "blockers": blockers}
+
+
+def inspect_installed_cohort(installed_root: Path, resource_manifest: dict[str, Any]) -> dict[str, Any]:
+    installed_root = installed_root.resolve()
+    blockers: list[str] = []
+    files = resource_manifest.get("files")
+    if resource_manifest.get("root") != "skills" or not isinstance(files, dict):
+        return {"status": "invalid_manifest", "blockers": ["installed_manifest_invalid"], "components": {}}
+    for relative, expected in sorted(files.items()):
+        try:
+            path = _safe_repo_path(installed_root, str(relative))
+        except ValueError:
+            blockers.append(f"installed_resource_invalid:{relative}")
+            continue
+        if not path.is_file():
+            blockers.append(f"installed_resource_missing:{relative}")
+            continue
+        if resource_manifest.get("hash_mode") == "bytes":
+            content = path.read_bytes()
+        elif path.suffix.casefold() in {".json", ".md", ".html", ".py", ".ps1", ".txt", ".yaml", ".yml"}:
+            content = path.read_text(encoding="utf-8").replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
+        else:
+            content = path.read_bytes()
+        actual = sha256(content).hexdigest()
+        if actual != expected:
+            blockers.append(f"installed_resource_drift:{relative}")
+    legacy_helpers = (
+        "contract_engine.py", "goal_runtime.py", "close_goal.py",
+        "maintain_harness.py", "render_completion_review.py",
+    )
+    for helper in legacy_helpers:
+        for path in installed_root.glob(f"*/scripts/{helper}"):
+            blockers.append(f"legacy_helper_present:{path.relative_to(installed_root).as_posix()}")
+    component_skills = {
+        "project": "setup-agent-harness", "design": "design-goal",
+        "execute": "execute-codex-goal", "close": "close-goal",
+        "maintain": "maintain-agent-harness", "diagnose": "diagnose",
+    }
+    components: dict[str, dict[str, list[int]]] = {}
+    for component, skill in component_skills.items():
+        skill_path = installed_root / skill / "SKILL.md"
+        try:
+            text = skill_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            text = ""
+        supports = [3] if "Harness v3" in text else []
+        components[component] = {"supports": supports}
+        if not supports:
+            blockers.append(f"installed_component_not_v3:{component}")
+    return {"status": "complete" if not blockers else "invalid", "blockers": blockers, "components": components}
+
+
+def activate_v3(
+    root: Path,
+    project: dict[str, Any],
+    *,
+    installed_root: Path,
+    resource_manifest: dict[str, Any],
+) -> dict[str, Any]:
+    """Activate only from observed repository state and an intact installed cohort."""
+    legacy = inspect_legacy_graph(root)
+    installed = inspect_installed_cohort(installed_root, resource_manifest)
+    blockers = [*legacy["blockers"], *installed["blockers"]]
     if blockers:
-        return {"status": "cutover_blocked", "blockers": blockers}
+        return {"status": "cutover_blocked", "blockers": blockers, "legacy": legacy, "installed": installed}
     activated = deepcopy(project)
     if activated.get("schema_version") != SCHEMA_VERSION:
         return {"status": "cutover_blocked", "blockers": ["project_schema_not_v3"]}
     harness = activated.setdefault("harness", {})
     harness.update({"active_cohort": "v3", "contract_version": 3, "runtime_version": 3, "dormant_cohorts": []})
-    harness["components"] = {name: {"supports": [3]} for name in COHORT_COMPONENTS}
+    harness["components"] = deepcopy(installed["components"])
     errors = validate_cohort(3, {name: value["supports"] for name, value in harness["components"].items()})
     if errors:
         return {"status": "cutover_blocked", "blockers": errors}

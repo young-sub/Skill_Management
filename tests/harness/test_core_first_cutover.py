@@ -1,6 +1,7 @@
 import importlib.util
 import json
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -25,16 +26,57 @@ class CoreFirstCutoverTests(unittest.TestCase):
     def test_activation_blocks_nonterminal_legacy_graph_and_is_atomic(self) -> None:
         core = load_core()
         preview = core.preview_project_v3({"version": 2, "project": {"name": "x"}, "work": {}})
-        blocked = core.activate_v3(preview, {"work": [{"id": "W-1", "state": "in_progress"}], "incomplete_transactions": []})
-        self.assertEqual(blocked["status"], "cutover_blocked")
-        self.assertEqual(preview["harness"]["active_cohort"], "v2")
-        activated = core.activate_v3(preview, {"work": [{"id": "W-1", "state": "completed"}], "incomplete_transactions": []})
-        self.assertEqual(activated["status"], "activated")
-        config = activated["project"]
-        self.assertEqual(config["harness"]["active_cohort"], "v3")
-        self.assertEqual(config["harness"]["contract_version"], 3)
-        self.assertEqual(config["harness"]["runtime_version"], 3)
-        self.assertEqual(core.validate_cohort(3, {name: value["supports"] for name, value in config["harness"]["components"].items()}), [])
+        manifest = json.loads((ROOT / "authoring" / "public-resource-manifest.json").read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            active = root / ".work" / "goals" / "active" / "W-1"
+            active.mkdir(parents=True)
+            (active / "work.json").write_text(json.dumps({"work_id": "W-1", "state": "in_progress"}), encoding="utf-8")
+
+            blocked = core.activate_v3(
+                root, preview, installed_root=ROOT / "skills", resource_manifest=manifest,
+            )
+            self.assertEqual(blocked["status"], "cutover_blocked")
+            self.assertEqual(preview["harness"]["active_cohort"], "v2")
+
+            shutil.rmtree(active)
+            completed = root / ".work" / "goals" / "completed" / "2026-08" / "W-1"
+            completed.mkdir(parents=True)
+            (completed / "work.json").write_text(json.dumps({"work_id": "W-1", "state": "completed"}), encoding="utf-8")
+            activated = core.activate_v3(
+                root, preview, installed_root=ROOT / "skills", resource_manifest=manifest,
+            )
+            self.assertEqual(activated["status"], "activated")
+            config = activated["project"]
+            self.assertEqual(config["harness"]["active_cohort"], "v3")
+            self.assertEqual(config["harness"]["contract_version"], 3)
+            self.assertEqual(config["harness"]["runtime_version"], 3)
+            self.assertEqual(core.validate_cohort(3, {name: value["supports"] for name, value in config["harness"]["components"].items()}), [])
+
+    def test_activation_rejects_incomplete_transactions_and_installed_hash_drift(self) -> None:
+        core = load_core()
+        preview = core.preview_project_v3({"version": 2, "project": {"name": "x"}, "work": {}})
+        manifest = json.loads((ROOT / "authoring" / "public-resource-manifest.json").read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            journal = root / ".work" / "transactions" / "crashed" / "journal.json"
+            journal.parent.mkdir(parents=True)
+            journal.write_text(json.dumps({"status": "applying", "kind": "file_transaction"}), encoding="utf-8")
+            blocked = core.activate_v3(
+                root, preview, installed_root=ROOT / "skills", resource_manifest=manifest,
+            )
+            self.assertIn("incomplete_transaction:crashed", blocked["blockers"])
+
+            shutil.rmtree(root / ".work")
+            installed = root / "installed"
+            shutil.copytree(ROOT / "skills", installed)
+            execute_skill = installed / "execute-codex-goal" / "SKILL.md"
+            execute_skill.write_text(execute_skill.read_text(encoding="utf-8") + "\ndrift\n", encoding="utf-8")
+            drifted = core.activate_v3(
+                root, preview, installed_root=installed, resource_manifest=manifest,
+            )
+            self.assertEqual(drifted["status"], "cutover_blocked")
+            self.assertTrue(any(item.startswith("installed_resource_drift:") for item in drifted["blockers"]))
 
     def test_repository_uses_v3_router_config_and_current_docs(self) -> None:
         config = json.loads((ROOT / ".harness" / "project.yaml").read_text(encoding="utf-8"))

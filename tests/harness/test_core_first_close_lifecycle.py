@@ -1,6 +1,8 @@
 import importlib.util
 import json
 from pathlib import Path
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -112,6 +114,43 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
             self.assertTrue(completed.is_dir())
             self.assertEqual(json.loads((completed / "work.json").read_text(encoding="utf-8"))["state"], "completed")
 
+    def test_lifecycle_move_recovers_after_process_exit(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            active = root / ".work" / "goals" / "active" / "W-crash"
+            active.mkdir(parents=True)
+            original = {
+                "schema_version": 3, "work_id": "W-crash", "state": "active",
+                "created_at": "2026-08-01T00:00:00+09:00", "source_commit": "a",
+                "base_branch": "develop", "feature_branch": "wp", "contract_version": 3,
+                "integrity_digest": "x", "owned_paths": [".work/goals/active/W-crash"],
+            }
+            (active / "work.json").write_text(json.dumps(original), encoding="utf-8")
+            child = """
+import importlib.util, sys
+from pathlib import Path
+spec = importlib.util.spec_from_file_location('core_lifecycle_crash', Path(sys.argv[1]))
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+module.close_work(Path(sys.argv[2]), 'W-crash', completed_at='2026-08-02T12:00:00+09:00', completed_days=30, trash_days=7, crash_after='move')
+"""
+
+            crashed = subprocess.run(
+                [sys.executable, "-c", child, str(CORE_PATH), str(root)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(crashed.returncode, 92, crashed.stderr)
+            self.assertFalse(active.exists())
+
+            recovered = core.recover_transactions(root)
+
+            self.assertEqual(recovered["status"], "recovered")
+            self.assertTrue(active.is_dir())
+            self.assertEqual(json.loads((active / "work.json").read_text(encoding="utf-8")), original)
+
     def test_lifecycle_sweep_is_recoverable_idempotent_and_legacy_safe(self) -> None:
         core = load_core()
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -130,6 +169,34 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
             migrated = core.classify_legacy_work(root)
             self.assertEqual(migrated["unclassified"], ["unknown"])
             self.assertTrue((root / ".work" / "goals" / "legacy-unclassified" / "unknown").is_dir())
+
+    def test_legacy_classification_distinguishes_trustworthy_missing_and_contradictory_dates(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            archive = root / ".work" / "archive"
+            trustworthy = archive / "W-trust"
+            missing = archive / "W-missing"
+            contradictory = archive / "W-conflict"
+            for directory in (trustworthy, missing, contradictory):
+                directory.mkdir(parents=True)
+            completed_at = "2026-07-01T10:00:00+09:00"
+            (trustworthy / "work.json").write_text(json.dumps({"completed_at": completed_at}), encoding="utf-8")
+            (trustworthy / "result.json").write_text(json.dumps({"completed_at": completed_at}), encoding="utf-8")
+            (missing / "RESULT.md").write_text("no date evidence\n", encoding="utf-8")
+            (contradictory / "work.json").write_text(json.dumps({"completed_at": completed_at}), encoding="utf-8")
+            (contradictory / "result.json").write_text(
+                json.dumps({"completed_at": "2026-07-02T10:00:00+09:00"}), encoding="utf-8",
+            )
+
+            classified = core.classify_legacy_work(root)
+
+            self.assertEqual(classified["completed"], ["W-trust"])
+            self.assertEqual(classified["unclassified"], ["W-missing"])
+            self.assertEqual(classified["unresolved"], ["W-conflict"])
+            self.assertTrue((root / ".work" / "goals" / "completed" / "2026-07" / "W-trust").is_dir())
+            self.assertTrue((root / ".work" / "goals" / "legacy-unclassified" / "W-missing").is_dir())
+            self.assertTrue(contradictory.is_dir())
 
     def test_baseline_aware_maintenance_reports_only_new_or_worsened(self) -> None:
         core = load_core()
@@ -156,10 +223,74 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
 
             trash = root / ".work" / "goals" / "trash" / "2026-08-02" / "W-delete"
             trash.mkdir(parents=True)
+            (trash / "work.json").write_text(json.dumps({
+                "work_id": "W-delete", "state": "trash", "delete_after": "2026-08-08T00:00:00+09:00",
+            }), encoding="utf-8")
             denied = core.delete_trash(root, ".work/goals/trash/2026-08-02/W-delete", approved_exact_target=None)
             self.assertEqual(denied["status"], "approval_required")
             self.assertTrue(trash.exists())
-            deleted = core.delete_trash(root, ".work/goals/trash/2026-08-02/W-delete", approved_exact_target=".work/goals/trash/2026-08-02/W-delete")
+            deleted = core.delete_trash(
+                root,
+                ".work/goals/trash/2026-08-02/W-delete",
+                approved_exact_target=".work/goals/trash/2026-08-02/W-delete",
+                now="2026-08-08T00:00:00+09:00",
+            )
+            self.assertEqual(deleted["status"], "deleted")
+            self.assertFalse(trash.exists())
+
+    def test_delete_trash_rejects_traversal_even_when_the_alias_is_approved(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            active = root / ".work" / "goals" / "active" / "W-live"
+            active.mkdir(parents=True)
+            (active / "work.json").write_text(json.dumps({"work_id": "W-live", "state": "active"}), encoding="utf-8")
+            alias = ".work/goals/trash/../active/W-live"
+
+            result = core.delete_trash(
+                root, alias, approved_exact_target=alias, now="2026-08-10T00:00:00+09:00",
+            )
+
+            self.assertEqual(result["status"], "invalid_target")
+            self.assertTrue(active.is_dir())
+
+    def test_delete_trash_rejects_a_date_bucket_target(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            bucket = root / ".work" / "goals" / "trash" / "2026-08-02"
+            work = bucket / "W-one"
+            work.mkdir(parents=True)
+            target = ".work/goals/trash/2026-08-02"
+
+            result = core.delete_trash(
+                root, target, approved_exact_target=target, now="2026-08-10T00:00:00+09:00",
+            )
+
+            self.assertEqual(result["status"], "invalid_target")
+            self.assertTrue(work.is_dir())
+
+    def test_delete_trash_requires_an_expired_matching_manifest(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            trash = root / ".work" / "goals" / "trash" / "2026-08-02" / "W-delete"
+            trash.mkdir(parents=True)
+            manifest_path = trash / "work.json"
+            manifest_path.write_text(json.dumps({
+                "work_id": "W-delete", "state": "trash", "delete_after": "2026-08-12T00:00:00+09:00",
+            }), encoding="utf-8")
+            target = ".work/goals/trash/2026-08-02/W-delete"
+
+            early = core.delete_trash(
+                root, target, approved_exact_target=target, now="2026-08-10T00:00:00+09:00",
+            )
+            self.assertEqual(early["status"], "retention_active")
+            self.assertTrue(trash.is_dir())
+
+            deleted = core.delete_trash(
+                root, target, approved_exact_target=target, now="2026-08-12T00:00:00+09:00",
+            )
             self.assertEqual(deleted["status"], "deleted")
             self.assertFalse(trash.exists())
 

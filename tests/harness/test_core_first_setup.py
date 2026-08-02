@@ -1,6 +1,7 @@
 import importlib.util
 import json
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 from unittest import mock
@@ -113,6 +114,50 @@ class CoreFirstSetupTests(unittest.TestCase):
             config = json.loads((root / ".harness" / "project.yaml").read_text(encoding="utf-8"))
             self.assertEqual(config["schema_version"], 3)
             self.assertEqual(config["harness"]["active_cohort"], "v2")
+
+    def test_transaction_recovers_exact_tree_after_process_exit(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            original = b"original\r\n"
+            (root / "existing.txt").write_bytes(original)
+            plan = core._plan_with_digest({
+                "schema_version": 3,
+                "mode": "document-only",
+                "root": str(root.resolve()),
+                "operations": [
+                    {"action": "write", "path": "existing.txt", "content": "changed\n"},
+                    {"action": "write", "path": "created.txt", "content": "created\n"},
+                ],
+                "source_roots": [],
+                "production_hashes_before": {},
+            })
+            plan_path = root / "plan.json"
+            plan_path.write_text(json.dumps(plan), encoding="utf-8")
+            child = """
+import importlib.util, json, sys
+from pathlib import Path
+spec = importlib.util.spec_from_file_location('core_crash_child', Path(sys.argv[1]))
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+plan = json.loads(Path(sys.argv[3]).read_text(encoding='utf-8'))
+module.apply_transaction(Path(sys.argv[2]), plan, approval_digest=plan['digest'], crash_after=1)
+"""
+
+            crashed = subprocess.run(
+                [sys.executable, "-c", child, str(CORE_PATH), str(root), str(plan_path)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(crashed.returncode, 91, crashed.stderr)
+            self.assertNotEqual((root / "existing.txt").read_bytes(), original)
+
+            recovered = core.recover_transactions(root)
+
+            self.assertEqual(recovered["status"], "recovered")
+            self.assertEqual((root / "existing.txt").read_bytes(), original)
+            self.assertFalse((root / "created.txt").exists())
 
     def test_document_move_preserves_bytes_updates_links_and_production_hashes(self) -> None:
         core = load_core()
