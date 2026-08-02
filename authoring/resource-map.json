@@ -136,6 +136,67 @@
       "targets": [
         "maintain-agent-harness/resources/public-resource-manifest.json"
       ]
+    },
+    {
+      "source": "scripts/core_harness.py",
+      "targets": [
+        "setup-agent-harness/resources/v3/core_harness.py",
+        "design-goal/resources/v3/core_harness.py",
+        "execute-codex-goal/resources/v3/core_harness.py",
+        "close-goal/resources/v3/core_harness.py",
+        "maintain-agent-harness/resources/v3/core_harness.py"
+      ]
+    },
+    {
+      "source": "schemas/v3/project.schema.json",
+      "targets": [
+        "setup-agent-harness/resources/v3/schemas/project.schema.json",
+        "maintain-agent-harness/resources/v3/schemas/project.schema.json"
+      ]
+    },
+    {
+      "source": "schemas/v3/work.schema.json",
+      "targets": [
+        "execute-codex-goal/resources/v3/schemas/work.schema.json",
+        "close-goal/resources/v3/schemas/work.schema.json",
+        "maintain-agent-harness/resources/v3/schemas/work.schema.json"
+      ]
+    },
+    {
+      "source": "schemas/v3/contract.schema.json",
+      "targets": [
+        "design-goal/resources/v3/schemas/contract.schema.json",
+        "execute-codex-goal/resources/v3/schemas/contract.schema.json",
+        "close-goal/resources/v3/schemas/contract.schema.json"
+      ]
+    },
+    {
+      "source": "cohorts/v3/templates/project/AGENTS.md",
+      "targets": ["setup-agent-harness/resources/v3/templates/project/AGENTS.md"]
+    },
+    {
+      "source": "cohorts/v3/templates/project/CLAUDE.md",
+      "targets": ["setup-agent-harness/resources/v3/templates/project/CLAUDE.md"]
+    },
+    {
+      "source": "cohorts/v3/templates/project/project.yaml",
+      "targets": ["setup-agent-harness/resources/v3/templates/project/project.yaml"]
+    },
+    {
+      "source": "cohorts/v3/references/documentation-policy.md",
+      "targets": ["setup-agent-harness/resources/v3/references/documentation-policy.md", "close-goal/resources/v3/references/documentation-policy.md"]
+    },
+    {
+      "source": "cohorts/v3/references/testing-policy.md",
+      "targets": ["execute-codex-goal/resources/v3/references/testing-policy.md", "close-goal/resources/v3/references/testing-policy.md", "maintain-agent-harness/resources/v3/references/testing-policy.md"]
+    },
+    {
+      "source": "cohorts/v3/references/human-readability-policy.md",
+      "targets": ["design-goal/resources/v3/references/human-readability-policy.md", "close-goal/resources/v3/references/human-readability-policy.md"]
+    },
+    {
+      "source": "cohorts/v3/references/goal-execution-policy.md",
+      "targets": ["execute-codex-goal/resources/v3/references/goal-execution-policy.md", "diagnose/resources/v3/references/goal-execution-policy.md"]
     }
   ]
 }

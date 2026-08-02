@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-harness.local/schemas/v3/work.schema.json",
+  "title": "Agent Harness work manifest v3",
+  "type": "object",
+  "required": ["schema_version", "work_id", "state", "created_at", "source_commit", "base_branch", "feature_branch", "contract_version", "integrity_digest", "owned_paths"],
+  "properties": {
+    "schema_version": {"const": 3},
+    "work_id": {"type": "string", "minLength": 1},
+    "state": {"enum": ["active", "completed", "trash", "deleted", "legacy-unclassified"]},
+    "created_at": {"type": "string"},
+    "source_commit": {"type": "string"},
+    "base_branch": {"type": "string"},
+    "feature_branch": {"type": "string"},
+    "worktree": {"type": ["string", "null"]},
+    "completed_at": {"type": ["string", "null"]},
+    "retain_until": {"type": ["string", "null"]},
+    "delete_after": {"type": ["string", "null"]},
+    "contract_version": {"const": 3},
+    "integrity_digest": {"type": "string"},
+    "owned_paths": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}
