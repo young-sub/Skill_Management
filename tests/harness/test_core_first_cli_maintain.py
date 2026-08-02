@@ -42,7 +42,7 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
         self.assertTrue({
             "inventory", "render-design", "authorize", "render-result", "impacted",
             "cleanup-plan", "cleanup-apply", "recover", "baseline", "start", "amend",
-            "complete", "commit", "close", "sweep", "delete", "maintain", "activate",
+            "complete", "commit", "close", "sweep", "delete", "maintain", "install-cohort", "activate",
         }.issubset(commands))
 
     def test_installed_cli_default_authorizes_canonical_contract(self) -> None:
@@ -97,6 +97,53 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
             text = (ROOT / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")
             for link in links:
                 self.assertIn(f"]({link})", text, f"{skill}:{link}")
+
+    def test_atomic_cohort_install_replaces_legacy_helpers_and_preserves_unrelated_skills(self) -> None:
+        core = load_core()
+        manifest = json.loads((ROOT / "authoring" / "public-resource-manifest.json").read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as temp_dir:
+            install_root = Path(temp_dir) / "skills"
+            for skill in core.HARNESS_INSTALL_SKILLS:
+                (install_root / skill / "scripts").mkdir(parents=True)
+                (install_root / skill / "SKILL.md").write_text("Harness V2\n", encoding="utf-8")
+            (install_root / "execute-codex-goal" / "scripts" / "goal_runtime.py").write_text("legacy\n", encoding="utf-8")
+            (install_root / "unrelated" ).mkdir()
+            (install_root / "unrelated" / "keep.txt").write_text("keep\n", encoding="utf-8")
+
+            installed = core.install_harness_cohort(
+                ROOT / "skills", install_root, manifest,
+                approved_install_root=str(install_root),
+            )
+
+            self.assertEqual(installed["status"], "installed", installed)
+            self.assertEqual(core.inspect_installed_cohort(install_root, manifest)["status"], "complete")
+            self.assertFalse((install_root / "execute-codex-goal" / "scripts" / "goal_runtime.py").exists())
+            self.assertEqual((install_root / "unrelated" / "keep.txt").read_text(encoding="utf-8"), "keep\n")
+            self.assertTrue(installed["tree_digest"].startswith("sha256:"))
+
+    def test_atomic_cohort_install_restores_exact_previous_cohort_on_fault(self) -> None:
+        core = load_core()
+        manifest = json.loads((ROOT / "authoring" / "public-resource-manifest.json").read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as temp_dir:
+            install_root = Path(temp_dir) / "skills"
+            before = {}
+            for index, skill in enumerate(core.HARNESS_INSTALL_SKILLS):
+                path = install_root / skill / "SKILL.md"
+                path.parent.mkdir(parents=True)
+                content = f"legacy-{index}\r\n".encode()
+                path.write_bytes(content)
+                before[skill] = content
+
+            outcome = core.install_harness_cohort(
+                ROOT / "skills", install_root, manifest,
+                approved_install_root=str(install_root), fault_after=3,
+            )
+
+            self.assertEqual(outcome["status"], "rolled_back", outcome)
+            for skill, content in before.items():
+                self.assertEqual((install_root / skill / "SKILL.md").read_bytes(), content)
+            self.assertFalse(any(install_root.parent.glob(".harness-cohort-stage-*")))
+            self.assertFalse(any(install_root.parent.glob(".harness-cohort-backup-*")))
 
 
 if __name__ == "__main__":

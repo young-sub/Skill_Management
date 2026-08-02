@@ -24,6 +24,10 @@ import unicodedata
 
 SCHEMA_VERSION = 3
 COHORT_COMPONENTS = ("project", "design", "execute", "close", "maintain", "diagnose")
+HARNESS_INSTALL_SKILLS = (
+    "setup-agent-harness", "design-goal", "execute-codex-goal", "close-goal",
+    "maintain-agent-harness", "diagnose", "project-agent-bootstrap",
+)
 ITEM_FIELDS = (
     "id", "title", "behavior_type", "what", "steps", "terms", "tests", "done",
     "depends_on", "non_goals", "decision", "material_risks", "priority",
@@ -1955,11 +1959,31 @@ def inspect_legacy_graph(root: Path) -> dict[str, Any]:
     return {"work": work, "blockers": blockers}
 
 
+def _manifest_file_hash(path: Path, hash_mode: str | None) -> str:
+    if hash_mode == "bytes":
+        content = path.read_bytes()
+    elif path.suffix.casefold() in {".json", ".md", ".html", ".py", ".ps1", ".txt", ".yaml", ".yml"}:
+        content = path.read_text(encoding="utf-8").replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
+    else:
+        content = path.read_bytes()
+    return sha256(content).hexdigest()
+
+
+def _cohort_manifest_files(resource_manifest: dict[str, Any]) -> dict[str, str]:
+    files = resource_manifest.get("files")
+    if not isinstance(files, dict):
+        return {}
+    return {
+        str(relative): str(digest) for relative, digest in files.items()
+        if str(relative).split("/", 1)[0] in HARNESS_INSTALL_SKILLS
+    }
+
+
 def inspect_installed_cohort(installed_root: Path, resource_manifest: dict[str, Any]) -> dict[str, Any]:
     installed_root = installed_root.resolve()
     blockers: list[str] = []
-    files = resource_manifest.get("files")
-    if resource_manifest.get("root") != "skills" or not isinstance(files, dict):
+    files = _cohort_manifest_files(resource_manifest)
+    if resource_manifest.get("root") != "skills" or not files:
         return {"status": "invalid_manifest", "blockers": ["installed_manifest_invalid"], "components": {}}
     for relative, expected in sorted(files.items()):
         try:
@@ -1970,13 +1994,7 @@ def inspect_installed_cohort(installed_root: Path, resource_manifest: dict[str, 
         if not path.is_file():
             blockers.append(f"installed_resource_missing:{relative}")
             continue
-        if resource_manifest.get("hash_mode") == "bytes":
-            content = path.read_bytes()
-        elif path.suffix.casefold() in {".json", ".md", ".html", ".py", ".ps1", ".txt", ".yaml", ".yml"}:
-            content = path.read_text(encoding="utf-8").replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
-        else:
-            content = path.read_bytes()
-        actual = sha256(content).hexdigest()
+        actual = _manifest_file_hash(path, resource_manifest.get("hash_mode"))
         if actual != expected:
             blockers.append(f"installed_resource_drift:{relative}")
     legacy_helpers = (
@@ -2003,6 +2021,87 @@ def inspect_installed_cohort(installed_root: Path, resource_manifest: dict[str, 
         if not supports:
             blockers.append(f"installed_component_not_v3:{component}")
     return {"status": "complete" if not blockers else "invalid", "blockers": blockers, "components": components}
+
+
+def install_harness_cohort(
+    source_root: Path, install_root: Path, resource_manifest: dict[str, Any], *,
+    approved_install_root: str | None, fault_after: int | None = None,
+) -> dict[str, Any]:
+    """Atomically replace only the Harness cohort after exact-root approval and staged verification."""
+    source_root = source_root.resolve()
+    install_root = install_root.resolve()
+    if approved_install_root is None or Path(approved_install_root).resolve() != install_root:
+        return {"status": "approval_required", "install_root": str(install_root)}
+    files = _cohort_manifest_files(resource_manifest)
+    if resource_manifest.get("root") != "skills" or not files:
+        return {"status": "invalid_manifest"}
+    for skill in HARNESS_INSTALL_SKILLS:
+        if not (source_root / skill / "SKILL.md").is_file():
+            return {"status": "invalid_source", "errors": [f"missing_skill:{skill}"]}
+    install_root.parent.mkdir(parents=True, exist_ok=True)
+    install_root.mkdir(parents=True, exist_ok=True)
+    nonce = f"{os.getpid()}-{time.time_ns()}"
+    staging = install_root.parent / f".harness-cohort-stage-{nonce}"
+    backup = install_root.parent / f".harness-cohort-backup-{nonce}"
+    changed: list[str] = []
+    try:
+        staging.mkdir()
+        backup.mkdir()
+        for skill in HARNESS_INSTALL_SKILLS:
+            shutil.copytree(source_root / skill, staging / skill)
+        staged = inspect_installed_cohort(staging, resource_manifest)
+        if staged["status"] != "complete":
+            raise RuntimeError("staging_invalid:" + ";".join(staged["blockers"]))
+        for number, skill in enumerate(HARNESS_INSTALL_SKILLS, 1):
+            target = install_root / skill
+            saved = backup / skill
+            if target.exists():
+                if _path_is_alias(target):
+                    raise ValueError(f"installed_skill_alias:{skill}")
+                os.replace(target, saved)
+            changed.append(skill)
+            os.replace(staging / skill, target)
+            if fault_after == number:
+                raise RuntimeError(f"fault_injected_after:{number}")
+        observed = inspect_installed_cohort(install_root, resource_manifest)
+        if observed["status"] != "complete":
+            raise RuntimeError("installed_cohort_verification_failed:" + ";".join(observed["blockers"]))
+        tree = {
+            relative: _manifest_file_hash(install_root / relative, resource_manifest.get("hash_mode"))
+            for relative in sorted(files)
+        }
+        if tree != files:
+            raise RuntimeError("installed_tree_manifest_mismatch")
+        shutil.rmtree(backup)
+        shutil.rmtree(staging)
+        return {
+            "status": "installed", "install_root": str(install_root),
+            "skills": list(HARNESS_INSTALL_SKILLS), "tree_digest": canonical_digest(tree),
+            "components": observed["components"],
+        }
+    except (OSError, ValueError, RuntimeError) as error:
+        restore_errors: list[str] = []
+        for skill in reversed(changed):
+            target = install_root / skill
+            saved = backup / skill
+            try:
+                if target.exists():
+                    displaced = staging / skill
+                    if displaced.exists():
+                        shutil.rmtree(displaced)
+                    os.replace(target, displaced)
+                if saved.exists():
+                    os.replace(saved, target)
+            except OSError as restore_error:
+                restore_errors.append(f"{skill}:{restore_error}")
+        if staging.exists():
+            shutil.rmtree(staging, ignore_errors=True)
+        if backup.exists():
+            shutil.rmtree(backup, ignore_errors=True)
+        return {
+            "status": "rollback_failed" if restore_errors else "rolled_back",
+            "error": str(error), "restore_errors": restore_errors,
+        }
 
 
 def maintain_harness(
@@ -2235,6 +2334,11 @@ def _cli_parser() -> argparse.ArgumentParser:
     maintain.add_argument("--installed-root", type=Path)
     maintain.add_argument("--manifest", type=Path)
     maintain.add_argument("--today")
+    install = sub.add_parser("install-cohort")
+    install.add_argument("--source-root", type=Path, required=True)
+    install.add_argument("--install-root", type=Path, required=True)
+    install.add_argument("--manifest", type=Path, required=True)
+    install.add_argument("--approved-install-root", required=True)
     activation = sub.add_parser("activate")
     activation.add_argument("--root", type=Path, required=True)
     activation.add_argument("--project", type=Path, required=True)
@@ -2340,6 +2444,11 @@ def main() -> int:
                 args.root, _json_object(args.project), installed_root=args.installed_root,
                 resource_manifest=manifest, today=args.today,
             )
+        elif args.command == "install-cohort":
+            payload = install_harness_cohort(
+                args.source_root, args.install_root, _json_object(args.manifest),
+                approved_install_root=args.approved_install_root,
+            )
         else:
             payload = activate_v3(
                 args.root, _json_object(args.project), installed_root=args.installed_root,
@@ -2352,6 +2461,8 @@ def main() -> int:
             "git_error", "invalid_work", "invalid_target", "recovery_failed",
             "explicit_approval_required", "focused_approval_required", "vetoed",
             "unresolved_decisions", "ambiguous_intent", "invalid_amendment",
+            "invalid_manifest", "invalid_source", "staging_invalid", "rolled_back",
+            "rollback_failed",
         } else 2
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
         print(json.dumps({"status": "invalid", "errors": [str(error)]}, ensure_ascii=False), file=sys.stderr)
