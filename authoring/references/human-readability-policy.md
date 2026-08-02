@@ -1,10 +1,10 @@
 # Human Readability Policy
 
 - Agent contracts and durable technical documents are English. Design and Result surfaces are Korean by default.
-- A Review is a decision document, not a status-card summary. Preserve the canonical contract's behavioral meaning and enough detail for a human to decide without reading agent-only sources.
-- Design uses stable Item IDs/order and a deliberate reading sequence: changed outcome, behavior design, verification scenarios, completion criteria, then material dependencies, boundaries, and risks. Avoid naive question headings and keyword-only prose.
-- Result uses the same Item identity and visual grammar. It shows implemented change, observable outcomes, behavior-level check summaries, criterion-by-criterion evidence, and a concrete planned-versus-actual statement.
-- Use behavior-matched tool/API, UI, bug-fix, state, or migration visuals. A visual node is a plain-language action or state, not an internal noun label.
-- Explain unfamiliar terms on first use. Keep exact commands subordinate to the behavior they prove.
+- A Review is a human decision surface. Show only the purpose, process, tests, and expected or actual result needed to judge the work without reading agent-only sources.
+- Design and Result preserve stable Item IDs/order and use exactly four primary blocks per Item: `핵심 목적`, `핵심 프로세스`, `핵심 테스트`, and `예상 결과` or `핵심 결과`.
+- Design test tables show the verification target, test method, and observable pass condition. Result test tables show the verification target, performed test, and observed result.
+- Use a short plain-language process visual. Do not expose internal taxonomy, invented terms, dependencies, boundaries, or routine risk sections unless they materially change the human decision.
+- Keep exact selectors, commands, criterion-level evidence, and non-material plan deltas in collapsed technical details.
 - Do not expose raw Markdown, frontmatter, hashes, detailed logs, or audit appendices.
 - Status always has text and an icon in addition to color.

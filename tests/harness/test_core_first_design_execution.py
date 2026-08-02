@@ -42,6 +42,10 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
             "behavior_type": "migration",
             "what": "기존 API 계약을 유지하면서 새 검증 경로로 안전하게 전환하고, 실패하면 이전 상태를 보존한다.",
             "steps": ["기존 요청 경로와 기준선을 확인한다", "새 검증 경로를 활성화한다", "대표 요청의 응답을 비교한다", "오류가 나면 기존 경로로 복구한다"],
+            "tests": [
+                {"target": "기존 응답 유지", "method": "전환 전후 대표 요청을 비교한다", "expected": "응답 형식과 값이 같다", "selector": "tests.api.test_contract"},
+                {"target": "실패 복구", "method": "새 경로에서 오류를 발생시킨다", "expected": "기존 경로로 복구된다", "selector": "tests.api.test_rollback"},
+            ],
             "non_goals": ["공개 API 응답 형식 변경"],
             "material_risks": ["전환 중 기존 요청이 새 검증 경로와 섞이지 않아야 한다"],
         })
@@ -49,19 +53,19 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
         page = core.render_design_review_v3(source)
         self.assertIn('lang="ko"', page)
         self.assertLess(page.index('data-item-id="I-01"'), page.index('data-item-id="I-02"'))
-        for label in ("변경 후 달라지는 점", "동작 설계", "검증 시나리오", "완료 판정 기준", "의존성과 작업 경계", "리스크와 검토 포인트"):
+        for label in ("핵심 목적", "핵심 프로세스", "핵심 테스트", "예상 결과"):
             self.assertIn(label, page)
-        for summary_label in ("변경 목표", "적용 범위", "제외 범위", "결정 현황"):
-            self.assertIn(summary_label, page)
-        self.assertIn("Impact rule", page)
+        for table_label in ("검증 대상", "수행할 테스트", "통과 기준"):
+            self.assertIn(table_label, page)
+        self.assertIn("기존 응답 유지", page)
+        self.assertIn("전환 전후 대표 요청을 비교한다", page)
+        self.assertIn("응답 형식과 값이 같다", page)
+        self.assertIn("tests.api.test_contract", page)
         self.assertIn('data-visual="migration"', page)
-        self.assertIn("전제 조건", page)
         self.assertIn("복구", page)
-        self.assertIn("I-01 완료 후 시작", page)
-        self.assertIn("공개 API 응답 형식 변경", page)
-        self.assertIn("전환 중 기존 요청이 새 검증 경로와 섞이지 않아야 한다", page)
-        self.assertIn("✓ 결정 완료", page)
         self.assertIn("review-masthead", page)
+        for removed in ("검토 요청", "변경 후 달라지는 점", "동작 설계", "완료 판정 기준", "의존성과 작업 경계", "리스크와 검토 포인트", "Impact rule", "review-facts"):
+            self.assertNotIn(removed, page)
         for forbidden in ("sha256:", "<pre", "frontmatter", "감사 부록", "```"):
             self.assertNotIn(forbidden, page)
         self.assertNotIn("source-sha256", page.casefold())

@@ -49,16 +49,20 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
         page = core.render_result_review_v3(contract(), result_payload())
         self.assertIn('lang="ko"', page)
         self.assertLess(page.index('data-item-id="I-01"'), page.index('data-item-id="I-02"'))
-        for label in ("구현된 변화", "실제 동작과 관찰 결과", "검증 근거", "완료 기준별 판정", "계획 대비 변경"):
+        for label in ("핵심 목적", "핵심 프로세스", "핵심 테스트", "핵심 결과"):
             self.assertIn(label, page)
+        for table_label in ("검증 대상", "수행한 테스트", "확인 결과"):
+            self.assertIn(table_label, page)
         self.assertIn("정상 요청은 기존 응답 형식을 유지한다", page)
         self.assertIn("정상·거부 요청의 공개 응답을 검증", page)
         self.assertIn("관련 공개 동작이 통과한다", page)
         self.assertIn("정상·거부 요청 회귀 테스트 통과", page)
         self.assertIn("승인된 설계와 동일", page)
         self.assertIn("추가 승인 불필요", page)
-        self.assertIn("criteria-table", page)
         self.assertIn("✓ 완료", page)
+        self.assertIn("기술 세부 정보", page)
+        for removed in ("구현된 변화", "실제 동작과 관찰 결과", "검증 근거", "완료 기준별 판정", "계획 대비 변경", "criteria-table", "review-facts"):
+            self.assertNotIn(removed, page)
         for forbidden in ("sha256:", "<pre", "frontmatter", "감사 부록", "```"):
             self.assertNotIn(forbidden, page)
         self.assertNotIn("source-sha256", page.casefold())

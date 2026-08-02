@@ -103,6 +103,11 @@ class CoreFirstSchemaTests(unittest.TestCase):
         self.assertEqual(set(descriptor["required"]), {"argv", "working_directory", "platform", "runtime", "env_keys", "capability"})
         contract_schema = json.loads((ROOT / "authoring" / "schemas" / "v3" / "contract.schema.json").read_text(encoding="utf-8"))
         item = contract_schema["$defs"]["item"]
+        self.assertIn("testCase", contract_schema["$defs"])
+        test_case = contract_schema["$defs"]["testCase"]
+        self.assertEqual(set(test_case["required"]), {"target", "method", "expected", "selector"})
+        self.assertFalse(test_case["additionalProperties"])
+        self.assertEqual(item["properties"]["tests"]["items"]["oneOf"][1]["$ref"], "#/$defs/testCase")
         self.assertFalse(contract_schema["$defs"]["term"]["additionalProperties"])
         self.assertFalse(contract_schema["$defs"]["decision"]["additionalProperties"])
         self.assertFalse(contract_schema["$defs"]["approval"]["additionalProperties"])

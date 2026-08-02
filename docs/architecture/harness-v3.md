@@ -6,9 +6,9 @@
 
 ## Work contract and reviews
 
-`contract.json` is the canonical, language-independent Item contract. Every Item has stable identity, a concrete changed outcome, ordered behavior steps, terms, observable tests, completion criteria, dependencies, non-goals, decision state, risk, and core/optional priority. Design and Result HTML are Korean decision documents with the same IDs and order; they must preserve this behavioral depth instead of reducing Items to keyword status cards.
+`contract.json` is the canonical, language-independent Item contract. Every Item has stable identity, a concrete changed outcome, ordered behavior steps, observable tests, completion criteria, dependencies, non-goals, decision state, risk, and core/optional priority. A test may remain a legacy string or use a structured target, method, expected result, and selector. Design and Result HTML are Korean decision documents with the same IDs and order.
 
-Design reads in decision order: changed outcome, behavior design, verification scenarios, completion criteria, then material dependencies, boundaries, and risks. Result reuses the behavior visual and adds observable outcomes, behavior-level check summaries, criterion-by-criterion evidence, and the concrete planned-versus-actual impact. Exact commands remain secondary evidence. Internal digests bind approval but are not shown to humans.
+Each Item exposes four primary blocks only: purpose, process, tests, and expected or actual result. Design test tables state what is verified, how it is tested, and the observable pass condition. Result tables state what was verified, which test ran, and what was observed. Exact commands, criterion-level evidence, and non-material plan deltas remain collapsed secondary evidence. Internal digests bind approval but are not shown to humans.
 
 ## Runtime and state
 
