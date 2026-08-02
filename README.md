@@ -11,6 +11,14 @@
 
 공개 Harness Skill은 `setup-agent-harness`, `explore-idea`, `design-goal`, `execute-codex-goal`, `diagnose`, `close-goal`, `maintain-agent-harness`입니다. 기존 v2.0.0 배포 사실은 [`docs/releases/v2.0.0.md`](docs/releases/v2.0.0.md)에 역사적 릴리스 증거로 남아 있으며, 현재 workflow authority는 아닙니다.
 
+## 프로젝트에 설치
+
+대상 프로젝트 루트에서 실행한 뒤 설치할 Skill과 적용 범위를 선택합니다. `-g`를 사용하지 않으므로 프로젝트 로컬에 설치됩니다.
+
+```powershell
+npx skills add git@github.com:young-sub/Skill_Management.git
+```
+
 ## 검증
 
 ```powershell
