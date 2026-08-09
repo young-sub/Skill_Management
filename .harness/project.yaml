@@ -51,7 +51,7 @@
   },
   "documents": {"boundaries": [{"paths": ["authoring", "skills"], "documents": ["docs/architecture/harness.md"]}, {"paths": ["tests", "scripts"], "documents": ["docs/testing.md"]}]},
   "work": {"retention": {"completed_days": 30, "trash_days": 7}, "states": ["active", "completed", "trash", "deleted"], "legacy_state": "legacy-unclassified"},
-  "git": {"capture_current_base": true, "protected_branches": ["main"], "branch_pattern": "wp-{work_id}-{slug}", "commit_per_item": false, "worktrees_for_independent_items": true},
+  "git": {"capture_current_base": true, "protected_branches": ["main"], "branch_pattern": "wp-{work_id}-{slug}", "commit_per_item": true, "worktrees_for_independent_items": true},
   "baseline": {"findings": []},
   "extensions": {}
 }

@@ -4,7 +4,7 @@ The Harness maps a repository only when setup is explicitly requested, turns aut
 
 ```text
 static inventory -> mapped project -> Item contract -> canonical Korean Design Review -> default authorization
-       -> core-first implementation -> Impacted checks -> policy-selected commits
+       -> core-first implementation -> Impacted checks -> complete functional-unit commits
        -> Korean Result Review -> completed -> trash -> exact-approved deletion
 ```
 

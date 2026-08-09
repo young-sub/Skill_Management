@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/templates/project/AGENTS.md -->
-<!-- Source-SHA256: 8867e8d27dcbd64dbd91a799ad594fdbf19c49d5ed7b83542fb8669a8499f85c -->
+<!-- Source-SHA256: 9858e8bfb1a8657827bad4f10aee143a52b4de64dc7f8c25f88d708140e8cbb7 -->
 
 # Project Agent Instructions
 
@@ -12,7 +12,8 @@
 ## Delivery
 
 - Implement dependency-ready core Items before optional work. Use RED/GREEN for behavior changes and impact-selected verification for Item completion.
-- Capture the current branch and commit as the base; do not assume a branch name. Preserve the dirty baseline and commit only independently reviewable slices when repository policy or the human requests commits.
+- Capture the current branch and commit as the base; do not assume a branch name. Preserve the dirty baseline.
+- A commit unit is the smallest complete functional unit that works when checked out by itself, including required source, tests, docs, schemas, and generated resources. Commit every such unit after its mapped verification passes. Group coupled Items into one commit; split only independently working units. Never create an intentionally broken intermediate commit.
 - Keep durable current truth under configured document roots. Contracts, reviews, evidence, logs, and transactions expire under `.work/`.
 
 ## Risk

@@ -8,7 +8,8 @@
 ## Delivery
 
 - Implement dependency-ready core Items before optional work. Use RED/GREEN for behavior changes and impact-selected verification for Item completion.
-- Capture the current branch and commit as the base; do not assume a branch name. Preserve the dirty baseline. Commit independently reviewable slices when project policy or the user requires intermediate commits.
+- Capture the current branch and commit as the base; do not assume a branch name. Preserve the dirty baseline.
+- A commit unit is the smallest complete functional unit that works when checked out by itself, including required source, tests, docs, schemas, and generated resources. Commit every such unit after its mapped verification passes. Group coupled Items into one commit; split only independently working units. Never create an intentionally broken intermediate commit.
 - Keep durable current truth under configured document roots. Contracts, reviews, evidence, logs, and transactions expire under `.work/`.
 
 ## Risk

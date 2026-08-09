@@ -10,7 +10,8 @@
 
 - Implement dependency-ready core Items before optional work. Use RED/GREEN for behavior changes; use baseline GREEN → structural change → equivalent GREEN for behavior-preserving document or test relocation.
 - Select verification from `.harness/project.yaml`. Unresolved relevant impact blocks completion; Full is required only by a configured cumulative-impact trigger or explicit human request.
-- Capture the current branch and commit as the base; never assume a branch name. Preserve the dirty baseline and commit only independently reviewable slices when repository policy or the human requests commits.
+- Capture the current branch and commit as the base; never assume a branch name. Preserve the dirty baseline.
+- A commit unit is the smallest complete functional unit that works when checked out by itself, including required source, tests, docs, schemas, and generated resources. Commit every such unit after its mapped verification passes. Group coupled Items into one commit; split only independently working units. Never create an intentionally broken intermediate commit.
 
 ## State And Risk
 

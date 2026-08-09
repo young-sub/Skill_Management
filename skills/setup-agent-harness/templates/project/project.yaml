@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/templates/project/project.yaml
-# Source-SHA256: e72a6f2a0908e389a763b41984c1cdf97661f7a2741c7d5da3ed20554dc1e1d0
+# Source-SHA256: b647541c443dc48e52d5680d953326f7614bf055ce85c7386b1b4cf3cfb30310
 
 {
   "schema_version": 3,
@@ -19,7 +19,7 @@
   },
   "documents": {"boundaries": []},
   "work": {"retention": {"completed_days": 30, "trash_days": 7}, "states": ["active", "completed", "trash", "deleted"], "legacy_state": "legacy-unclassified"},
-  "git": {"capture_current_base": true, "protected_branches": [], "branch_pattern": "wp-{work_id}-{slug}", "commit_per_item": false, "worktrees_for_independent_items": true},
+  "git": {"capture_current_base": true, "protected_branches": [], "branch_pattern": "wp-{work_id}-{slug}", "commit_per_item": true, "worktrees_for_independent_items": true},
   "baseline": {"findings": []},
   "extensions": {}
 }

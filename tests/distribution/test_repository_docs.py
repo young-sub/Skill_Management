@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import re
 import subprocess
 import sys
@@ -9,6 +10,31 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class RepositoryDocsTests(unittest.TestCase):
+    def test_git_policy_requires_commits_for_complete_functional_units(self) -> None:
+        repository = json.loads((ROOT / ".harness" / "project.yaml").read_text(encoding="utf-8"))
+        template = json.loads(
+            (ROOT / "authoring" / "templates" / "project" / "project.yaml").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertTrue(repository["git"]["commit_per_item"])
+        self.assertTrue(template["git"]["commit_per_item"])
+
+        policy_surfaces = (
+            ROOT / "AGENTS.md",
+            ROOT / "CLAUDE.md",
+            ROOT / "docs" / "agents" / "workflow.md",
+            ROOT / "authoring" / "templates" / "project" / "AGENTS.md",
+            ROOT / "authoring" / "templates" / "project" / "CLAUDE.md",
+            ROOT / "authoring" / "references" / "goal-execution-policy.md",
+            ROOT / "authoring" / "skills" / "execute-codex-goal" / "SKILL.md",
+        )
+        for path in policy_surfaces:
+            text = path.read_text(encoding="utf-8")
+            self.assertIn("complete functional unit", text, path)
+            self.assertIn("works when checked out by itself", text, path)
+            self.assertIn("Never create an intentionally broken intermediate commit", text, path)
+
     def test_current_documents_are_reachable_and_links_resolve(self) -> None:
         index = ROOT / "docs" / "index.md"
         text = index.read_text(encoding="utf-8")
