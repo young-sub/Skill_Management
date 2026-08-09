@@ -1,6 +1,12 @@
 {
   "schema_version": 1,
   "resources": [
+    {"source": "skills/setup-agent-harness/SKILL.md", "targets": ["setup-agent-harness/SKILL.md"]},
+    {"source": "skills/design-goal/SKILL.md", "targets": ["design-goal/SKILL.md"]},
+    {"source": "skills/execute-codex-goal/SKILL.md", "targets": ["execute-codex-goal/SKILL.md"]},
+    {"source": "skills/diagnose/SKILL.md", "targets": ["diagnose/SKILL.md"]},
+    {"source": "skills/close-goal/SKILL.md", "targets": ["close-goal/SKILL.md"]},
+    {"source": "skills/maintain-agent-harness/SKILL.md", "targets": ["maintain-agent-harness/SKILL.md"]},
     {"source": "scripts/core_harness.py", "targets": ["setup-agent-harness/scripts/core_harness.py", "design-goal/scripts/core_harness.py", "execute-codex-goal/scripts/core_harness.py", "close-goal/scripts/core_harness.py", "maintain-agent-harness/scripts/core_harness.py"]},
     {"source": "scripts/render_item_review.py", "targets": ["design-goal/scripts/render_item_review.py"]},
     {"source": "scripts/render_result_review.py", "targets": ["close-goal/scripts/render_result_review.py"]},

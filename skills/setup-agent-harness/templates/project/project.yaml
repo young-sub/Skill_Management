@@ -1,10 +1,9 @@
 # Generated file. Do not edit directly.
 # Source: authoring/templates/project/project.yaml
-# Source-SHA256: 3ba695dd73230463e20a552a0aaafaae7df5f70e72b90b4eb2195d3cb6446c39
+# Source-SHA256: e72a6f2a0908e389a763b41984c1cdf97661f7a2741c7d5da3ed20554dc1e1d0
 
 {
   "schema_version": 3,
-  "harness": {"active_cohort": "v3", "contract_version": 3, "runtime_version": 3, "dormant_cohorts": [], "components": {"project": {"supports": [3]}, "design": {"supports": [3]}, "execute": {"supports": [3]}, "close": {"supports": [3]}, "maintain": {"supports": [3]}, "diagnose": {"supports": [3]}}},
   "project": {"name": "{{PROJECT_NAME}}", "classification": "{{CLASSIFICATION}}"},
   "paths": {"source_roots": [], "test_roots": [], "fixture_roots": [], "generated_roots": [], "durable_document_roots": ["docs"], "human_guide_roots": [], "ephemeral_work_root": ".work", "documentation_entrypoint": "docs/index.md"},
   "impact": {"rules": [], "feature_selectors": {}, "full_triggers": ["shared_runtime", "schema", "test_discovery", "repository_workflow_cutover"]},

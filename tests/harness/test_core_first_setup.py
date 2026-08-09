@@ -1,8 +1,10 @@
 import importlib.util
+from concurrent.futures import ThreadPoolExecutor
 import json
 from pathlib import Path
 import subprocess
 import tempfile
+import threading
 import unittest
 from unittest import mock
 import sys
@@ -139,25 +141,83 @@ class CoreFirstSetupTests(unittest.TestCase):
             self.assertEqual(inventory["ci_files"], [".github/workflows/ci.yml"])
             self.assertIn("AGENTS.md", inventory["authority_candidates"])
 
-    def test_v2_migration_requires_bound_approval_and_rolls_back_fault(self) -> None:
+    def test_project_migration_binds_source_bytes_and_rolls_back_exactly(self) -> None:
         core = load_core()
-        legacy = {"version": 2, "project": {"name": "sample"}, "work": {"root": ".work"}}
+        legacy = json.loads(
+            (ROOT / "authoring" / "templates" / "project" / "project.yaml").read_text(encoding="utf-8")
+        )
+        legacy["project"] = {"name": "sample", "classification": "mapped"}
+        legacy["harness"] = {
+            "active_cohort": "v3", "contract_version": 3, "runtime_version": 3,
+            "dormant_cohorts": [],
+            "components": {
+                name: {"supports": [3]}
+                for name in ("project", "design", "execute", "close", "maintain", "diagnose")
+            },
+        }
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
+            target = root / ".harness" / "project.yaml"
+            target.parent.mkdir()
+            original = (json.dumps(legacy, ensure_ascii=False, indent=2) + "\r\n").encode("utf-8")
+            target.write_bytes(original)
             plan = core.build_project_migration(root, legacy)
+            self.assertEqual(target.read_bytes(), original)
+            self.assertFalse((root / ".work").exists())
+
             denied = core.apply_transaction(root, plan, approval_digest="wrong")
             self.assertEqual(denied["status"], "approval_required")
-            self.assertFalse((root / ".harness" / "project.yaml").exists())
+            self.assertEqual(target.read_bytes(), original)
+
+            target.write_bytes(original + b"drift\n")
+            drifted = core.apply_transaction(root, plan, approval_digest=plan["digest"])
+            self.assertEqual(drifted["status"], "precondition_failed")
+            self.assertIn("precondition_hash_drift:.harness/project.yaml", drifted["errors"])
+            self.assertFalse((root / ".work" / "transactions").exists())
+            target.write_bytes(original)
 
             failed = core.apply_transaction(root, plan, approval_digest=plan["digest"], fault_after=1)
             self.assertEqual(failed["status"], "rolled_back")
-            self.assertFalse((root / ".harness" / "project.yaml").exists())
+            self.assertEqual(target.read_bytes(), original)
 
             applied = core.apply_transaction(root, plan, approval_digest=plan["digest"])
             self.assertEqual(applied["status"], "committed")
-            config = json.loads((root / ".harness" / "project.yaml").read_text(encoding="utf-8"))
+            config = json.loads(target.read_text(encoding="utf-8"))
             self.assertEqual(config["schema_version"], 3)
-            self.assertEqual(config["harness"]["active_cohort"], "v2")
+            self.assertNotIn("harness", config)
+
+    def test_project_migration_rejects_an_internal_alias_source_without_mutation(self) -> None:
+        core = load_core()
+        legacy = json.loads(
+            (ROOT / "authoring" / "templates" / "project" / "project.yaml").read_text(encoding="utf-8")
+        )
+        legacy["harness"] = {
+            "active_cohort": "v3", "contract_version": 3, "runtime_version": 3,
+            "dormant_cohorts": [],
+            "components": {
+                name: {"supports": [3]}
+                for name in ("project", "design", "execute", "close", "maintain", "diagnose")
+            },
+        }
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            actual = root / "internal" / "legacy.json"
+            actual.parent.mkdir()
+            actual.write_text(json.dumps(legacy), encoding="utf-8")
+            target = root / ".harness" / "project.yaml"
+            target.parent.mkdir()
+            try:
+                target.symlink_to(actual)
+            except OSError as error:
+                self.skipTest(f"file symlink unavailable: {error}")
+            before = actual.read_bytes()
+
+            with self.assertRaisesRegex(ValueError, "project_source_invalid"):
+                core.build_project_migration(root, legacy)
+
+            self.assertTrue(target.is_symlink())
+            self.assertEqual(actual.read_bytes(), before)
+            self.assertFalse((root / ".work").exists())
 
     def test_transaction_recovers_exact_tree_after_process_exit(self) -> None:
         core = load_core()
@@ -202,6 +262,40 @@ module.apply_transaction(Path(sys.argv[2]), plan, approval_digest=plan['digest']
             self.assertEqual(recovered["status"], "recovered")
             self.assertEqual((root / "existing.txt").read_bytes(), original)
             self.assertFalse((root / "created.txt").exists())
+
+    def test_concurrent_file_transactions_have_exactly_one_live_owner(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            plan = core._plan_with_digest({
+                "schema_version": 3, "mode": "document-only", "root": str(root.resolve()),
+                "operations": [{"action": "write", "path": "result.txt", "content": "done\n"}],
+                "source_roots": [], "production_hashes_before": {},
+            })
+            entered = threading.Event()
+            release = threading.Event()
+            real_write = core._durable_write_bytes
+
+            def paused_write(path, content):
+                if Path(path).name == "result.txt" and not entered.is_set():
+                    entered.set()
+                    self.assertTrue(release.wait(timeout=10))
+                return real_write(path, content)
+
+            with mock.patch.object(core, "_durable_write_bytes", side_effect=paused_write):
+                with ThreadPoolExecutor(max_workers=1) as pool:
+                    first_future = pool.submit(
+                        core.apply_transaction, root, plan, approval_digest=plan["digest"],
+                    )
+                    self.assertTrue(entered.wait(timeout=10))
+                    second = core.apply_transaction(root, plan, approval_digest=plan["digest"])
+                    release.set()
+                    first = first_future.result(timeout=10)
+
+            self.assertEqual(first["status"], "committed", first)
+            self.assertEqual(second["status"], "precondition_failed", second)
+            self.assertIn("operation_lock_busy:transaction", second["errors"])
+            self.assertEqual((root / "result.txt").read_text(encoding="utf-8"), "done\n")
 
     def test_document_move_preserves_bytes_updates_links_and_production_hashes(self) -> None:
         core = load_core()

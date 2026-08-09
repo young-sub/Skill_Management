@@ -25,63 +25,79 @@ def load_core():
 class CoreFirstCutoverTests(unittest.TestCase):
     def test_activation_blocks_nonterminal_legacy_graph_and_is_atomic(self) -> None:
         core = load_core()
-        preview = core.preview_project_v3({"version": 2, "project": {"name": "x"}, "work": {}})
+        preview = core.preview_project_config({"version": 2, "project": {"name": "x"}, "work": {}})
         manifest = json.loads((ROOT / "authoring" / "public-resource-manifest.json").read_text(encoding="utf-8"))
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
+            installed_root = root / "installed"
+            installed = core.install_harness_cohort(
+                ROOT / "skills", installed_root, manifest,
+                approved_install_root=str(installed_root),
+            )
+            self.assertEqual(installed["status"], "installed", installed)
             active = root / ".work" / "goals" / "active" / "W-1"
             active.mkdir(parents=True)
             (active / "work.json").write_text(json.dumps({"work_id": "W-1", "state": "in_progress"}), encoding="utf-8")
 
-            blocked = core.activate_v3(
-                root, preview, installed_root=ROOT / "skills", resource_manifest=manifest,
+            blocked = core.activate_harness(
+                root, preview, installed_root=installed_root, resource_manifest=manifest,
             )
             self.assertEqual(blocked["status"], "cutover_blocked")
-            self.assertEqual(preview["harness"]["active_cohort"], "v2")
+            self.assertNotIn("harness", preview)
 
             shutil.rmtree(active)
             completed = root / ".work" / "goals" / "completed" / "2026-08" / "W-1"
             completed.mkdir(parents=True)
             (completed / "work.json").write_text(json.dumps({"work_id": "W-1", "state": "completed"}), encoding="utf-8")
-            activated = core.activate_v3(
-                root, preview, installed_root=ROOT / "skills", resource_manifest=manifest,
+            activated = core.activate_harness(
+                root, preview, installed_root=installed_root, resource_manifest=manifest,
             )
             self.assertEqual(activated["status"], "activated")
             config = activated["project"]
-            self.assertEqual(config["harness"]["active_cohort"], "v3")
-            self.assertEqual(config["harness"]["contract_version"], 3)
-            self.assertEqual(config["harness"]["runtime_version"], 3)
-            self.assertEqual(core.validate_cohort(3, {name: value["supports"] for name, value in config["harness"]["components"].items()}), [])
+            self.assertEqual(config["schema_version"], 3)
+            self.assertNotIn("harness", config)
 
     def test_activation_rejects_incomplete_transactions_and_installed_hash_drift(self) -> None:
         core = load_core()
-        preview = core.preview_project_v3({"version": 2, "project": {"name": "x"}, "work": {}})
+        preview = core.preview_project_config({"version": 2, "project": {"name": "x"}, "work": {}})
         manifest = json.loads((ROOT / "authoring" / "public-resource-manifest.json").read_text(encoding="utf-8"))
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
+            installed = root / "installed"
+            installation = core.install_harness_cohort(
+                ROOT / "skills", installed, manifest,
+                approved_install_root=str(installed),
+            )
+            self.assertEqual(installation["status"], "installed", installation)
             journal = root / ".work" / "transactions" / "crashed" / "journal.json"
             journal.parent.mkdir(parents=True)
             journal.write_text(json.dumps({"status": "applying", "kind": "file_transaction"}), encoding="utf-8")
-            blocked = core.activate_v3(
-                root, preview, installed_root=ROOT / "skills", resource_manifest=manifest,
+            blocked = core.activate_harness(
+                root, preview, installed_root=installed, resource_manifest=manifest,
             )
-            self.assertIn("incomplete_transaction:crashed", blocked["blockers"])
+            self.assertIn("incomplete_transaction:crashed:applying", blocked["blockers"])
 
             shutil.rmtree(root / ".work")
-            installed = root / "installed"
-            shutil.copytree(ROOT / "skills", installed)
+            (root / ".work" / "transactions" / "journal-less").mkdir(parents=True)
+            journal_less = core.activate_harness(
+                root, preview, installed_root=installed, resource_manifest=manifest,
+            )
+            self.assertEqual(journal_less["status"], "cutover_blocked")
+            self.assertIn("transaction_journal_missing:journal-less", journal_less["blockers"])
+
+            shutil.rmtree(root / ".work")
             execute_skill = installed / "execute-codex-goal" / "SKILL.md"
             execute_skill.write_text(execute_skill.read_text(encoding="utf-8") + "\ndrift\n", encoding="utf-8")
-            drifted = core.activate_v3(
+            drifted = core.activate_harness(
                 root, preview, installed_root=installed, resource_manifest=manifest,
             )
             self.assertEqual(drifted["status"], "cutover_blocked")
             self.assertTrue(any(item.startswith("installed_resource_drift:") for item in drifted["blockers"]))
 
-    def test_repository_uses_v3_router_config_and_current_docs(self) -> None:
+    def test_repository_uses_current_router_config_and_docs(self) -> None:
         config = json.loads((ROOT / ".harness" / "project.yaml").read_text(encoding="utf-8"))
         self.assertEqual(config["schema_version"], 3)
-        self.assertEqual(config["harness"]["active_cohort"], "v3")
+        self.assertNotIn("harness", config)
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         claude = (ROOT / "CLAUDE.md").read_text(encoding="utf-8")
         self.assertEqual(agents, claude)
@@ -99,11 +115,11 @@ class CoreFirstCutoverTests(unittest.TestCase):
         harness_rule = next(rule for rule in config["impact"]["rules"] if rule["id"] == "harness-core")
         self.assertIn("tests/harness/test_core_first_forward_workflows.py", harness_rule["tests"])
 
-    def test_active_skills_are_one_v3_cohort_without_legacy_ceremony(self) -> None:
+    def test_active_skills_are_one_manifest_bound_cohort_without_version_branding(self) -> None:
         skills = ("setup-agent-harness", "design-goal", "execute-codex-goal", "close-goal", "maintain-agent-harness")
         for skill in skills:
             text = (ROOT / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")
-            self.assertIn("Harness v3", text, skill)
+            self.assertNotIn("Harness v3", text, skill)
             self.assertIn("scripts/core_harness.py", text, skill)
         execute = (ROOT / "skills" / "execute-codex-goal" / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("host Goal is optional", execute)
@@ -125,6 +141,13 @@ class CoreFirstCutoverTests(unittest.TestCase):
             "Use the Goal contract lifecycle only when the global Work Packet threshold is met or the user explicitly selects it.",
             workflow,
         )
+
+    def test_design_skill_routes_all_namespace_creation_through_design_create(self) -> None:
+        for root in (ROOT / "authoring" / "skills", ROOT / "skills"):
+            text = (root / "design-goal" / "SKILL.md").read_text(encoding="utf-8")
+            self.assertIn("`design-create`", text)
+            self.assertIn("Never pre-create the work root", text)
+            self.assertNotIn("Create `.work/goals/active/<work-id>/contract.json`", text)
 
     def test_repository_impact_and_ci_descriptors_cover_cutover_surfaces(self) -> None:
         core = load_core()

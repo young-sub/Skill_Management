@@ -1,22 +1,23 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/core_harness.py
-# Source-SHA256: 069c5fc90ed2984b1668dd0f363c54e164258f599ba6d6e04d1809c0e53920cd
+# Source-SHA256: a24e9999da50f827aedf12f26b93bd4cc438d839f54f5b18a07e16edf76fcc8c
 
 #!/usr/bin/env python3
-"""Deterministic Core-First Harness v3 contracts and compatibility checks."""
+"""Deterministic Core-First Agent Harness contracts and compatibility checks."""
 
 from __future__ import annotations
 
 import argparse
 from copy import deepcopy
 from collections import Counter
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from hashlib import sha256
 import html
 import json
 import os
 from pathlib import Path, PurePosixPath
 import re
+import secrets
 import shlex
 import shutil
 import subprocess
@@ -28,12 +29,26 @@ import unicodedata
 
 SCHEMA_VERSION = 3
 WORK_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
-COHORT_COMPONENTS = ("project", "design", "execute", "close", "maintain", "diagnose")
+LEGACY_COMPONENT_NAMES = ("project", "design", "execute", "close", "maintain", "diagnose")
 HARNESS_INSTALL_SKILLS = (
     "setup-agent-harness", "design-goal", "execute-codex-goal", "close-goal",
     "maintain-agent-harness", "diagnose",
 )
 RETIRED_HARNESS_SKILLS = ("project-agent-bootstrap",)
+PUBLIC_COMMANDS_BY_SKILL = {
+    "setup-agent-harness": frozenset({
+        "inventory", "cleanup-plan", "cleanup-apply", "recover",
+        "install-cohort", "activate",
+    }),
+    "design-goal": frozenset({"design-create", "render-design", "authorize"}),
+    "execute-codex-goal": frozenset({
+        "baseline", "start", "impacted", "amend", "commit",
+        "worktree-create", "worktree-integrate",
+    }),
+    "close-goal": frozenset({"render-result", "complete", "close", "sweep", "delete"}),
+    "maintain-agent-harness": frozenset({"audit-work", "maintain", "recover"}),
+}
+ALL_CLI_COMMANDS = frozenset().union(*PUBLIC_COMMANDS_BY_SKILL.values())
 ITEM_FIELDS = (
     "id", "title", "behavior_type", "what", "steps", "terms", "tests", "done",
     "depends_on", "non_goals", "decision", "material_risks", "priority",
@@ -72,8 +87,8 @@ def _contract_payload(contract: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
-def preview_project_v3(legacy: dict[str, Any]) -> dict[str, Any]:
-    """Return a deterministic, dormant v3 preview without mutating legacy input."""
+def preview_project_config(legacy: dict[str, Any]) -> dict[str, Any]:
+    """Return a deterministic current project configuration without mutating legacy input."""
     if legacy.get("version") != 2:
         raise ValueError(f"unsupported_project_version:{legacy.get('version', 'missing')}")
     source = deepcopy(legacy)
@@ -81,13 +96,6 @@ def preview_project_v3(legacy: dict[str, Any]) -> dict[str, Any]:
     work = source.get("work", {})
     return {
         "schema_version": SCHEMA_VERSION,
-        "harness": {
-            "active_cohort": "v2",
-            "contract_version": 2,
-            "runtime_version": 2,
-            "dormant_cohorts": [3],
-            "components": {name: {"supports": [2, 3]} for name in COHORT_COMPONENTS},
-        },
         "project": {
             "name": project.get("name", "project"),
             "classification": project.get("classification", "unclassified"),
@@ -122,7 +130,251 @@ def preview_project_v3(legacy: dict[str, Any]) -> dict[str, Any]:
         },
         "baseline": {"findings": []},
         "extensions": {},
-        "migration": {"from_version": 2, "mode": "preview", "source": source},
+    }
+
+
+def _legacy_harness_kind(value: Any, migration: Any) -> str | None:
+    active = {
+        "active_cohort": "v3", "contract_version": 3, "runtime_version": 3,
+        "dormant_cohorts": [],
+        "components": {name: {"supports": [3]} for name in LEGACY_COMPONENT_NAMES},
+    }
+    preview = {
+        "active_cohort": "v2", "contract_version": 2, "runtime_version": 2,
+        "dormant_cohorts": [3],
+        "components": {name: {"supports": [2, 3]} for name in LEGACY_COMPONENT_NAMES},
+    }
+    if value == active and migration is None:
+        return "active_matrix"
+    if value == preview and isinstance(migration, dict):
+        if (
+            set(migration) == {"from_version", "mode", "source"}
+            and migration.get("from_version") == 2
+            and migration.get("mode") == "preview"
+            and isinstance(migration.get("source"), dict)
+        ):
+            return "preview_matrix"
+    return None
+
+
+def validate_project_config(project: dict[str, Any]) -> list[str]:
+    """Validate the public project boundary without relying on an optional package."""
+    errors: list[str] = []
+
+    def object_fields(
+        value: Any, location: str, required: set[str], optional: set[str] | None = None,
+    ) -> dict[str, Any] | None:
+        if not isinstance(value, dict):
+            errors.append(f"project_config:expected_object:{location}")
+            return None
+        allowed = required | (optional or set())
+        for field in sorted(required - set(value)):
+            errors.append(f"project_config:missing:{location + '.' if location else ''}{field}")
+        for field in sorted(set(value) - allowed):
+            errors.append(f"project_config:unknown_field:{location + '.' if location else ''}{field}")
+        return value
+
+    def nonempty_string(value: Any, location: str) -> None:
+        if not isinstance(value, str) or not value:
+            errors.append(f"project_config:expected_nonempty_string:{location}")
+
+    def string_list(value: Any, location: str, *, allowed: set[str] | None = None) -> None:
+        if not isinstance(value, list):
+            errors.append(f"project_config:expected_list:{location}")
+            return
+        if len(value) != len(set(item for item in value if isinstance(item, str))):
+            errors.append(f"project_config:duplicate_value:{location}")
+        for index, item in enumerate(value):
+            if not isinstance(item, str) or not item:
+                errors.append(f"project_config:expected_nonempty_string:{location}.{index}")
+            elif allowed is not None and item not in allowed:
+                errors.append(f"project_config:invalid_value:{location}.{index}:{item}")
+
+    required_top = {
+        "schema_version", "project", "paths", "impact", "commands",
+        "documents", "work", "git",
+    }
+    top = object_fields(project, "", required_top, {"baseline", "extensions"})
+    if top is None:
+        return sorted(set(errors))
+    if top.get("schema_version") != SCHEMA_VERSION:
+        errors.append(f"unsupported_project_schema:{top.get('schema_version', 'missing')}")
+
+    identity = object_fields(top.get("project"), "project", {"name", "classification"})
+    if identity is not None:
+        nonempty_string(identity.get("name"), "project.name")
+        nonempty_string(identity.get("classification"), "project.classification")
+
+    path_fields = {
+        "source_roots", "test_roots", "fixture_roots", "generated_roots",
+        "durable_document_roots", "human_guide_roots", "ephemeral_work_root",
+        "documentation_entrypoint",
+    }
+    paths = object_fields(top.get("paths"), "paths", path_fields)
+    if paths is not None:
+        for field in sorted(path_fields - {"ephemeral_work_root", "documentation_entrypoint"}):
+            string_list(paths.get(field), f"paths.{field}")
+        nonempty_string(paths.get("ephemeral_work_root"), "paths.ephemeral_work_root")
+        nonempty_string(paths.get("documentation_entrypoint"), "paths.documentation_entrypoint")
+
+    impact = object_fields(top.get("impact"), "impact", {"rules", "feature_selectors", "full_triggers"})
+    if impact is not None:
+        rules = impact.get("rules")
+        if not isinstance(rules, list):
+            errors.append("project_config:expected_list:impact.rules")
+        else:
+            for index, candidate in enumerate(rules):
+                location = f"impact.rules.{index}"
+                rule = object_fields(candidate, location, {"id", "source_prefixes", "tests", "feature", "triggers"})
+                if rule is None:
+                    continue
+                nonempty_string(rule.get("id"), f"{location}.id")
+                string_list(rule.get("source_prefixes"), f"{location}.source_prefixes")
+                string_list(rule.get("tests"), f"{location}.tests")
+                nonempty_string(rule.get("feature"), f"{location}.feature")
+                string_list(rule.get("triggers"), f"{location}.triggers")
+        selectors = impact.get("feature_selectors")
+        if not isinstance(selectors, dict):
+            errors.append("project_config:expected_object:impact.feature_selectors")
+        else:
+            for key, argv in selectors.items():
+                nonempty_string(key, "impact.feature_selectors.key")
+                string_list(argv, f"impact.feature_selectors.{key}")
+        string_list(impact.get("full_triggers"), "impact.full_triggers")
+
+    command_names = {"targeted", "feature", "lint", "type", "build", "full", "live", "eval"}
+    commands = object_fields(top.get("commands"), "commands", command_names)
+    if commands is not None:
+        required_command = {"id", "argv", "working_directory", "platform", "runtime", "capability"}
+        optional_command = {"source_revision", "inherit_env", "env", "timeout_seconds"}
+        for name in sorted(command_names):
+            descriptor = object_fields(commands.get(name), f"commands.{name}", required_command, optional_command)
+            if descriptor is None:
+                continue
+            for field in ("id", "working_directory", "platform", "runtime", "capability"):
+                nonempty_string(descriptor.get(field), f"commands.{name}.{field}")
+            argv = descriptor.get("argv")
+            if not isinstance(argv, list):
+                errors.append(f"project_config:expected_list:commands.{name}.argv")
+            else:
+                for index, argument in enumerate(argv):
+                    if not isinstance(argument, str):
+                        errors.append(f"project_config:expected_string:commands.{name}.argv.{index}")
+            if "source_revision" in descriptor and not isinstance(descriptor["source_revision"], str):
+                errors.append(f"project_config:expected_string:commands.{name}.source_revision")
+            if "inherit_env" in descriptor and not isinstance(descriptor["inherit_env"], bool):
+                errors.append(f"project_config:expected_boolean:commands.{name}.inherit_env")
+            if "env" in descriptor:
+                environment = descriptor["env"]
+                if not isinstance(environment, dict) or any(
+                    not isinstance(key, str) or not isinstance(value, str)
+                    for key, value in environment.items()
+                ):
+                    errors.append(f"project_config:expected_string_map:commands.{name}.env")
+            if "timeout_seconds" in descriptor:
+                timeout = descriptor["timeout_seconds"]
+                if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout <= 0:
+                    errors.append(f"project_config:expected_positive_number:commands.{name}.timeout_seconds")
+
+    documents = object_fields(top.get("documents"), "documents", {"boundaries"})
+    if documents is not None:
+        boundaries = documents.get("boundaries")
+        if not isinstance(boundaries, list):
+            errors.append("project_config:expected_list:documents.boundaries")
+        else:
+            for index, candidate in enumerate(boundaries):
+                location = f"documents.boundaries.{index}"
+                boundary = object_fields(candidate, location, {"paths", "documents"})
+                if boundary is not None:
+                    string_list(boundary.get("paths"), f"{location}.paths")
+                    string_list(boundary.get("documents"), f"{location}.documents")
+
+    work = object_fields(top.get("work"), "work", {"retention", "states"}, {"legacy_state"})
+    if work is not None:
+        retention = object_fields(work.get("retention"), "work.retention", {"completed_days", "trash_days"})
+        if retention is not None:
+            for field in ("completed_days", "trash_days"):
+                value = retention.get(field)
+                if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                    errors.append(f"project_config:expected_nonnegative_integer:work.retention.{field}")
+        string_list(
+            work.get("states"), "work.states",
+            allowed={"active", "completed", "trash", "deleted"},
+        )
+        if "legacy_state" in work and work["legacy_state"] != "legacy-unclassified":
+            errors.append("project_config:invalid_value:work.legacy_state")
+
+    git = object_fields(
+        top.get("git"), "git",
+        {"capture_current_base", "protected_branches", "branch_pattern", "commit_per_item", "worktrees_for_independent_items"},
+    )
+    if git is not None:
+        for field in ("capture_current_base", "commit_per_item", "worktrees_for_independent_items"):
+            if not isinstance(git.get(field), bool):
+                errors.append(f"project_config:expected_boolean:git.{field}")
+        string_list(git.get("protected_branches"), "git.protected_branches")
+        nonempty_string(git.get("branch_pattern"), "git.branch_pattern")
+
+    if "baseline" in top:
+        baseline = object_fields(top["baseline"], "baseline", {"findings"})
+        if baseline is not None:
+            findings = baseline.get("findings")
+            if not isinstance(findings, list):
+                errors.append("project_config:expected_list:baseline.findings")
+            else:
+                for index, candidate in enumerate(findings):
+                    location = f"baseline.findings.{index}"
+                    finding = object_fields(
+                        candidate, location,
+                        {"rule_id", "location", "severity", "fingerprint", "review_until"},
+                    )
+                    if finding is None:
+                        continue
+                    for field in ("rule_id", "location", "fingerprint", "review_until"):
+                        if not isinstance(finding.get(field), str):
+                            errors.append(f"project_config:expected_string:{location}.{field}")
+                    if finding.get("severity") not in {"low", "medium", "high"}:
+                        errors.append(f"project_config:invalid_value:{location}.severity")
+    if "extensions" in top and not isinstance(top["extensions"], dict):
+        errors.append("project_config:expected_object:extensions")
+    return sorted(set(errors))
+
+
+def normalize_project_config(project: dict[str, Any]) -> dict[str, Any]:
+    """Normalize known legacy declarations in memory; never mutate or persist input."""
+    if not isinstance(project, dict):
+        return {"status": "invalid", "project": {}, "errors": ["project_expected_object"]}
+    source = deepcopy(project)
+    if source.get("schema_version") != SCHEMA_VERSION:
+        return {
+            "status": "invalid", "project": source,
+            "errors": [f"unsupported_project_schema:{source.get('schema_version', 'missing')}"],
+        }
+    if "harness" not in source:
+        if "migration" in source:
+            return {
+                "status": "invalid", "project": source,
+                "errors": ["orphan_legacy_migration_configuration"],
+            }
+        errors = validate_project_config(source)
+        return {
+            "status": "invalid" if errors else "current",
+            "project": source, "errors": errors,
+        }
+    kind = _legacy_harness_kind(source.get("harness"), source.get("migration"))
+    if kind is None:
+        return {
+            "status": "invalid", "project": source,
+            "errors": ["unknown_legacy_harness_configuration"],
+        }
+    source.pop("harness", None)
+    source.pop("migration", None)
+    errors = validate_project_config(source)
+    if errors:
+        return {"status": "invalid", "project": source, "errors": errors}
+    return {
+        "status": "migration_required", "project": source, "errors": [],
+        "source_kind": kind,
     }
 
 
@@ -295,17 +547,6 @@ def approval_bundle_matches(
         and bundle.get("review_digest") == canonical_digest(review_html)
         and bundle.get("item_ids") == [item.get("id") for item in contract.get("items", [])]
     )
-
-
-def validate_cohort(active_version: int, support: dict[str, list[int]]) -> list[str]:
-    errors: list[str] = []
-    if active_version not in {2, 3}:
-        errors.append(f"unsupported_active_cohort:{active_version}")
-    for component in COHORT_COMPONENTS:
-        versions = support.get(component, [])
-        if active_version not in versions:
-            errors.append(f"mixed_cohort:{component}:{active_version}")
-    return errors
 
 
 RESERVED_INVENTORY_ROOTS = {
@@ -555,12 +796,44 @@ def _plan_with_digest(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def build_project_migration(root: Path, legacy: dict[str, Any]) -> dict[str, Any]:
-    preview = preview_project_v3(legacy)
-    content = json.dumps(preview, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+    root = root.resolve()
+    try:
+        relative, _ = canonical_repo_identity(root, ".harness/project.yaml")
+    except ValueError as error:
+        raise ValueError("project_source_invalid:.harness/project.yaml") from error
+    target = root.joinpath(*PurePosixPath(relative).parts)
+    if target.exists() or target.is_symlink():
+        if _path_is_alias(target) or not target.is_file():
+            raise ValueError("project_source_invalid:.harness/project.yaml")
+        source_bytes = target.read_bytes()
+        try:
+            observed = json.loads(source_bytes.decode("utf-8"))
+        except (UnicodeError, json.JSONDecodeError) as error:
+            raise ValueError("project_source_invalid:.harness/project.yaml") from error
+        if observed != legacy:
+            raise ValueError("project_source_drift:.harness/project.yaml")
+        expected_hash = "sha256:" + sha256(source_bytes).hexdigest()
+    else:
+        expected_hash = None
+    if legacy.get("version") == 2:
+        normalized = preview_project_config(legacy)
+        source_kind = "legacy_v2"
+    else:
+        outcome = normalize_project_config(legacy)
+        if outcome["status"] != "migration_required":
+            errors = ";".join(outcome.get("errors", [])) or "migration_not_required"
+            raise ValueError(f"project_migration_invalid:{errors}")
+        normalized = outcome["project"]
+        source_kind = str(outcome["source_kind"])
+    content = json.dumps(normalized, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
     return _plan_with_digest({
         "schema_version": SCHEMA_VERSION,
         "mode": "project-migration",
-        "root": str(root.resolve()),
+        "root": str(root),
+        "source_kind": source_kind,
+        "preconditions": [{
+            "path": ".harness/project.yaml", "expected_hash": expected_hash,
+        }],
         "operations": [{"action": "write", "path": ".harness/project.yaml", "content": content}],
         "source_roots": [],
         "production_hashes_before": {},
@@ -622,12 +895,27 @@ def _operation_paths(operation: dict[str, Any]) -> list[str]:
 
 def _durable_write_bytes(path: Path, content: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(path.name + ".tmp")
-    with temporary.open("wb") as stream:
-        stream.write(content)
-        stream.flush()
-        os.fsync(stream.fileno())
-    os.replace(temporary, path)
+    nonce = f"{os.getpid()}-{time.time_ns()}-{secrets.token_hex(8)}"
+    temporary = path.with_name(f".{path.name}.{nonce}.tmp")
+    try:
+        with temporary.open("xb") as stream:
+            stream.write(content)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+        if os.name != "nt":
+            descriptor = os.open(path.parent, os.O_RDONLY)
+            try:
+                os.fsync(descriptor)
+            finally:
+                os.close(descriptor)
+    except OSError:
+        try:
+            if temporary.is_file() or temporary.is_symlink():
+                temporary.unlink()
+        except OSError:
+            pass
+        raise
 
 
 def _durable_write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -676,25 +964,199 @@ def _restore_lifecycle_move(root: Path, journal: dict[str, Any]) -> list[str]:
             _durable_write_bytes(manifest_path, content)
         elif manifest_path.exists():
             manifest_path.unlink()
+        for record in reversed(journal.get("source_file_backups", [])):
+            relative, _ = canonical_repo_identity(source, str(record["path"]))
+            target = source.joinpath(*PurePosixPath(relative).parts)
+            if record.get("existed"):
+                file_backup = _safe_repo_path(root, str(record["backup"]))
+                file_content = file_backup.read_bytes()
+                if record.get("pre_hash") != "sha256:" + sha256(file_content).hexdigest():
+                    raise ValueError(f"lifecycle_file_backup_hash_mismatch:{relative}")
+                _durable_write_bytes(target, file_content)
+            elif target.is_file():
+                target.unlink()
+            elif target.exists() or target.is_symlink():
+                raise ValueError(f"lifecycle_file_restore_conflict:{relative}")
     except (OSError, ValueError, KeyError) as error:
         errors.append(str(error))
     return errors
 
 
-def recover_transactions(root: Path) -> dict[str, Any]:
+def _process_is_alive(pid: Any) -> bool:
+    if isinstance(pid, bool) or not isinstance(pid, int) or pid <= 0:
+        return False
+    if pid == os.getpid():
+        return True
+    if os.name == "nt":
+        try:
+            import ctypes
+
+            process = ctypes.windll.kernel32.OpenProcess(0x1000, False, pid)
+            if not process:
+                error = ctypes.windll.kernel32.GetLastError()
+                return error not in {87, 1168}
+            try:
+                exit_code = ctypes.c_ulong()
+                if not ctypes.windll.kernel32.GetExitCodeProcess(process, ctypes.byref(exit_code)):
+                    return True
+                return exit_code.value == 259
+            finally:
+                ctypes.windll.kernel32.CloseHandle(process)
+        except (AttributeError, OSError):
+            return True
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _acquire_operation_lock(
+    root: Path, name: str,
+) -> tuple[Path | None, bytes | None, str | None]:
     root = root.resolve()
+    if not re.fullmatch(r"[A-Za-z0-9._-]+", name):
+        return None, None, f"operation_lock_invalid:{name}"
+    try:
+        relative, _ = canonical_repo_identity(root, ".work/locks")
+    except ValueError:
+        return None, None, f"operation_lock_invalid:{name}"
+    lock_root = root.joinpath(*PurePosixPath(relative).parts)
+    try:
+        lock_root.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return None, None, f"operation_lock_invalid:{name}"
+    lock_path = lock_root / f"{name}.lock"
+    token = secrets.token_hex(16)
+    payload = (
+        json.dumps({
+            "owner_pid": os.getpid(), "token": token,
+            "created_at": datetime.now().astimezone().isoformat(),
+        }, sort_keys=True) + "\n"
+    ).encode("utf-8")
+    temporary = lock_root / f".{name}.{token}.tmp"
+    try:
+        with temporary.open("xb") as stream:
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        for attempt in range(2):
+            try:
+                os.link(temporary, lock_path)
+                return lock_path, payload, None
+            except FileExistsError:
+                if attempt:
+                    return None, None, f"operation_lock_busy:{name}"
+                try:
+                    observed = json.loads(lock_path.read_text(encoding="utf-8"))
+                except (OSError, UnicodeError, json.JSONDecodeError):
+                    return None, None, f"operation_lock_invalid:{name}"
+                if (
+                    not isinstance(observed, dict)
+                    or set(observed) != {"created_at", "owner_pid", "token"}
+                    or isinstance(observed["owner_pid"], bool)
+                    or not isinstance(observed["owner_pid"], int)
+                    or observed["owner_pid"] <= 0
+                    or not isinstance(observed["created_at"], str)
+                    or not observed["created_at"]
+                    or not isinstance(observed["token"], str)
+                    or re.fullmatch(r"[0-9a-f]{32}", observed["token"]) is None
+                ):
+                    return None, None, f"operation_lock_invalid:{name}"
+                if _process_is_alive(observed.get("owner_pid")):
+                    return None, None, f"operation_lock_busy:{name}"
+                quarantine = lock_root / f".{name}.{token}.stale"
+                try:
+                    os.rename(lock_path, quarantine)
+                    quarantine.unlink()
+                except OSError:
+                    return None, None, f"operation_lock_busy:{name}"
+            except OSError:
+                return None, None, f"operation_lock_invalid:{name}"
+    finally:
+        try:
+            temporary.unlink()
+        except OSError:
+            pass
+
+
+def _release_operation_lock(path: Path | None, payload: bytes | None) -> list[str]:
+    if path is None or payload is None:
+        return []
+    try:
+        if path.read_bytes() != payload:
+            return [f"operation_lock_ownership_lost:{path.stem}"]
+        path.unlink()
+    except OSError as error:
+        return [f"operation_lock_release_failed:{path.stem}:{error}"]
+    return []
+
+
+def _transaction_inventory(
+    root: Path,
+) -> tuple[list[tuple[str, Path, dict[str, Any]]], list[str]]:
     transactions = root / ".work" / "transactions"
-    recovered: list[str] = []
-    errors: list[str] = []
+    if transactions.is_symlink() or _path_is_alias(transactions):
+        return [], ["transaction_root_alias"]
+    if not transactions.exists():
+        return [], []
     if not transactions.is_dir():
-        return {"status": "clean", "recovered": [], "errors": []}
-    for journal_path in sorted(transactions.glob("*/journal.json")):
+        return [], ["transaction_root_not_directory"]
+    records: list[tuple[str, Path, dict[str, Any]]] = []
+    errors: list[str] = []
+    for transaction_root in sorted(transactions.iterdir()):
+        name = transaction_root.name
+        if _path_is_alias(transaction_root):
+            errors.append(f"transaction_alias:{name}")
+            continue
+        if not transaction_root.is_dir():
+            errors.append(f"transaction_artifact_unexpected:{name}")
+            continue
+        journal_path = transaction_root / "journal.json"
+        if not journal_path.is_file() or _path_is_alias(journal_path):
+            errors.append(f"transaction_journal_missing:{name}")
+            continue
         try:
             journal = json.loads(journal_path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeError, json.JSONDecodeError) as error:
-            errors.append(f"invalid_transaction_journal:{journal_path.parent.name}:{error}")
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            errors.append(f"transaction_journal_corrupt:{name}")
             continue
-        if journal.get("status") != "applying":
+        if not isinstance(journal, dict):
+            errors.append(f"transaction_journal_corrupt:{name}")
+            continue
+        records.append((name, journal_path, journal))
+    return records, sorted(set(errors))
+
+
+def _transaction_blockers(root: Path) -> list[str]:
+    records, errors = _transaction_inventory(root)
+    for name, _journal_path, journal in records:
+        status = journal.get("status")
+        if status in {"applying", "rollback_failed"}:
+            errors.append(f"incomplete_transaction:{name}:{status}")
+        elif status not in {"committed", "rolled_back", "recovered"}:
+            errors.append(f"transaction_status_invalid:{name}:{status}")
+    return sorted(set(errors))
+
+
+def _recover_transactions_locked(root: Path) -> dict[str, Any]:
+    root = root.resolve()
+    recovered: list[str] = []
+    records, errors = _transaction_inventory(root)
+    for name, journal_path, journal in records:
+        status = journal.get("status")
+        if status == "rollback_failed":
+            errors.append(f"incomplete_transaction:{name}:rollback_failed")
+            continue
+        if status not in {"applying", "committed", "rolled_back", "recovered"}:
+            errors.append(f"transaction_status_invalid:{name}:{status}")
+            continue
+        if status != "applying":
+            continue
+        if _process_is_alive(journal.get("owner_pid")):
+            errors.append(f"transaction_in_progress:{name}")
             continue
         kind = journal.get("kind")
         if kind == "file_transaction":
@@ -702,7 +1164,7 @@ def recover_transactions(root: Path) -> dict[str, Any]:
         elif kind == "lifecycle_move":
             restore_errors = _restore_lifecycle_move(root, journal)
         else:
-            errors.append(f"unsupported_transaction_kind:{journal_path.parent.name}")
+            errors.append(f"unsupported_transaction_kind:{name}")
             continue
         if restore_errors:
             errors.extend(restore_errors)
@@ -710,12 +1172,23 @@ def recover_transactions(root: Path) -> dict[str, Any]:
         journal["status"] = "recovered"
         journal["recovered_at"] = datetime.now().astimezone().isoformat()
         _durable_write_json(journal_path, journal)
-        recovered.append(journal_path.parent.name)
+        recovered.append(name)
     return {
         "status": "recovery_failed" if errors else ("recovered" if recovered else "clean"),
         "recovered": recovered,
         "errors": errors,
     }
+
+
+def recover_transactions(root: Path) -> dict[str, Any]:
+    root = root.resolve()
+    lock_path, lock_payload, lock_error = _acquire_operation_lock(root, "transaction")
+    if lock_error:
+        return {"status": "recovery_failed", "recovered": [], "errors": [lock_error]}
+    try:
+        return _recover_transactions_locked(root)
+    finally:
+        _release_operation_lock(lock_path, lock_payload)
 
 
 def _restore_snapshot(root: Path, snapshot: dict[str, bytes | None]) -> None:
@@ -738,7 +1211,7 @@ def _restore_snapshot(root: Path, snapshot: dict[str, bytes | None]) -> None:
                 parent = parent.parent
 
 
-def apply_transaction(
+def _apply_transaction_locked(
     root: Path,
     plan: dict[str, Any],
     *,
@@ -747,7 +1220,7 @@ def apply_transaction(
     crash_after: int | None = None,
 ) -> dict[str, Any]:
     root = root.resolve()
-    recovery = recover_transactions(root)
+    recovery = _recover_transactions_locked(root)
     if recovery["status"] == "recovery_failed":
         return {"status": "precondition_failed", "errors": recovery["errors"]}
     expected = canonical_digest({key: value for key, value in plan.items() if key != "digest"})
@@ -755,6 +1228,29 @@ def apply_transaction(
         return {"status": "approval_required", "expected_digest": plan.get("digest")}
     if str(root) != plan.get("root"):
         return {"status": "precondition_failed", "errors": ["root_drift"]}
+    precondition_errors: list[str] = []
+    for precondition in plan.get("preconditions", []):
+        relative = str(precondition.get("path", ""))
+        try:
+            normalized, _ = canonical_repo_identity(root, relative)
+            path = root.joinpath(*PurePosixPath(normalized).parts)
+            expected_hash = precondition.get("expected_hash")
+            if expected_hash is None:
+                if path.exists() or path.is_symlink():
+                    precondition_errors.append(f"precondition_presence_drift:{relative}")
+            elif not path.is_file():
+                precondition_errors.append(f"precondition_missing:{relative}")
+            else:
+                actual_hash = "sha256:" + sha256(path.read_bytes()).hexdigest()
+                if actual_hash != expected_hash:
+                    precondition_errors.append(f"precondition_hash_drift:{relative}")
+        except (OSError, ValueError) as error:
+            if str(error).startswith("path_alias:"):
+                precondition_errors.append(f"precondition_alias:{relative}")
+            else:
+                precondition_errors.append(f"precondition_invalid:{relative}:{error}")
+    if precondition_errors:
+        return {"status": "precondition_failed", "errors": precondition_errors}
     operations = plan.get("operations", [])
     affected = sorted(set(relative for operation in operations for relative in _operation_paths(operation)))
     transaction_id = str(plan["digest"]).removeprefix("sha256:")[:16]
@@ -782,6 +1278,7 @@ def apply_transaction(
         "schema_version": SCHEMA_VERSION,
         "kind": "file_transaction",
         "status": "applying",
+        "owner_pid": os.getpid(),
         "plan_digest": plan["digest"],
         "completed_operations": 0,
         "files": records,
@@ -847,6 +1344,27 @@ def apply_transaction(
             "status": journal["status"], "transaction_id": transaction_id,
             "error": str(error), "restore_errors": restore_errors,
         }
+
+
+def apply_transaction(
+    root: Path,
+    plan: dict[str, Any],
+    *,
+    approval_digest: str,
+    fault_after: int | None = None,
+    crash_after: int | None = None,
+) -> dict[str, Any]:
+    root = root.resolve()
+    lock_path, lock_payload, lock_error = _acquire_operation_lock(root, "transaction")
+    if lock_error:
+        return {"status": "precondition_failed", "errors": [lock_error]}
+    try:
+        return _apply_transaction_locked(
+            root, plan, approval_digest=approval_digest,
+            fault_after=fault_after, crash_after=crash_after,
+        )
+    finally:
+        _release_operation_lock(lock_path, lock_payload)
 
 
 def finding_is_baselined(
@@ -1156,19 +1674,106 @@ def _has_high_risk(contract: dict[str, Any]) -> bool:
 
 
 def _authorization_record(
-    contract: dict[str, Any], *, mode: str, actor: str, authorized_at: str
+    contract: dict[str, Any], *, mode: str, actor: str, authorized_at: str,
+    review_digest: str | None = None,
 ) -> dict[str, Any]:
     payload = _contract_payload(contract)
-    review_html = render_design_review_v3(payload)
+    if review_digest is None:
+        review_digest = canonical_digest(render_design_review_v3(payload))
     return {
         "schema_version": SCHEMA_VERSION,
         "mode": mode,
         "contract_digest": canonical_digest(payload),
-        "review_digest": canonical_digest(review_html),
+        "review_digest": review_digest,
         "item_ids": [item["id"] for item in payload["items"]],
         "actor": actor,
         "authorized_at": authorized_at,
     }
+
+
+def _generated_work_id() -> str:
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    return f"W-{timestamp}-{secrets.token_hex(8)}"
+
+
+def design_create(
+    root: Path,
+    contract: dict[str, Any],
+    *,
+    slug: str,
+    work_id: str | None,
+    intent: str,
+    actor: str,
+    authorized_at: str,
+) -> dict[str, Any]:
+    """Reserve one work namespace and write its authorized Design projection."""
+    root = root.resolve()
+    if not root.is_dir():
+        return {"status": "invalid_root"}
+    normalized_slug = re.sub(r"[^a-z0-9-]+", "-", slug.casefold()).strip("-")
+    if not normalized_slug:
+        return {"status": "invalid_slug"}
+    explicit = work_id is not None
+    if explicit:
+        try:
+            work_id = validate_work_id(work_id)
+        except ValueError as error:
+            return {"status": "invalid_work", "errors": [str(error)]}
+        supplied_work_id = contract.get("work_id")
+        if supplied_work_id not in {None, "", work_id}:
+            return {"status": "invalid_work", "errors": ["contract_work_id_mismatch"]}
+    try:
+        active_relative, _ = canonical_repo_identity(root, ".work/goals/active")
+        active_root = root.joinpath(*PurePosixPath(active_relative).parts)
+    except ValueError as error:
+        return {"status": "conflict", "errors": [str(error)]}
+    if active_root.is_symlink() or _path_is_alias(active_root):
+        return {"status": "conflict", "errors": ["active_work_root_alias"]}
+
+    attempts = 1 if explicit else 16
+    for _attempt in range(attempts):
+        candidate = work_id if explicit else _generated_work_id()
+        assert candidate is not None
+        candidate_contract = deepcopy(contract)
+        candidate_contract["work_id"] = candidate
+        authorization = authorize_design(
+            candidate_contract, intent=intent, actor=actor,
+            authorized_at=authorized_at,
+        )
+        if authorization.get("status") not in {"default_authorized", "explicit_authorized"}:
+            return authorization
+        authorized_contract = authorization["contract"]
+        try:
+            active_root.mkdir(parents=True, exist_ok=True)
+            work_root = active_root / candidate
+            work_root.mkdir(exist_ok=False)
+        except FileExistsError:
+            if explicit:
+                return {
+                    "status": "conflict", "work_id": candidate,
+                    "errors": ["work_identity_conflict"],
+                }
+            continue
+        except OSError as error:
+            return {"status": "write_failed", "work_id": candidate, "errors": [str(error)]}
+        try:
+            _durable_write_json(work_root / "contract.json", authorized_contract)
+            _durable_write_bytes(
+                work_root / "review" / "design.html",
+                render_design_review_v3(_contract_payload(authorized_contract)).encode("utf-8"),
+            )
+        except OSError as error:
+            rollback_errors = _rollback_start_files(work_root, created_root=True)
+            return {
+                "status": "write_failed", "work_id": candidate,
+                "errors": [str(error), *rollback_errors],
+            }
+        relative = work_root.relative_to(root).as_posix()
+        return {
+            "status": "created", "work_id": candidate, "slug": normalized_slug,
+            "path": relative, "contract": authorized_contract,
+        }
+    return {"status": "conflict", "errors": ["generated_work_id_collision"]}
 
 
 def authorize_design(
@@ -1232,7 +1837,7 @@ def execution_authorized(
     contract: dict[str, Any], review_html: str | None = None, *,
     project: dict[str, Any] | None = None, host_goal: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    del review_html, host_goal  # review is rendered server-side; Goal tracking is optional.
+    del host_goal  # Goal tracking is optional.
     errors = validate_contract_v3(contract)
     if errors:
         return {"authorized": False, "errors": ["invalid_contract", *errors]}
@@ -1246,13 +1851,17 @@ def execution_authorized(
     if set(authorization) != allowed_fields:
         return {"authorized": False, "errors": ["authorization_schema_invalid"]}
     payload = _contract_payload(contract)
-    try:
-        canonical_review = render_design_review_v3(payload)
-    except ValueError:
-        return {"authorized": False, "errors": ["canonical_review_invalid"]}
+    if review_html is None:
+        try:
+            review_digest = canonical_digest(render_design_review_v3(payload))
+        except ValueError:
+            return {"authorized": False, "errors": ["canonical_review_invalid"]}
+    else:
+        review_digest = canonical_digest(review_html)
     expected = _authorization_record(
         payload, mode=str(authorization.get("mode")), actor=str(authorization.get("actor")),
         authorized_at=str(authorization.get("authorized_at")),
+        review_digest=review_digest,
     )
     if authorization != expected:
         return {"authorized": False, "errors": ["authorization_bundle_drift"]}
@@ -1264,18 +1873,10 @@ def execution_authorized(
     if _has_high_risk(payload) and mode != "explicit":
         return {"authorized": False, "errors": ["explicit_approval_required"]}
     if project is not None:
-        harness = project.get("harness", {})
-        active = harness.get("active_cohort")
-        active_version = 3 if active == "v3" else active
-        support = {
-            name: component.get("supports", [])
-            for name, component in harness.get("components", {}).items()
-            if isinstance(component, dict)
-        }
-        cohort_errors = validate_cohort(active_version, support)
-        if cohort_errors:
-            return {"authorized": False, "errors": cohort_errors}
-    return {"authorized": True, "errors": [], "review_digest": canonical_digest(canonical_review)}
+        normalized = normalize_project_config(project)
+        if normalized["status"] == "invalid":
+            return {"authorized": False, "errors": normalized["errors"]}
+    return {"authorized": True, "errors": [], "review_digest": review_digest}
 
 
 def convert_legacy_contract(legacy: dict[str, Any]) -> dict[str, Any]:
@@ -1497,11 +2098,292 @@ def commit_item(
     return {"status": "committed", "item_id": item_id, "commit": revision, "paths": sorted(normalized_paths)}
 
 
+DESIGN_ONLY_FILES = {"contract.json", "review/design.html"}
+STARTED_WORK_FILES = {
+    "contract.json", "work.json", "review/design.html", "review/result.html",
+    "result.json", "evidence.jsonl", "agent/evidence.jsonl",
+}
+STARTED_WORK_DIRECTORIES = {"review", "agent"}
+
+
+def _work_artifacts(work_root: Path) -> tuple[set[str], set[str], list[str]]:
+    files: set[str] = set()
+    directories: set[str] = set()
+    errors: list[str] = []
+    if _path_is_alias(work_root):
+        return files, directories, ["work_root_alias"]
+    try:
+        candidates = sorted(work_root.rglob("*"))
+    except OSError as error:
+        return files, directories, [f"work_artifact_unreadable:{error}"]
+    for candidate in candidates:
+        relative = candidate.relative_to(work_root).as_posix()
+        if _path_is_alias(candidate):
+            errors.append(f"work_artifact_alias:{relative}")
+        elif candidate.is_dir():
+            directories.add(relative)
+        elif candidate.is_file():
+            files.add(relative)
+        else:
+            errors.append(f"work_artifact_unexpected:{relative}")
+    return files, directories, errors
+
+
+def _read_work_object(path: Path, error_code: str) -> tuple[dict[str, Any] | None, list[str]]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return None, [error_code]
+    if not isinstance(value, dict):
+        return None, [error_code]
+    return value, []
+
+
+def _validate_saved_design(
+    work_root: Path,
+    work_id: str,
+    *,
+    supplied_contract: dict[str, Any] | None,
+    project: dict[str, Any] | None,
+    require_review: bool,
+    canonical_review: bool = True,
+) -> tuple[dict[str, Any] | None, list[str]]:
+    stored, errors = _read_work_object(work_root / "contract.json", "stored_contract_corrupt")
+    if stored is None:
+        return None, errors
+    if stored.get("work_id") != work_id:
+        errors.append("stored_contract_identity_mismatch")
+    if supplied_contract is not None and canonical_digest(stored) != canonical_digest(supplied_contract):
+        errors.append("stored_contract_mismatch")
+    review_path = work_root / "review" / "design.html"
+    observed_review_text: str | None = None
+    if require_review or review_path.exists() or review_path.is_symlink():
+        try:
+            observed_review = review_path.read_bytes()
+            observed_review_text = observed_review.decode("utf-8")
+            expected_review = (
+                render_design_review_v3(_contract_payload(stored)).encode("utf-8")
+                if canonical_review else observed_review
+            )
+        except (OSError, UnicodeError, ValueError, FileNotFoundError):
+            errors.append("canonical_review_unreadable")
+        else:
+            if observed_review != expected_review:
+                errors.append("canonical_review_mismatch")
+    authorization = execution_authorized(
+        stored,
+        review_html=observed_review_text if not canonical_review else None,
+        project=project,
+    )
+    if not authorization["authorized"]:
+        errors.extend(f"stored_{error}" for error in authorization["errors"])
+    return stored, sorted(set(errors))
+
+
+def _validate_design_only_directory(
+    work_root: Path,
+    work_id: str,
+    *,
+    supplied_contract: dict[str, Any] | None = None,
+    project: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any] | None, list[str]]:
+    files, directories, errors = _work_artifacts(work_root)
+    for relative in sorted(files - DESIGN_ONLY_FILES):
+        errors.append(f"unexpected_work_artifact:{relative}")
+    for relative in sorted(DESIGN_ONLY_FILES - files):
+        errors.append(f"missing_design_artifact:{relative}")
+    for relative in sorted(directories - {"review"}):
+        errors.append(f"unexpected_work_artifact:{relative}")
+    stored: dict[str, Any] | None = None
+    if not errors:
+        stored, saved_errors = _validate_saved_design(
+            work_root, work_id, supplied_contract=supplied_contract,
+            project=project, require_review=True,
+        )
+        errors.extend(saved_errors)
+    return stored, sorted(set(errors))
+
+
+def _validate_active_manifest(
+    manifest: dict[str, Any], work_id: str, stored_contract: dict[str, Any]
+) -> list[str]:
+    errors: list[str] = []
+    if manifest.get("work_id") != work_id:
+        errors.append("work_identity_conflict")
+    if manifest.get("state") != "active":
+        errors.append("work_state_conflict")
+    if manifest.get("schema_version") != SCHEMA_VERSION:
+        errors.append("work_schema_conflict")
+    if manifest.get("contract_version") != SCHEMA_VERSION:
+        errors.append("work_contract_version_conflict")
+    expected_path = f".work/goals/active/{work_id}"
+    if manifest.get("owned_paths") != [expected_path]:
+        errors.append("work_owned_paths_conflict")
+    if manifest.get("integrity_digest") != canonical_digest(_contract_payload(stored_contract)):
+        errors.append("contract_integrity_mismatch")
+    for field in ("created_at", "source_commit", "base_branch", "feature_branch"):
+        if not isinstance(manifest.get(field), str) or not manifest[field]:
+            errors.append(f"work_manifest_invalid:{field}")
+    baseline = manifest.get("dirty_baseline")
+    baseline_valid = isinstance(baseline, dict) and set(baseline) == {
+        "base_revision", "entries", "digest",
+    }
+    if baseline_valid:
+        base_revision = baseline.get("base_revision")
+        entries = baseline.get("entries")
+        baseline_valid = (
+            isinstance(base_revision, str) and bool(base_revision)
+            and base_revision == manifest.get("source_commit")
+            and isinstance(entries, list)
+            and baseline.get("digest") == canonical_digest({
+                "base_revision": base_revision, "entries": entries,
+            })
+        )
+        if baseline_valid:
+            allowed_states = {"staged", "unstaged", "deleted", "untracked"}
+            for entry in entries:
+                if not isinstance(entry, dict) or set(entry) != {
+                    "path", "identity", "states", "index_oid", "worktree_hash",
+                }:
+                    baseline_valid = False
+                    break
+                states = entry.get("states")
+                if not (
+                    isinstance(entry.get("path"), str) and entry["path"]
+                    and isinstance(entry.get("identity"), str) and entry["identity"]
+                    and isinstance(states, list) and bool(states)
+                    and len(states) == len(set(states)) and set(states) <= allowed_states
+                    and (entry.get("index_oid") is None or isinstance(entry.get("index_oid"), str))
+                    and (entry.get("worktree_hash") is None or isinstance(entry.get("worktree_hash"), str))
+                ):
+                    baseline_valid = False
+                    break
+    if not baseline_valid:
+        errors.append("work_manifest_invalid:dirty_baseline")
+    allowed_fields = {
+        "schema_version", "work_id", "state", "created_at", "source_commit",
+        "base_branch", "feature_branch", "worktree", "completed_at", "retain_until",
+        "delete_after", "contract_version", "integrity_digest", "owned_paths",
+        "dirty_baseline",
+    }
+    for field in sorted(set(manifest) - allowed_fields):
+        errors.append(f"work_manifest_unknown_field:{field}")
+    return sorted(set(errors))
+
+
+def _incomplete_work_transactions(root: Path) -> list[str]:
+    return _transaction_blockers(root)
+
+
+def _classify_start_root(
+    root: Path,
+    work_id: str,
+    contract: dict[str, Any],
+    *,
+    project: dict[str, Any],
+) -> dict[str, Any]:
+    try:
+        relative, _ = canonical_repo_identity(root, f".work/goals/active/{work_id}")
+        work_root = _safe_repo_path(root, relative)
+    except ValueError as error:
+        return {
+            "classification": "conflict_or_corrupt", "work_root": None,
+            "errors": [str(error)],
+        }
+    transaction_errors = _incomplete_work_transactions(root)
+    if transaction_errors:
+        return {
+            "classification": "conflict_or_corrupt", "work_root": work_root,
+            "errors": transaction_errors,
+        }
+    if work_root.is_symlink() or _path_is_alias(work_root):
+        return {
+            "classification": "conflict_or_corrupt", "work_root": work_root,
+            "errors": ["work_root_alias"],
+        }
+    if not work_root.exists():
+        return {"classification": "missing", "work_root": work_root, "errors": []}
+    if not work_root.is_dir():
+        return {
+            "classification": "conflict_or_corrupt", "work_root": work_root,
+            "errors": ["work_root_not_directory"],
+        }
+    files, directories, artifact_errors = _work_artifacts(work_root)
+    if "work.json" not in files:
+        _, design_errors = _validate_design_only_directory(
+            work_root, work_id, supplied_contract=contract, project=project,
+        )
+        errors = sorted(set([*artifact_errors, *design_errors]))
+        return {
+            "classification": "valid_design_only" if not errors else "conflict_or_corrupt",
+            "work_root": work_root, "errors": errors,
+        }
+    errors = list(artifact_errors)
+    for relative in sorted(files - STARTED_WORK_FILES):
+        errors.append(f"unexpected_work_artifact:{relative}")
+    for relative in sorted(directories - STARTED_WORK_DIRECTORIES):
+        errors.append(f"unexpected_work_artifact:{relative}")
+    stored, saved_errors = _validate_saved_design(
+        work_root, work_id, supplied_contract=contract, project=project,
+        require_review=False,
+    )
+    errors.extend(saved_errors)
+    manifest, manifest_errors = _read_work_object(
+        work_root / "work.json", "work_manifest_corrupt",
+    )
+    errors.extend(manifest_errors)
+    if stored is not None and manifest is not None:
+        errors.extend(_validate_active_manifest(manifest, work_id, stored))
+    return {
+        "classification": "valid_already_started" if not errors else "conflict_or_corrupt",
+        "work_root": work_root, "errors": sorted(set(errors)), "manifest": manifest,
+    }
+
+
+def _rollback_start_branch(
+    root: Path, *, base_branch: str, feature_branch: str, created: bool,
+) -> list[str]:
+    if not created:
+        return []
+    errors: list[str] = []
+    switched = subprocess.run(
+        ["git", "switch", base_branch], cwd=root, capture_output=True, text=True, check=False,
+    )
+    if switched.returncode:
+        errors.append("start_branch_rollback_switch_failed")
+        return errors
+    deleted = subprocess.run(
+        ["git", "branch", "-D", feature_branch], cwd=root,
+        capture_output=True, text=True, check=False,
+    )
+    if deleted.returncode:
+        errors.append("start_branch_rollback_delete_failed")
+    return errors
+
+
+def _rollback_start_files(work_root: Path, *, created_root: bool) -> list[str]:
+    errors: list[str] = []
+    try:
+        if created_root:
+            if work_root.is_dir() and not _path_is_alias(work_root):
+                shutil.rmtree(work_root)
+        else:
+            manifest_path = work_root / "work.json"
+            if manifest_path.is_file() or manifest_path.is_symlink():
+                manifest_path.unlink()
+            for temporary in work_root.glob("work.json.tmp*"):
+                if temporary.is_file() or temporary.is_symlink():
+                    temporary.unlink()
+    except OSError as error:
+        errors.append(f"start_file_rollback_failed:{error}")
+    return errors
+
+
 def start_work(
     root: Path, work_id: str, slug: str, contract: dict[str, Any], *,
     project: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Capture Git/base/baseline state and create one idempotent feature-work manifest."""
+    """Classify Goal state before Git mutation and create one durable work manifest."""
     root = root.resolve()
     try:
         work_id = validate_work_id(work_id)
@@ -1515,53 +2397,120 @@ def start_work(
             project = json.loads(project_path.read_text(encoding="utf-8"))
         except (OSError, UnicodeError, json.JSONDecodeError):
             return {"status": "authorization_failed", "errors": ["project_configuration_required"]}
+    normalized_project = normalize_project_config(project)
+    if normalized_project["status"] == "invalid":
+        return {
+            "status": "authorization_failed", "classification": "conflict_or_corrupt",
+            "errors": normalized_project["errors"],
+        }
+    project = normalized_project["project"]
     authorization = execution_authorized(contract, project=project)
     if not authorization["authorized"]:
-        return {"status": "authorization_failed", "errors": authorization["errors"]}
-    work_root = _safe_repo_path(root, f".work/goals/active/{work_id}")
-    manifest_path = work_root / "work.json"
-    if manifest_path.is_file():
-        existing = json.loads(manifest_path.read_text(encoding="utf-8"))
-        if existing.get("work_id") == work_id:
-            return {"status": "already_started", "manifest": existing}
-        return {"status": "conflict", "errors": ["work_identity_conflict"]}
-    base_branch = subprocess.run(
-        ["git", "branch", "--show-current"], cwd=root, capture_output=True, text=True, check=False
-    )
-    base_revision = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True, check=False
-    )
-    if base_branch.returncode or base_revision.returncode or not base_branch.stdout.strip():
-        return {"status": "git_error", "errors": ["captured_base_unavailable"]}
-    normalized_slug = re.sub(r"[^a-z0-9-]+", "-", slug.casefold()).strip("-")
-    if not normalized_slug:
-        return {"status": "invalid_slug"}
-    feature_branch = f"wp-{work_id}-{normalized_slug}"
-    baseline = collect_git_baseline(root)
-    switched = subprocess.run(
-        ["git", "switch", "-c", feature_branch], cwd=root,
-        capture_output=True, text=True, check=False,
-    )
-    if switched.returncode:
-        return {"status": "git_error", "errors": [(switched.stderr or switched.stdout).strip()]}
-    manifest = {
-        "schema_version": SCHEMA_VERSION, "work_id": work_id, "state": "active",
-        "created_at": datetime.now().astimezone().isoformat(),
-        "source_commit": base_revision.stdout.strip(), "base_branch": base_branch.stdout.strip(),
-        "feature_branch": feature_branch, "contract_version": SCHEMA_VERSION,
-        "dirty_baseline": baseline,
-        "integrity_digest": canonical_digest(_contract_payload(contract)),
-        "owned_paths": [f".work/goals/active/{work_id}"],
-    }
+        return {
+            "status": "authorization_failed", "classification": "conflict_or_corrupt",
+            "errors": authorization["errors"],
+        }
+    classified = _classify_start_root(root, work_id, contract, project=project)
+    classification = classified["classification"]
+    if classification == "conflict_or_corrupt":
+        return {
+            "status": "conflict", "classification": classification,
+            "errors": classified["errors"],
+        }
+    if classification == "valid_already_started":
+        return {
+            "status": "already_started", "classification": classification,
+            "manifest": classified["manifest"],
+        }
+    lock_name = f"start-{work_id}"
+    lock_path, lock_payload, lock_error = _acquire_operation_lock(root, lock_name)
+    if lock_error:
+        return {
+            "status": "conflict", "classification": classification,
+            "errors": [lock_error],
+        }
     try:
-        work_root.mkdir(parents=True, exist_ok=False)
-        _durable_write_json(manifest_path, manifest)
-        _durable_write_json(work_root / "contract.json", contract)
-    except OSError as error:
-        subprocess.run(["git", "switch", base_branch.stdout.strip()], cwd=root, capture_output=True, check=False)
-        subprocess.run(["git", "branch", "-D", feature_branch], cwd=root, capture_output=True, check=False)
-        return {"status": "precondition_failed", "errors": [str(error)]}
-    return {"status": "started", "manifest": manifest}
+        classified = _classify_start_root(root, work_id, contract, project=project)
+        classification = classified["classification"]
+        if classification == "conflict_or_corrupt":
+            return {
+                "status": "conflict", "classification": classification,
+                "errors": classified["errors"],
+            }
+        if classification == "valid_already_started":
+            return {
+                "status": "already_started", "classification": classification,
+                "manifest": classified["manifest"],
+            }
+        work_root = classified["work_root"]
+        assert isinstance(work_root, Path)
+        manifest_path = work_root / "work.json"
+        base_branch = subprocess.run(
+            ["git", "branch", "--show-current"], cwd=root,
+            capture_output=True, text=True, check=False,
+        )
+        base_revision = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=root,
+            capture_output=True, text=True, check=False,
+        )
+        if base_branch.returncode or base_revision.returncode or not base_branch.stdout.strip():
+            return {"status": "git_error", "errors": ["captured_base_unavailable"]}
+        normalized_slug = re.sub(r"[^a-z0-9-]+", "-", slug.casefold()).strip("-")
+        if not normalized_slug:
+            return {"status": "invalid_slug"}
+        baseline = collect_git_baseline(root)
+        base_branch_name = base_branch.stdout.strip()
+        git_policy = project["git"]
+        protected_branches = set(git_policy["protected_branches"])
+        feature_branch = base_branch_name
+        created_branch = False
+        if base_branch_name in protected_branches:
+            pattern = str(git_policy["branch_pattern"])
+            try:
+                feature_branch = pattern.format(work_id=work_id, slug=normalized_slug)
+            except (KeyError, ValueError):
+                return {"status": "invalid_branch_policy"}
+            switched = subprocess.run(
+                ["git", "switch", "-c", feature_branch], cwd=root,
+                capture_output=True, text=True, check=False,
+            )
+            if switched.returncode:
+                return {"status": "git_error", "errors": [(switched.stderr or switched.stdout).strip()]}
+            created_branch = True
+        manifest = {
+            "schema_version": SCHEMA_VERSION, "work_id": work_id, "state": "active",
+            "created_at": datetime.now().astimezone().isoformat(),
+            "source_commit": base_revision.stdout.strip(), "base_branch": base_branch_name,
+            "feature_branch": feature_branch, "contract_version": SCHEMA_VERSION,
+            "dirty_baseline": baseline,
+            "integrity_digest": canonical_digest(_contract_payload(contract)),
+            "owned_paths": [f".work/goals/active/{work_id}"],
+        }
+        created_work_root = False
+        try:
+            if classification == "missing":
+                work_root.parent.mkdir(parents=True, exist_ok=True)
+                work_root.mkdir(exist_ok=False)
+                created_work_root = True
+                _durable_write_json(work_root / "contract.json", contract)
+                _durable_write_bytes(
+                    work_root / "review" / "design.html",
+                    render_design_review_v3(_contract_payload(contract)).encode("utf-8"),
+                )
+            _durable_write_json(manifest_path, manifest)
+        except OSError as error:
+            rollback_errors = _rollback_start_files(work_root, created_root=created_work_root)
+            rollback_errors.extend(_rollback_start_branch(
+                root, base_branch=base_branch_name, feature_branch=feature_branch,
+                created=created_branch,
+            ))
+            return {
+                "status": "precondition_failed", "classification": classification,
+                "errors": [str(error), *rollback_errors],
+            }
+        return {"status": "started", "classification": classification, "manifest": manifest}
+    finally:
+        _release_operation_lock(lock_path, lock_payload)
 
 
 def create_worktree(root: Path, *, base: str, branch: str, path: Path) -> dict[str, Any]:
@@ -1585,6 +2534,10 @@ def integrate_worktree(
     approved_exact_path: str | None,
 ) -> dict[str, Any]:
     root = root.resolve()
+    normalized_project = normalize_project_config(project)
+    if normalized_project["status"] == "invalid":
+        return {"status": "precondition_failed", "errors": normalized_project["errors"]}
+    project = normalized_project["project"]
     destination = path.resolve()
     if approved_exact_path is None or Path(approved_exact_path).resolve() != destination:
         return {"status": "approval_required", "target": str(destination)}
@@ -1629,6 +2582,17 @@ def integrate_worktree(
 def select_impacted_checks(
     changed_paths: list[str], project: dict[str, Any]
 ) -> dict[str, Any]:
+    normalized_project = normalize_project_config(project)
+    if normalized_project["status"] == "invalid":
+        errors = list(normalized_project["errors"])
+        return {
+            "status": "invalid", "errors": errors,
+            "matched_rules": [], "tests": [], "features": [],
+            "feature_commands": [], "trigger_ids": [], "full_trigger_ids": [],
+            "not_required_rule_ids": [], "full_required": False,
+            "unresolved": [f"project_configuration:{error}" for error in errors],
+        }
+    project = normalized_project["project"]
     impact_config = project.get("impact", {})
     rules = impact_config.get("rules", [])
     feature_selectors = impact_config.get("feature_selectors", {})
@@ -1667,6 +2631,7 @@ def select_impacted_checks(
     missing_feature_selectors = [feature for feature in features if feature not in feature_selectors]
     unresolved.extend(f"feature_selector:{feature}" for feature in missing_feature_selectors)
     return {
+        "status": "selected",
         "matched_rules": matched_rules, "tests": tests, "features": features,
         "feature_commands": feature_commands, "trigger_ids": trigger_ids,
         "full_trigger_ids": full_trigger_ids,
@@ -1816,9 +2781,10 @@ def render_result_review_v3(
     return _review_template("result-item-review.html").replace("{{SUMMARY}}", summary).replace("{{ITEMS}}", "".join(cards)).rstrip() + "\n"
 
 
-def _lifecycle_move(
+def _lifecycle_move_locked(
     root: Path, source: Path, destination: Path, manifest: dict[str, Any], *,
     operation: str, fault_after: str | None = None, crash_after: str | None = None,
+    source_writes: dict[str, bytes] | None = None,
 ) -> dict[str, Any]:
     """Move one work directory with durable recovery across process interruption."""
     try:
@@ -1827,7 +2793,7 @@ def _lifecycle_move(
         destination.relative_to(root)
     except ValueError as error:
         return {"status": "invalid_work", "errors": [str(error)]}
-    recovery = recover_transactions(root)
+    recovery = _recover_transactions_locked(root)
     if recovery["status"] == "recovery_failed":
         return {"status": "precondition_failed", "errors": recovery["errors"]}
     manifest_path = source / "work.json"
@@ -1835,22 +2801,54 @@ def _lifecycle_move(
     original_manifest = manifest_path.read_bytes() if manifest_existed else b""
     transactions = root / ".work" / "transactions"
     transaction_identity = canonical_digest({"operation": operation, "work_id": work_id})
-    transaction_root = transactions / f"{operation}-{transaction_identity.removeprefix('sha256:')[:16]}"
-    transaction_root.mkdir(parents=True, exist_ok=True)
+    transaction_root = transactions / (
+        f"{operation}-{transaction_identity.removeprefix('sha256:')[:16]}-{secrets.token_hex(4)}"
+    )
+    transaction_root.mkdir(parents=True, exist_ok=False)
     journal_path = transaction_root / "journal.json"
     backup_path = transaction_root / "work.json.preimage"
-    _durable_write_bytes(backup_path, original_manifest)
+    write_preimages: list[tuple[str, bool, bytes]] = []
+    try:
+        for relative, _ in sorted((source_writes or {}).items()):
+            normalized, _ = canonical_repo_identity(source, relative)
+            target = source.joinpath(*PurePosixPath(normalized).parts)
+            if target.exists() and not target.is_file():
+                raise ValueError(f"lifecycle_source_write_invalid:{normalized}")
+            existed = target.is_file()
+            write_preimages.append((normalized, existed, target.read_bytes() if existed else b""))
+        _durable_write_bytes(backup_path, original_manifest)
+        source_file_backups: list[dict[str, Any]] = []
+        for index, (relative, existed, content) in enumerate(write_preimages):
+            record: dict[str, Any] = {"path": relative, "existed": existed}
+            if existed:
+                file_backup = transaction_root / "source-files" / f"{index:04d}.preimage"
+                _durable_write_bytes(file_backup, content)
+                record.update({
+                    "backup": file_backup.relative_to(root).as_posix(),
+                    "pre_hash": "sha256:" + sha256(content).hexdigest(),
+                })
+            source_file_backups.append(record)
+    except (OSError, ValueError) as error:
+        shutil.rmtree(transaction_root, ignore_errors=True)
+        return {"status": "precondition_failed", "errors": [str(error)]}
     journal = {
         "schema_version": SCHEMA_VERSION, "kind": "lifecycle_move",
         "operation": operation, "status": "applying",
+        "owner_pid": os.getpid(),
         "source": source.relative_to(root).as_posix(),
         "destination": destination.relative_to(root).as_posix(),
         "manifest_backup": backup_path.relative_to(root).as_posix(),
         "manifest_existed": manifest_existed,
         "pre_manifest_hash": "sha256:" + sha256(original_manifest).hexdigest(),
+        "source_file_backups": source_file_backups,
     }
     _durable_write_json(journal_path, journal)
     try:
+        for relative, content in sorted((source_writes or {}).items()):
+            normalized, _ = canonical_repo_identity(source, relative)
+            _durable_write_bytes(
+                source.joinpath(*PurePosixPath(normalized).parts), content,
+            )
         _durable_write_bytes(
             manifest_path,
             (json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8"),
@@ -1882,9 +2880,29 @@ def _lifecycle_move(
     return {"status": "committed", "journal": journal_path.relative_to(root).as_posix()}
 
 
-def close_work(
+def _lifecycle_move(
+    root: Path, source: Path, destination: Path, manifest: dict[str, Any], *,
+    operation: str, fault_after: str | None = None, crash_after: str | None = None,
+    source_writes: dict[str, bytes] | None = None,
+) -> dict[str, Any]:
+    root = root.resolve()
+    lock_path, lock_payload, lock_error = _acquire_operation_lock(root, "transaction")
+    if lock_error:
+        return {"status": "precondition_failed", "errors": [lock_error]}
+    try:
+        return _lifecycle_move_locked(
+            root, source, destination, manifest, operation=operation,
+            fault_after=fault_after, crash_after=crash_after,
+            source_writes=source_writes,
+        )
+    finally:
+        _release_operation_lock(lock_path, lock_payload)
+
+
+def _transition_work_to_completed(
     root: Path, work_id: str, *, completed_at: str, completed_days: int, trash_days: int,
     fault_after: str | None = None, crash_after: str | None = None,
+    source_writes: dict[str, bytes] | None = None,
 ) -> dict[str, Any]:
     root = root.resolve()
     try:
@@ -1911,17 +2929,102 @@ def close_work(
     })
     transaction = _lifecycle_move(
         root, source, destination, manifest, operation="close", fault_after=fault_after,
-        crash_after=crash_after,
+        crash_after=crash_after, source_writes=source_writes,
     )
     if transaction["status"] != "committed":
         return transaction
     return {"status": "completed", "path": destination.relative_to(root).as_posix(), "manifest": manifest}
 
 
+def close_work(
+    root: Path, work_id: str, *, contract: dict[str, Any], result: dict[str, Any],
+    impact: dict[str, Any], completed_at: str, completed_days: int, trash_days: int,
+    fault_after: str | None = None, crash_after: str | None = None,
+) -> dict[str, Any]:
+    """Validate and close one active Goal as a single recoverable lifecycle transition."""
+    root = root.resolve()
+    try:
+        work_id = validate_work_id(work_id)
+    except ValueError as error:
+        return {"status": "invalid_work", "errors": [str(error)]}
+    if not isinstance(contract, dict) or contract.get("work_id") != work_id:
+        return {"status": "invalid_work", "errors": ["supplied_contract_identity_mismatch"]}
+    if not isinstance(result, dict) or not isinstance(impact, dict):
+        return {"status": "invalid_work", "errors": ["result_or_impact_invalid"]}
+    if (
+        isinstance(completed_days, bool) or not isinstance(completed_days, int) or completed_days < 0
+        or isinstance(trash_days, bool) or not isinstance(trash_days, int) or trash_days < 0
+    ):
+        return {"status": "invalid_work", "errors": ["retention_invalid"]}
+    try:
+        moment = datetime.fromisoformat(completed_at)
+    except (TypeError, ValueError):
+        return {"status": "invalid_work", "errors": ["completed_at_invalid"]}
+    active_relative = f".work/goals/active/{work_id}"
+    destination_relative = f".work/goals/completed/{moment:%Y-%m}/{work_id}"
+    try:
+        canonical_repo_identity(root, active_relative)
+        canonical_repo_identity(root, destination_relative)
+    except ValueError as error:
+        return {"status": "invalid_work", "errors": [str(error)]}
+    source = root.joinpath(*PurePosixPath(active_relative).parts)
+    destination = root.joinpath(*PurePosixPath(destination_relative).parts)
+    if not source.is_dir():
+        return {"status": "invalid_work", "errors": ["active_work_missing"]}
+
+    files, directories, artifact_errors = _work_artifacts(source)
+    required_files = {"contract.json", "work.json", "review/design.html"}
+    artifact_errors.extend(
+        f"missing_work_artifact:{relative}" for relative in sorted(required_files - files)
+    )
+    artifact_errors.extend(
+        f"unexpected_work_artifact:{relative}" for relative in sorted(files - STARTED_WORK_FILES)
+    )
+    artifact_errors.extend(
+        f"unexpected_work_artifact:{relative}" for relative in sorted(directories - STARTED_WORK_DIRECTORIES)
+    )
+    if artifact_errors:
+        return {"status": "invalid_work", "errors": sorted(set(artifact_errors))}
+
+    transaction_errors = _incomplete_work_transactions(root)
+    if transaction_errors:
+        return {"status": "precondition_failed", "errors": transaction_errors}
+    stored_contract, contract_errors = _validate_saved_design(
+        source, work_id, supplied_contract=contract, project=None, require_review=True,
+        canonical_review=False,
+    )
+    if stored_contract is None or contract_errors:
+        return {"status": "invalid_work", "errors": contract_errors}
+    manifest, manifest_errors = _read_work_object(source / "work.json", "work_manifest_corrupt")
+    if manifest is None:
+        return {"status": "invalid_work", "errors": manifest_errors}
+    manifest_errors.extend(_validate_active_manifest(manifest, work_id, stored_contract))
+    if manifest_errors:
+        return {"status": "invalid_work", "errors": sorted(set(manifest_errors))}
+    evaluation = evaluate_result(stored_contract, result, impact)
+    if evaluation["status"] != "complete":
+        return evaluation
+    try:
+        review_bytes = render_result_review_v3(stored_contract, result, impact).encode("utf-8")
+    except (OSError, UnicodeError, ValueError) as error:
+        return {"status": "invalid_work", "errors": [f"result_review_invalid:{error}"]}
+    if destination.exists() or destination.is_symlink():
+        return {"status": "conflict", "errors": ["completed_destination_exists"]}
+    result_bytes = (
+        json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+    ).encode("utf-8")
+    return _transition_work_to_completed(
+        root, work_id, completed_at=completed_at, completed_days=completed_days,
+        trash_days=trash_days, fault_after=fault_after, crash_after=crash_after,
+        source_writes={"result.json": result_bytes, "review/result.html": review_bytes},
+    )
+
+
 def audit_work_lifecycle(root: Path) -> dict[str, Any]:
     goals = root / ".work" / "goals"
     seen: dict[str, str] = {}
     findings: list[dict[str, str]] = []
+    design_only: list[str] = []
     for state in ("active", "completed", "trash", "legacy-unclassified"):
         state_root = goals / state
         if not state_root.is_dir():
@@ -1933,6 +3036,13 @@ def audit_work_lifecycle(root: Path) -> dict[str, Any]:
         )
         for directory in directories:
             if not (directory / "work.json").is_file():
+                if state == "active":
+                    _, design_errors = _validate_design_only_directory(
+                        directory, directory.name,
+                    )
+                    if not design_errors:
+                        design_only.append(directory.name)
+                        continue
                 findings.append({"rule_id": "work.orphan", "location": directory.relative_to(root).as_posix()})
     for manifest_path in goals.rglob("work.json") if goals.is_dir() else []:
         try:
@@ -1956,7 +3066,7 @@ def audit_work_lifecycle(root: Path) -> dict[str, Any]:
         )
         if manifest.get("state") != expected_state:
             findings.append({"rule_id": "work.invalid_state", "location": location})
-    return {"findings": findings, "work_ids": seen}
+    return {"findings": findings, "work_ids": seen, "design_only": sorted(design_only)}
 
 
 def sweep_lifecycle(
@@ -2201,16 +3311,7 @@ def inspect_legacy_graph(root: Path) -> dict[str, Any]:
             f"legacy_runtime:{path.relative_to(root).as_posix()}"
             for path in sorted(runtime.rglob("*")) if path.is_file()
         )
-    transactions = root / ".work" / "transactions"
-    if transactions.is_dir():
-        for journal_path in sorted(transactions.glob("*/journal.json")):
-            try:
-                journal = json.loads(journal_path.read_text(encoding="utf-8"))
-            except (OSError, UnicodeError, json.JSONDecodeError):
-                blockers.append(f"invalid_transaction:{journal_path.parent.name}")
-                continue
-            if journal.get("status") in {"applying", "rollback_failed"}:
-                blockers.append(f"incomplete_transaction:{journal_path.parent.name}")
+    blockers.extend(_transaction_blockers(root))
     return {"work": work, "blockers": blockers}
 
 
@@ -2235,28 +3336,161 @@ def _cohort_manifest_files(resource_manifest: dict[str, Any]) -> dict[str, str]:
 
 
 COHORT_MANIFEST_RESOURCE = "maintain-agent-harness/resources/public-resource-manifest.json"
+REQUIRED_COHORT_RESOURCES = frozenset({
+    "close-goal/SKILL.md",
+    "close-goal/references/documentation-policy.md",
+    "close-goal/references/human-readability-policy.md",
+    "close-goal/references/testing-policy.md",
+    "close-goal/schemas/contract.schema.json",
+    "close-goal/schemas/work.schema.json",
+    "close-goal/scripts/core_harness.py",
+    "close-goal/scripts/render_result_review.py",
+    "close-goal/templates/result-item-review.html",
+    "design-goal/SKILL.md",
+    "design-goal/references/human-readability-policy.md",
+    "design-goal/schemas/contract.schema.json",
+    "design-goal/scripts/core_harness.py",
+    "design-goal/scripts/render_item_review.py",
+    "design-goal/templates/design-item-review.html",
+    "diagnose/SKILL.md",
+    "diagnose/references/goal-execution-policy.md",
+    "execute-codex-goal/SKILL.md",
+    "execute-codex-goal/references/goal-execution-policy.md",
+    "execute-codex-goal/references/testing-policy.md",
+    "execute-codex-goal/schemas/contract.schema.json",
+    "execute-codex-goal/schemas/work.schema.json",
+    "execute-codex-goal/scripts/core_harness.py",
+    "execute-codex-goal/templates/design-item-review.html",
+    "maintain-agent-harness/SKILL.md",
+    "maintain-agent-harness/references/testing-policy.md",
+    "maintain-agent-harness/schemas/project.schema.json",
+    "maintain-agent-harness/schemas/work.schema.json",
+    "maintain-agent-harness/scripts/core_harness.py",
+    "setup-agent-harness/SKILL.md",
+    "setup-agent-harness/references/documentation-policy.md",
+    "setup-agent-harness/schemas/project.schema.json",
+    "setup-agent-harness/scripts/core_harness.py",
+    "setup-agent-harness/templates/project/AGENTS.md",
+    "setup-agent-harness/templates/project/CLAUDE.md",
+    "setup-agent-harness/templates/project/TESTING.md",
+    "setup-agent-harness/templates/project/project.yaml",
+})
+
+
+def _cohort_manifest_valid(resource_manifest: dict[str, Any]) -> bool:
+    if not isinstance(resource_manifest, dict) or set(resource_manifest) != {
+        "schema_version", "algorithm", "root", "excludes", "files",
+    }:
+        return False
+    if (
+        resource_manifest.get("schema_version") != 1
+        or resource_manifest.get("algorithm") != "sha256"
+        or resource_manifest.get("root") != "skills"
+        or resource_manifest.get("excludes") != [COHORT_MANIFEST_RESOURCE]
+    ):
+        return False
+    files = resource_manifest.get("files")
+    if not isinstance(files, dict) or not files:
+        return False
+    for relative, digest in files.items():
+        if not isinstance(relative, str) or not isinstance(digest, str):
+            return False
+        pure = PurePosixPath(relative)
+        if (
+            pure.is_absolute() or pure.as_posix() != relative
+            or any(part in {"", ".", ".."} for part in pure.parts)
+            or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+        ):
+            return False
+    return True
+
+
+def _installed_cohort_tree(
+    installed_root: Path,
+) -> tuple[set[str], set[str], set[str], list[str]]:
+    files: set[str] = set()
+    directories: set[str] = set()
+    aliases: set[str] = set()
+    errors: list[str] = []
+    for skill in HARNESS_INSTALL_SKILLS:
+        skill_root = installed_root / skill
+        if _path_is_alias(skill_root):
+            aliases.add(skill)
+            continue
+        if not skill_root.exists():
+            continue
+        if not skill_root.is_dir():
+            errors.append(f"installed_resource_unexpected:{skill}")
+            continue
+        pending = [skill_root]
+        while pending:
+            current = pending.pop()
+            try:
+                entries = sorted(os.scandir(current), key=lambda entry: entry.name)
+            except OSError:
+                errors.append(
+                    f"installed_tree_unreadable:{current.relative_to(installed_root).as_posix()}"
+                )
+                continue
+            for entry in entries:
+                path = Path(entry.path)
+                relative = path.relative_to(installed_root).as_posix()
+                if _path_is_alias(path):
+                    aliases.add(relative)
+                elif entry.is_dir(follow_symlinks=False):
+                    directories.add(relative)
+                    pending.append(path)
+                elif entry.is_file(follow_symlinks=False):
+                    files.add(relative)
+                else:
+                    errors.append(f"installed_resource_unexpected:{relative}")
+    return files, directories, aliases, errors
 
 
 def _installed_cohort_files(installed_root: Path) -> set[str]:
-    observed: set[str] = set()
-    for skill in HARNESS_INSTALL_SKILLS:
-        skill_root = installed_root / skill
-        if not skill_root.is_dir():
-            continue
-        for path in skill_root.rglob("*"):
-            if path.is_file():
-                observed.add(path.relative_to(installed_root).as_posix())
-    return observed
+    return _installed_cohort_tree(installed_root)[0]
 
 
 def inspect_installed_cohort(installed_root: Path, resource_manifest: dict[str, Any]) -> dict[str, Any]:
-    installed_root = installed_root.resolve()
+    installed_root = Path(os.path.abspath(installed_root))
     blockers: list[str] = []
+    if _path_is_alias(installed_root):
+        return {
+            "status": "invalid", "blockers": ["installed_root_alias"],
+            "skills": list(HARNESS_INSTALL_SKILLS),
+        }
+    if not _cohort_manifest_valid(resource_manifest):
+        return {
+            "status": "invalid_manifest", "blockers": ["installed_manifest_invalid"],
+            "skills": list(HARNESS_INSTALL_SKILLS),
+        }
     files = _cohort_manifest_files(resource_manifest)
-    if resource_manifest.get("root") != "skills" or not files:
-        return {"status": "invalid_manifest", "blockers": ["installed_manifest_invalid"], "components": {}}
+    declared = set(files)
+    for relative in sorted(REQUIRED_COHORT_RESOURCES - declared):
+        blockers.append(f"installed_manifest_required_missing:{relative}")
+    for relative in sorted(declared - REQUIRED_COHORT_RESOURCES):
+        blockers.append(f"installed_manifest_unexpected_resource:{relative}")
+    if blockers:
+        return {
+            "status": "invalid_manifest", "blockers": blockers,
+            "skills": list(HARNESS_INSTALL_SKILLS),
+        }
     expected_files = set(files) | {COHORT_MANIFEST_RESOURCE}
-    observed_files = _installed_cohort_files(installed_root)
+    observed_files, observed_directories, observed_aliases, tree_errors = _installed_cohort_tree(
+        installed_root,
+    )
+    blockers.extend(tree_errors)
+    blockers.extend(
+        f"installed_resource_alias:{relative}" for relative in sorted(observed_aliases)
+    )
+    expected_directories: set[str] = set()
+    for relative in expected_files:
+        parent = PurePosixPath(relative).parent
+        while parent.as_posix() != ".":
+            expected_directories.add(parent.as_posix())
+            parent = parent.parent
+    for relative in sorted(observed_directories - expected_directories):
+        blockers.append(f"installed_directory_extra:{relative}")
     for skill in RETIRED_HARNESS_SKILLS:
         retired_path = installed_root / skill
         if retired_path.exists() or retired_path.is_symlink():
@@ -2267,17 +3501,23 @@ def inspect_installed_cohort(installed_root: Path, resource_manifest: dict[str, 
         blockers.append(f"installed_resource_missing:{relative}")
     for relative, expected in sorted(files.items()):
         try:
-            path = _safe_repo_path(installed_root, str(relative))
-        except ValueError:
-            blockers.append(f"installed_resource_invalid:{relative}")
+            normalized, _ = canonical_repo_identity(installed_root, str(relative))
+            path = installed_root.joinpath(*PurePosixPath(normalized).parts)
+        except ValueError as error:
+            blocker = (
+                f"installed_resource_alias:{relative}"
+                if str(error).startswith("path_alias:")
+                else f"installed_resource_invalid:{relative}"
+            )
+            blockers.append(blocker)
             continue
         if not path.is_file():
             blockers.append(f"installed_resource_missing:{relative}")
             continue
-        actual = _manifest_file_hash(path, resource_manifest.get("hash_mode"))
+        actual = _manifest_file_hash(path, None)
         if actual != expected:
             blockers.append(f"installed_resource_drift:{relative}")
-    manifest_resource = installed_root / COHORT_MANIFEST_RESOURCE
+    manifest_resource = installed_root.joinpath(*PurePosixPath(COHORT_MANIFEST_RESOURCE).parts)
     if manifest_resource.is_file():
         try:
             installed_manifest = json.loads(manifest_resource.read_text(encoding="utf-8"))
@@ -2286,30 +3526,11 @@ def inspect_installed_cohort(installed_root: Path, resource_manifest: dict[str, 
         else:
             if installed_manifest != resource_manifest:
                 blockers.append(f"installed_resource_drift:{COHORT_MANIFEST_RESOURCE}")
-    legacy_helpers = (
-        "contract_engine.py", "goal_runtime.py", "close_goal.py",
-        "maintain_harness.py", "render_completion_review.py",
-    )
-    for helper in legacy_helpers:
-        for path in installed_root.glob(f"*/scripts/{helper}"):
-            blockers.append(f"legacy_helper_present:{path.relative_to(installed_root).as_posix()}")
-    component_skills = {
-        "project": "setup-agent-harness", "design": "design-goal",
-        "execute": "execute-codex-goal", "close": "close-goal",
-        "maintain": "maintain-agent-harness", "diagnose": "diagnose",
+    blockers = sorted(set(blockers))
+    return {
+        "status": "complete" if not blockers else "invalid", "blockers": blockers,
+        "skills": list(HARNESS_INSTALL_SKILLS),
     }
-    components: dict[str, dict[str, list[int]]] = {}
-    for component, skill in component_skills.items():
-        skill_path = installed_root / skill / "SKILL.md"
-        try:
-            text = skill_path.read_text(encoding="utf-8")
-        except (OSError, UnicodeError):
-            text = ""
-        supports = [3] if "Harness v3" in text else []
-        components[component] = {"supports": supports}
-        if not supports:
-            blockers.append(f"installed_component_not_v3:{component}")
-    return {"status": "complete" if not blockers else "invalid", "blockers": blockers, "components": components}
 
 
 def install_harness_cohort(
@@ -2317,13 +3538,17 @@ def install_harness_cohort(
     approved_install_root: str | None, fault_after: int | None = None,
 ) -> dict[str, Any]:
     """Atomically replace only the Harness cohort after exact-root approval and staged verification."""
-    source_root = source_root.resolve()
-    install_root = install_root.resolve()
-    if approved_install_root is None or Path(approved_install_root).resolve() != install_root:
+    source_root = Path(os.path.abspath(source_root))
+    install_root = Path(os.path.abspath(install_root))
+    if approved_install_root is None or Path(approved_install_root).resolve() != install_root.resolve():
         return {"status": "approval_required", "install_root": str(install_root)}
-    files = _cohort_manifest_files(resource_manifest)
-    if resource_manifest.get("root") != "skills" or not files:
+    if _path_is_alias(source_root):
+        return {"status": "invalid_source", "errors": ["source_root_alias"]}
+    if _path_is_alias(install_root):
+        return {"status": "invalid_root", "errors": ["install_root_alias"]}
+    if not _cohort_manifest_valid(resource_manifest):
         return {"status": "invalid_manifest"}
+    files = _cohort_manifest_files(resource_manifest)
     for skill in HARNESS_INSTALL_SKILLS:
         if not (source_root / skill / "SKILL.md").is_file():
             return {"status": "invalid_source", "errors": [f"missing_skill:{skill}"]}
@@ -2337,7 +3562,8 @@ def install_harness_cohort(
         staging.mkdir()
         backup.mkdir()
         for relative in sorted(files):
-            source = _safe_repo_path(source_root, relative)
+            normalized, _ = canonical_repo_identity(source_root, relative)
+            source = source_root.joinpath(*PurePosixPath(normalized).parts)
             target = _safe_repo_path(staging, relative)
             if not source.is_file() or _path_is_alias(source):
                 raise ValueError(f"invalid_source_resource:{relative}")
@@ -2362,7 +3588,7 @@ def install_harness_cohort(
         if observed["status"] != "complete":
             raise RuntimeError("installed_cohort_verification_failed:" + ";".join(observed["blockers"]))
         tree: dict[str, str] = {
-            relative: _manifest_file_hash(install_root / relative, resource_manifest.get("hash_mode"))
+            relative: _manifest_file_hash(install_root / relative, None)
             for relative in sorted(files)
         }
         if tree != files or _installed_cohort_files(install_root) != set(files) | {COHORT_MANIFEST_RESOURCE}:
@@ -2373,7 +3599,6 @@ def install_harness_cohort(
         return {
             "status": "installed", "install_root": str(install_root),
             "skills": list(HARNESS_INSTALL_SKILLS), "tree_digest": canonical_digest(tree),
-            "components": observed["components"],
         }
     except (OSError, ValueError, RuntimeError) as error:
         restore_errors: list[str] = []
@@ -2414,6 +3639,15 @@ def maintain_harness(
             "rule_id": rule_id, "location": location, "message": message,
             "severity": severity,
         })
+
+    normalized_project = normalize_project_config(project)
+    if normalized_project["status"] == "invalid":
+        for error in normalized_project["errors"]:
+            add("MAINT-PROJECT-CONFIG", ".harness/project.yaml", error, "high")
+        project = {}
+    else:
+        project = normalized_project["project"]
+    checks["MAINT-PROJECT-CONFIG"] = normalized_project
 
     agents = root / "AGENTS.md"
     claude = root / "CLAUDE.md"
@@ -2481,17 +3715,10 @@ def maintain_harness(
         add("MAINT-WORK-LIFECYCLE", finding["location"], finding["rule_id"])
     checks["MAINT-WORK-LIFECYCLE"] = lifecycle
 
-    transactions = root / ".work" / "transactions"
-    if transactions.is_dir():
-        for journal_path in sorted(transactions.glob("*/journal.json")):
-            try:
-                journal = json.loads(journal_path.read_text(encoding="utf-8"))
-            except (OSError, UnicodeError, json.JSONDecodeError):
-                add("MAINT-TRANSACTION", journal_path.relative_to(root).as_posix(), "transaction journal is invalid", "high")
-                continue
-            if journal.get("status") in {"applying", "rollback_failed"}:
-                add("MAINT-TRANSACTION", journal_path.relative_to(root).as_posix(), f"transaction is {journal.get('status')}", "high")
-    checks["MAINT-TRANSACTION"] = "checked"
+    transaction_blockers = _transaction_blockers(root)
+    for blocker in transaction_blockers:
+        add("MAINT-TRANSACTION", ".work/transactions", blocker, "high")
+    checks["MAINT-TRANSACTION"] = {"blockers": transaction_blockers}
 
     branch = subprocess.run(
         ["git", "branch", "--show-current"], cwd=root, capture_output=True, text=True, check=False
@@ -2515,7 +3742,7 @@ def maintain_harness(
     return {"status": "ok" if not findings else "findings", "findings": findings, "checks": checks}
 
 
-def activate_v3(
+def activate_harness(
     root: Path,
     project: dict[str, Any],
     *,
@@ -2523,22 +3750,18 @@ def activate_v3(
     resource_manifest: dict[str, Any],
 ) -> dict[str, Any]:
     """Activate only from observed repository state and an intact installed cohort."""
+    normalized = normalize_project_config(project)
     legacy = inspect_legacy_graph(root)
     installed = inspect_installed_cohort(installed_root, resource_manifest)
     blockers = [*legacy["blockers"], *installed["blockers"]]
+    if normalized["status"] == "invalid":
+        blockers.extend(normalized["errors"])
     if blockers:
         return {"status": "cutover_blocked", "blockers": blockers, "legacy": legacy, "installed": installed}
-    activated = deepcopy(project)
-    if activated.get("schema_version") != SCHEMA_VERSION:
-        return {"status": "cutover_blocked", "blockers": ["project_schema_not_v3"]}
-    harness = activated.setdefault("harness", {})
-    harness.update({"active_cohort": "v3", "contract_version": 3, "runtime_version": 3, "dormant_cohorts": []})
-    harness["components"] = deepcopy(installed["components"])
-    errors = validate_cohort(3, {name: value["supports"] for name, value in harness["components"].items()})
-    if errors:
-        return {"status": "cutover_blocked", "blockers": errors}
-    activated.pop("migration", None)
-    return {"status": "activated", "project": activated}
+    return {
+        "status": "activated", "project": normalized["project"],
+        "normalization": normalized["status"],
+    }
 
 
 def _json_object(path: Path) -> dict[str, Any]:
@@ -2548,110 +3771,158 @@ def _json_object(path: Path) -> dict[str, Any]:
     return value
 
 
-def _cli_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Core-First Agent Harness v3")
+def _runtime_cli_owner() -> str:
+    script = Path(__file__).resolve()
+    if script.parent.name != "scripts":
+        return "unknown"
+    return script.parent.parent.name
+
+
+def _cli_parser(owner: str | None = None) -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Core-First Agent Harness")
     sub = parser.add_subparsers(dest="command", required=True)
-    inventory = sub.add_parser("inventory")
-    inventory.add_argument("--root", type=Path, required=True)
-    inventory.add_argument("--mapping", type=Path)
-    design = sub.add_parser("render-design")
-    design.add_argument("--contract", type=Path, required=True)
-    design.add_argument("--output", type=Path, required=True)
-    authorize = sub.add_parser("authorize")
-    authorize.add_argument("--contract", type=Path, required=True)
-    authorize.add_argument("--intent", choices=("default", "veto", "explicit_approve"), default="default")
-    authorize.add_argument("--actor", required=True)
-    authorize.add_argument("--at", required=True)
-    result = sub.add_parser("render-result")
-    result.add_argument("--contract", type=Path, required=True)
-    result.add_argument("--result", type=Path, required=True)
-    result.add_argument("--output", type=Path, required=True)
-    impact = sub.add_parser("impacted")
-    impact.add_argument("--project", type=Path, required=True)
-    impact.add_argument("--changed", action="append", default=[])
-    cleanup_plan = sub.add_parser("cleanup-plan")
-    cleanup_plan.add_argument("--root", type=Path, required=True)
-    cleanup_plan.add_argument("--request", type=Path, required=True)
-    cleanup_apply = sub.add_parser("cleanup-apply")
-    cleanup_apply.add_argument("--root", type=Path, required=True)
-    cleanup_apply.add_argument("--plan", type=Path, required=True)
-    cleanup_apply.add_argument("--approval-digest", required=True)
-    recover = sub.add_parser("recover")
-    recover.add_argument("--root", type=Path, required=True)
-    baseline = sub.add_parser("baseline")
-    baseline.add_argument("--root", type=Path, required=True)
-    start = sub.add_parser("start")
-    start.add_argument("--root", type=Path, required=True)
-    start.add_argument("--work-id", required=True)
-    start.add_argument("--slug", required=True)
-    start.add_argument("--contract", type=Path, required=True)
-    amend = sub.add_parser("amend")
-    amend.add_argument("--contract", type=Path, required=True)
-    amend.add_argument("--item-id", required=True)
-    amend.add_argument("--field", required=True)
-    amend.add_argument("--value", type=Path, required=True)
-    amend.add_argument("--message-id", required=True)
-    amend.add_argument("--actor", required=True)
-    amend.add_argument("--at", required=True)
-    amend.add_argument("--risk", required=True)
-    complete = sub.add_parser("complete")
-    complete.add_argument("--contract", type=Path, required=True)
-    complete.add_argument("--result", type=Path, required=True)
-    complete.add_argument("--impact", type=Path, required=True)
-    commit = sub.add_parser("commit")
-    commit.add_argument("--root", type=Path, required=True)
-    commit.add_argument("--item-id", required=True)
-    commit.add_argument("--path", action="append", required=True)
-    commit.add_argument("--baseline", type=Path, required=True)
-    worktree_create = sub.add_parser("worktree-create")
-    worktree_create.add_argument("--root", type=Path, required=True)
-    worktree_create.add_argument("--base", required=True)
-    worktree_create.add_argument("--branch", required=True)
-    worktree_create.add_argument("--path", type=Path, required=True)
-    worktree_integrate = sub.add_parser("worktree-integrate")
-    worktree_integrate.add_argument("--root", type=Path, required=True)
-    worktree_integrate.add_argument("--base", required=True)
-    worktree_integrate.add_argument("--branch", required=True)
-    worktree_integrate.add_argument("--path", type=Path, required=True)
-    worktree_integrate.add_argument("--project", type=Path, required=True)
-    worktree_integrate.add_argument("--approved-exact-path", required=True)
-    close = sub.add_parser("close")
-    close.add_argument("--root", type=Path, required=True)
-    close.add_argument("--work-id", required=True)
-    close.add_argument("--contract", type=Path, required=True)
-    close.add_argument("--result", type=Path, required=True)
-    close.add_argument("--impact", type=Path, required=True)
-    close.add_argument("--at", required=True)
-    close.add_argument("--completed-days", type=int, required=True)
-    close.add_argument("--trash-days", type=int, required=True)
-    sweep = sub.add_parser("sweep")
-    sweep.add_argument("--root", type=Path, required=True)
-    sweep.add_argument("--at", required=True)
-    delete = sub.add_parser("delete")
-    delete.add_argument("--root", type=Path, required=True)
-    delete.add_argument("--target", required=True)
-    delete.add_argument("--approved-exact-target", required=True)
-    delete.add_argument("--at", required=True)
-    delete.add_argument("--destructive-override", action="store_true")
-    delete.add_argument("--approved-override-target")
-    audit = sub.add_parser("audit-work")
-    audit.add_argument("--root", type=Path, required=True)
-    maintain = sub.add_parser("maintain")
-    maintain.add_argument("--root", type=Path, required=True)
-    maintain.add_argument("--project", type=Path, required=True)
-    maintain.add_argument("--installed-root", type=Path)
-    maintain.add_argument("--manifest", type=Path)
-    maintain.add_argument("--today")
-    install = sub.add_parser("install-cohort")
-    install.add_argument("--source-root", type=Path, required=True)
-    install.add_argument("--install-root", type=Path, required=True)
-    install.add_argument("--manifest", type=Path, required=True)
-    install.add_argument("--approved-install-root", required=True)
-    activation = sub.add_parser("activate")
-    activation.add_argument("--root", type=Path, required=True)
-    activation.add_argument("--project", type=Path, required=True)
-    activation.add_argument("--installed-root", type=Path, required=True)
-    activation.add_argument("--manifest", type=Path, required=True)
+    resolved_owner = _runtime_cli_owner() if owner is None else owner
+    allowed = ALL_CLI_COMMANDS if resolved_owner == "authoring" else PUBLIC_COMMANDS_BY_SKILL.get(
+        resolved_owner, frozenset(),
+    )
+
+    def command(name: str) -> argparse.ArgumentParser | None:
+        return sub.add_parser(name) if name in allowed else None
+
+    inventory = command("inventory")
+    if inventory:
+        inventory.add_argument("--root", type=Path, required=True)
+        inventory.add_argument("--mapping", type=Path)
+    design_create_parser = command("design-create")
+    if design_create_parser:
+        design_create_parser.add_argument("--root", type=Path, required=True)
+        design_create_parser.add_argument("--contract", type=Path, required=True)
+        design_create_parser.add_argument("--slug", required=True)
+        design_create_parser.add_argument("--work-id")
+        design_create_parser.add_argument(
+            "--intent", choices=("default", "explicit_approve"), default="default",
+        )
+        design_create_parser.add_argument("--actor", required=True)
+        design_create_parser.add_argument("--at", required=True)
+    design = command("render-design")
+    if design:
+        design.add_argument("--contract", type=Path, required=True)
+        design.add_argument("--output", type=Path, required=True)
+    authorize = command("authorize")
+    if authorize:
+        authorize.add_argument("--contract", type=Path, required=True)
+        authorize.add_argument("--intent", choices=("default", "veto", "explicit_approve"), default="default")
+        authorize.add_argument("--actor", required=True)
+        authorize.add_argument("--at", required=True)
+    result = command("render-result")
+    if result:
+        result.add_argument("--contract", type=Path, required=True)
+        result.add_argument("--result", type=Path, required=True)
+        result.add_argument("--output", type=Path, required=True)
+    impact = command("impacted")
+    if impact:
+        impact.add_argument("--project", type=Path, required=True)
+        impact.add_argument("--changed", action="append", default=[])
+    cleanup_plan = command("cleanup-plan")
+    if cleanup_plan:
+        cleanup_plan.add_argument("--root", type=Path, required=True)
+        cleanup_plan.add_argument("--request", type=Path, required=True)
+    cleanup_apply = command("cleanup-apply")
+    if cleanup_apply:
+        cleanup_apply.add_argument("--root", type=Path, required=True)
+        cleanup_apply.add_argument("--plan", type=Path, required=True)
+        cleanup_apply.add_argument("--approval-digest", required=True)
+    recover = command("recover")
+    if recover:
+        recover.add_argument("--root", type=Path, required=True)
+    baseline = command("baseline")
+    if baseline:
+        baseline.add_argument("--root", type=Path, required=True)
+    start = command("start")
+    if start:
+        start.add_argument("--root", type=Path, required=True)
+        start.add_argument("--work-id", required=True)
+        start.add_argument("--slug", required=True)
+        start.add_argument("--contract", type=Path, required=True)
+    amend = command("amend")
+    if amend:
+        amend.add_argument("--contract", type=Path, required=True)
+        amend.add_argument("--item-id", required=True)
+        amend.add_argument("--field", required=True)
+        amend.add_argument("--value", type=Path, required=True)
+        amend.add_argument("--message-id", required=True)
+        amend.add_argument("--actor", required=True)
+        amend.add_argument("--at", required=True)
+        amend.add_argument("--risk", required=True)
+    complete = command("complete")
+    if complete:
+        complete.add_argument("--contract", type=Path, required=True)
+        complete.add_argument("--result", type=Path, required=True)
+        complete.add_argument("--impact", type=Path, required=True)
+    commit = command("commit")
+    if commit:
+        commit.add_argument("--root", type=Path, required=True)
+        commit.add_argument("--item-id", required=True)
+        commit.add_argument("--path", action="append", required=True)
+        commit.add_argument("--baseline", type=Path, required=True)
+    worktree_create = command("worktree-create")
+    if worktree_create:
+        worktree_create.add_argument("--root", type=Path, required=True)
+        worktree_create.add_argument("--base", required=True)
+        worktree_create.add_argument("--branch", required=True)
+        worktree_create.add_argument("--path", type=Path, required=True)
+    worktree_integrate = command("worktree-integrate")
+    if worktree_integrate:
+        worktree_integrate.add_argument("--root", type=Path, required=True)
+        worktree_integrate.add_argument("--base", required=True)
+        worktree_integrate.add_argument("--branch", required=True)
+        worktree_integrate.add_argument("--path", type=Path, required=True)
+        worktree_integrate.add_argument("--project", type=Path, required=True)
+        worktree_integrate.add_argument("--approved-exact-path", required=True)
+    close = command("close")
+    if close:
+        close.add_argument("--root", type=Path, required=True)
+        close.add_argument("--work-id", required=True)
+        close.add_argument("--contract", type=Path, required=True)
+        close.add_argument("--result", type=Path, required=True)
+        close.add_argument("--impact", type=Path, required=True)
+        close.add_argument("--at", required=True)
+        close.add_argument("--completed-days", type=int, required=True)
+        close.add_argument("--trash-days", type=int, required=True)
+    sweep = command("sweep")
+    if sweep:
+        sweep.add_argument("--root", type=Path, required=True)
+        sweep.add_argument("--at", required=True)
+    delete = command("delete")
+    if delete:
+        delete.add_argument("--root", type=Path, required=True)
+        delete.add_argument("--target", required=True)
+        delete.add_argument("--approved-exact-target", required=True)
+        delete.add_argument("--at", required=True)
+        delete.add_argument("--destructive-override", action="store_true")
+        delete.add_argument("--approved-override-target")
+    audit = command("audit-work")
+    if audit:
+        audit.add_argument("--root", type=Path, required=True)
+    maintain = command("maintain")
+    if maintain:
+        maintain.add_argument("--root", type=Path, required=True)
+        maintain.add_argument("--project", type=Path, required=True)
+        maintain.add_argument("--installed-root", type=Path)
+        maintain.add_argument("--manifest", type=Path)
+        maintain.add_argument("--today")
+    install = command("install-cohort")
+    if install:
+        install.add_argument("--source-root", type=Path, required=True)
+        install.add_argument("--install-root", type=Path, required=True)
+        install.add_argument("--manifest", type=Path, required=True)
+        install.add_argument("--approved-install-root", required=True)
+    activation = command("activate")
+    if activation:
+        activation.add_argument("--root", type=Path, required=True)
+        activation.add_argument("--project", type=Path, required=True)
+        activation.add_argument("--installed-root", type=Path, required=True)
+        activation.add_argument("--manifest", type=Path, required=True)
     return parser
 
 
@@ -2661,6 +3932,12 @@ def main() -> int:
         if args.command == "inventory":
             mapping = _json_object(args.mapping) if args.mapping else {}
             payload = static_inventory(args.root, mapping)
+        elif args.command == "design-create":
+            payload = design_create(
+                args.root, _json_object(args.contract), slug=args.slug,
+                work_id=args.work_id, intent=args.intent, actor=args.actor,
+                authorized_at=args.at,
+            )
         elif args.command == "render-design":
             page = render_design_review_v3(_json_object(args.contract))
             args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -2726,23 +4003,12 @@ def main() -> int:
                 project=_json_object(args.project), approved_exact_path=args.approved_exact_path,
             )
         elif args.command == "close":
-            contract = _json_object(args.contract)
-            result = _json_object(args.result)
-            impact = _json_object(args.impact)
-            evaluation = evaluate_result(contract, result, impact)
-            if evaluation["status"] != "complete":
-                payload = evaluation
-            else:
-                active = _safe_repo_path(args.root.resolve(), f".work/goals/active/{args.work_id}")
-                _durable_write_json(active / "result.json", result)
-                _durable_write_bytes(
-                    active / "review" / "result.html",
-                    render_result_review_v3(contract, result, impact).encode("utf-8"),
-                )
-                payload = close_work(
-                    args.root, args.work_id, completed_at=args.at,
-                    completed_days=args.completed_days, trash_days=args.trash_days,
-                )
+            payload = close_work(
+                args.root, args.work_id, contract=_json_object(args.contract),
+                result=_json_object(args.result), impact=_json_object(args.impact),
+                completed_at=args.at, completed_days=args.completed_days,
+                trash_days=args.trash_days,
+            )
         elif args.command == "sweep":
             payload = sweep_lifecycle(args.root, now=args.at)
         elif args.command == "delete":
@@ -2767,11 +4033,13 @@ def main() -> int:
                 args.source_root, args.install_root, _json_object(args.manifest),
                 approved_install_root=args.approved_install_root,
             )
-        else:
-            payload = activate_v3(
+        elif args.command == "activate":
+            payload = activate_harness(
                 args.root, _json_object(args.project), installed_root=args.installed_root,
                 resource_manifest=_json_object(args.manifest),
             )
+        else:
+            raise ValueError(f"unsupported_command:{args.command}")
         print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
         return 0 if payload.get("status") not in {
             "cutover_blocked", "invalid", "invalid_contract", "authorization_failed",
@@ -2780,7 +4048,8 @@ def main() -> int:
             "explicit_approval_required", "focused_approval_required", "vetoed",
             "unresolved_decisions", "ambiguous_intent", "invalid_amendment",
             "invalid_manifest", "invalid_source", "staging_invalid", "rolled_back",
-            "rollback_failed",
+            "rollback_failed", "write_failed", "invalid_root", "invalid_slug",
+            "invalid_branch_policy",
             "cleanup_failed",
         } else 2
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:

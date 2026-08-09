@@ -1,8 +1,10 @@
-# Harness v3 Architecture
+# Harness Architecture
 
 ## Control plane
 
-`.harness/project.yaml` is JSON-compatible YAML with schema version 3. It owns mapped roots, command descriptors, source-to-test impact, Full triggers, document boundaries, retention, Git policy, baseline debt, and the active cohort. Unknown normative fields are rejected; provider extensions belong under `extensions`.
+`.harness/project.yaml` is JSON-compatible YAML. Its internal schema version is retained for machine compatibility. The file owns mapped roots, command descriptors, source-to-test impact, Full triggers, document boundaries, retention, Git policy, and baseline debt. Unknown normative fields are rejected; provider extensions belong under `extensions`.
+
+Older project files may contain redundant cohort and component-version declarations. The runtime recognizes only the exact known legacy shapes, normalizes them in memory without overwriting the file, and emits a digest-bound transaction for an approved migration. Unknown or mixed declarations fail closed.
 
 ## Work contract and reviews
 
@@ -25,4 +27,4 @@ Manifest dates, not filesystem timestamps, drive retention. Transaction journals
 
 ## Distribution
 
-`authoring/` is canonical. `scripts/sync-skill-resources.ps1` generates self-contained public resources and the manifest. The public runtime exposes JSON CLI commands for authorization, cleanup/recovery, baseline/start/complete/commit, close/sweep/delete, maintain, and cutover. A cutover changes the active Skill instructions, shared implementation, schemas, templates, manifest, and installed cohort atomically.
+`authoring/` is canonical. `scripts/sync-skill-resources.ps1` generates self-contained public resources and the manifest. Each installed Skill exposes only its owned commands. The installed cohort is accepted only when its complete observed tree exactly matches the required manifest resource set and hashes; Skill prose is not a compatibility signal. Installation stages and verifies the whole cohort before atomically replacing its owned Skill roots.

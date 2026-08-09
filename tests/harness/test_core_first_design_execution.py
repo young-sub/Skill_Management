@@ -1,10 +1,13 @@
 import importlib.util
+from concurrent.futures import ThreadPoolExecutor
 import json
 from pathlib import Path
 import subprocess
 import tempfile
 import unittest
 import os
+import threading
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -48,15 +51,67 @@ def contract() -> dict:
 
 
 def v3_project() -> dict:
-    return {
-        "harness": {
-            "active_cohort": "v3",
-            "components": {
-                name: {"supports": [3]}
-                for name in ("project", "design", "execute", "close", "maintain", "diagnose")
-            },
-        }
-    }
+    return json.loads(
+        (ROOT / "authoring" / "templates" / "project" / "project.yaml").read_text(encoding="utf-8")
+    )
+
+
+def init_git_repository(root: Path, *, branch: str = "develop") -> str:
+    subprocess.run(["git", "init", "-b", branch], cwd=root, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+    (root / ".gitignore").write_text(".work/\n", encoding="utf-8")
+    (root / "README.md").write_text("baseline\n", encoding="utf-8")
+    subprocess.run(["git", "add", ".gitignore", "README.md"], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-m", "baseline"], cwd=root, check=True, capture_output=True)
+    return subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=root, check=True, capture_output=True, text=True,
+    ).stdout.strip()
+
+
+def authorized_contract(core, work_id: str) -> dict:
+    source = contract()
+    source["work_id"] = work_id
+    outcome = core.authorize_design(
+        source, intent="default", actor="policy",
+        authorized_at="2026-08-09T12:00:00+09:00",
+    )
+    assert outcome["status"] == "default_authorized"
+    return outcome["contract"]
+
+
+def write_design_only(root: Path, core, source: dict) -> tuple[Path, bytes, bytes]:
+    work_root = root / ".work" / "goals" / "active" / source["work_id"]
+    review_root = work_root / "review"
+    review_root.mkdir(parents=True)
+    contract_bytes = (
+        json.dumps(source, ensure_ascii=False, indent=2) + "\n"
+    ).encode("utf-8")
+    review_bytes = core.render_design_review_v3(core._contract_payload(source)).encode("utf-8")
+    (work_root / "contract.json").write_bytes(contract_bytes)
+    (review_root / "design.html").write_bytes(review_bytes)
+    return work_root, contract_bytes, review_bytes
+
+
+def git_branch(root: Path) -> str:
+    return subprocess.run(
+        ["git", "branch", "--show-current"], cwd=root, check=True,
+        capture_output=True, text=True,
+    ).stdout.strip()
+
+
+def git_reflog(root: Path) -> str:
+    return subprocess.run(
+        ["git", "reflog", "--format=%H:%gs"], cwd=root, check=True,
+        capture_output=True, text=True,
+    ).stdout
+
+
+def project_policy(*, protected: tuple[str, ...] = ("main",)) -> dict:
+    project = v3_project()
+    project["git"]["protected_branches"] = list(protected)
+    project["git"]["branch_pattern"] = "wp-{work_id}-{slug}"
+    return project
 
 
 class CoreFirstDesignExecutionTests(unittest.TestCase):
@@ -187,7 +242,7 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
         active = dict(legacy, status="in_progress")
         self.assertEqual(core.convert_legacy_contract(active)["status"], "cutover_blocked")
 
-    def test_start_revalidates_the_actual_project_cohort_before_git_mutation(self) -> None:
+    def test_start_revalidates_project_configuration_before_git_mutation(self) -> None:
         core = load_core()
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -203,17 +258,427 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
                 source, intent="default", actor="policy",
                 authorized_at="2026-08-02T12:00:00+09:00",
             )["contract"]
-            mixed = v3_project()
-            mixed["harness"]["components"]["close"] = {"supports": [2]}
+            invalid = v3_project()
+            invalid["harness"] = {"active_cohort": "v4"}
 
-            result = core.start_work(root, "W-start", "feature", authorized, project=mixed)
+            result = core.start_work(root, "W-start", "feature", authorized, project=invalid)
 
             self.assertEqual(result["status"], "authorization_failed")
-            self.assertIn("mixed_cohort:close:3", result["errors"])
+            self.assertIn("unknown_legacy_harness_configuration", result["errors"])
             branch = subprocess.run(
                 ["git", "branch", "--show-current"], cwd=root, text=True, capture_output=True, check=True,
             ).stdout.strip()
             self.assertEqual(branch, "develop")
+
+    def test_start_creates_missing_work_on_unprotected_current_branch_and_captures_baseline(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            revision = init_git_repository(root)
+            (root / "README.md").write_text("dirty baseline\n", encoding="utf-8")
+            (root / "untracked.txt").write_text("preserve\n", encoding="utf-8")
+            source = authorized_contract(core, "W-new")
+
+            result = core.start_work(
+                root, "W-new", "feature", source,
+                project=project_policy(protected=("main",)),
+            )
+
+            self.assertEqual(result["status"], "started", result)
+            self.assertEqual(git_branch(root), "develop")
+            manifest = result["manifest"]
+            self.assertEqual(manifest["source_commit"], revision)
+            self.assertEqual(manifest["base_branch"], "develop")
+            self.assertEqual(manifest["feature_branch"], "develop")
+            baseline_paths = {entry["path"] for entry in manifest["dirty_baseline"]["entries"]}
+            self.assertEqual(baseline_paths, {"README.md", "untracked.txt"})
+            self.assertTrue((root / ".work" / "goals" / "active" / "W-new" / "work.json").is_file())
+
+    def test_start_promotes_valid_design_only_and_preserves_existing_bytes(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            revision = init_git_repository(root)
+            source = authorized_contract(core, "W-design-only")
+            work_root, contract_bytes, review_bytes = write_design_only(root, core, source)
+
+            result = core.start_work(
+                root, "W-design-only", "feature", source,
+                project=project_policy(protected=("main",)),
+            )
+
+            self.assertEqual(result["status"], "started", result)
+            self.assertEqual(git_branch(root), "develop")
+            self.assertEqual((work_root / "contract.json").read_bytes(), contract_bytes)
+            self.assertEqual((work_root / "review" / "design.html").read_bytes(), review_bytes)
+            self.assertEqual(result["manifest"]["source_commit"], revision)
+            self.assertTrue((work_root / "work.json").is_file())
+
+    def test_start_rejects_stored_contract_mismatch_before_git_mutation(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            init_git_repository(root, branch="main")
+            source = authorized_contract(core, "W-contract-drift")
+            work_root, _, _ = write_design_only(root, core, source)
+            stored = json.loads((work_root / "contract.json").read_text(encoding="utf-8"))
+            stored["goal"] = "drifted"
+            (work_root / "contract.json").write_text(json.dumps(stored), encoding="utf-8")
+            before_reflog = git_reflog(root)
+
+            result = core.start_work(
+                root, "W-contract-drift", "feature", source,
+                project=project_policy(protected=("main",)),
+            )
+
+            self.assertEqual(result["status"], "conflict", result)
+            self.assertIn("stored_contract_mismatch", result["errors"])
+            self.assertEqual(git_reflog(root), before_reflog)
+            self.assertEqual(git_branch(root), "main")
+            self.assertFalse((work_root / "work.json").exists())
+
+    def test_start_rejects_canonical_review_mismatch_before_git_mutation(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            init_git_repository(root, branch="main")
+            source = authorized_contract(core, "W-review-drift")
+            work_root, _, _ = write_design_only(root, core, source)
+            (work_root / "review" / "design.html").write_bytes(b"drift\n")
+            before_reflog = git_reflog(root)
+
+            result = core.start_work(
+                root, "W-review-drift", "feature", source,
+                project=project_policy(protected=("main",)),
+            )
+
+            self.assertEqual(result["status"], "conflict", result)
+            self.assertIn("canonical_review_mismatch", result["errors"])
+            self.assertEqual(git_reflog(root), before_reflog)
+            self.assertFalse((work_root / "work.json").exists())
+
+    def test_start_rejects_authorization_digest_mismatch_before_git_mutation(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            init_git_repository(root, branch="main")
+            source = authorized_contract(core, "W-authorization-drift")
+            source["authorization"]["contract_digest"] = "sha256:" + "0" * 64
+            work_root, _, _ = write_design_only(root, core, source)
+            before_reflog = git_reflog(root)
+
+            result = core.start_work(
+                root, "W-authorization-drift", "feature", source,
+                project=project_policy(protected=("main",)),
+            )
+
+            self.assertEqual(result["status"], "authorization_failed", result)
+            self.assertIn("authorization_bundle_drift", result["errors"])
+            self.assertEqual(git_reflog(root), before_reflog)
+            self.assertFalse((work_root / "work.json").exists())
+
+    def test_start_returns_already_started_only_for_the_same_intact_goal(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            init_git_repository(root)
+            source = authorized_contract(core, "W-idempotent")
+            work_root, _, _ = write_design_only(root, core, source)
+            first = core.start_work(
+                root, "W-idempotent", "feature", source,
+                project=project_policy(),
+            )
+            before_reflog = git_reflog(root)
+
+            second = core.start_work(
+                root, "W-idempotent", "feature", source,
+                project=project_policy(),
+            )
+
+            self.assertEqual(first["status"], "started", first)
+            self.assertEqual(second["status"], "already_started", second)
+            self.assertEqual(second["manifest"], json.loads((work_root / "work.json").read_text(encoding="utf-8")))
+            self.assertEqual(git_reflog(root), before_reflog)
+
+    def test_start_rejects_wrong_identity_or_state_manifest_as_conflict(self) -> None:
+        core = load_core()
+        cases = (
+            ("work_id", "W-other", "work_identity_conflict"),
+            ("state", "completed", "work_state_conflict"),
+            ("dirty_baseline", {}, "work_manifest_invalid:dirty_baseline"),
+        )
+        for field, value, expected_error in cases:
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as temp_dir:
+                root = Path(temp_dir)
+                init_git_repository(root)
+                source = authorized_contract(core, "W-manifest-conflict")
+                work_root, _, _ = write_design_only(root, core, source)
+                started = core.start_work(root, "W-manifest-conflict", "feature", source, project=project_policy())
+                self.assertEqual(started["status"], "started", started)
+                manifest_path = work_root / "work.json"
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                manifest[field] = value
+                manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+                result = core.start_work(root, "W-manifest-conflict", "feature", source, project=project_policy())
+
+                self.assertEqual(result["status"], "conflict", result)
+                self.assertIn(expected_error, result["errors"])
+
+    def test_start_never_treats_a_corrupt_manifest_as_already_started(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            init_git_repository(root)
+            source = authorized_contract(core, "W-corrupt")
+            work_root, _, _ = write_design_only(root, core, source)
+            (work_root / "work.json").write_bytes(b"{not-json")
+
+            try:
+                result = core.start_work(root, "W-corrupt", "feature", source, project=project_policy())
+            except Exception as error:  # The public boundary must fail closed, not raise parser errors.
+                self.fail(f"corrupt manifest escaped start_work: {error}")
+
+            self.assertEqual(result["status"], "conflict", result)
+            self.assertIn("work_manifest_corrupt", result["errors"])
+
+    def test_start_rolls_back_created_branch_and_partial_manifest_on_write_failure(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            init_git_repository(root, branch="main")
+            source = authorized_contract(core, "W-write-fault")
+            work_root, contract_bytes, review_bytes = write_design_only(root, core, source)
+            real_replace = os.replace
+
+            def fail_manifest_replace(source_path, destination_path):
+                if Path(destination_path).name == "work.json":
+                    raise OSError("injected manifest write failure")
+                return real_replace(source_path, destination_path)
+
+            with mock.patch.object(core.os, "replace", side_effect=fail_manifest_replace):
+                failed = core.start_work(
+                    root, "W-write-fault", "feature", source,
+                    project=project_policy(protected=("main",)),
+                )
+
+            self.assertEqual(failed["status"], "precondition_failed", failed)
+            self.assertIn("injected manifest write failure", " ".join(failed["errors"]))
+            self.assertEqual(git_branch(root), "main")
+            branches = subprocess.run(
+                ["git", "for-each-ref", "--format=%(refname:short)", "refs/heads"],
+                cwd=root, check=True, capture_output=True, text=True,
+            ).stdout.splitlines()
+            self.assertEqual(branches, ["main"])
+            self.assertEqual((work_root / "contract.json").read_bytes(), contract_bytes)
+            self.assertEqual((work_root / "review" / "design.html").read_bytes(), review_bytes)
+            self.assertFalse((work_root / "work.json").exists())
+            self.assertFalse((work_root / "work.json.tmp").exists())
+
+    def test_start_partial_write_failure_does_not_pollute_the_next_call(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            init_git_repository(root, branch="main")
+            source = authorized_contract(core, "W-retry")
+            work_root, _, _ = write_design_only(root, core, source)
+            real_replace = os.replace
+
+            def fail_once(source_path, destination_path):
+                if Path(destination_path).name == "work.json":
+                    raise OSError("retryable manifest failure")
+                return real_replace(source_path, destination_path)
+
+            with mock.patch.object(core.os, "replace", side_effect=fail_once):
+                first = core.start_work(root, "W-retry", "feature", source, project=project_policy())
+            second = core.start_work(root, "W-retry", "feature", source, project=project_policy())
+
+            self.assertEqual(first["status"], "precondition_failed", first)
+            self.assertEqual(second["status"], "started", second)
+            self.assertTrue((work_root / "work.json").is_file())
+
+    @unittest.skipUnless(os.name == "nt", "Windows directory regression")
+    def test_windows_design_only_directory_promotes_without_winerror_183(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            init_git_repository(root)
+            source = authorized_contract(core, "W-windows-existing")
+            work_root, contract_bytes, review_bytes = write_design_only(root, core, source)
+
+            result = core.start_work(root, "W-windows-existing", "feature", source, project=project_policy())
+
+            self.assertEqual(result["status"], "started", result)
+            self.assertNotIn("WinError 183", " ".join(result.get("errors", [])))
+            self.assertEqual((work_root / "contract.json").read_bytes(), contract_bytes)
+            self.assertEqual((work_root / "review" / "design.html").read_bytes(), review_bytes)
+
+    def test_start_rejects_collision_artifacts_and_incomplete_transactions_before_git(self) -> None:
+        core = load_core()
+        cases = {
+            "collision": "unexpected_work_artifact:unexpected.tmp",
+            "applying": "incomplete_transaction:unfinished:applying",
+            "rollback_failed": "incomplete_transaction:unfinished:rollback_failed",
+            "missing_journal": "transaction_journal_missing:unfinished",
+        }
+        for case, expected_error in cases.items():
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as temp_dir:
+                root = Path(temp_dir)
+                init_git_repository(root, branch="main")
+                source = authorized_contract(core, f"W-{case}")
+                work_root, _, _ = write_design_only(root, core, source)
+                if case == "collision":
+                    (work_root / "unexpected.tmp").write_text("collision", encoding="utf-8")
+                elif case != "missing_journal":
+                    journal = root / ".work" / "transactions" / "unfinished" / "journal.json"
+                    journal.parent.mkdir(parents=True)
+                    journal.write_text(json.dumps({"status": case, "kind": "lifecycle_move"}), encoding="utf-8")
+                else:
+                    (root / ".work" / "transactions" / "unfinished").mkdir(parents=True)
+                before_reflog = git_reflog(root)
+
+                result = core.start_work(
+                    root, f"W-{case}", "feature", source,
+                    project=project_policy(protected=("main",)),
+                )
+
+                self.assertIn(result["status"], {"conflict", "precondition_failed"}, result)
+                self.assertIn(expected_error, result["errors"])
+                self.assertEqual(git_reflog(root), before_reflog)
+                self.assertFalse((work_root / "work.json").exists())
+
+    def test_start_rejects_an_aliased_design_only_root_before_git(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            init_git_repository(root, branch="main")
+            source = authorized_contract(core, "W-alias")
+            external = root / "external-design"
+            external.mkdir()
+            active = root / ".work" / "goals" / "active"
+            active.mkdir(parents=True)
+            alias = active / "W-alias"
+            try:
+                os.symlink(external, alias, target_is_directory=True)
+            except OSError as error:
+                self.skipTest(f"directory symlink unavailable: {error}")
+            before_reflog = git_reflog(root)
+
+            try:
+                result = core.start_work(
+                    root, "W-alias", "feature", source,
+                    project=project_policy(protected=("main",)),
+                )
+            except Exception as error:
+                self.fail(f"aliased work root escaped start_work: {error}")
+
+            self.assertIn(result["status"], {"conflict", "precondition_failed"}, result)
+            self.assertEqual(git_reflog(root), before_reflog)
+
+    def test_parallel_design_create_with_the_same_slug_reserves_unique_work_roots(self) -> None:
+        core = load_core()
+        create = getattr(core, "design_create", None)
+        self.assertIsNotNone(create, "design_create entrypoint is required")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source = contract()
+            source["work_id"] = ""
+            observed_temporary_names: list[str] = []
+            real_replace = os.replace
+
+            def capture_replace(source_path, destination_path):
+                observed_temporary_names.append(Path(source_path).name)
+                return real_replace(source_path, destination_path)
+
+            def invoke(_index: int) -> dict:
+                return create(
+                    root, source, slug="same-human-slug", work_id=None,
+                    intent="default", actor="policy",
+                    authorized_at="2026-08-09T12:00:00+09:00",
+                )
+
+            with mock.patch.object(core.os, "replace", side_effect=capture_replace):
+                with ThreadPoolExecutor(max_workers=8) as executor:
+                    outcomes = list(executor.map(invoke, range(8)))
+
+            self.assertEqual([item["status"] for item in outcomes], ["created"] * 8, outcomes)
+            work_ids = [item["work_id"] for item in outcomes]
+            self.assertEqual(len(set(work_ids)), 8)
+            self.assertEqual(len(observed_temporary_names), len(set(observed_temporary_names)))
+            for work_id in work_ids:
+                work_root = root / ".work" / "goals" / "active" / work_id
+                files = {
+                    path.relative_to(work_root).as_posix()
+                    for path in work_root.rglob("*") if path.is_file()
+                }
+                self.assertEqual(files, {"contract.json", "review/design.html"})
+                stored = json.loads((work_root / "contract.json").read_text(encoding="utf-8"))
+                self.assertEqual(stored["work_id"], work_id)
+                self.assertTrue(core.execution_authorized(stored)["authorized"])
+
+    def test_parallel_design_create_with_one_explicit_id_has_one_owner_and_conflicts(self) -> None:
+        core = load_core()
+        create = getattr(core, "design_create", None)
+        self.assertIsNotNone(create, "design_create entrypoint is required")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source = contract()
+            source["work_id"] = "W-explicit-owner"
+
+            def invoke(_index: int) -> dict:
+                return create(
+                    root, source, slug="same", work_id="W-explicit-owner",
+                    intent="default", actor="policy",
+                    authorized_at="2026-08-09T12:00:00+09:00",
+                )
+
+            with ThreadPoolExecutor(max_workers=8) as executor:
+                outcomes = list(executor.map(invoke, range(8)))
+
+            statuses = [item["status"] for item in outcomes]
+            self.assertEqual(statuses.count("created"), 1, outcomes)
+            self.assertEqual(statuses.count("conflict"), 7, outcomes)
+            work_root = root / ".work" / "goals" / "active" / "W-explicit-owner"
+            self.assertEqual(
+                {
+                    path.relative_to(work_root).as_posix()
+                    for path in work_root.rglob("*") if path.is_file()
+                },
+                {"contract.json", "review/design.html"},
+            )
+
+    def test_design_create_write_failure_rolls_back_only_its_reserved_root(self) -> None:
+        core = load_core()
+        create = getattr(core, "design_create", None)
+        self.assertIsNotNone(create, "design_create entrypoint is required")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            kept = contract()
+            kept["work_id"] = "W-kept"
+            created = create(
+                root, kept, slug="kept", work_id="W-kept", intent="default",
+                actor="policy", authorized_at="2026-08-09T12:00:00+09:00",
+            )
+            self.assertEqual(created["status"], "created", created)
+            failing = contract()
+            failing["work_id"] = "W-failing"
+            real_replace = os.replace
+
+            def fail_review(source_path, destination_path):
+                if Path(destination_path).name == "design.html":
+                    raise OSError("injected design review write failure")
+                return real_replace(source_path, destination_path)
+
+            with mock.patch.object(core.os, "replace", side_effect=fail_review):
+                result = create(
+                    root, failing, slug="failing", work_id="W-failing", intent="default",
+                    actor="policy", authorized_at="2026-08-09T12:00:00+09:00",
+                )
+
+            self.assertEqual(result["status"], "write_failed", result)
+            self.assertTrue((root / ".work" / "goals" / "active" / "W-kept").is_dir())
+            self.assertFalse((root / ".work" / "goals" / "active" / "W-failing").exists())
+            self.assertEqual(list(root.rglob("*.tmp")), [])
 
     def test_core_item_precedes_optional_and_amendments_are_risk_based(self) -> None:
         core = load_core()
@@ -352,14 +817,15 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
 
     def test_impacted_selection_requires_mapping_and_promotes_shared_changes(self) -> None:
         core = load_core()
-        project = {"impact": {
+        project = v3_project()
+        project["impact"] = {
             "rules": [
                 {"id": "auth", "source_prefixes": ["src/auth/"], "tests": ["tests/auth"], "feature": "auth", "triggers": []},
                 {"id": "shared", "source_prefixes": ["src/core/"], "tests": ["tests/core"], "feature": "core", "triggers": ["shared_policy"]},
             ],
             "feature_selectors": {"auth": ["python", "-m", "unittest", "tests.auth"], "core": ["python", "-m", "unittest", "tests.core"]},
             "full_triggers": ["shared_policy"],
-        }}
+        }
         selected = core.select_impacted_checks(["src/auth/service.py"], project)
         self.assertEqual(selected["tests"], ["tests/auth"])
         self.assertEqual(selected["feature_commands"], [{"feature": "auth", "argv": ["python", "-m", "unittest", "tests.auth"]}])
@@ -370,6 +836,65 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
         self.assertTrue(shared["full_required"])
         self.assertEqual(shared["full_trigger_ids"], ["shared_policy"])
         self.assertEqual(core.select_impacted_checks(["src/unknown.py"], project)["unresolved"], ["src/unknown.py"])
+
+    def test_project_consumers_fail_closed_before_git_or_impact_selection(self) -> None:
+        core = load_core()
+        invalid = {"schema_version": 3, "unexpected": True}
+
+        impacted = core.select_impacted_checks(["src/auth/service.py"], invalid)
+
+        self.assertEqual(impacted["status"], "invalid")
+        self.assertTrue(impacted["unresolved"])
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            worktree = root / "worktree"
+            worktree.mkdir()
+            with mock.patch.object(core.subprocess, "run") as run:
+                integrated = core.integrate_worktree(
+                    root, base="develop", branch="feature", path=worktree,
+                    project=invalid, approved_exact_path=str(worktree),
+                )
+
+            self.assertEqual(integrated["status"], "precondition_failed", integrated)
+            self.assertIn("project_config:unknown_field:unexpected", integrated["errors"])
+            run.assert_not_called()
+
+    def test_parallel_start_has_one_transition_owner_and_never_rolls_back_the_winner(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            init_git_repository(root, branch="develop")
+            source = authorized_contract(core, "W-parallel-start")
+            work_root, _, _ = write_design_only(root, core, source)
+            policy = project_policy(protected=("main",))
+            barrier = threading.Barrier(8)
+            thread_state = threading.local()
+            classify = core._classify_start_root
+
+            def synchronized_classify(*args, **kwargs):
+                outcome = classify(*args, **kwargs)
+                if (
+                    outcome.get("classification") == "valid_design_only"
+                    and not getattr(thread_state, "initial_classification_complete", False)
+                ):
+                    thread_state.initial_classification_complete = True
+                    barrier.wait(timeout=10)
+                return outcome
+
+            def invoke(_):
+                return core.start_work(
+                    root, source["work_id"], "parallel", source, project=policy,
+                )
+
+            with mock.patch.object(core, "_classify_start_root", side_effect=synchronized_classify):
+                with ThreadPoolExecutor(max_workers=8) as pool:
+                    outcomes = list(pool.map(invoke, range(8)))
+
+            statuses = [outcome["status"] for outcome in outcomes]
+            self.assertEqual(statuses.count("started"), 1, outcomes)
+            self.assertTrue(all(status in {"started", "already_started", "conflict"} for status in statuses))
+            manifest = json.loads((work_root / "work.json").read_text(encoding="utf-8"))
+            self.assertEqual(core._validate_active_manifest(manifest, source["work_id"], source), [])
 
 
 if __name__ == "__main__":

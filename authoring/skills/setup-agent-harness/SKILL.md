@@ -2,10 +2,6 @@
 name: setup-agent-harness
 description: Map and configure greenfield or brownfield repositories with the Core-First Agent Harness.
 ---
-<!-- Generated file. Do not edit directly. -->
-<!-- Source: authoring/skills/setup-agent-harness/SKILL.md -->
-<!-- Source-SHA256: 3d3bff85371b8c7ba0575a4becaf19deb25a09934d859ec69c6eaa7a3f8b438a -->
-
 
 # Setup Agent Harness
 

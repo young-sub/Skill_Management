@@ -18,6 +18,14 @@ def load_skill(skill: str, alias: str):
     return module
 
 
+def project_config(impact: dict) -> dict:
+    project = json.loads(
+        (ROOT / "authoring" / "templates" / "project" / "project.yaml").read_text(encoding="utf-8")
+    )
+    project["impact"] = impact
+    return project
+
+
 def contract() -> dict:
     return {
         "schema_version": 3, "work_id": "W-forward", "goal": "핵심 흐름 검증",
@@ -90,10 +98,10 @@ class CoreFirstForwardWorkflowTests(unittest.TestCase):
             (repo / "feature.py").write_text("VALUE = 1\n", encoding="utf-8")
             committed = execute.commit_item(repo, "I-01", ["feature.py"], dirty_baseline=[])
             self.assertEqual(committed["status"], "committed")
-        impact = execute.select_impacted_checks(["feature.py"], {"impact": {"rules": [{
+        impact = execute.select_impacted_checks(["feature.py"], project_config({"rules": [{
             "id": "feature", "source_prefixes": ["feature.py"], "tests": ["test_feature"],
             "feature": "tiny", "triggers": [],
-        }], "feature_selectors": {"tiny": ["python", "-m", "unittest", "test_feature"]}, "full_triggers": []}})
+        }], "feature_selectors": {"tiny": ["python", "-m", "unittest", "test_feature"]}, "full_triggers": []}))
         self.assertEqual(impact["tests"], ["test_feature"])
         evaluated = close.evaluate_result(approved, result_payload(), impact)
         self.assertEqual(evaluated["status"], "complete")
@@ -191,7 +199,10 @@ class CoreFirstForwardWorkflowTests(unittest.TestCase):
             "tests": [f"tests/test_cap_{index}.py"], "feature": f"cap-{index}", "triggers": [],
         } for index in range(500)]
         selectors = {f"cap-{index}": ["python", "-m", "unittest", f"tests.test_cap_{index}"] for index in range(500)}
-        selected = execute.select_impacted_checks(["src/cap_347/feature.py"], {"impact": {"rules": rules, "feature_selectors": selectors, "full_triggers": []}})
+        selected = execute.select_impacted_checks(
+            ["src/cap_347/feature.py"],
+            project_config({"rules": rules, "feature_selectors": selectors, "full_triggers": []}),
+        )
         self.assertEqual(selected["tests"], ["tests/test_cap_347.py"])
         self.assertEqual(selected["features"], ["cap-347"])
         self.assertFalse(selected["full_required"])

@@ -1,6 +1,5 @@
 {
   "schema_version": 3,
-  "harness": {"active_cohort": "v3", "contract_version": 3, "runtime_version": 3, "dormant_cohorts": [], "components": {"project": {"supports": [3]}, "design": {"supports": [3]}, "execute": {"supports": [3]}, "close": {"supports": [3]}, "maintain": {"supports": [3]}, "diagnose": {"supports": [3]}}},
   "project": {"name": "{{PROJECT_NAME}}", "classification": "{{CLASSIFICATION}}"},
   "paths": {"source_roots": [], "test_roots": [], "fixture_roots": [], "generated_roots": [], "durable_document_roots": ["docs"], "human_guide_roots": [], "ephemeral_work_root": ".work", "documentation_entrypoint": "docs/index.md"},
   "impact": {"rules": [], "feature_selectors": {}, "full_triggers": ["shared_runtime", "schema", "test_discovery", "repository_workflow_cutover"]},

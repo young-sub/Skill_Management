@@ -2,10 +2,6 @@
 name: execute-codex-goal
 description: Execute a default- or explicitly-authorized Core-First Harness Item contract with impact-selected verification and policy-selected commits.
 ---
-<!-- Generated file. Do not edit directly. -->
-<!-- Source: authoring/skills/execute-codex-goal/SKILL.md -->
-<!-- Source-SHA256: 5efd8f6c5a1c8a7338aef5fe772c026010ccc5a2c9c8bd47e1b0603d14c5c3a6 -->
-
 
 # Execute Codex Goal
 

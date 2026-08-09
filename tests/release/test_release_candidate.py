@@ -41,10 +41,11 @@ class ReleaseCandidateTests(unittest.TestCase):
         self.assertIn("scripts/validate-distribution.ps1", workflow)
         self.assertNotIn("npx skills", workflow)
 
-    def test_readme_routes_current_v3_and_preserves_release_evidence(self) -> None:
+    def test_readme_routes_current_harness_and_preserves_release_evidence(self) -> None:
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
-        self.assertIn("Agent Harness v3", readme)
+        self.assertNotIn("Harness v3", readme)
+        self.assertIn("Agent Harness", readme)
         self.assertIn("docs/index.md", readme)
         self.assertIn(".harness/project.yaml", readme)
         self.assertIn("docs/releases/v2.0.0.md", readme)

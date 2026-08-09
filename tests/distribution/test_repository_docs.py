@@ -1,5 +1,7 @@
 from pathlib import Path
 import re
+import subprocess
+import sys
 import unittest
 
 
@@ -25,6 +27,33 @@ class RepositoryDocsTests(unittest.TestCase):
             text = path.read_text(encoding="utf-8")
             self.assertNotIn("harness_v2_implementation_plan.md", text, path)
             self.assertNotIn("docs/work-packets/", text, path)
+
+    def test_current_user_surfaces_do_not_brand_the_harness_with_a_version(self) -> None:
+        skills = (
+            "setup-agent-harness", "design-goal", "execute-codex-goal",
+            "diagnose", "close-goal", "maintain-agent-harness",
+        )
+        current = [
+            ROOT / "README.md", ROOT / "authoring" / "README.md",
+            ROOT / ".harness" / "project.yaml",
+            *(path for path in ROOT.joinpath("docs").rglob("*.md")
+              if "releases" not in path.parts and "pilots" not in path.parts),
+            *(ROOT / "authoring" / "skills" / skill / "SKILL.md" for skill in skills),
+            *(ROOT / "skills" / skill / "SKILL.md" for skill in skills),
+        ]
+        for path in current:
+            text = path.read_text(encoding="utf-8")
+            self.assertNotRegex(text, r"(?i)\bharness v3\b", str(path))
+            self.assertNotIn("harness-v3", text.casefold(), str(path))
+        self.assertTrue((ROOT / "docs" / "architecture" / "harness.md").is_file())
+        self.assertFalse((ROOT / "docs" / "architecture" / "harness-v3.md").exists())
+
+        completed = subprocess.run(
+            [sys.executable, str(ROOT / "authoring" / "scripts" / "core_harness.py"), "--help"],
+            cwd=ROOT, text=True, capture_output=True, check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertNotRegex(completed.stdout, r"(?i)\bharness v3\b")
 
 
 if __name__ == "__main__":

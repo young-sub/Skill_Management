@@ -1,35 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agent-harness.local/schemas/v3/project.schema.json",
-  "title": "Agent Harness project configuration v3",
+  "title": "Agent Harness project configuration",
   "type": "object",
-  "required": ["schema_version", "harness", "project", "paths", "impact", "commands", "documents", "work", "git"],
+  "required": ["schema_version", "project", "paths", "impact", "commands", "documents", "work", "git"],
   "properties": {
     "schema_version": {"const": 3},
-    "harness": {
-      "type": "object",
-      "required": ["active_cohort", "contract_version", "runtime_version", "dormant_cohorts", "components"],
-      "properties": {
-        "active_cohort": {"enum": ["v2", "v3"]},
-        "contract_version": {"type": "integer", "minimum": 2},
-        "runtime_version": {"type": "integer", "minimum": 2},
-        "dormant_cohorts": {"type": "array", "items": {"type": "integer"}, "uniqueItems": true},
-        "components": {
-          "type": "object",
-          "required": ["project", "design", "execute", "close", "maintain", "diagnose"],
-          "properties": {
-            "project": {"$ref": "#/$defs/component"},
-            "design": {"$ref": "#/$defs/component"},
-            "execute": {"$ref": "#/$defs/component"},
-            "close": {"$ref": "#/$defs/component"},
-            "maintain": {"$ref": "#/$defs/component"},
-            "diagnose": {"$ref": "#/$defs/component"}
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
     "project": {
       "type": "object",
       "required": ["name", "classification"],
@@ -96,15 +72,9 @@
       "properties": {"findings": {"type": "array", "items": {"$ref": "#/$defs/finding"}}},
       "additionalProperties": false
     },
-    "extensions": {"type": "object"},
-    "migration": {
-      "type": "object", "required": ["from_version", "mode", "source"],
-      "properties": {"from_version": {"type": "integer"}, "mode": {"type": "string"}, "source": {"type": "object"}},
-      "additionalProperties": false
-    }
+    "extensions": {"type": "object"}
   },
   "$defs": {
-    "component": {"type": "object", "required": ["supports"], "properties": {"supports": {"type": "array", "items": {"type": "integer"}, "uniqueItems": true}}, "additionalProperties": false},
     "pathList": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
     "command": {
       "type": "object", "required": ["id", "argv", "working_directory", "platform", "runtime", "capability"],

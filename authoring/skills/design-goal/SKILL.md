@@ -2,10 +2,6 @@
 name: design-goal
 description: Create an Item-based Harness contract and Korean Design Review from repository evidence and human decisions.
 ---
-<!-- Generated file. Do not edit directly. -->
-<!-- Source: authoring/skills/design-goal/SKILL.md -->
-<!-- Source-SHA256: 43143ae93b8086899cbc3908f6e1915599a94aa5c4ce1e0708a0ca85cc0caf57 -->
-
 
 # Design Goal
 

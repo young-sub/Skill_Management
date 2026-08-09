@@ -1,5 +1,6 @@
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import subprocess
 import tempfile
@@ -26,6 +27,12 @@ def run_cli(skill: str, *args: str, cwd: Path | None = None) -> dict:
 
 def write_json(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def project_config() -> dict:
+    return json.loads(
+        (ROOT / "authoring" / "templates" / "project" / "project.yaml").read_text(encoding="utf-8")
+    )
 
 
 def contract() -> dict:
@@ -114,7 +121,9 @@ class InstalledCliEndToEndTests(unittest.TestCase):
             } for index in range(500)]
             selectors = {f"cap-{index}": ["python", "-m", "unittest", f"tests.test_cap_{index}"] for index in range(500)}
             project_path = root / "project.json"
-            write_json(project_path, {"impact": {"rules": rules, "feature_selectors": selectors, "full_triggers": []}})
+            project = project_config()
+            project["impact"] = {"rules": rules, "feature_selectors": selectors, "full_triggers": []}
+            write_json(project_path, project)
             selected = run_cli(
                 "execute-codex-goal", "impacted", "--project", str(project_path),
                 "--changed", "src/cap_347/feature.py",
@@ -155,7 +164,9 @@ class InstalledCliEndToEndTests(unittest.TestCase):
             git(root, "commit", "-qm", "base")
             base = git(root, "branch", "--show-current")
             project = root / "project.json"
-            write_json(project, {"git": {"protected_branches": []}})
+            integration_project = project_config()
+            integration_project["git"]["protected_branches"] = []
+            write_json(project, integration_project)
             worktrees = [("item-a", container / "work-a", "a.txt"), ("item-b", container / "work-b", "b.txt")]
             for branch, path, filename in worktrees:
                 created = run_cli(
@@ -183,6 +194,121 @@ class InstalledCliEndToEndTests(unittest.TestCase):
             self.assertTrue((root / "b.txt").is_file())
             self.assertFalse((container / "work-a").exists())
             self.assertFalse((container / "work-b").exists())
+
+    def test_06_windows_design_only_start_uses_the_bundled_execute_runtime(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            git(root, "init", "-b", "develop")
+            git(root, "config", "user.email", "agent@example.com")
+            git(root, "config", "user.name", "Agent")
+            (root / ".gitignore").write_text(".work/\n", encoding="utf-8")
+            (root / "README.md").write_text("base\n", encoding="utf-8")
+            git(root, "add", ".gitignore", "README.md")
+            git(root, "commit", "-m", "base")
+            project_root = root / ".harness"
+            project_root.mkdir()
+            project = project_config()
+            project["git"]["protected_branches"] = ["main"]
+            project["git"]["branch_pattern"] = "wp-{work_id}-{slug}"
+            write_json(project_root / "project.yaml", project)
+            source = contract()
+            source["work_id"] = "W-e2e-start"
+            source_path = root / "source.json"
+            write_json(source_path, source)
+            authorized = run_cli(
+                "design-goal", "authorize", "--contract", str(source_path), "--intent", "default",
+                "--actor", "policy", "--at", "2026-08-09T12:00:00+09:00",
+            )["contract"]
+            work_root = root / ".work" / "goals" / "active" / "W-e2e-start"
+            (work_root / "review").mkdir(parents=True)
+            contract_path = work_root / "contract.json"
+            write_json(contract_path, authorized)
+            design_path = work_root / "review" / "design.html"
+            run_cli(
+                "design-goal", "render-design", "--contract", str(contract_path),
+                "--output", str(design_path),
+            )
+            contract_bytes = contract_path.read_bytes()
+            review_bytes = design_path.read_bytes()
+
+            completed = subprocess.run(
+                [
+                    "python", str(cli("execute-codex-goal")), "start", "--root", str(root),
+                    "--work-id", "W-e2e-start", "--slug", "feature", "--contract", str(contract_path),
+                ],
+                cwd=root, text=True, capture_output=True, check=False,
+            )
+
+            self.assertEqual(completed.returncode, 0, completed.stderr or completed.stdout)
+            started = json.loads(completed.stdout)
+            self.assertEqual(started["status"], "started", started)
+            self.assertEqual(git(root, "branch", "--show-current"), "develop")
+            self.assertEqual(contract_path.read_bytes(), contract_bytes)
+            self.assertEqual(design_path.read_bytes(), review_bytes)
+            self.assertTrue((work_root / "work.json").is_file())
+
+    def test_07_parallel_design_create_is_isolated_and_explicit_collision_has_one_owner(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            generated_source = contract()
+            generated_source["work_id"] = ""
+            generated_path = root / "generated.json"
+            write_json(generated_path, generated_source)
+
+            def invoke_generated(_index: int) -> subprocess.CompletedProcess[str]:
+                return subprocess.run(
+                    [
+                        "python", str(cli("design-goal")), "design-create", "--root", str(root),
+                        "--contract", str(generated_path), "--slug", "same-slug",
+                        "--actor", "policy", "--at", "2026-08-09T12:00:00+09:00",
+                    ],
+                    text=True, capture_output=True, check=False,
+                )
+
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                generated_runs = list(executor.map(invoke_generated, range(4)))
+            self.assertEqual(
+                [run.returncode for run in generated_runs], [0] * 4,
+                [run.stderr or run.stdout for run in generated_runs],
+            )
+            generated = [json.loads(run.stdout) for run in generated_runs]
+            self.assertEqual(len({item["work_id"] for item in generated}), 4)
+
+            explicit_source = contract()
+            explicit_source["work_id"] = "W-cli-explicit"
+            explicit_path = root / "explicit.json"
+            write_json(explicit_path, explicit_source)
+
+            def invoke_explicit(_index: int) -> subprocess.CompletedProcess[str]:
+                return subprocess.run(
+                    [
+                        "python", str(cli("design-goal")), "design-create", "--root", str(root),
+                        "--contract", str(explicit_path), "--slug", "same-slug",
+                        "--work-id", "W-cli-explicit", "--actor", "policy",
+                        "--at", "2026-08-09T12:00:00+09:00",
+                    ],
+                    text=True, capture_output=True, check=False,
+                )
+
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                explicit_runs = list(executor.map(invoke_explicit, range(4)))
+            explicit = [json.loads(run.stdout) for run in explicit_runs]
+            statuses = [item["status"] for item in explicit]
+            self.assertEqual(statuses.count("created"), 1, explicit)
+            self.assertEqual(statuses.count("conflict"), 3, explicit)
+            self.assertEqual(sorted(run.returncode for run in explicit_runs), [0, 2, 2, 2])
+
+            invalid_root = subprocess.run(
+                [
+                    "python", str(cli("design-goal")), "design-create",
+                    "--root", str(root / "missing"), "--contract", str(generated_path),
+                    "--slug", "same-slug", "--actor", "policy",
+                    "--at", "2026-08-09T12:00:00+09:00",
+                ],
+                text=True, capture_output=True, check=False,
+            )
+            self.assertEqual(invalid_root.returncode, 2, invalid_root.stderr or invalid_root.stdout)
+            self.assertEqual(json.loads(invalid_root.stdout)["status"], "invalid_root")
 
 
 if __name__ == "__main__":

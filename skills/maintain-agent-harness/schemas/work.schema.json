@@ -3,7 +3,7 @@
   "$id": "https://agent-harness.local/schemas/v3/work.schema.json",
   "title": "Agent Harness work manifest v3",
   "type": "object",
-  "required": ["schema_version", "work_id", "state", "created_at", "source_commit", "base_branch", "feature_branch", "contract_version", "integrity_digest", "owned_paths"],
+  "required": ["schema_version", "work_id", "state", "created_at", "source_commit", "base_branch", "feature_branch", "contract_version", "dirty_baseline", "integrity_digest", "owned_paths"],
   "properties": {
     "schema_version": {"const": 3},
     "work_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
@@ -17,6 +17,34 @@
     "retain_until": {"type": ["string", "null"]},
     "delete_after": {"type": ["string", "null"]},
     "contract_version": {"const": 3},
+    "dirty_baseline": {
+      "type": "object",
+      "required": ["base_revision", "entries", "digest"],
+      "properties": {
+        "base_revision": {"type": "string"},
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path", "identity", "states", "index_oid", "worktree_hash"],
+            "properties": {
+              "path": {"type": "string"},
+              "identity": {"type": "string"},
+              "states": {
+                "type": "array",
+                "items": {"enum": ["staged", "unstaged", "deleted", "untracked"]},
+                "uniqueItems": true
+              },
+              "index_oid": {"type": ["string", "null"]},
+              "worktree_hash": {"type": ["string", "null"]}
+            },
+            "additionalProperties": false
+          }
+        },
+        "digest": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
     "integrity_digest": {"type": "string"},
     "owned_paths": {"type": "array", "items": {"type": "string"}}
   },

@@ -1,19 +1,5 @@
 {
   "schema_version": 3,
-  "harness": {
-    "active_cohort": "v3",
-    "contract_version": 3,
-    "runtime_version": 3,
-    "dormant_cohorts": [],
-    "components": {
-      "project": {"supports": [3]},
-      "design": {"supports": [3]},
-      "execute": {"supports": [3]},
-      "close": {"supports": [3]},
-      "maintain": {"supports": [3]},
-      "diagnose": {"supports": [3]}
-    }
-  },
   "project": {"name": "Skill_Management", "classification": "brownfield-mapped"},
   "paths": {
     "source_roots": ["authoring", "scripts"],
@@ -63,7 +49,7 @@
     "live": {"id": "live", "argv": [], "working_directory": ".", "platform": "any", "runtime": "none", "capability": "disabled"},
     "eval": {"id": "eval", "argv": [], "working_directory": ".", "platform": "any", "runtime": "none", "capability": "disabled"}
   },
-  "documents": {"boundaries": [{"paths": ["authoring", "skills"], "documents": ["docs/architecture/harness-v3.md"]}, {"paths": ["tests", "scripts"], "documents": ["docs/testing.md"]}]},
+  "documents": {"boundaries": [{"paths": ["authoring", "skills"], "documents": ["docs/architecture/harness.md"]}, {"paths": ["tests", "scripts"], "documents": ["docs/testing.md"]}]},
   "work": {"retention": {"completed_days": 30, "trash_days": 7}, "states": ["active", "completed", "trash", "deleted"], "legacy_state": "legacy-unclassified"},
   "git": {"capture_current_base": true, "protected_branches": ["main"], "branch_pattern": "wp-{work_id}-{slug}", "commit_per_item": false, "worktrees_for_independent_items": true},
   "baseline": {"findings": []},

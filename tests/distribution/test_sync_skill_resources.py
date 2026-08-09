@@ -12,6 +12,58 @@ SYNC_SCRIPT = REPO_ROOT / "scripts" / "sync-skill-resources.ps1"
 
 
 class SyncSkillResourcesTests(unittest.TestCase):
+    def test_skill_entrypoint_sync_preserves_frontmatter_as_the_first_block(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            fixture_root = Path(temp_dir)
+            source = fixture_root / "authoring" / "skills" / "fixture-skill" / "SKILL.md"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                "---\nname: fixture-skill\ndescription: fixture\n---\n\n# Fixture\n",
+                encoding="utf-8", newline="\n",
+            )
+            (fixture_root / "skills").mkdir()
+            (fixture_root / "authoring" / "resource-map.json").write_text(
+                json.dumps({
+                    "schema_version": 1,
+                    "resources": [{
+                        "source": "skills/fixture-skill/SKILL.md",
+                        "targets": ["fixture-skill/SKILL.md"],
+                    }],
+                }),
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [
+                    "powershell", "-NoProfile", "-File", str(SYNC_SCRIPT),
+                    "-RepositoryRoot", str(fixture_root),
+                ],
+                capture_output=True, text=True, check=False,
+            )
+            generated = fixture_root / "skills" / "fixture-skill" / "SKILL.md"
+            content = generated.read_text(encoding="utf-8") if generated.is_file() else ""
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue(content.startswith("---\nname: fixture-skill\ndescription: fixture\n---\n"))
+        self.assertIn("<!-- Generated file.", content)
+        self.assertLess(content.index("---"), content.index("<!-- Generated file."))
+
+    def test_repository_harness_skill_entrypoints_have_canonical_authoring_sources(self) -> None:
+        resource_map = json.loads(
+            (REPO_ROOT / "authoring" / "resource-map.json").read_text(encoding="utf-8")
+        )
+        mapped = {
+            resource["source"]: set(resource["targets"])
+            for resource in resource_map["resources"]
+        }
+        for skill in (
+            "setup-agent-harness", "design-goal", "execute-codex-goal",
+            "diagnose", "close-goal", "maintain-agent-harness",
+        ):
+            source = f"skills/{skill}/SKILL.md"
+            self.assertTrue(REPO_ROOT.joinpath("authoring", source).is_file(), source)
+            self.assertIn(f"{skill}/SKILL.md", mapped.get(source, set()), source)
+
     def test_check_accepts_checkout_line_ending_conversion(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             fixture_root = Path(temp_dir)

@@ -17,7 +17,16 @@ def load_core():
 
 
 class CoreFirstSchemaTests(unittest.TestCase):
-    def test_v2_project_preview_is_deterministic_and_keeps_v2_active(self) -> None:
+    def test_current_project_config_rejects_missing_and_unknown_fields(self) -> None:
+        core = load_core()
+
+        normalized = core.normalize_project_config({"schema_version": 3, "unexpected": True})
+
+        self.assertEqual(normalized["status"], "invalid", normalized)
+        self.assertIn("project_config:unknown_field:unexpected", normalized["errors"])
+        self.assertIn("project_config:missing:project", normalized["errors"])
+
+    def test_legacy_project_preview_is_deterministic_and_has_no_runtime_version_branding(self) -> None:
         core = load_core()
         legacy = {
             "version": 2,
@@ -26,16 +35,48 @@ class CoreFirstSchemaTests(unittest.TestCase):
             "verification": {"full_suite_runs_per_goal": 1},
         }
 
-        first = core.preview_project_v3(legacy)
-        second = core.preview_project_v3(legacy)
+        first = core.preview_project_config(legacy)
+        second = core.preview_project_config(legacy)
 
         self.assertEqual(first, second)
         self.assertEqual(first["schema_version"], 3)
-        self.assertEqual(first["harness"]["active_cohort"], "v2")
-        self.assertEqual(first["harness"]["runtime_version"], 2)
-        self.assertIn(3, first["harness"]["dormant_cohorts"])
+        self.assertNotIn("harness", first)
+        self.assertNotIn("migration", first)
         self.assertEqual(first["work"]["retention"]["completed_days"], 90)
         self.assertEqual(first["work"]["retention"]["trash_days"], 30)
+        self.assertEqual(legacy["version"], 2)
+
+    def test_project_normalization_is_read_only_and_rejects_unknown_legacy_matrices(self) -> None:
+        core = load_core()
+        old = json.loads(
+            (ROOT / "authoring" / "templates" / "project" / "project.yaml").read_text(encoding="utf-8")
+        )
+        old["project"] = {"name": "sample", "classification": "mapped"}
+        old["harness"] = {
+            "active_cohort": "v3", "contract_version": 3, "runtime_version": 3,
+            "dormant_cohorts": [],
+            "components": {
+                name: {"supports": [3]}
+                for name in ("project", "design", "execute", "close", "maintain", "diagnose")
+            },
+        }
+        original = json.loads(json.dumps(old))
+
+        normalized = core.normalize_project_config(old)
+
+        self.assertEqual(normalized["status"], "migration_required")
+        self.assertEqual(old, original)
+        self.assertNotIn("harness", normalized["project"])
+        self.assertEqual(normalized["project"]["schema_version"], 3)
+        current = core.normalize_project_config(normalized["project"])
+        self.assertEqual(current["status"], "current")
+        self.assertEqual(current["project"], normalized["project"])
+
+        mixed = json.loads(json.dumps(old))
+        mixed["harness"]["components"]["close"] = {"supports": [2]}
+        rejected = core.normalize_project_config(mixed)
+        self.assertEqual(rejected["status"], "invalid")
+        self.assertIn("unknown_legacy_harness_configuration", rejected["errors"])
 
     def test_item_contract_requires_reviewable_behavior_fields(self) -> None:
         core = load_core()
@@ -113,14 +154,6 @@ class CoreFirstSchemaTests(unittest.TestCase):
         changed = dict(contract, work_id="W-2")
         self.assertFalse(core.approval_bundle_matches(bundle, changed, "<html lang='ko'>review</html>"))
 
-    def test_unsupported_or_mixed_cohort_fails_closed(self) -> None:
-        core = load_core()
-        compatible = {"project": [2, 3], "design": [2, 3], "execute": [2, 3], "close": [2, 3], "maintain": [2, 3], "diagnose": [2, 3]}
-        self.assertEqual(core.validate_cohort(2, compatible), [])
-        mixed = dict(compatible, close=[3])
-        self.assertIn("mixed_cohort:close:2", core.validate_cohort(2, mixed))
-        self.assertIn("unsupported_active_cohort:4", core.validate_cohort(4, compatible))
-
     def test_versioned_schema_and_active_policy_assets_exist(self) -> None:
         for name in ("project.schema.json", "work.schema.json", "contract.schema.json"):
             payload = json.loads((ROOT / "authoring" / "schemas" / "v3" / name).read_text(encoding="utf-8"))
@@ -134,9 +167,29 @@ class CoreFirstSchemaTests(unittest.TestCase):
         for skill in ("setup-agent-harness", "design-goal", "execute-codex-goal", "close-goal", "maintain-agent-harness"):
             self.assertTrue((ROOT / "skills" / skill / "scripts" / "core_harness.py").is_file(), skill)
 
+    def test_work_schema_requires_the_exact_captured_dirty_baseline(self) -> None:
+        work = json.loads(
+            (ROOT / "authoring" / "schemas" / "v3" / "work.schema.json").read_text(encoding="utf-8")
+        )
+
+        self.assertIn("dirty_baseline", work["required"])
+        baseline = work["properties"]["dirty_baseline"]
+        self.assertEqual(set(baseline["required"]), {"base_revision", "entries", "digest"})
+        self.assertFalse(baseline["additionalProperties"])
+        entry = baseline["properties"]["entries"]["items"]
+        self.assertEqual(
+            set(entry["required"]),
+            {"path", "identity", "states", "index_oid", "worktree_hash"},
+        )
+        self.assertFalse(entry["additionalProperties"])
+
     def test_json_schemas_close_normative_objects_and_require_command_contract(self) -> None:
         project = json.loads((ROOT / "authoring" / "schemas" / "v3" / "project.schema.json").read_text(encoding="utf-8"))
-        for section in ("harness", "paths", "impact", "commands", "documents", "work", "git", "baseline"):
+        self.assertNotIn("harness", project["required"])
+        self.assertNotIn("harness", project["properties"])
+        self.assertNotIn("migration", project["properties"])
+        self.assertNotIn("component", project["$defs"])
+        for section in ("paths", "impact", "commands", "documents", "work", "git", "baseline"):
             self.assertFalse(project["properties"][section]["additionalProperties"], section)
         self.assertEqual(set(project["properties"]["commands"]["required"]), {"targeted", "feature", "lint", "type", "build", "full", "live", "eval"})
         descriptor = project["$defs"]["command"]

@@ -2,10 +2,6 @@
 name: maintain-agent-harness
 description: Report deterministic Harness resource, mapping, and work-lifecycle integrity.
 ---
-<!-- Generated file. Do not edit directly. -->
-<!-- Source: authoring/skills/maintain-agent-harness/SKILL.md -->
-<!-- Source-SHA256: d726cc2ac7ad0e53118b5e1c1c0b14737c0bbad8269e0b0528e39858ded58d8d -->
-
 
 # Maintain Agent Harness
 

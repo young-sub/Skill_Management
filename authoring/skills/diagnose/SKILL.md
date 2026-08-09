@@ -2,10 +2,6 @@
 name: diagnose
 description: Diagnose a current Harness implementation or verification failure with a bounded root-cause loop.
 ---
-<!-- Generated file. Do not edit directly. -->
-<!-- Source: authoring/skills/diagnose/SKILL.md -->
-<!-- Source-SHA256: c22502a018b6cce6eb62eba434707b70a67592ab1592342a0c8aa5db717fa1cd -->
-
 
 # Diagnose
 

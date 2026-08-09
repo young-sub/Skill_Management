@@ -137,7 +137,25 @@ foreach ($resource in $resourceMap.resources) {
                     "# Source-SHA256: $sourceHash"
                 )
             }
-            if ($extension -eq '.html') {
+            $isSkillEntrypoint = [System.IO.Path]::GetFileName($targetPath) -eq 'SKILL.md'
+            if ($isSkillEntrypoint) {
+                $frontmatterMatch = [Regex]::Match(
+                    $sourceContent,
+                    '\A(?<frontmatter>---\n.*?\n---)(?:\n)?',
+                    [System.Text.RegularExpressions.RegexOptions]::Singleline
+                )
+                if (-not $frontmatterMatch.Success) {
+                    Write-Output "ERROR canonical SKILL.md frontmatter missing: '$($resource.source)'"
+                    exit 1
+                }
+                $body = $sourceContent.Substring($frontmatterMatch.Length)
+                $generatedContent = @(
+                    $frontmatterMatch.Groups['frontmatter'].Value
+                    $header
+                    ''
+                    $body
+                ) -join "`n"
+            } elseif ($extension -eq '.html') {
                 $doctypeMatch = [Regex]::Match(
                     $sourceContent,
                     '\A(?<doctype><!doctype[^>]*>)(?:\r?\n)?',

@@ -2,10 +2,6 @@
 name: close-goal
 description: Close a Harness contract Item by Item, render the Korean Result Review, and transition retained work safely.
 ---
-<!-- Generated file. Do not edit directly. -->
-<!-- Source: authoring/skills/close-goal/SKILL.md -->
-<!-- Source-SHA256: 47789de88719d8d0b7c1185f6c215cef2a043a7448846464b6dea348cfa45ff5 -->
-
 
 # Close Goal
 

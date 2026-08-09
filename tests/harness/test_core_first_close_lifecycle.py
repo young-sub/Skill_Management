@@ -6,7 +6,13 @@ import sys
 import tempfile
 import unittest
 
-from tests.harness.test_core_first_design_execution import contract
+from tests.harness.test_core_first_design_execution import (
+    authorized_contract,
+    contract,
+    init_git_repository,
+    project_policy,
+    write_design_only,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -48,6 +54,19 @@ def result_payload() -> dict:
             criterion["criterion_id"] = "D-01"
             criterion["criterion"] = "the relevant check passes"
     return payload
+
+
+def started_work(core, root: Path, work_id: str) -> tuple[Path, dict]:
+    init_git_repository(root)
+    source = authorized_contract(core, work_id)
+    active, _, _ = write_design_only(root, core, source)
+    started = core.start_work(
+        root, work_id, "close", source,
+        project=project_policy(protected=()),
+    )
+    if started["status"] != "started":
+        raise AssertionError(started)
+    return active, source
 
 
 class CoreFirstCloseLifecycleTests(unittest.TestCase):
@@ -93,6 +112,72 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
         )
         self.assertEqual(proportional["items"][0]["status"], "complete")
 
+    def test_close_rejects_a_different_goal_contract_before_writing_result_artifacts(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            active, _ = started_work(core, root, "W-close-a")
+            other = authorized_contract(core, "W-close-b")
+
+            closed = core.close_work(
+                root, "W-close-a", contract=other, result=result_payload(),
+                impact={"full_required": False, "unresolved": [], "not_required_rule_ids": ["independent_capability"]},
+                completed_at="2026-08-02T12:00:00+09:00", completed_days=30,
+                trash_days=7,
+            )
+
+            self.assertEqual(closed["status"], "invalid_work", closed)
+            self.assertIn("supplied_contract_identity_mismatch", closed["errors"])
+            self.assertTrue(active.is_dir())
+            self.assertFalse((active / "result.json").exists())
+            self.assertFalse((active / "review" / "result.html").exists())
+            self.assertFalse((root / ".work" / "goals" / "completed").exists())
+
+    def test_close_prechecks_destination_and_restores_result_preimages_on_move_failure(self) -> None:
+        core = load_core()
+        impact = {
+            "full_required": False, "unresolved": [],
+            "not_required_rule_ids": ["independent_capability"],
+        }
+        with self.subTest("destination_conflict"), tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            active, source = started_work(core, root, "W-close-conflict")
+            result_path = active / "result.json"
+            review_path = active / "review" / "result.html"
+            result_path.write_bytes(b"existing-result\r\n")
+            review_path.write_bytes(b"existing-review\r\n")
+            destination = root / ".work" / "goals" / "completed" / "2026-08" / "W-close-conflict"
+            destination.mkdir(parents=True)
+
+            closed = core.close_work(
+                root, "W-close-conflict", contract=source, result=result_payload(),
+                impact=impact, completed_at="2026-08-02T12:00:00+09:00",
+                completed_days=30, trash_days=7,
+            )
+
+            self.assertEqual(closed["status"], "conflict", closed)
+            self.assertEqual(result_path.read_bytes(), b"existing-result\r\n")
+            self.assertEqual(review_path.read_bytes(), b"existing-review\r\n")
+
+        with self.subTest("move_failure"), tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            active, source = started_work(core, root, "W-close-rollback")
+            result_path = active / "result.json"
+            review_path = active / "review" / "result.html"
+            result_path.write_bytes(b"result-preimage\r\n")
+            review_path.write_bytes(b"review-preimage\r\n")
+
+            closed = core.close_work(
+                root, "W-close-rollback", contract=source, result=result_payload(),
+                impact=impact, completed_at="2026-08-02T12:00:00+09:00",
+                completed_days=30, trash_days=7, fault_after="move",
+            )
+
+            self.assertEqual(closed["status"], "rolled_back", closed)
+            self.assertTrue(active.is_dir())
+            self.assertEqual(result_path.read_bytes(), b"result-preimage\r\n")
+            self.assertEqual(review_path.read_bytes(), b"review-preimage\r\n")
+
     def test_korean_result_review_matches_design_identity_and_shows_actual_visual(self) -> None:
         core = load_core()
         page = core.render_result_review_v3(contract(), result_payload())
@@ -122,21 +207,21 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
         core = load_core()
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            active = root / ".work" / "goals" / "active" / "W-1"
-            active.mkdir(parents=True)
-            (active / "contract.json").write_text("{}", encoding="utf-8")
-            (active / "work.json").write_text(json.dumps({
-                "schema_version": 3, "work_id": "W-1", "state": "active", "created_at": "2026-08-01T00:00:00+09:00",
-                "source_commit": "abc", "base_branch": "develop", "feature_branch": "wp-1", "contract_version": 3,
-                "integrity_digest": "internal", "owned_paths": [".work/goals/active/W-1"],
-            }), encoding="utf-8")
-            closed = core.close_work(root, "W-1", completed_at="2026-08-02T12:00:00+09:00", completed_days=30, trash_days=7)
+            active, source = started_work(core, root, "W-1")
+            closed = core.close_work(
+                root, "W-1", contract=source, result=result_payload(),
+                impact={"full_required": False, "unresolved": [], "not_required_rule_ids": ["independent_capability"]},
+                completed_at="2026-08-02T12:00:00+09:00", completed_days=30,
+                trash_days=7,
+            )
             self.assertEqual(closed["status"], "completed")
             destination = root / ".work" / "goals" / "completed" / "2026-08" / "W-1"
             manifest = json.loads((destination / "work.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["retain_until"], "2026-09-01T12:00:00+09:00")
             self.assertEqual(manifest["delete_after"], "2026-09-08T12:00:00+09:00")
             self.assertEqual(manifest["owned_paths"], [".work/goals/completed/2026-08/W-1"])
+            self.assertTrue((destination / "result.json").is_file())
+            self.assertTrue((destination / "review" / "result.html").is_file())
             self.assertFalse(active.exists())
 
     def test_close_and_sweep_roll_back_interrupted_manifest_and_move(self) -> None:
@@ -148,7 +233,7 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
             manifest = {"schema_version":3,"work_id":"W-fault","state":"active","created_at":"2026-08-01T00:00:00+09:00","source_commit":"a","base_branch":"develop","feature_branch":"wp","contract_version":3,"integrity_digest":"x","owned_paths":[".work/goals/active/W-fault"]}
             original = json.dumps(manifest)
             (active / "work.json").write_text(original, encoding="utf-8")
-            failed = core.close_work(root, "W-fault", completed_at="2026-08-02T12:00:00+09:00", completed_days=30, trash_days=7, fault_after="move")
+            failed = core._transition_work_to_completed(root, "W-fault", completed_at="2026-08-02T12:00:00+09:00", completed_days=30, trash_days=7, fault_after="move")
             self.assertEqual(failed["status"], "rolled_back")
             self.assertTrue(active.is_dir())
             self.assertEqual(json.loads((active / "work.json").read_text(encoding="utf-8"))["state"], "active")
@@ -180,7 +265,7 @@ from pathlib import Path
 spec = importlib.util.spec_from_file_location('core_lifecycle_crash', Path(sys.argv[1]))
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
-module.close_work(Path(sys.argv[2]), 'W-crash', completed_at='2026-08-02T12:00:00+09:00', completed_days=30, trash_days=7, crash_after='move')
+module._transition_work_to_completed(Path(sys.argv[2]), 'W-crash', completed_at='2026-08-02T12:00:00+09:00', completed_days=30, trash_days=7, crash_after='move')
 """
 
             crashed = subprocess.run(
@@ -306,6 +391,38 @@ module.close_work(Path(sys.argv[2]), 'W-crash', completed_at='2026-08-02T12:00:0
             )
             self.assertEqual(deleted["status"], "deleted")
             self.assertFalse(trash.exists())
+
+    def test_lifecycle_audit_distinguishes_valid_design_only_from_malformed_orphan(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source = contract()
+            source["work_id"] = "W-design-only"
+            source = core.authorize_design(
+                source, intent="default", actor="policy",
+                authorized_at="2026-08-09T12:00:00+09:00",
+            )["contract"]
+            design = root / ".work" / "goals" / "active" / "W-design-only"
+            (design / "review").mkdir(parents=True)
+            (design / "contract.json").write_text(
+                json.dumps(source, ensure_ascii=False), encoding="utf-8",
+            )
+            (design / "review" / "design.html").write_bytes(
+                core.render_design_review_v3(core._contract_payload(source)).encode("utf-8"),
+            )
+            malformed = root / ".work" / "goals" / "active" / "W-malformed"
+            malformed.mkdir(parents=True)
+            (malformed / "contract.json").write_text("{}", encoding="utf-8")
+
+            before = core.audit_work_lifecycle(root)
+
+            self.assertIn("W-design-only", before.get("design_only", []))
+            orphan_locations = {
+                finding["location"] for finding in before["findings"]
+                if finding["rule_id"] == "work.orphan"
+            }
+            self.assertNotIn(".work/goals/active/W-design-only", orphan_locations)
+            self.assertIn(".work/goals/active/W-malformed", orphan_locations)
 
     def test_delete_trash_rejects_traversal_even_when_the_alias_is_approved(self) -> None:
         core = load_core()
