@@ -537,6 +537,10 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
             }
             self.assertEqual(actual, expected)
             self.assertFalse(any(path.suffix == ".pyc" for path in install_root.rglob("*")))
+            self.assertEqual(
+                (install_root / core.COHORT_MANIFEST_RESOURCE).read_bytes(),
+                (ROOT / "skills" / core.COHORT_MANIFEST_RESOURCE).read_bytes(),
+            )
 
     def test_installed_cohort_rejects_undeclared_files_and_bytecode(self) -> None:
         core = load_core()

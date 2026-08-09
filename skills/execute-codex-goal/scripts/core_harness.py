@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/core_harness.py
-# Source-SHA256: a24e9999da50f827aedf12f26b93bd4cc438d839f54f5b18a07e16edf76fcc8c
+# Source-SHA256: 8efc0696d46aa93a5c07b313c552ee5f0e31cdf877d99963a27ae63ded986f52
 
 #!/usr/bin/env python3
 """Deterministic Core-First Agent Harness contracts and compatibility checks."""
@@ -3549,6 +3549,13 @@ def install_harness_cohort(
     if not _cohort_manifest_valid(resource_manifest):
         return {"status": "invalid_manifest"}
     files = _cohort_manifest_files(resource_manifest)
+    source_manifest = source_root.joinpath(*PurePosixPath(COHORT_MANIFEST_RESOURCE).parts)
+    try:
+        bundled_manifest = json.loads(source_manifest.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return {"status": "invalid_source", "errors": ["bundled_manifest_missing_or_invalid"]}
+    if _path_is_alias(source_manifest) or bundled_manifest != resource_manifest:
+        return {"status": "invalid_source", "errors": ["bundled_manifest_mismatch"]}
     for skill in HARNESS_INSTALL_SKILLS:
         if not (source_root / skill / "SKILL.md").is_file():
             return {"status": "invalid_source", "errors": [f"missing_skill:{skill}"]}
@@ -3569,7 +3576,9 @@ def install_harness_cohort(
                 raise ValueError(f"invalid_source_resource:{relative}")
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, target)
-        _durable_write_json(staging / COHORT_MANIFEST_RESOURCE, resource_manifest)
+        staged_manifest = staging.joinpath(*PurePosixPath(COHORT_MANIFEST_RESOURCE).parts)
+        staged_manifest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_manifest, staged_manifest)
         staged = inspect_installed_cohort(staging, resource_manifest)
         if staged["status"] != "complete":
             raise RuntimeError("staging_invalid:" + ";".join(staged["blockers"]))

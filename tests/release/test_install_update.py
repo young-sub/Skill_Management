@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from pathlib import PurePosixPath
 import subprocess
 import tempfile
 import unittest
@@ -18,6 +19,7 @@ class InstallUpdateSmokeTests(unittest.TestCase):
         approve_remote: bool = False, expected_source_commit: str | None = None,
         resolved_remote_commit: str | None = None,
         resolved_default_commit: str | None = None,
+        leave_stale_harness_directories: bool = False,
     ) -> tuple[str, dict[str, object]]:
         with tempfile.TemporaryDirectory() as temporary:
             temp = Path(temporary)
@@ -36,6 +38,12 @@ class InstallUpdateSmokeTests(unittest.TestCase):
                 "      New-Item -ItemType Directory -Path (Split-Path $target -Parent) -Force | Out-Null\n"
                 "      if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }\n"
                 "      Copy-Item -LiteralPath $entry.FullName -Destination $target -Recurse -Force\n"
+                "      if (\n"
+                "        $env:HARNESS_FAKE_STALE_HARNESS_DIRECTORIES -eq 'true' -and\n"
+                "        $entry.Name -in @('setup-agent-harness', 'design-goal', 'execute-codex-goal', 'close-goal', 'maintain-agent-harness', 'diagnose')\n"
+                "      ) {\n"
+                "        New-Item -ItemType Directory -Path (Join-Path $target 'resources\\v3\\retired-empty') -Force | Out-Null\n"
+                "      }\n"
                 "    }\n"
                 "  }\n"
                 "  exit 0\n"
@@ -77,6 +85,9 @@ class InstallUpdateSmokeTests(unittest.TestCase):
             env = dict(__import__("os").environ)
             env["HARNESS_FAKE_SOURCE"] = str(ROOT)
             env["HARNESS_FAKE_UPDATE_MODE"] = update_mode
+            env["HARNESS_FAKE_STALE_HARNESS_DIRECTORIES"] = (
+                "true" if leave_stale_harness_directories else "false"
+            )
             env["HARNESS_FAKE_REMOTE_COMMIT"] = resolved_remote_commit or expected_source_commit or ""
             env["HARNESS_FAKE_DEFAULT_COMMIT"] = resolved_default_commit or expected_source_commit or ""
             command = [
@@ -111,18 +122,41 @@ class InstallUpdateSmokeTests(unittest.TestCase):
                     installed_root = destination / provider / "skills" / skill.parent.name
                     source_files = {
                         path.relative_to(source_root).as_posix(): path.read_bytes()
-                        for path in source_root.rglob("*") if path.is_file()
+                        for path in source_root.rglob("*")
+                        if path.is_file()
+                        and path.suffix != ".pyc"
+                        and "__pycache__" not in path.parts
                     }
                     installed_files = {
                         path.relative_to(installed_root).as_posix(): path.read_bytes()
-                        for path in installed_root.rglob("*") if path.is_file()
+                        for path in installed_root.rglob("*")
+                        if path.is_file()
+                        and path.suffix != ".pyc"
+                        and "__pycache__" not in path.parts
                     }
                     self.assertEqual(installed_files, source_files)
+                    source_directories = {
+                        parent.as_posix()
+                        for relative in source_files
+                        for parent in PurePosixPath(relative).parents
+                        if parent.as_posix() != "."
+                    }
+                    installed_directories = {
+                        path.relative_to(installed_root).as_posix()
+                        for path in installed_root.rglob("*") if path.is_dir()
+                    }
+                    self.assertEqual(installed_directories, source_directories)
             return diagnostics, json.loads(evidence.read_text(encoding="utf-8-sig"))
 
     def test_fake_cli_installs_and_updates_all_public_skills_for_both_providers(self) -> None:
         diagnostics, _ = self.run_fake_smoke(update_mode="full")
         self.assertNotIn("Native update unsupported/no-op for local source", diagnostics)
+
+    def test_install_atomically_replaces_harness_roots_and_removes_stale_directories(self) -> None:
+        self.run_fake_smoke(
+            update_mode="noop",
+            leave_stale_harness_directories=True,
+        )
 
     def test_local_source_noop_update_falls_back_to_add_refresh(self) -> None:
         diagnostics, evidence = self.run_fake_smoke(update_mode="noop")

@@ -38,6 +38,17 @@ if (-not (Test-Path -LiteralPath $catalogPath -PathType Leaf)) {
 }
 $catalog = Get-Content -LiteralPath $catalogPath -Raw -Encoding utf8 | ConvertFrom-Json
 $expectedSkills = @($catalog.public_skills)
+$harnessCohortSkills = @(
+    'setup-agent-harness',
+    'design-goal',
+    'execute-codex-goal',
+    'close-goal',
+    'maintain-agent-harness',
+    'diagnose'
+)
+$hasCompleteHarnessCohort = @(
+    $harnessCohortSkills | Where-Object { $expectedSkills -notcontains $_ }
+).Count -eq 0
 $remoteSourceMatch = [regex]::Match(
     $SourcePackage,
     '^https://github\.com/(?<owner>[^/]+)/(?<repo>[^/]+)/(?<kind>tree|commit)/(?<ref>[^/]+)$'
@@ -102,10 +113,18 @@ function Get-SkillTreeDrift {
     foreach ($skillName in $SkillNames) {
         $sourceSkill = Join-Path $SourceRoot "skills\$skillName"
         $sourceFiles = @{}
+        $sourceDirectories = [System.Collections.Generic.HashSet[string]]::new(
+            [System.StringComparer]::Ordinal
+        )
         foreach ($sourceFile in Get-ChildItem -LiteralPath $sourceSkill -Recurse -File) {
             if ($sourceFile.Extension -eq '.pyc' -or $sourceFile.FullName -match '[\\/]__pycache__[\\/]') { continue }
             $relative = $sourceFile.FullName.Substring($sourceSkill.Length).TrimStart('\').Replace('\', '/')
             $sourceFiles[$relative] = Get-Sha256Hex -LiteralPath $sourceFile.FullName
+            $parent = [System.IO.Path]::GetDirectoryName($relative).Replace('\', '/')
+            while (-not [string]::IsNullOrWhiteSpace($parent)) {
+                [void]$sourceDirectories.Add($parent)
+                $parent = [System.IO.Path]::GetDirectoryName($parent).Replace('\', '/')
+            }
         }
         foreach ($providerRoot in @('.agents\skills', '.claude\skills')) {
             $installedSkill = Join-Path $InstallRoot "$providerRoot\$skillName"
@@ -114,6 +133,13 @@ function Get-SkillTreeDrift {
                 continue
             }
             $installedFiles = @{}
+            $installedDirectories = [System.Collections.Generic.HashSet[string]]::new(
+                [System.StringComparer]::Ordinal
+            )
+            foreach ($installedDirectory in Get-ChildItem -LiteralPath $installedSkill -Recurse -Directory) {
+                $relative = $installedDirectory.FullName.Substring($installedSkill.Length).TrimStart('\').Replace('\', '/')
+                [void]$installedDirectories.Add($relative)
+            }
             foreach ($installedFile in Get-ChildItem -LiteralPath $installedSkill -Recurse -File) {
                 if ($installedFile.Extension -eq '.pyc' -or $installedFile.FullName -match '[\\/]__pycache__[\\/]') { continue }
                 $relative = $installedFile.FullName.Substring($installedSkill.Length).TrimStart('\').Replace('\', '/')
@@ -131,9 +157,55 @@ function Get-SkillTreeDrift {
                     $drift.Add("$providerRoot/$skillName/${relative}:extra")
                 }
             }
+            foreach ($relative in $sourceDirectories) {
+                if (-not $installedDirectories.Contains($relative)) {
+                    $drift.Add("$providerRoot/$skillName/${relative}:directory_missing")
+                }
+            }
+            foreach ($relative in $installedDirectories) {
+                if (-not $sourceDirectories.Contains($relative)) {
+                    $drift.Add("$providerRoot/$skillName/${relative}:directory_extra")
+                }
+            }
         }
     }
     return @($drift | Sort-Object)
+}
+
+function Install-ExactHarnessCohort {
+    param(
+        [string]$SourceRoot,
+        [string]$InstallRoot
+    )
+    $runtime = Join-Path $SourceRoot 'skills\setup-agent-harness\scripts\core_harness.py'
+    $skillSource = Join-Path $SourceRoot 'skills'
+    $manifest = Join-Path $SourceRoot 'authoring\public-resource-manifest.json'
+    foreach ($required in @($runtime, $manifest)) {
+        if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
+            throw "Harness cohort installer resource is missing: $required"
+        }
+    }
+    foreach ($providerRoot in @('.agents\skills', '.claude\skills')) {
+        $installedRoot = Join-Path $InstallRoot $providerRoot
+        $output = @(
+            & python $runtime install-cohort `
+                --source-root $skillSource `
+                --install-root $installedRoot `
+                --manifest $manifest `
+                --approved-install-root $installedRoot 2>&1
+        )
+        if ($LASTEXITCODE -ne 0) {
+            throw "Harness cohort replacement failed for ${providerRoot}: $($output -join [Environment]::NewLine)"
+        }
+        try {
+            $payload = ($output -join "`n") | ConvertFrom-Json
+        } catch {
+            throw "Harness cohort replacement emitted invalid output for ${providerRoot}: $($output -join [Environment]::NewLine)"
+        }
+        if ($payload.status -ne 'installed') {
+            throw "Harness cohort replacement did not complete for ${providerRoot}: $($output -join [Environment]::NewLine)"
+        }
+    }
 }
 
 function Get-PublicSkillTreeDigest {
@@ -142,6 +214,10 @@ function Get-PublicSkillTreeDigest {
     foreach ($skillName in $SkillNames) {
         foreach ($providerRoot in @('.agents\skills', '.claude\skills')) {
             $installedSkill = Join-Path $InstallRoot "$providerRoot\$skillName"
+            foreach ($installedDirectory in Get-ChildItem -LiteralPath $installedSkill -Recurse -Directory) {
+                $relative = $installedDirectory.FullName.Substring($InstallRoot.Length).TrimStart('\').Replace('\', '/')
+                $entries.Add("directory:$relative")
+            }
             foreach ($installedFile in Get-ChildItem -LiteralPath $installedSkill -Recurse -File) {
                 if ($installedFile.Extension -eq '.pyc' -or $installedFile.FullName -match '[\\/]__pycache__[\\/]') { continue }
                 $relative = $installedFile.FullName.Substring($InstallRoot.Length).TrimStart('\').Replace('\', '/')
@@ -183,6 +259,9 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "skills CLI failed with exit code $LASTEXITCODE"
     }
+    if ($hasCompleteHarnessCohort) {
+        Install-ExactHarnessCohort -SourceRoot $resolvedRoot -InstallRoot $resolvedDestination
+    }
 
     $installDrift = @(Get-SkillTreeDrift -SourceRoot $resolvedRoot -InstallRoot $resolvedDestination -SkillNames $expectedSkills)
     if ($installDrift.Count -gt 0) {
@@ -209,6 +288,9 @@ try {
         if ($LASTEXITCODE -ne 0) {
             throw "skills CLI update failed with exit code $LASTEXITCODE"
         }
+        if ($hasCompleteHarnessCohort) {
+            Install-ExactHarnessCohort -SourceRoot $resolvedRoot -InstallRoot $resolvedDestination
+        }
 
         $treeDrift = @(Get-SkillTreeDrift `
             -SourceRoot $resolvedRoot `
@@ -223,6 +305,9 @@ try {
             & $SkillsCommand @installArguments
             if ($LASTEXITCODE -ne 0) {
                 throw "skills CLI local source refresh failed with exit code $LASTEXITCODE"
+            }
+            if ($hasCompleteHarnessCohort) {
+                Install-ExactHarnessCohort -SourceRoot $resolvedRoot -InstallRoot $resolvedDestination
             }
             $treeDrift = @(Get-SkillTreeDrift `
                 -SourceRoot $resolvedRoot `
