@@ -355,6 +355,7 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
             invoke(
                 "execute-codex-goal", "commit", "--root", str(repo), "--item-id", "I-01",
                 "--path", "item.txt", "--baseline", str(baseline_path),
+                "--message", "feat(example): implement item",
             )
             base_branch = subprocess.run(
                 ["git", "branch", "--show-current"], cwd=repo, check=True,
@@ -372,6 +373,7 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
             invoke(
                 "execute-codex-goal", "commit", "--root", str(worktree), "--item-id", "I-02",
                 "--path", "worktree.txt", "--baseline", str(worktree_baseline_path),
+                "--message", "feat(example): implement worktree item",
             )
             invoke(
                 "execute-codex-goal", "worktree-integrate", "--root", str(repo),

@@ -726,7 +726,10 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
             (root / "staged.txt").write_text("preserve staged\n", encoding="utf-8")
             subprocess.run(["git", "add", "staged.txt"], cwd=root, check=True)
             (root / "item.txt").write_text("implementation\n", encoding="utf-8")
-            result = core.commit_item(root, "I-01", ["item.txt"], dirty_baseline=["dirty.txt"])
+            result = core.commit_item(
+                root, "I-01", ["item.txt"], "feat(example): implement item",
+                dirty_baseline=["dirty.txt"],
+            )
             self.assertEqual(result["status"], "committed")
             changed = subprocess.run(["git", "show", "--pretty=", "--name-only", "HEAD"], cwd=root, capture_output=True, text=True, check=True).stdout.splitlines()
             self.assertEqual(changed, ["item.txt"])
@@ -778,8 +781,14 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
             (root / "docs" / "guide.md").write_text("user change\n", encoding="utf-8")
             baseline = core.collect_git_baseline(root)
 
-            alias = core.commit_item(root, "I-01", ["./docs/guide.md"], dirty_baseline=baseline)
-            directory = core.commit_item(root, "I-01", ["docs"], dirty_baseline=baseline)
+            alias = core.commit_item(
+                root, "I-01", ["./docs/guide.md"], "docs(example): update guide",
+                dirty_baseline=baseline,
+            )
+            directory = core.commit_item(
+                root, "I-01", ["docs"], "docs(example): update guide",
+                dirty_baseline=baseline,
+            )
 
             self.assertEqual(alias["status"], "dirty_baseline_conflict")
             self.assertEqual(directory["status"], "dirty_baseline_conflict")

@@ -2044,7 +2044,8 @@ def collect_git_baseline(root: Path) -> dict[str, Any]:
 
 
 def commit_item(
-    root: Path, item_id: str, paths: list[str], *, dirty_baseline: list[str] | dict[str, Any]
+    root: Path, item_id: str, paths: list[str], message: str, *,
+    dirty_baseline: list[str] | dict[str, Any],
 ) -> dict[str, Any]:
     root = root.resolve()
     try:
@@ -2083,7 +2084,7 @@ def commit_item(
     if add.returncode:
         return {"status": "git_error", "error": add.stderr.strip()}
     committed = subprocess.run(
-        ["git", "commit", "--only", "-m", f"feat(harness): complete {item_id}", "--", *normalized_paths], cwd=root,
+        ["git", "commit", "--only", "-m", message, "--", *normalized_paths], cwd=root,
         capture_output=True, text=True, check=False,
     )
     if committed.returncode:
@@ -3870,6 +3871,7 @@ def _cli_parser(owner: str | None = None) -> argparse.ArgumentParser:
         commit.add_argument("--item-id", required=True)
         commit.add_argument("--path", action="append", required=True)
         commit.add_argument("--baseline", type=Path, required=True)
+        commit.add_argument("--message", required=True)
     worktree_create = command("worktree-create")
     if worktree_create:
         worktree_create.add_argument("--root", type=Path, required=True)
@@ -3995,7 +3997,7 @@ def main() -> int:
         elif args.command == "commit":
             baseline_payload = _json_object(args.baseline)
             payload = commit_item(
-                args.root, args.item_id, args.path,
+                args.root, args.item_id, args.path, args.message,
                 dirty_baseline=baseline_payload.get("baseline", baseline_payload),
             )
         elif args.command == "worktree-create":

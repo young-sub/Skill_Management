@@ -96,7 +96,10 @@ class CoreFirstForwardWorkflowTests(unittest.TestCase):
             git(repo, "add", "README.md")
             git(repo, "commit", "-qm", "base")
             (repo / "feature.py").write_text("VALUE = 1\n", encoding="utf-8")
-            committed = execute.commit_item(repo, "I-01", ["feature.py"], dirty_baseline=[])
+            committed = execute.commit_item(
+                repo, "I-01", ["feature.py"], "feat(example): add tiny feature",
+                dirty_baseline=[],
+            )
             self.assertEqual(committed["status"], "committed")
         impact = execute.select_impacted_checks(["feature.py"], project_config({"rules": [{
             "id": "feature", "source_prefixes": ["feature.py"], "tests": ["test_feature"],
@@ -242,8 +245,14 @@ class CoreFirstForwardWorkflowTests(unittest.TestCase):
             git(repo, "worktree", "add", "-q", "-b", "item-b", str(worktree_b), "HEAD")
             (worktree_a / "a.txt").write_text("implemented a\n", encoding="utf-8")
             (worktree_b / "b.txt").write_text("implemented b\n", encoding="utf-8")
-            self.assertEqual(execute.commit_item(worktree_a, "I-A", ["a.txt"], dirty_baseline=[])["status"], "committed")
-            self.assertEqual(execute.commit_item(worktree_b, "I-B", ["b.txt"], dirty_baseline=[])["status"], "committed")
+            self.assertEqual(execute.commit_item(
+                worktree_a, "I-A", ["a.txt"], "feat(example): implement item a",
+                dirty_baseline=[],
+            )["status"], "committed")
+            self.assertEqual(execute.commit_item(
+                worktree_b, "I-B", ["b.txt"], "feat(example): implement item b",
+                dirty_baseline=[],
+            )["status"], "committed")
             git(repo, "merge", "--no-edit", "item-a")
             git(repo, "merge", "--no-edit", "item-b")
             self.assertEqual((repo / "a.txt").read_text(encoding="utf-8"), "implemented a\n")

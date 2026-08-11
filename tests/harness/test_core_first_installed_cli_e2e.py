@@ -181,6 +181,7 @@ class InstalledCliEndToEndTests(unittest.TestCase):
                 committed = run_cli(
                     "execute-codex-goal", "commit", "--root", str(path), "--item-id", branch,
                     "--path", filename, "--baseline", str(baseline_path),
+                    "--message", f"feat(example): implement {branch}",
                 )
                 self.assertEqual(committed["status"], "committed")
             for branch, path, _ in worktrees:
