@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/core_harness.py
-# Source-SHA256: ca12e98437e606d2663e518cd46acb5ed22c7fb8eee04129e4e3117cc25b1000
+# Source-SHA256: ed25100ef4e88705f3734be8a0dff4444809d83007fe2135db2f7e99ba77486d
 
 #!/usr/bin/env python3
 """Deterministic Core-First Agent Harness contracts and compatibility checks."""
@@ -550,7 +550,7 @@ def approval_bundle_matches(
 
 
 RESERVED_INVENTORY_ROOTS = {
-    ".git", ".work", ".scratch", ".venv", "venv", "__pycache__",
+    ".git", ".work", ".worktree", ".scratch", ".venv", "venv", "__pycache__",
     ".cache", ".pytest_cache", ".mypy_cache", "node_modules", "build", "dist", "back-up",
 }
 
@@ -2514,13 +2514,42 @@ def start_work(
         _release_operation_lock(lock_path, lock_payload)
 
 
-def create_worktree(root: Path, *, base: str, branch: str, path: Path) -> dict[str, Any]:
+def _project_worktree_path(root: Path, branch: str) -> Path | None:
     root = root.resolve()
-    destination = path.resolve()
-    if destination == root or destination in root.parents or not re.fullmatch(r"[A-Za-z0-9._/-]+", branch):
+    parts = branch.split("/")
+    if (
+        not re.fullmatch(r"[A-Za-z0-9._/-]+", branch)
+        or branch.startswith(("/", "-"))
+        or branch.endswith(("/", "."))
+        or ".." in branch
+        or any(not part or part.startswith(".") or part.endswith(".lock") for part in parts)
+    ):
+        return None
+    worktree_root = root / ".worktree"
+    if (
+        (worktree_root.exists() and not worktree_root.is_dir())
+        or _path_is_alias(worktree_root)
+    ):
+        return None
+    return worktree_root / ("wt-" + branch.replace("/", "%2F"))
+
+
+def create_worktree(root: Path, *, base: str, branch: str) -> dict[str, Any]:
+    root = root.resolve()
+    destination = _project_worktree_path(root, branch)
+    if destination is None:
         return {"status": "invalid_target"}
     if destination.exists():
         return {"status": "conflict", "errors": ["worktree_destination_exists"]}
+    ignored = subprocess.run(
+        ["git", "check-ignore", "-q", "--", ".worktree/.harness-probe"],
+        cwd=root, capture_output=True, text=True, check=False,
+    )
+    if ignored.returncode:
+        if ignored.returncode == 1:
+            return {"status": "precondition_failed", "errors": ["worktree_root_not_ignored"]}
+        return {"status": "git_error", "errors": [(ignored.stderr or ignored.stdout).strip()]}
+    destination.parent.mkdir(exist_ok=True)
     created = subprocess.run(
         ["git", "worktree", "add", "-b", branch, str(destination), base], cwd=root,
         capture_output=True, text=True, check=False,
@@ -2531,7 +2560,7 @@ def create_worktree(root: Path, *, base: str, branch: str, path: Path) -> dict[s
 
 
 def integrate_worktree(
-    root: Path, *, base: str, branch: str, path: Path, project: dict[str, Any],
+    root: Path, *, base: str, branch: str, project: dict[str, Any],
     approved_exact_path: str | None,
 ) -> dict[str, Any]:
     root = root.resolve()
@@ -2539,7 +2568,9 @@ def integrate_worktree(
     if normalized_project["status"] == "invalid":
         return {"status": "precondition_failed", "errors": normalized_project["errors"]}
     project = normalized_project["project"]
-    destination = path.resolve()
+    destination = _project_worktree_path(root, branch)
+    if destination is None:
+        return {"status": "invalid_target"}
     if approved_exact_path is None or Path(approved_exact_path).resolve() != destination:
         return {"status": "approval_required", "target": str(destination)}
     if destination == root or destination in root.parents or not destination.is_dir():
@@ -3881,13 +3912,11 @@ def _cli_parser(owner: str | None = None) -> argparse.ArgumentParser:
         worktree_create.add_argument("--root", type=Path, required=True)
         worktree_create.add_argument("--base", required=True)
         worktree_create.add_argument("--branch", required=True)
-        worktree_create.add_argument("--path", type=Path, required=True)
     worktree_integrate = command("worktree-integrate")
     if worktree_integrate:
         worktree_integrate.add_argument("--root", type=Path, required=True)
         worktree_integrate.add_argument("--base", required=True)
         worktree_integrate.add_argument("--branch", required=True)
-        worktree_integrate.add_argument("--path", type=Path, required=True)
         worktree_integrate.add_argument("--project", type=Path, required=True)
         worktree_integrate.add_argument("--approved-exact-path", required=True)
     close = command("close")
@@ -4006,11 +4035,11 @@ def main() -> int:
             )
         elif args.command == "worktree-create":
             payload = create_worktree(
-                args.root, base=args.base, branch=args.branch, path=args.path
+                args.root, base=args.base, branch=args.branch
             )
         elif args.command == "worktree-integrate":
             payload = integrate_worktree(
-                args.root, base=args.base, branch=args.branch, path=args.path,
+                args.root, base=args.base, branch=args.branch,
                 project=_json_object(args.project), approved_exact_path=args.approved_exact_path,
             )
         elif args.command == "close":

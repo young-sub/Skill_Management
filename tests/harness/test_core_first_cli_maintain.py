@@ -235,7 +235,7 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
             subprocess.run(["git", "init", "-b", "develop"], cwd=repo, check=True, capture_output=True)
             subprocess.run(["git", "config", "user.email", "agent@example.com"], cwd=repo, check=True)
             subprocess.run(["git", "config", "user.name", "Agent"], cwd=repo, check=True)
-            (repo / ".gitignore").write_text(".work/\n", encoding="utf-8")
+            (repo / ".gitignore").write_text(".work/\n/.worktree/\n", encoding="utf-8")
             (repo / "src").mkdir()
             (repo / "src" / "app.py").write_text("VALUE = 1\n", encoding="utf-8")
             (repo / "docs").mkdir()
@@ -361,10 +361,10 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
                 ["git", "branch", "--show-current"], cwd=repo, check=True,
                 capture_output=True, text=True,
             ).stdout.strip()
-            worktree = container / "closure-worktree"
+            worktree = repo / ".worktree" / "wt-closure-worktree"
             invoke(
                 "execute-codex-goal", "worktree-create", "--root", str(repo), "--base", base_branch,
-                "--branch", "closure-worktree", "--path", str(worktree),
+                "--branch", "closure-worktree",
             )
             worktree_baseline = invoke("execute-codex-goal", "baseline", "--root", str(worktree))
             worktree_baseline_path = container / "worktree-baseline.json"
@@ -377,7 +377,7 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
             )
             invoke(
                 "execute-codex-goal", "worktree-integrate", "--root", str(repo),
-                "--base", base_branch, "--branch", "closure-worktree", "--path", str(worktree),
+                "--base", base_branch, "--branch", "closure-worktree",
                 "--project", str(project_path), "--approved-exact-path", str(worktree),
             )
 

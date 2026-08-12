@@ -160,20 +160,25 @@ class InstalledCliEndToEndTests(unittest.TestCase):
             git(root, "config", "user.email", "agent@example.com")
             git(root, "config", "user.name", "Agent")
             (root / "README.md").write_text("base\n", encoding="utf-8")
-            git(root, "add", "README.md")
+            (root / ".gitignore").write_text("/.worktree/\n", encoding="utf-8")
+            git(root, "add", "README.md", ".gitignore")
             git(root, "commit", "-qm", "base")
             base = git(root, "branch", "--show-current")
             project = root / "project.json"
             integration_project = project_config()
             integration_project["git"]["protected_branches"] = []
             write_json(project, integration_project)
-            worktrees = [("item-a", container / "work-a", "a.txt"), ("item-b", container / "work-b", "b.txt")]
+            worktrees = [
+                ("item-a", root / ".worktree" / "wt-item-a", "a.txt"),
+                ("item-b", root / ".worktree" / "wt-item-b", "b.txt"),
+            ]
             for branch, path, filename in worktrees:
                 created = run_cli(
                     "execute-codex-goal", "worktree-create", "--root", str(root), "--base", base,
-                    "--branch", branch, "--path", str(path),
+                    "--branch", branch,
                 )
                 self.assertEqual(created["status"], "created")
+                self.assertEqual(Path(created["path"]), path)
                 baseline = run_cli("execute-codex-goal", "baseline", "--root", str(path))
                 baseline_path = container / f"{branch}-baseline.json"
                 write_json(baseline_path, baseline)
@@ -187,14 +192,14 @@ class InstalledCliEndToEndTests(unittest.TestCase):
             for branch, path, _ in worktrees:
                 integrated = run_cli(
                     "execute-codex-goal", "worktree-integrate", "--root", str(root), "--base", base,
-                    "--branch", branch, "--path", str(path), "--project", str(project),
+                    "--branch", branch, "--project", str(project),
                     "--approved-exact-path", str(path),
                 )
                 self.assertEqual(integrated["status"], "integrated")
             self.assertTrue((root / "a.txt").is_file())
             self.assertTrue((root / "b.txt").is_file())
-            self.assertFalse((container / "work-a").exists())
-            self.assertFalse((container / "work-b").exists())
+            self.assertFalse((root / ".worktree" / "wt-item-a").exists())
+            self.assertFalse((root / ".worktree" / "wt-item-b").exists())
 
     def test_06_windows_design_only_start_uses_the_bundled_execute_runtime(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

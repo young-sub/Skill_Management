@@ -234,12 +234,15 @@ class CoreFirstForwardWorkflowTests(unittest.TestCase):
         execute = load_skill("execute-codex-goal", "forward_worktrees")
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            repo, worktree_a, worktree_b = root / "repo", root / "item-a", root / "item-b"
+            repo = root / "repo"
+            worktree_a = repo / ".worktree" / "item-a"
+            worktree_b = repo / ".worktree" / "item-b"
             repo.mkdir()
             init_repository(repo)
+            (repo / ".gitignore").write_text("/.worktree/\n", encoding="utf-8")
             (repo / "a.txt").write_text("base a\n", encoding="utf-8")
             (repo / "b.txt").write_text("base b\n", encoding="utf-8")
-            git(repo, "add", "a.txt", "b.txt")
+            git(repo, "add", ".gitignore", "a.txt", "b.txt")
             git(repo, "commit", "-qm", "base")
             git(repo, "worktree", "add", "-q", "-b", "item-a", str(worktree_a), "HEAD")
             git(repo, "worktree", "add", "-q", "-b", "item-b", str(worktree_b), "HEAD")

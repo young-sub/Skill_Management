@@ -60,7 +60,7 @@ def init_git_repository(root: Path, *, branch: str = "develop") -> str:
     subprocess.run(["git", "init", "-b", branch], cwd=root, check=True, capture_output=True)
     subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
     subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
-    (root / ".gitignore").write_text(".work/\n", encoding="utf-8")
+    (root / ".gitignore").write_text(".work/\n/.worktree/\n", encoding="utf-8")
     (root / "README.md").write_text("baseline\n", encoding="utf-8")
     subprocess.run(["git", "add", ".gitignore", "README.md"], cwd=root, check=True)
     subprocess.run(["git", "commit", "-m", "baseline"], cwd=root, check=True, capture_output=True)
@@ -736,6 +736,51 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
             self.assertIn("dirty.txt", subprocess.run(["git", "status", "--short"], cwd=root, capture_output=True, text=True, check=True).stdout)
             self.assertEqual(subprocess.run(["git", "diff", "--cached", "--name-only"], cwd=root, capture_output=True, text=True, check=True).stdout.splitlines(), ["staged.txt"])
 
+    def test_worktree_lifecycle_uses_the_ignored_project_local_directory(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            root.mkdir()
+            init_git_repository(root)
+
+            created = core.create_worktree(
+                root, base="develop", branch="feature/item-a",
+            )
+
+            expected = root / ".worktree" / "wt-feature%2Fitem-a"
+            self.assertEqual(created["status"], "created", created)
+            self.assertEqual(Path(created["path"]), expected)
+            self.assertTrue(expected.is_dir())
+            self.assertFalse((root.parent / "feature-item-a").exists())
+
+            project = v3_project()
+            project["git"]["protected_branches"] = []
+            integrated = core.integrate_worktree(
+                root, base="develop", branch="feature/item-a",
+                project=project, approved_exact_path=str(expected),
+            )
+
+            self.assertEqual(integrated["status"], "integrated", integrated)
+            self.assertFalse(expected.exists())
+
+    def test_worktree_creation_requires_a_real_ignored_local_root(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "repo"
+            root.mkdir()
+            init_git_repository(root)
+            (root / ".gitignore").write_text(".work/\n", encoding="utf-8")
+            subprocess.run(["git", "add", ".gitignore"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-m", "remove worktree ignore"], cwd=root, check=True, capture_output=True)
+
+            result = core.create_worktree(
+                root, base="develop", branch="feature-item",
+            )
+
+            self.assertEqual(result["status"], "precondition_failed", result)
+            self.assertIn("worktree_root_not_ignored", result["errors"])
+            self.assertFalse((root / ".worktree").exists())
+
     def test_git_baseline_classifies_dirty_paths_without_ignored_files(self) -> None:
         core = load_core()
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -856,12 +901,11 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
         self.assertTrue(impacted["unresolved"])
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            worktree = root / "worktree"
-            worktree.mkdir()
             with mock.patch.object(core.subprocess, "run") as run:
                 integrated = core.integrate_worktree(
-                    root, base="develop", branch="feature", path=worktree,
-                    project=invalid, approved_exact_path=str(worktree),
+                    root, base="develop", branch="feature",
+                    project=invalid,
+                    approved_exact_path=str(root / ".worktree" / "wt-feature"),
                 )
 
             self.assertEqual(integrated["status"], "precondition_failed", integrated)

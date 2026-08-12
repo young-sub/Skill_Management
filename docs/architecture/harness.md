@@ -14,7 +14,7 @@ Each Item exposes four primary blocks only: purpose, process, tests, and expecte
 
 ## Runtime and state
 
-The runtime selects dependency-ready core Items before optional Items, records only Git-reported staged/unstaged/deleted/non-ignored untracked baseline entries, and runs Impacted checks. A commit contains the smallest complete functional unit that works from that commit alone; coupled Items sharing runtime, schema, documentation, or generated resources stay together. Planned test and Done IDs must match retained evidence one-to-one. A host Goal may track continuation but is not execution authority. Low-risk user changes become `approved_amendment`; material or high-risk deltas need focused approval.
+The runtime selects dependency-ready core Items before optional Items, records only Git-reported staged/unstaged/deleted/non-ignored untracked baseline entries, and runs Impacted checks. Independent Item worktrees use deterministic paths under the repository-owned, ignored `/.worktree/` directory; callers cannot place them outside the project. A commit contains the smallest complete functional unit that works from that commit alone; coupled Items sharing runtime, schema, documentation, or generated resources stay together. Planned test and Done IDs must match retained evidence one-to-one. A host Goal may track continuation but is not execution authority. Low-risk user changes become `approved_amendment`; material or high-risk deltas need focused approval.
 
 ```text
 .work/goals/active/<id>
