@@ -4,7 +4,7 @@ description: Map and configure greenfield or brownfield repositories with the Co
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/setup-agent-harness/SKILL.md -->
-<!-- Source-SHA256: 5721fd6f4287f84ad9ed21c8804b9c9936973248502c290dfa1ba7d08587f31f -->
+<!-- Source-SHA256: 77017ded390ec9f177b45c57f6c980915526cac87714fd6c803227a56d1cf26b -->
 
 
 # Setup Agent Harness
@@ -18,6 +18,6 @@ Resolve this installed Skill directory as `<skill-root>`. The runtime path is `<
 3. After the static proposal is valid, run only the capability descriptors needed to establish a useful revision-bound baseline. Ask when the command crosses a high-risk approval boundary.
 4. Install `.harness/project.yaml`, a concise router, and `docs/index.md` before proposing moves. Ensure the repository ignore file owns `/.work/` and `/.worktree/` so ephemeral state and project-local worktrees never escape or enter tracked inventory. Record pre-existing debt only when it would otherwise block relevant work.
 5. Apply only the displayed cleanup plan with its internal digest. Separate mapping, byte-preserving moves, content reconciliation, translation, removal, and test reorganization. The human approves the displayed plan once and never pastes a hash.
-6. Journal the transaction under `.work/transactions/`; on a fault restore the exact pre-transaction tracked tree. Document/test-only changes must preserve production hashes. Test-only moves also preserve path-independent semantic identities and selectors.
+6. Journal the transaction under `.work/transactions/`; on a fault restore the exact pre-transaction tracked tree. Document/test-only plans must be confined to their mapped ownership boundaries. Test-only moves also preserve path-independent semantic identities and selectors.
 
 Require focused approval for broad moves/removals, ignore or CI/discovery changes, destructive actions, or boundary-crossing migration. Never edit global provider configuration or installed Skills.

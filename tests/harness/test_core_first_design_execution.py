@@ -290,6 +290,7 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
             self.assertEqual(manifest["source_commit"], revision)
             self.assertEqual(manifest["base_branch"], "develop")
             self.assertEqual(manifest["feature_branch"], "develop")
+            self.assertTrue(manifest["integrity_digest"].startswith("sha256:"))
             baseline_paths = {entry["path"] for entry in manifest["dirty_baseline"]["entries"]}
             self.assertEqual(baseline_paths, {"README.md", "untracked.txt"})
             self.assertTrue((root / ".work" / "goals" / "active" / "W-new" / "work.json").is_file())
@@ -802,11 +803,17 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
             (root / ".venv").mkdir()
             (root / ".venv" / "locked.bin").write_bytes(b"ignored")
 
-            baseline = core.collect_git_baseline(root)
+            real_run = subprocess.run
+            with mock.patch.object(core.subprocess, "run", wraps=real_run) as run:
+                baseline = core.collect_git_baseline(root)
 
             self.assertEqual(baseline["base_revision"], subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True, check=True).stdout.strip())
+            self.assertEqual(set(baseline), {"base_revision", "entries"})
             by_path = {entry["path"]: entry for entry in baseline["entries"]}
             self.assertEqual(set(by_path), {"deleted.txt", "staged.txt", "unstaged.txt", "untracked.txt"})
+            self.assertTrue(all(set(entry) == {"path", "identity", "states"} for entry in baseline["entries"]))
+            git_commands = [call.args[0] for call in run.call_args_list]
+            self.assertFalse(any(command[:3] == ["git", "ls-files", "-s"] for command in git_commands))
             self.assertIn("staged", by_path["staged.txt"]["states"])
             self.assertIn("unstaged", by_path["unstaged.txt"]["states"])
             self.assertIn("deleted", by_path["deleted.txt"]["states"])
@@ -837,6 +844,36 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
 
             self.assertEqual(alias["status"], "dirty_baseline_conflict")
             self.assertEqual(directory["status"], "dirty_baseline_conflict")
+
+    def test_item_commit_allows_unrelated_dirty_content_to_keep_changing(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+            (root / "dirty.txt").write_text("base\n", encoding="utf-8")
+            subprocess.run(["git", "add", "dirty.txt"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "base"], cwd=root, check=True)
+            (root / "dirty.txt").write_text("first user change\n", encoding="utf-8")
+            baseline = core.collect_git_baseline(root)
+            (root / "dirty.txt").write_text("second user change\n", encoding="utf-8")
+            (root / "item.txt").write_text("implementation\n", encoding="utf-8")
+
+            result = core.commit_item(
+                root, "I-01", ["item.txt"], "feat(example): implement item",
+                dirty_baseline=baseline,
+            )
+
+            self.assertEqual(result["status"], "committed", result)
+            changed = subprocess.run(
+                ["git", "show", "--pretty=", "--name-only", "HEAD"], cwd=root,
+                capture_output=True, text=True, check=True,
+            ).stdout.splitlines()
+            self.assertEqual(changed, ["item.txt"])
+            self.assertIn("dirty.txt", subprocess.run(
+                ["git", "status", "--short"], cwd=root, capture_output=True, text=True, check=True,
+            ).stdout)
 
     def test_canonical_repo_identity_rejects_filesystem_aliases(self) -> None:
         core = load_core()

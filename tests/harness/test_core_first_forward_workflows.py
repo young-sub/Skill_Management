@@ -116,7 +116,8 @@ class CoreFirstForwardWorkflowTests(unittest.TestCase):
             root = Path(temp_dir)
             for relative in ("src", "docs", "handbook", "notes"):
                 (root / relative).mkdir()
-            (root / "src" / "app.py").write_bytes(b"VALUE = 1\r\n")
+            production_bytes = b"VALUE = 1\r\n"
+            (root / "src" / "app.py").write_bytes(production_bytes)
             (root / "docs" / "index.md").write_text("# Current\n", encoding="utf-8")
             (root / "handbook" / "operators.md").write_text("# Operators\n", encoding="utf-8")
             legacy_bytes = b"# Old guide\r\n"
@@ -135,7 +136,9 @@ class CoreFirstForwardWorkflowTests(unittest.TestCase):
             ])
             applied = setup.apply_transaction(root, plan, approval_digest=plan["digest"])
             self.assertEqual(applied["status"], "committed")
-            self.assertEqual(applied["production_hashes_before"], applied["production_hashes_after"])
+            self.assertNotIn("production_hashes_before", applied)
+            self.assertNotIn("production_hashes_after", applied)
+            self.assertEqual((root / "src" / "app.py").read_bytes(), production_bytes)
             self.assertEqual((root / "docs" / "guide.md").read_bytes(), legacy_bytes)
 
     def test_test_only_relocation_preserves_real_collection_outcome_and_production(self) -> None:

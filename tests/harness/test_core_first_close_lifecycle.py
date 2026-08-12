@@ -223,6 +223,9 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
             self.assertTrue((destination / "result.json").is_file())
             self.assertTrue((destination / "review" / "result.html").is_file())
             self.assertFalse(active.exists())
+            journals = list((root / ".work" / "transactions").glob("*/journal.json"))
+            self.assertEqual(len(journals), 1)
+            self.assertNotIn("post_manifest_hash", json.loads(journals[0].read_text(encoding="utf-8")))
 
     def test_close_and_sweep_roll_back_interrupted_manifest_and_move(self) -> None:
         core = load_core()

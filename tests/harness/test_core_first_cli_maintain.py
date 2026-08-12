@@ -519,16 +519,19 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
             (install_root / "unrelated" ).mkdir()
             (install_root / "unrelated" / "keep.txt").write_text("keep\n", encoding="utf-8")
 
-            installed = core.install_harness_cohort(
-                ROOT / "skills", install_root, manifest,
-                approved_install_root=str(install_root),
-            )
+            real_hash = core._manifest_file_hash
+            with mock.patch.object(core, "_manifest_file_hash", wraps=real_hash) as hash_file:
+                installed = core.install_harness_cohort(
+                    ROOT / "skills", install_root, manifest,
+                    approved_install_root=str(install_root),
+                )
 
             self.assertEqual(installed["status"], "installed", installed)
+            self.assertEqual(hash_file.call_count, 2 * len(core._cohort_manifest_files(manifest)))
             self.assertEqual(core.inspect_installed_cohort(install_root, manifest)["status"], "complete")
             self.assertFalse((install_root / "execute-codex-goal" / "scripts" / "goal_runtime.py").exists())
             self.assertEqual((install_root / "unrelated" / "keep.txt").read_text(encoding="utf-8"), "keep\n")
-            self.assertTrue(installed["tree_digest"].startswith("sha256:"))
+            self.assertNotIn("tree_digest", installed)
             expected = set(core._cohort_manifest_files(manifest)) | {
                 "maintain-agent-harness/resources/public-resource-manifest.json",
             }

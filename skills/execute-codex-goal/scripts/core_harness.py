@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/core_harness.py
-# Source-SHA256: ed25100ef4e88705f3734be8a0dff4444809d83007fe2135db2f7e99ba77486d
+# Source-SHA256: 9d97c45fb8dedce0553054e28692fc0f0b57f0e33fbe73d9dd6bf9202e42f5e8
 
 #!/usr/bin/env python3
 """Deterministic Core-First Agent Harness contracts and compatibility checks."""
@@ -605,21 +605,6 @@ def _relative_files(root: Path) -> list[Path]:
     return enumerate_repository_files(root)
 
 
-def _hash_roots(root: Path, roots: list[str], *, files: list[Path] | None = None) -> dict[str, str]:
-    result: dict[str, str] = {}
-    candidates = files if files is not None else enumerate_repository_files(root)
-    for relative_root in roots:
-        base = _safe_repo_path(root, relative_root)
-        if not base.exists():
-            continue
-        paths = [base] if base.is_file() and base in candidates else [
-            path for path in candidates if path == base or base in path.parents
-        ]
-        for path in paths:
-            result[path.relative_to(root).as_posix()] = "sha256:" + sha256(path.read_bytes()).hexdigest()
-    return result
-
-
 def static_inventory(root: Path, mapping: dict[str, Any] | None = None) -> dict[str, Any]:
     """Inspect bytes and declarations only; never execute repository content."""
     root = root.resolve()
@@ -643,7 +628,6 @@ def static_inventory(root: Path, mapping: dict[str, Any] | None = None) -> dict[
             if argv and argv[0].lower() in {"python", "python3", "pytest", "npm", "pnpm", "yarn", "dotnet", "go", "cargo", "powershell"}:
                 if argv not in declared:
                     declared.append(argv)
-    source_roots = list(mapping.get("source_roots", []))
     git_directory = root / ".git"
     head_path = git_directory / "HEAD"
     branch = "unknown"
@@ -672,7 +656,6 @@ def static_inventory(root: Path, mapping: dict[str, Any] | None = None) -> dict[
         "schema_version": SCHEMA_VERSION,
         "files": files,
         "paths": mapping,
-        "production_hashes": _hash_roots(root, source_roots, files=inventory_paths),
         "declared_commands": declared,
         "git": {
             "branch": branch,
@@ -835,8 +818,6 @@ def build_project_migration(root: Path, legacy: dict[str, Any]) -> dict[str, Any
             "path": ".harness/project.yaml", "expected_hash": expected_hash,
         }],
         "operations": [{"action": "write", "path": ".harness/project.yaml", "content": content}],
-        "source_roots": [],
-        "production_hashes_before": {},
     })
 
 
@@ -869,7 +850,6 @@ def build_cleanup_plan(
     root = root.resolve()
     ownership = deepcopy(ownership or {})
     ownership.setdefault("source_roots", list(source_roots))
-    production = _hash_roots(root, source_roots)
     allowed = {"documents", "human"} if mode == "document-only" else {"tests", "fixtures", "test_config", "ci"}
     for operation in operations:
         relevant_paths = _operation_paths(operation)
@@ -884,8 +864,6 @@ def build_cleanup_plan(
         "mode": mode,
         "root": str(root),
         "operations": deepcopy(operations),
-        "source_roots": list(source_roots),
-        "production_hashes_before": production,
     })
 
 
@@ -1316,24 +1294,9 @@ def _apply_transaction_locked(
                 os._exit(91)
             if fault_after == number:
                 raise RuntimeError(f"fault_injected_after:{number}")
-        production_after = _hash_roots(root, list(plan.get("source_roots", [])))
-        if production_after != plan.get("production_hashes_before", {}):
-            raise RuntimeError("production_hash_drift")
         journal["status"] = "committed"
-        journal["post_hashes"] = {
-            relative: (
-                "sha256:" + sha256(_safe_repo_path(root, relative).read_bytes()).hexdigest()
-                if _safe_repo_path(root, relative).is_file()
-                else None
-            )
-            for relative in affected
-        }
         _durable_write_json(journal_path, journal)
-        return {
-            "status": "committed", "transaction_id": transaction_id,
-            "production_hashes_before": plan.get("production_hashes_before", {}),
-            "production_hashes_after": production_after,
-        }
+        return {"status": "committed", "transaction_id": transaction_id}
     except (OSError, UnicodeError, ValueError, RuntimeError) as error:
         restore_errors = _restore_transaction_files(root, journal)
         journal["status"] = "rollback_failed" if restore_errors else "rolled_back"
@@ -2026,25 +1989,8 @@ def collect_git_baseline(root: Path) -> dict[str, Any]:
             states.append("deleted")
         if relative in untracked:
             states.append("untracked")
-        path = _safe_repo_path(root, normalized)
-        worktree_hash = None
-        if path.is_file() and not _path_is_alias(path):
-            worktree_hash = "sha256:" + sha256(path.read_bytes()).hexdigest()
-        index = subprocess.run(
-            ["git", "ls-files", "-s", "--", normalized], cwd=root,
-            capture_output=True, text=True, check=False,
-        )
-        index_oid = None
-        if index.returncode == 0 and index.stdout.strip():
-            fields = index.stdout.split("\t", 1)[0].split()
-            if len(fields) >= 2:
-                index_oid = fields[1]
-        entries.append({
-            "path": normalized, "identity": identity, "states": states,
-            "index_oid": index_oid, "worktree_hash": worktree_hash,
-        })
-    payload = {"base_revision": revision.stdout.strip(), "entries": entries}
-    return {**payload, "digest": canonical_digest(payload)}
+        entries.append({"path": normalized, "identity": identity, "states": states})
+    return {"base_revision": revision.stdout.strip(), "entries": entries}
 
 
 def commit_item(
@@ -2056,10 +2002,10 @@ def commit_item(
         normalized_paths = [canonical_repo_identity(root, path)[0] for path in paths]
         item_identities = [canonical_repo_identity(root, path)[1] for path in normalized_paths]
         if isinstance(dirty_baseline, dict):
-            baseline_entries = list(dirty_baseline.get("entries", []))
-            baseline_identities = [str(entry.get("identity")) for entry in baseline_entries]
+            baseline_identities = [
+                str(entry.get("identity")) for entry in dirty_baseline.get("entries", [])
+            ]
         else:
-            baseline_entries = []
             baseline_identities = [canonical_repo_identity(root, path)[1] for path in dirty_baseline]
     except ValueError as error:
         return {"status": "invalid_path", "error": str(error)}
@@ -2069,21 +2015,6 @@ def commit_item(
     )
     if overlap:
         return {"status": "dirty_baseline_conflict", "paths": overlap}
-    if isinstance(dirty_baseline, dict):
-        current = collect_git_baseline(root)
-        baseline_by_id = {str(entry["identity"]): entry for entry in baseline_entries}
-        current_by_id = {str(entry["identity"]): entry for entry in current["entries"]}
-        drift = [
-            entry["path"] for identity, entry in baseline_by_id.items()
-            if current_by_id.get(identity) != entry
-        ]
-        unexpected = [
-            entry["path"] for identity, entry in current_by_id.items()
-            if identity not in baseline_by_id
-            and not any(_identities_overlap(identity, item_identity) for item_identity in item_identities)
-        ]
-        if drift or unexpected:
-            return {"status": "dirty_baseline_drift", "paths": sorted(set(drift + unexpected))}
     add = subprocess.run(["git", "add", "--", *normalized_paths], cwd=root, capture_output=True, text=True, check=False)
     if add.returncode:
         return {"status": "git_error", "error": add.stderr.strip()}
@@ -2226,9 +2157,7 @@ def _validate_active_manifest(
         if not isinstance(manifest.get(field), str) or not manifest[field]:
             errors.append(f"work_manifest_invalid:{field}")
     baseline = manifest.get("dirty_baseline")
-    baseline_valid = isinstance(baseline, dict) and set(baseline) == {
-        "base_revision", "entries", "digest",
-    }
+    baseline_valid = isinstance(baseline, dict) and set(baseline) == {"base_revision", "entries"}
     if baseline_valid:
         base_revision = baseline.get("base_revision")
         entries = baseline.get("entries")
@@ -2236,16 +2165,11 @@ def _validate_active_manifest(
             isinstance(base_revision, str) and bool(base_revision)
             and base_revision == manifest.get("source_commit")
             and isinstance(entries, list)
-            and baseline.get("digest") == canonical_digest({
-                "base_revision": base_revision, "entries": entries,
-            })
         )
         if baseline_valid:
             allowed_states = {"staged", "unstaged", "deleted", "untracked"}
             for entry in entries:
-                if not isinstance(entry, dict) or set(entry) != {
-                    "path", "identity", "states", "index_oid", "worktree_hash",
-                }:
+                if not isinstance(entry, dict) or set(entry) != {"path", "identity", "states"}:
                     baseline_valid = False
                     break
                 states = entry.get("states")
@@ -2254,8 +2178,6 @@ def _validate_active_manifest(
                     and isinstance(entry.get("identity"), str) and entry["identity"]
                     and isinstance(states, list) and bool(states)
                     and len(states) == len(set(states)) and set(states) <= allowed_states
-                    and (entry.get("index_oid") is None or isinstance(entry.get("index_oid"), str))
-                    and (entry.get("worktree_hash") is None or isinstance(entry.get("worktree_hash"), str))
                 ):
                     baseline_valid = False
                     break
@@ -2450,16 +2372,15 @@ def start_work(
             ["git", "branch", "--show-current"], cwd=root,
             capture_output=True, text=True, check=False,
         )
-        base_revision = subprocess.run(
-            ["git", "rev-parse", "HEAD"], cwd=root,
-            capture_output=True, text=True, check=False,
-        )
-        if base_branch.returncode or base_revision.returncode or not base_branch.stdout.strip():
+        if base_branch.returncode or not base_branch.stdout.strip():
             return {"status": "git_error", "errors": ["captured_base_unavailable"]}
         normalized_slug = re.sub(r"[^a-z0-9-]+", "-", slug.casefold()).strip("-")
         if not normalized_slug:
             return {"status": "invalid_slug"}
-        baseline = collect_git_baseline(root)
+        try:
+            baseline = collect_git_baseline(root)
+        except ValueError as error:
+            return {"status": "git_error", "errors": [str(error)]}
         base_branch_name = base_branch.stdout.strip()
         git_policy = project["git"]
         protected_branches = set(git_policy["protected_branches"])
@@ -2481,7 +2402,7 @@ def start_work(
         manifest = {
             "schema_version": SCHEMA_VERSION, "work_id": work_id, "state": "active",
             "created_at": datetime.now().astimezone().isoformat(),
-            "source_commit": base_revision.stdout.strip(), "base_branch": base_branch_name,
+            "source_commit": baseline["base_revision"], "base_branch": base_branch_name,
             "feature_branch": feature_branch, "contract_version": SCHEMA_VERSION,
             "dirty_baseline": baseline,
             "integrity_digest": canonical_digest(_contract_payload(contract)),
@@ -2885,7 +2806,6 @@ def _lifecycle_move_locked(
             manifest_path,
             (json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8"),
         )
-        journal["post_manifest_hash"] = "sha256:" + sha256(manifest_path.read_bytes()).hexdigest()
         _durable_write_json(journal_path, journal)
         if crash_after == "manifest":
             os._exit(92)
@@ -3628,18 +3548,11 @@ def install_harness_cohort(
         observed = inspect_installed_cohort(install_root, resource_manifest)
         if observed["status"] != "complete":
             raise RuntimeError("installed_cohort_verification_failed:" + ";".join(observed["blockers"]))
-        tree: dict[str, str] = {
-            relative: _manifest_file_hash(install_root / relative, None)
-            for relative in sorted(files)
-        }
-        if tree != files or _installed_cohort_files(install_root) != set(files) | {COHORT_MANIFEST_RESOURCE}:
-            raise RuntimeError("installed_tree_manifest_mismatch")
-        tree[COHORT_MANIFEST_RESOURCE] = canonical_digest(resource_manifest)
         shutil.rmtree(backup)
         shutil.rmtree(staging)
         return {
             "status": "installed", "install_root": str(install_root),
-            "skills": list(HARNESS_INSTALL_SKILLS), "tree_digest": canonical_digest(tree),
+            "skills": list(HARNESS_INSTALL_SKILLS),
         }
     except (OSError, ValueError, RuntimeError) as error:
         restore_errors: list[str] = []

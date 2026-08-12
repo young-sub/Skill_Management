@@ -41,13 +41,22 @@ class CoreFirstSetupTests(unittest.TestCase):
             (root / "README.md").write_text("Run `python checks/check_service.py`\n", encoding="utf-8")
             mapping = {"source_roots": ["odd-source"], "test_roots": ["checks"]}
 
-            with mock.patch("subprocess.run", side_effect=AssertionError("must not execute")):
+            source = root / "odd-source" / "service.py"
+            real_read_bytes = Path.read_bytes
+
+            def reject_source_hash(path):
+                if path == source:
+                    raise AssertionError("static inventory must not hash production files")
+                return real_read_bytes(path)
+
+            with mock.patch("subprocess.run", side_effect=AssertionError("must not execute")), \
+                    mock.patch.object(Path, "read_bytes", reject_source_hash):
                 inventory = core.static_inventory(root, mapping)
 
             self.assertEqual(inventory["dynamic_evidence"]["status"], "unknown")
             self.assertEqual(inventory["paths"]["source_roots"], ["odd-source"])
             self.assertEqual(inventory["paths"]["test_roots"], ["checks"])
-            self.assertIn("odd-source/service.py", inventory["production_hashes"])
+            self.assertNotIn("production_hashes", inventory)
             self.assertIn(["python", "checks/check_service.py"], inventory["declared_commands"])
 
     def test_git_inventory_never_opens_ignored_reserved_or_local_files(self) -> None:
@@ -233,8 +242,6 @@ class CoreFirstSetupTests(unittest.TestCase):
                     {"action": "write", "path": "existing.txt", "content": "changed\n"},
                     {"action": "write", "path": "created.txt", "content": "created\n"},
                 ],
-                "source_roots": [],
-                "production_hashes_before": {},
             })
             plan_path = root / "plan.json"
             plan_path.write_text(json.dumps(plan), encoding="utf-8")
@@ -270,7 +277,6 @@ module.apply_transaction(Path(sys.argv[2]), plan, approval_digest=plan['digest']
             plan = core._plan_with_digest({
                 "schema_version": 3, "mode": "document-only", "root": str(root.resolve()),
                 "operations": [{"action": "write", "path": "result.txt", "content": "done\n"}],
-                "source_roots": [], "production_hashes_before": {},
             })
             entered = threading.Event()
             release = threading.Event()
@@ -297,7 +303,7 @@ module.apply_transaction(Path(sys.argv[2]), plan, approval_digest=plan['digest']
             self.assertIn("operation_lock_busy:transaction", second["errors"])
             self.assertEqual((root / "result.txt").read_text(encoding="utf-8"), "done\n")
 
-    def test_document_move_preserves_bytes_updates_links_and_production_hashes(self) -> None:
+    def test_document_move_preserves_bytes_without_scanning_production(self) -> None:
         core = load_core()
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -307,17 +313,35 @@ module.apply_transaction(Path(sys.argv[2]), plan, approval_digest=plan['digest']
             original = b"# Guide\r\n"
             (root / "notes" / "guide.md").write_bytes(original)
             (root / "README.md").write_text("See notes/guide.md\n", encoding="utf-8")
-            plan = core.build_cleanup_plan(root, mode="document-only", source_roots=["src"], ownership={
-                "durable_document_roots": ["notes", "docs"], "human_guide_roots": ["README.md"],
-            }, operations=[
-                {"action": "move", "source": "notes/guide.md", "target": "docs/guide.md"},
-                {"action": "replace", "path": "README.md", "old": "notes/guide.md", "new": "docs/guide.md"},
-            ])
-            result = core.apply_transaction(root, plan, approval_digest=plan["digest"])
+            source = root / "src" / "app.py"
+            real_read_bytes = Path.read_bytes
+
+            def reject_source_hash(path):
+                if path == source:
+                    raise AssertionError("document cleanup must not hash production files")
+                return real_read_bytes(path)
+
+            with mock.patch.object(Path, "read_bytes", reject_source_hash):
+                plan = core.build_cleanup_plan(root, mode="document-only", source_roots=["src"], ownership={
+                    "durable_document_roots": ["notes", "docs"], "human_guide_roots": ["README.md"],
+                }, operations=[
+                    {"action": "move", "source": "notes/guide.md", "target": "docs/guide.md"},
+                    {"action": "replace", "path": "README.md", "old": "notes/guide.md", "new": "docs/guide.md"},
+                ])
+                result = core.apply_transaction(root, plan, approval_digest=plan["digest"])
             self.assertEqual(result["status"], "committed")
+            self.assertEqual(source.read_bytes(), b"VALUE = 1\r\n")
             self.assertEqual((root / "docs" / "guide.md").read_bytes(), original)
             self.assertIn("docs/guide.md", (root / "README.md").read_text(encoding="utf-8"))
-            self.assertEqual(result["production_hashes_before"], result["production_hashes_after"])
+            self.assertNotIn("source_roots", plan)
+            self.assertNotIn("production_hashes_before", plan)
+            self.assertNotIn("production_hashes_before", result)
+            self.assertNotIn("production_hashes_after", result)
+            journal = json.loads(
+                (root / ".work" / "transactions" / result["transaction_id"] / "journal.json")
+                .read_text(encoding="utf-8")
+            )
+            self.assertNotIn("post_hashes", journal)
 
     def test_cleanup_modes_reject_cross_owner_paths_before_plan_creation(self) -> None:
         core = load_core()

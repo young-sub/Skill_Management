@@ -19,14 +19,14 @@
     "contract_version": {"const": 3},
     "dirty_baseline": {
       "type": "object",
-      "required": ["base_revision", "entries", "digest"],
+      "required": ["base_revision", "entries"],
       "properties": {
         "base_revision": {"type": "string"},
         "entries": {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["path", "identity", "states", "index_oid", "worktree_hash"],
+            "required": ["path", "identity", "states"],
             "properties": {
               "path": {"type": "string"},
               "identity": {"type": "string"},
@@ -34,14 +34,11 @@
                 "type": "array",
                 "items": {"enum": ["staged", "unstaged", "deleted", "untracked"]},
                 "uniqueItems": true
-              },
-              "index_oid": {"type": ["string", "null"]},
-              "worktree_hash": {"type": ["string", "null"]}
+              }
             },
             "additionalProperties": false
           }
-        },
-        "digest": {"type": "string"}
+        }
       },
       "additionalProperties": false
     },

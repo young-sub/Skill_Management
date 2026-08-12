@@ -167,19 +167,21 @@ class CoreFirstSchemaTests(unittest.TestCase):
         for skill in ("setup-agent-harness", "design-goal", "execute-codex-goal", "close-goal", "maintain-agent-harness"):
             self.assertTrue((ROOT / "skills" / skill / "scripts" / "core_harness.py").is_file(), skill)
 
-    def test_work_schema_requires_the_exact_captured_dirty_baseline(self) -> None:
+    def test_work_schema_keeps_only_path_level_dirty_baseline_data(self) -> None:
         work = json.loads(
             (ROOT / "authoring" / "schemas" / "v3" / "work.schema.json").read_text(encoding="utf-8")
         )
 
         self.assertIn("dirty_baseline", work["required"])
+        self.assertIn("integrity_digest", work["required"])
+        self.assertIn("integrity_digest", work["properties"])
         baseline = work["properties"]["dirty_baseline"]
-        self.assertEqual(set(baseline["required"]), {"base_revision", "entries", "digest"})
+        self.assertEqual(set(baseline["required"]), {"base_revision", "entries"})
         self.assertFalse(baseline["additionalProperties"])
         entry = baseline["properties"]["entries"]["items"]
         self.assertEqual(
             set(entry["required"]),
-            {"path", "identity", "states", "index_oid", "worktree_hash"},
+            {"path", "identity", "states"},
         )
         self.assertFalse(entry["additionalProperties"])
 

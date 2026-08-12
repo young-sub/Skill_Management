@@ -6,6 +6,6 @@ Full runs only for a configured executable trigger: shared runtime, schema, test
 
 Current selectors are machine-readable in `.harness/project.yaml`. Local and CI descriptors must identify the same capability even when their argv differs. Resource sync, distribution validation, and `git diff --check` are required when their mapped surfaces change.
 
-Behavior-preserving test relocation uses baseline GREEN, a path-independent identity (`capability + suite/class + test + parameter`), structural change, equivalent GREEN, unchanged production hashes, and working local/CI selectors.
+Behavior-preserving test relocation uses baseline GREEN, a path-independent identity (`capability + suite/class + test + parameter`), ownership-confined structural change, equivalent GREEN, unchanged public behavior, and working local/CI selectors.
 
 The five representative workflows run only through installed Skill CLI entrypoints: tiny default-authorized work, brownfield cleanup transaction, large-suite impact selection, low-risk amendment rebind, and parallel worktree creation/commit/integration. Internal function imports remain unit-test seams, not acceptance evidence.
