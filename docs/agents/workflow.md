@@ -2,6 +2,8 @@
 
 Start from repository evidence and `.harness/project.yaml`. Capture the current branch and commit, preserve dirty files, and create the configured feature branch without assuming a default. Shared instructions, schemas, source-of-truth documents, generated resources, and common test interfaces remain sequential in the main session.
 
+Before invoking a capability, load ignored `.harness/environment-exceptions.json` when present. Do not retry a `skip_until_manual_reenable` capability; use its fallback and report the unavailable name, intent, reason, disable path, fallback, and remaining unverified scope.
+
 Use the Goal contract lifecycle only when the global Work Packet threshold is met or the user explicitly selects it. Within that workflow, capability work uses one to five canonical Items; use one when the change has only one meaningful review boundary. A valid ordinary contract is authorized by default; the user can veto it without performing approval ceremony. Host Goal tracking is optional. Implement dependency-ready core Items first, record logic impact from diff/direct callers/public behavior, and run exact checks; path mappings are candidates only.
 
 A commit unit is the smallest complete functional unit that works when checked out by itself, including required source, tests, docs, schemas, and generated resources. Commit every such unit after its mapped verification passes. Group coupled Items into one commit; split only independently working units. Never create an intentionally broken intermediate commit.

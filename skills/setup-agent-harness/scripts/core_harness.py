@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/core_harness.py
-# Source-SHA256: 3088ad5f134703a1a2184caecde8d26c599f1f3ec4564d47476b813b0a79017e
+# Source-SHA256: 3eaacf1c6a3041db6a121882fef585c73a6df27499cd836c3f689fff5772ac76
 
 #!/usr/bin/env python3
 """Deterministic Core-First Agent Harness contracts and compatibility checks."""
@@ -59,6 +59,9 @@ MATERIAL_RISK_FLAGS = {
     "irreversible_migration", "external_cost", "push", "publish",
     "global_configuration",
 }
+ENVIRONMENT_EXCEPTIONS_PATH = ".harness/environment-exceptions.json"
+ENVIRONMENT_EXCEPTION_STATUSES = {"verification_unavailable", "execution_blocked"}
+ENVIRONMENT_EXCEPTION_RETRIES = {"skip_until_manual_reenable", "retry_next_session"}
 
 
 def canonical_digest(value: Any) -> str:
@@ -1318,12 +1321,108 @@ def finding_is_baselined(
         return False
 
 
+def load_environment_exceptions(root: Path) -> dict[str, Any]:
+    path = root.resolve() / ENVIRONMENT_EXCEPTIONS_PATH
+    if not path.exists() and not path.is_symlink():
+        return {"status": "absent", "exceptions": [], "errors": []}
+    if path.is_symlink() or not path.is_file():
+        return {
+            "status": "invalid", "exceptions": [],
+            "errors": ["environment_exception_document:invalid_file"],
+        }
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {
+            "status": "invalid", "exceptions": [],
+            "errors": ["environment_exception_document:invalid_json"],
+        }
+    except (OSError, UnicodeError) as error:
+        return {
+            "status": "invalid", "exceptions": [],
+            "errors": [f"environment_exception_document:unreadable:{type(error).__name__}"],
+        }
+    errors: list[str] = []
+    if not isinstance(payload, dict):
+        return {
+            "status": "invalid", "exceptions": [],
+            "errors": ["environment_exception_document:expected_object"],
+        }
+    required_document = {"schema_version", "exceptions"}
+    for field in sorted(required_document - set(payload)):
+        errors.append(f"environment_exception_document:missing:{field}")
+    for field in sorted(set(payload) - required_document):
+        errors.append(f"environment_exception_document:unknown:{field}")
+    if payload.get("schema_version") != 1:
+        errors.append("environment_exception_document:unsupported_schema")
+    entries = payload.get("exceptions")
+    if not isinstance(entries, list):
+        errors.append("environment_exception_document:exceptions_expected_list")
+        entries = []
+    required_entry = {"capability", "status", "reason", "fallback", "disable", "retry"}
+    seen: set[str] = set()
+    normalized: list[dict[str, str]] = []
+    for index, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            errors.append(f"environment_exception:{index}:expected_object")
+            continue
+        for field in sorted(required_entry - set(entry)):
+            errors.append(f"environment_exception:{index}:missing:{field}")
+        for field in sorted(set(entry) - required_entry):
+            errors.append(f"environment_exception:{index}:unknown:{field}")
+        values: dict[str, str] = {}
+        for field in sorted(required_entry):
+            value = entry.get(field)
+            if not isinstance(value, str) or not value.strip():
+                if field in entry:
+                    errors.append(f"environment_exception:{index}:invalid:{field}")
+                continue
+            values[field] = value.strip()
+        capability = values.get("capability")
+        if capability in seen:
+            errors.append(f"environment_exception:{index}:duplicate_capability:{capability}")
+        elif capability:
+            seen.add(capability)
+        if values.get("status") not in ENVIRONMENT_EXCEPTION_STATUSES:
+            errors.append(f"environment_exception:{index}:invalid:status")
+        if values.get("retry") not in ENVIRONMENT_EXCEPTION_RETRIES:
+            errors.append(f"environment_exception:{index}:invalid:retry")
+        if required_entry <= set(values):
+            normalized.append(values)
+    return {
+        "status": "invalid" if errors else "loaded",
+        "exceptions": normalized if not errors else [],
+        "errors": sorted(set(errors)),
+    }
 def run_dynamic_baseline(
     root: Path, descriptor: dict[str, Any], *, approved_capabilities: list[str]
 ) -> dict[str, Any]:
     capability = descriptor.get("capability")
     if capability not in approved_capabilities:
         return {"status": "not_authorized", "capability": capability}
+    environment_exceptions = load_environment_exceptions(root)
+    if environment_exceptions["status"] == "invalid":
+        return {
+            "status": "execution_blocked", "capability": capability, "attempted": False,
+            "errors": environment_exceptions["errors"],
+        }
+    exception = next((
+        entry for entry in environment_exceptions["exceptions"]
+        if entry["capability"] == capability and entry["retry"] == "skip_until_manual_reenable"
+    ), None)
+    if exception is not None:
+        intent = str(descriptor.get("id") or capability)
+        return {
+            "status": exception["status"], "capability": capability, "attempted": False,
+            "reason": exception["reason"], "fallback": exception["fallback"],
+            "selected_capability": exception["fallback"], "fallback_used": True,
+            "disable": exception["disable"], "retry": exception["retry"],
+            "evidence": {
+                "name": str(capability), "intent": intent,
+                "failure_reason": exception["reason"], "fallback": exception["fallback"],
+                "disable": exception["disable"], "remaining_unverified": intent,
+            },
+        }
     argv = descriptor.get("argv")
     if not isinstance(argv, list) or not argv or not all(isinstance(item, str) for item in argv):
         return {"status": "invalid_descriptor", "errors": ["argv_required"]}
@@ -3380,6 +3479,14 @@ def maintain_harness(
         project = normalized_project["project"]
     checks["MAINT-PROJECT-CONFIG"] = normalized_project
 
+    environment_exceptions = load_environment_exceptions(root)
+    for error in environment_exceptions["errors"]:
+        add(
+            "MAINT-ENVIRONMENT-EXCEPTIONS", ENVIRONMENT_EXCEPTIONS_PATH,
+            error, "high",
+        )
+    checks["MAINT-ENVIRONMENT-EXCEPTIONS"] = environment_exceptions
+
     agents = root / "AGENTS.md"
     claude = root / "CLAUDE.md"
     if agents.is_file() and claude.is_file() and agents.read_bytes() != claude.read_bytes():
@@ -3797,6 +3904,7 @@ def main() -> int:
             "explicit_approval_required", "focused_approval_required", "vetoed",
             "unresolved_decisions", "ambiguous_intent", "invalid_amendment",
             "unresolved_logic_impact",
+            "verification_unavailable", "execution_blocked",
             "invalid_manifest", "invalid_source", "staging_invalid", "rolled_back",
             "rollback_failed", "write_failed", "invalid_root", "invalid_slug",
             "invalid_branch_policy",

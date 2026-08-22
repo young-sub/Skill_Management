@@ -162,6 +162,7 @@ venv.bak/
 /agent-env.*.md
 /.work/
 /.worktree/
+/.harness/environment-exceptions.json
 /.scratch/
 
 # Spyder project settings

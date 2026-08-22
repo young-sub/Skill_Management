@@ -3,6 +3,7 @@
 ## Routing
 
 - Read `docs/index.md` for current implementation knowledge and `.harness/project.yaml` for path ownership, impact, command, retention, and Git policy.
+- Before invoking a capability, load ignored `.harness/environment-exceptions.json` when present; honor `skip_until_manual_reenable` and use its fallback.
 - Read the nearest nested `AGENTS.md` before editing a path. Preserve user changes and map coherent brownfield structures before proposing moves.
 
 ## Delivery

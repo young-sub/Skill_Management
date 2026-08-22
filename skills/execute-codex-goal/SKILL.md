@@ -4,7 +4,7 @@ description: Execute a default- or explicitly-authorized Core-First Harness Item
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/execute-codex-goal/SKILL.md -->
-<!-- Source-SHA256: 3522e99405e1dd0b35fb112f9309f826f382530e84d20fc16eb6e5ca77d965d5 -->
+<!-- Source-SHA256: dd803eb76af1e08de3d974db91fb55345c9e7a9f029b419211816996c83bd041 -->
 
 
 # Execute Codex Goal
@@ -18,5 +18,7 @@ Use [the runtime](scripts/core_harness.py), [the contract schema](schemas/contra
 5. Inspect changed functions, branches, state transitions, configuration rules, direct callers, and public behavior with the existing diff and symbol searches. Record `changed_logic`, `affected_behaviors`, `scope`, and `reason`; select exact tests from that logic assessment. Treat path mappings, Feature commands, and Full triggers only as candidates. Unknown impact blocks completion without auto-Full; Full runs only for cross-cutting logic impact or an explicit human request.
 6. A commit unit is the smallest complete functional unit that works when checked out by itself, including required source, tests, docs, schemas, and generated resources. Commit every such unit after its mapped verification passes and exclude dirty baseline files. Group coupled Items into one commit; split only independently working units. Never create an intentionally broken intermediate commit. Create independent Item worktrees only through the runtime-owned `/.worktree/` directory; callers never choose an external path. Record concise evidence in `.work/goals/active/<work-id>/agent/evidence.jsonl`.
 7. Apply an unambiguous low-risk user delta immediately as `approved_amendment`. Request focused approval only for material public contract, acceptance, architecture, destructive, security/privacy, secret, irreversible, or costly external change.
+
+Before invoking a Skill, plugin, or Harness capability, load the repository-local `.harness/environment-exceptions.json` when it exists. Do not retry `skip_until_manual_reenable`; use its fallback and retain the runtime `evidence` fields for `result.json` and final chat. Environment failure is `verification_unavailable` or `execution_blocked`, never approval `blocked`.
 
 Use `diagnose` only for the current failure and affected surface. Stop at high-risk boundaries or a genuine blocker, not for unrelated existing debt.

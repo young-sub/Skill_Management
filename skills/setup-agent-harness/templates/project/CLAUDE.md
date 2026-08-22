@@ -1,12 +1,13 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/templates/project/CLAUDE.md -->
-<!-- Source-SHA256: 9858e8bfb1a8657827bad4f10aee143a52b4de64dc7f8c25f88d708140e8cbb7 -->
+<!-- Source-SHA256: fad9b358a8c7eaaacb2c383fda44a398170bd148eb9eb175ca84a5f14fa1e4f8 -->
 
 # Project Agent Instructions
 
 ## Routing
 
 - Read `docs/index.md` for current implementation knowledge and `.harness/project.yaml` for path ownership, impact, command, retention, and Git policy.
+- Before invoking a capability, load ignored `.harness/environment-exceptions.json` when present; honor `skip_until_manual_reenable` and use its fallback.
 - Read the nearest nested `AGENTS.md` before editing a path. Preserve user changes and map coherent brownfield structures before proposing moves.
 
 ## Delivery

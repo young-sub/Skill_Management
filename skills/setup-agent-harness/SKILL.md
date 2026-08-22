@@ -4,7 +4,7 @@ description: Map and configure greenfield or brownfield repositories with the Co
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/setup-agent-harness/SKILL.md -->
-<!-- Source-SHA256: 77017ded390ec9f177b45c57f6c980915526cac87714fd6c803227a56d1cf26b -->
+<!-- Source-SHA256: 1fa28f38b70d58f09809a4101499c2732a6ee36fc0c851fedb6c21709bd0f592 -->
 
 
 # Setup Agent Harness
@@ -15,8 +15,8 @@ Resolve this installed Skill directory as `<skill-root>`. The runtime path is `<
 
 1. Read root/nested instructions, manifests, CI selectors, documents, source, tests, fixtures, Git state, boundaries, and worktrees without executing repository content. Dynamic test evidence remains `unknown`.
 2. Build a mapping-first proposal. Preserve coherent existing paths; report ambiguous authority, path ownership, nested repositories, aliases, or unknown test impact without mutation.
-3. After the static proposal is valid, run only the capability descriptors needed to establish a useful revision-bound baseline. Ask when the command crosses a high-risk approval boundary.
-4. Install `.harness/project.yaml`, a concise router, and `docs/index.md` before proposing moves. Ensure the repository ignore file owns `/.work/` and `/.worktree/` so ephemeral state and project-local worktrees never escape or enter tracked inventory. Record pre-existing debt only when it would otherwise block relevant work.
+3. After the static proposal is valid, load `.harness/environment-exceptions.json` when present, then run only the capability descriptors needed to establish a useful revision-bound baseline. A `skip_until_manual_reenable` entry selects its fallback without retrying the unavailable capability. Ask only when the command crosses a high-risk approval boundary.
+4. Install `.harness/project.yaml`, a concise router, and `docs/index.md` before proposing moves. Ensure the repository ignore file owns `/.work/`, `/.worktree/`, and `.harness/environment-exceptions.json` so ephemeral state, project-local worktrees, and machine-local exceptions never enter tracked inventory. Record pre-existing debt only when it would otherwise block relevant work.
 5. Apply only the displayed cleanup plan with its internal digest. Separate mapping, byte-preserving moves, content reconciliation, translation, removal, and test reorganization. The human approves the displayed plan once and never pastes a hash.
 6. Journal the transaction under `.work/transactions/`; on a fault restore the exact pre-transaction tracked tree. Document/test-only plans must be confined to their mapped ownership boundaries. Test-only moves also preserve path-independent semantic identities and selectors.
 

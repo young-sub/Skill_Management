@@ -504,6 +504,80 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
             after = {path.relative_to(root).as_posix(): path.read_bytes() for path in root.rglob("*") if path.is_file() and ".git" not in path.parts}
             self.assertEqual(before, after)
 
+    def test_environment_exception_absence_is_noop_and_invalid_file_is_a_maintain_finding(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self.assertEqual(
+                core.load_environment_exceptions(root),
+                {"status": "absent", "exceptions": [], "errors": []},
+            )
+            exception_path = root / ".harness" / "environment-exceptions.json"
+            exception_path.parent.mkdir()
+            exception_path.write_text(json.dumps({
+                "schema_version": 1,
+                "exceptions": [{
+                    "capability": "browser:control-in-app-browser",
+                    "status": "verification_unavailable",
+                    "reason": "session policy metadata missing",
+                }],
+            }), encoding="utf-8")
+
+            loaded = core.load_environment_exceptions(root)
+            self.assertEqual(loaded["status"], "invalid")
+            self.assertIn("environment_exception:0:missing:disable", loaded["errors"])
+            maintained = core.maintain_harness(root, project_config())
+            self.assertTrue(any(
+                finding["rule_id"] == "MAINT-ENVIRONMENT-EXCEPTIONS"
+                for finding in maintained["findings"]
+            ))
+
+    def test_manual_reenable_exception_selects_fallback_without_invoking_capability(self) -> None:
+        core = load_core()
+        disable = "Codex CLI /plugins → Browser 선택 → Space → 새 세션"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            exception_path = root / ".harness" / "environment-exceptions.json"
+            exception_path.parent.mkdir()
+            exception_path.write_text(json.dumps({
+                "schema_version": 1,
+                "exceptions": [{
+                    "capability": "browser:control-in-app-browser",
+                    "status": "verification_unavailable",
+                    "reason": "session policy metadata missing",
+                    "fallback": "playwright", "disable": disable,
+                    "retry": "skip_until_manual_reenable",
+                }],
+            }), encoding="utf-8")
+            descriptor = {
+                "id": "browser verification", "capability": "browser:control-in-app-browser",
+                "argv": ["must-not-run"], "working_directory": ".",
+            }
+
+            with mock.patch.object(core.subprocess, "run") as run:
+                selected = core.run_dynamic_baseline(
+                    root, descriptor,
+                    approved_capabilities=["browser:control-in-app-browser"],
+                )
+
+            run.assert_not_called()
+            self.assertEqual(selected["status"], "verification_unavailable")
+            self.assertFalse(selected["attempted"])
+            self.assertEqual(selected["selected_capability"], "playwright")
+            self.assertTrue(selected["fallback_used"])
+            self.assertEqual(selected["disable"], disable)
+            self.assertEqual(selected["evidence"], {
+                "name": "browser:control-in-app-browser",
+                "intent": "browser verification",
+                "failure_reason": "session policy metadata missing",
+                "fallback": "playwright", "disable": disable,
+                "remaining_unverified": "browser verification",
+            })
+
+    def test_repository_ignores_local_environment_exception_document(self) -> None:
+        ignored = (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
+        self.assertIn("/.harness/environment-exceptions.json", ignored)
+
     def test_each_harness_skill_links_its_bundled_contract_resources(self) -> None:
         expected = {
             "setup-agent-harness": ("schemas/project.schema.json", "references/documentation-policy.md"),
