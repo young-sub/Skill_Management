@@ -14,12 +14,12 @@ PUBLIC_COMMANDS = {
     "setup-agent-harness": {
         "inventory", "cleanup-plan", "cleanup-apply", "recover", "install-cohort", "activate",
     },
-    "design-goal": {"design-create", "render-design", "authorize"},
+    "design-goal": {"design-create", "authorize"},
     "execute-codex-goal": {
         "baseline", "start", "impacted", "amend", "commit",
         "worktree-create", "worktree-integrate",
     },
-    "close-goal": {"render-result", "complete", "close", "sweep", "delete"},
+    "close-goal": {"complete", "close", "sweep", "delete"},
     "maintain-agent-harness": {"audit-work", "maintain", "recover"},
 }
 
@@ -159,7 +159,7 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
         commands = set(core._cli_parser()._subparsers._group_actions[0].choices)
         self.assertEqual(commands, set().union(*PUBLIC_COMMANDS.values()))
 
-    def test_isolated_installed_cohort_exposes_only_owned_commands_and_templates(self) -> None:
+    def test_isolated_installed_cohort_exposes_only_owned_commands(self) -> None:
         core = load_core()
         manifest = json.loads(
             (ROOT / "authoring" / "public-resource-manifest.json").read_text(encoding="utf-8")
@@ -190,30 +190,13 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
 
             execute_script = install_root / "execute-codex-goal" / "scripts" / "core_harness.py"
             rejected = subprocess.run(
-                ["python", str(execute_script), "render-result"],
+                ["python", str(execute_script), "maintain"],
                 text=True, capture_output=True, check=False,
             )
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("invalid choice", rejected.stderr)
-            self.assertNotIn("review_template_missing", rejected.stderr)
-
-            contract_path = container / "contract.json"
-            result_path = container / "result.json"
-            output_path = container / "result.html"
-            contract_path.write_text(json.dumps(contract()), encoding="utf-8")
-            result_path.write_text(json.dumps({
-                "items": [], "full": {"status": "not_required", "rule": "probe"},
-            }), encoding="utf-8")
-            close_script = install_root / "close-goal" / "scripts" / "core_harness.py"
-            rendered = subprocess.run(
-                [
-                    "python", str(close_script), "render-result", "--contract", str(contract_path),
-                    "--result", str(result_path), "--output", str(output_path),
-                ],
-                text=True, capture_output=True, check=False,
-            )
-            self.assertEqual(rendered.returncode, 0, rendered.stderr)
-            self.assertIn('lang="ko"', output_path.read_text(encoding="utf-8"))
+            self.assertEqual(list(install_root.rglob("*.html")), [])
+            self.assertEqual(list(install_root.rglob("render_*_review.py")), [])
 
     def test_every_exposed_command_runs_with_only_isolated_cohort_resources(self) -> None:
         core = load_core()
@@ -325,10 +308,9 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
             )
             self.assertEqual(created["status"], "created", created)
             contract_path = repo / created["path"] / "contract.json"
-            rendered_design = container / "design.html"
-            invoke(
-                "design-goal", "render-design", "--contract", str(contract_path),
-                "--output", str(rendered_design),
+            self.assertEqual(
+                [path.name for path in (repo / created["path"]).iterdir()],
+                ["contract.json"],
             )
 
             baseline = invoke("execute-codex-goal", "baseline", "--root", str(repo))
@@ -401,11 +383,6 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
             impact_path = container / "impact.json"
             result_path.write_text(json.dumps(result), encoding="utf-8")
             impact_path.write_text(json.dumps(impact), encoding="utf-8")
-            rendered_result = container / "result.html"
-            invoke(
-                "close-goal", "render-result", "--contract", str(contract_path),
-                "--result", str(result_path), "--output", str(rendered_result),
-            )
             invoke(
                 "close-goal", "complete", "--contract", str(contract_path),
                 "--result", str(result_path), "--impact", str(impact_path),
@@ -496,7 +473,7 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
     def test_each_harness_skill_links_its_bundled_contract_resources(self) -> None:
         expected = {
             "setup-agent-harness": ("schemas/project.schema.json", "references/documentation-policy.md"),
-            "design-goal": ("schemas/contract.schema.json", "references/human-readability-policy.md"),
+            "design-goal": ("schemas/contract.schema.json",),
             "execute-codex-goal": ("schemas/contract.schema.json", "references/testing-policy.md"),
             "close-goal": ("schemas/contract.schema.json", "references/testing-policy.md"),
             "maintain-agent-harness": ("schemas/project.schema.json", "references/testing-policy.md"),

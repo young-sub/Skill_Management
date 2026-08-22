@@ -83,12 +83,11 @@ class CoreFirstForwardWorkflowTests(unittest.TestCase):
         execute = load_skill("execute-codex-goal", "forward_execute")
         close = load_skill("close-goal", "forward_close")
         source = contract()
-        design_html = design.render_design_review_v3(source)
-        approved = design.approve_review(
-            source, design_html, utterance="approved", actor="human",
-            approved_at="2026-08-02T12:00:00+09:00",
+        approved = design.authorize_design(
+            source, intent="default", actor="policy",
+            authorized_at="2026-08-02T12:00:00+09:00",
         )["contract"]
-        self.assertTrue(execute.execution_authorized(approved, design_html, host_goal=None)["authorized"])
+        self.assertTrue(execute.execution_authorized(approved, host_goal=None)["authorized"])
         with tempfile.TemporaryDirectory() as temp_dir:
             repo = Path(temp_dir)
             init_repository(repo)
@@ -108,7 +107,6 @@ class CoreFirstForwardWorkflowTests(unittest.TestCase):
         self.assertEqual(impact["tests"], ["test_feature"])
         evaluated = close.evaluate_result(approved, result_payload(), impact)
         self.assertEqual(evaluated["status"], "complete")
-        self.assertIn('lang="ko"', close.render_result_review_v3(approved, result_payload()))
 
     def test_brownfield_mixed_document_reconciliation_preserves_production(self) -> None:
         setup = load_skill("setup-agent-harness", "forward_setup")
@@ -218,10 +216,9 @@ class CoreFirstForwardWorkflowTests(unittest.TestCase):
         design = load_skill("design-goal", "forward_amend_design")
         execute = load_skill("execute-codex-goal", "forward_amend_execute")
         source = contract()
-        original_review = design.render_design_review_v3(source)
-        approved = design.approve_review(
-            source, original_review, utterance="approved", actor="human",
-            approved_at="2026-08-02T12:00:00+09:00",
+        approved = design.authorize_design(
+            source, intent="default", actor="policy",
+            authorized_at="2026-08-02T12:00:00+09:00",
         )["contract"]
         amendment = execute.apply_amendment(
             approved, item_id="I-01", field="what", value="공개 Skill이 계약을 안전하게 처리한다.",
@@ -230,7 +227,7 @@ class CoreFirstForwardWorkflowTests(unittest.TestCase):
         self.assertEqual(amendment["status"], "applied")
         self.assertEqual(amendment["event"]["kind"], "approved_amendment")
         self.assertTrue(execute.execution_authorized(
-            amendment["contract"], amendment["review_html"], host_goal=None,
+            amendment["contract"], host_goal=None,
         )["authorized"])
 
     def test_parallel_independent_worktrees_commit_and_integrate(self) -> None:

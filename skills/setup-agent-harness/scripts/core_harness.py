@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/core_harness.py
-# Source-SHA256: 9d97c45fb8dedce0553054e28692fc0f0b57f0e33fbe73d9dd6bf9202e42f5e8
+# Source-SHA256: 4b16126ad0cb6affbf1dbdfc59276940d87322ee9addd8631e01c8d082ce0966
 
 #!/usr/bin/env python3
 """Deterministic Core-First Agent Harness contracts and compatibility checks."""
@@ -12,7 +12,6 @@ from copy import deepcopy
 from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 from hashlib import sha256
-import html
 import json
 import os
 from pathlib import Path, PurePosixPath
@@ -40,12 +39,12 @@ PUBLIC_COMMANDS_BY_SKILL = {
         "inventory", "cleanup-plan", "cleanup-apply", "recover",
         "install-cohort", "activate",
     }),
-    "design-goal": frozenset({"design-create", "render-design", "authorize"}),
+    "design-goal": frozenset({"design-create", "authorize"}),
     "execute-codex-goal": frozenset({
         "baseline", "start", "impacted", "amend", "commit",
         "worktree-create", "worktree-integrate",
     }),
-    "close-goal": frozenset({"render-result", "complete", "close", "sweep", "delete"}),
+    "close-goal": frozenset({"complete", "close", "sweep", "delete"}),
     "maintain-agent-harness": frozenset({"audit-work", "maintain", "recover"}),
 }
 ALL_CLI_COMMANDS = frozenset().union(*PUBLIC_COMMANDS_BY_SKILL.values())
@@ -521,32 +520,6 @@ def validate_contract_v3(contract: dict[str, Any]) -> list[str]:
     if any(visit(item_id) for item_id in dependency_map):
         errors.append("items:dependency_cycle")
     return sorted(set(errors))
-
-
-def build_approval_bundle(
-    contract: dict[str, Any], review_html: str, *, utterance: str,
-    actor: str, approved_at: str,
-) -> dict[str, Any]:
-    return {
-        "schema_version": SCHEMA_VERSION,
-        "contract_digest": canonical_digest(_contract_payload(contract)),
-        "review_digest": canonical_digest(review_html),
-        "item_ids": [item.get("id") for item in contract.get("items", [])],
-        "utterance": utterance,
-        "actor": actor,
-        "approved_at": approved_at,
-    }
-
-
-def approval_bundle_matches(
-    bundle: dict[str, Any], contract: dict[str, Any], review_html: str
-) -> bool:
-    return (
-        bundle.get("schema_version") == SCHEMA_VERSION
-        and bundle.get("contract_digest") == canonical_digest(_contract_payload(contract))
-        and bundle.get("review_digest") == canonical_digest(review_html)
-        and bundle.get("item_ids") == [item.get("id") for item in contract.get("items", [])]
-    )
 
 
 RESERVED_INVENTORY_ROOTS = {
@@ -1402,252 +1375,18 @@ def compare_semantic_test_inventory(
     return [] if semantic(before) == semantic(after) else ["semantic_test_inventory_changed"]
 
 
-def _list_html(values: list[Any], *, class_name: str = "review-list") -> str:
-    def visible_text(value: Any) -> str:
-        if isinstance(value, dict):
-            return str(value.get("criterion") or value.get("target") or value.get("id") or "")
-        return str(value)
-
-    return '<ul class="' + class_name + '">' + "".join(
-        f"<li>{html.escape(visible_text(value))}</li>" for value in values
-    ) + "</ul>"
-
-
-def _behavior_label(behavior_type: str) -> str:
-    return {
-        "migration": "전환 설계", "tool": "도구 흐름", "api": "요청 처리 흐름",
-        "ui": "사용자 경험 흐름", "bugfix": "문제 교정 흐름",
-    }.get(behavior_type, "동작 흐름")
-
-
-def _step_roles(behavior_type: str, steps: list[Any]) -> list[str]:
-    count = len(steps)
-    if count == 0:
-        return []
-    if behavior_type == "migration":
-        roles = ["전환"] * count
-        roles[0] = "전제 조건"
-        rollback = any(token in str(steps[-1]).casefold() for token in ("rollback", "복구", "되돌"))
-        roles[-1] = "복구" if rollback else "완료 상태"
-        if count > 2:
-            roles[-2] = "검증"
-        return roles
-    if behavior_type in {"tool", "api"}:
-        roles = ["처리"] * count
-        roles[0] = "입력"
-        roles[-1] = "관찰 결과"
-        if count > 3:
-            roles[-2] = "검증"
-        return roles
-    if behavior_type == "ui":
-        roles = ["상태 변화"] * count
-        roles[0] = "사용자 행동"
-        roles[-1] = "화면 결과"
-        return roles
-    if behavior_type == "bugfix":
-        names = ["실패 증상", "원인", "교정 동작", "회귀 검증"]
-        return [names[min(index, len(names) - 1)] for index in range(count)]
-    return [f"단계 {index + 1}" for index in range(count)]
-
-
-def _behavior_visual(behavior_type: str, steps: list[Any], *, actual: bool = False) -> str:
-    roles = _step_roles(behavior_type, steps)
-    nodes = "".join(
-        '<li class="flow-step"><span class="stage-label">' + html.escape(role)
-        + '</span><p>' + html.escape(str(step)) + "</p></li>"
-        for role, step in zip(roles, steps)
-    )
-    qualifier = "실제 " if actual else ""
-    return (
-        '<figure class="behavior-visual" data-visual="' + html.escape(behavior_type)
-        + '"><figcaption>' + qualifier + _behavior_label(behavior_type)
-        + '</figcaption><ol class="behavior-map">' + nodes + "</ol></figure>"
-    )
-
-
-def _design_test_table(tests: list[Any]) -> str:
-    rows: list[str] = []
-    for index, test in enumerate(tests):
-        if isinstance(test, dict):
-            target = str(test.get("target", f"검증 항목 {index + 1}"))
-            method = str(test.get("method", ""))
-            expected = str(test.get("expected", ""))
-        else:
-            target = f"검증 항목 {index + 1}"
-            method = str(test)
-            expected = "계획한 동작이 확인된다"
-        rows.append(
-            '<tr><th scope="row">' + html.escape(target) + '</th><td>'
-            + html.escape(method) + '</td><td>' + html.escape(expected) + "</td></tr>"
-        )
-    return (
-        '<div class="table-wrap"><table class="test-table"><thead><tr><th>검증 대상</th>'
-        '<th>수행할 테스트</th><th>통과 기준</th></tr></thead><tbody>'
-        + "".join(rows) + "</tbody></table></div>"
-    )
-
-
-def _risk_label(risk: str) -> str:
-    return {
-        "destructive": "파괴적 변경",
-        "security_privacy": "보안·개인정보 변경",
-        "secret_handling": "비밀정보 처리",
-        "irreversible_migration": "비가역 마이그레이션",
-        "external_cost": "외부 비용",
-        "push": "원격 push",
-        "publish": "외부 publish",
-        "global_configuration": "전역 설정 변경",
-    }.get(risk, risk)
-
-
-def _design_context(item: dict[str, Any]) -> str:
-    priority = {"core": "핵심", "optional": "선택"}.get(
-        str(item.get("priority", "core")), str(item.get("priority", "core"))
-    )
-    dependencies = [str(value) for value in item.get("depends_on", [])]
-    dependency_text = " · ".join(dependencies) + " 이후" if dependencies else "없음"
-    details: list[str] = [
-        '<p class="item-metadata"><span><strong>우선순위</strong> '
-        + html.escape(priority) + '</span><span><strong>선행 Item</strong> '
-        + html.escape(dependency_text) + "</span></p>"
-    ]
-    terms = item.get("terms", [])
-    if terms:
-        details.append(
-            '<dl class="term-list">' + "".join(
-                '<div><dt>' + html.escape(str(term["term"])) + '</dt><dd>'
-                + html.escape(str(term["explanation"])) + "</dd></div>"
-                for term in terms if isinstance(term, dict)
-            ) + "</dl>"
-        )
-    non_goals = item.get("non_goals", [])
-    if non_goals:
-        details.append(
-            '<p class="decision-boundary"><strong>제외 범위</strong> '
-            + html.escape(" · ".join(str(value) for value in non_goals)) + "</p>"
-        )
-    risks = item.get("material_risks", [])
-    if risks:
-        details.append(
-            '<p class="decision-boundary risk"><strong>명시 승인 필요</strong> '
-            + html.escape(" · ".join(_risk_label(str(value)) for value in risks)) + "</p>"
-        )
-    return "".join(details)
-
-
-def _check_label(kind: Any) -> str:
-    labels = {
-        "targeted": "관련 동작",
-        "feature": "기능 동작",
-        "forward": "대표 작업 흐름",
-        "full": "저장소 전체",
-        "distribution": "배포 일관성",
-        "independent review": "독립 검토",
-        "fault injection": "실패 복구",
-    }
-    value = str(kind or "검증")
-    return labels.get(value.casefold(), value)
-
-
-def _result_test_table(checks: list[dict[str, Any]]) -> str:
-    rows: list[str] = []
-    for check in checks:
-        status = str(check.get("status", "unknown"))
-        status_text = "✓ 통과" if status == "passed" else ("— 제외" if status == "not_required" else "! " + status)
-        rows.append(
-            '<tr><th scope="row">' + html.escape(_check_label(check.get("kind")))
-            + '</th><td>' + html.escape(str(check.get("summary") or "관련 동작 검증"))
-            + '</td><td><span class="test-status ' + html.escape(status) + '">' + html.escape(status_text)
-            + "</span></td></tr>"
-        )
-    return (
-        '<div class="table-wrap"><table class="test-table"><thead><tr><th>검증 대상</th>'
-        '<th>수행한 테스트</th><th>확인 결과</th></tr></thead><tbody>'
-        + "".join(rows) + "</tbody></table></div>"
-    )
-
-
-def _review_template(name: str) -> str:
-    candidates = (
-        Path(__file__).resolve().parents[1] / "templates" / "review" / name,
-        Path(__file__).resolve().parents[1] / "templates" / name,
-        Path(__file__).resolve().parent / "templates" / "review" / name,
-        Path(__file__).resolve().parent / "templates" / name,
-    )
-    for candidate in candidates:
-        if candidate.is_file():
-            content = candidate.read_text(encoding="utf-8")
-            lines = content.splitlines(keepends=True)
-            prefix: list[str] = []
-            if lines and lines[0].lstrip().casefold().startswith("<!doctype"):
-                prefix.append(lines.pop(0))
-            generated_markers = (
-                "<!-- generated file.", "<!-- source:", "<!-- source-sha256:",
-            )
-            while lines and (
-                not lines[0].strip()
-                or lines[0].strip().casefold().startswith(generated_markers)
-            ):
-                lines.pop(0)
-            return "".join(prefix + lines)
-    raise FileNotFoundError(f"review_template_missing:{name}")
-
-
-def render_design_review_v3(contract: dict[str, Any]) -> str:
-    """Render the canonical Item projection; never embed contract source text."""
-    errors = validate_contract_v3(contract)
-    structural = [error for error in errors if "invalid_decision_state" not in error]
-    if structural:
-        raise ValueError("invalid_contract:" + ";".join(structural))
-    cards: list[str] = []
-    for item in contract["items"]:
-        decision = item.get("decision", {}).get("state")
-        behavior_type = str(item.get("behavior_type", "tool"))
-        decision_alert = '<span class="status warning">! 결정 필요</span>' if decision == "unresolved" else ""
-        cards.append(
-            '<article class="item" data-item-id="' + html.escape(item["id"]) + '">'
-            '<header class="item-heading"><span class="item-id">' + html.escape(item["id"])
-            + '</span><h2>' + html.escape(item["title"]) + "</h2>" + decision_alert + "</header>"
-            + '<section class="review-section purpose-section"><h3>핵심 목적</h3><div class="section-body"><p class="lead-copy">'
-            + html.escape(item["what"]) + "</p>" + _design_context(item) + "</div></section>"
-            + '<section class="review-section process-section"><h3>핵심 프로세스</h3><div class="section-body">'
-            + _behavior_visual(behavior_type, item["steps"]) + "</div></section>"
-            + '<section class="review-section test-section"><h3>핵심 테스트</h3><div class="section-body">'
-            + _design_test_table(item["tests"]) + "</div></section>"
-            + '<section class="review-section result-section"><h3>예상 결과</h3><div class="section-body">'
-            + _list_html(item["done"], class_name="result-list") + "</div></section></article>"
-        )
-    summary = (
-        '<header class="review-masthead"><div class="document-mark"><span>구현 계획</span><strong>DESIGN / '
-        + html.escape(str(contract.get("work_id", ""))) + '</strong></div><h1>'
-        + html.escape(contract.get("goal", "")) + '</h1><p class="standfirst">'
-        + html.escape(contract.get("scope", ""))
-        + (
-            '<br><strong>제외 범위</strong> '
-            + html.escape(" · ".join(str(value) for value in contract.get("non_goals", [])))
-            if contract.get("non_goals") else ""
-        )
-        + "</p></header>"
-    )
-    return _review_template("design-item-review.html").replace("{{SUMMARY}}", summary).replace("{{ITEMS}}", "".join(cards)).rstrip() + "\n"
-
-
 def _has_high_risk(contract: dict[str, Any]) -> bool:
     return any(item.get("material_risks") for item in contract.get("items", []))
 
 
 def _authorization_record(
     contract: dict[str, Any], *, mode: str, actor: str, authorized_at: str,
-    review_digest: str | None = None,
 ) -> dict[str, Any]:
     payload = _contract_payload(contract)
-    if review_digest is None:
-        review_digest = canonical_digest(render_design_review_v3(payload))
     return {
         "schema_version": SCHEMA_VERSION,
         "mode": mode,
         "contract_digest": canonical_digest(payload),
-        "review_digest": review_digest,
         "item_ids": [item["id"] for item in payload["items"]],
         "actor": actor,
         "authorized_at": authorized_at,
@@ -1669,7 +1408,7 @@ def design_create(
     actor: str,
     authorized_at: str,
 ) -> dict[str, Any]:
-    """Reserve one work namespace and write its authorized Design projection."""
+    """Reserve one work namespace and write its authorized contract."""
     root = root.resolve()
     if not root.is_dir():
         return {"status": "invalid_root"}
@@ -1721,10 +1460,6 @@ def design_create(
             return {"status": "write_failed", "work_id": candidate, "errors": [str(error)]}
         try:
             _durable_write_json(work_root / "contract.json", authorized_contract)
-            _durable_write_bytes(
-                work_root / "review" / "design.html",
-                render_design_review_v3(_contract_payload(authorized_contract)).encode("utf-8"),
-            )
         except OSError as error:
             rollback_errors = _rollback_start_files(work_root, created_root=True)
             return {
@@ -1743,7 +1478,7 @@ def authorize_design(
     contract: dict[str, Any], *, intent: str = "default", actor: str,
     authorized_at: str,
 ) -> dict[str, Any]:
-    """Bind a validated canonical Review to default authority, explicit approval, or veto."""
+    """Bind a validated contract to default authority, explicit approval, or veto."""
     errors = validate_contract_v3(contract)
     if errors:
         return {"status": "invalid_contract", "errors": errors}
@@ -1781,21 +1516,6 @@ def authorize_design(
     }
 
 
-def approve_review(
-    contract: dict[str, Any], review_html: str, *, utterance: str, actor: str, approved_at: str
-) -> dict[str, Any]:
-    """Compatibility entrypoint; external HTML is never an authorization input."""
-    del review_html
-    normalized = utterance.strip().casefold()
-    veto = any(token in normalized for token in ("아니", "거부", "중단", "취소", "reject", "deny", "stop", "cancel"))
-    outcome = authorize_design(
-        contract, intent="veto" if veto else "default", actor=actor, authorized_at=approved_at
-    )
-    if outcome.get("status") == "default_authorized":
-        outcome["status"] = "approved"
-    return outcome
-
-
 def execution_authorized(
     contract: dict[str, Any], review_html: str | None = None, *,
     project: dict[str, Any] | None = None, host_goal: dict[str, Any] | None = None,
@@ -1807,25 +1527,21 @@ def execution_authorized(
     authorization = contract.get("authorization")
     if not isinstance(authorization, dict):
         return {"authorized": False, "errors": ["authorization_required"]}
-    allowed_fields = {
-        "schema_version", "mode", "contract_digest", "review_digest", "item_ids",
-        "actor", "authorized_at",
+    current_fields = {
+        "schema_version", "mode", "contract_digest", "item_ids", "actor", "authorized_at",
     }
-    if set(authorization) != allowed_fields:
+    legacy_fields = current_fields | {"review_digest"}
+    if frozenset(authorization) not in {frozenset(current_fields), frozenset(legacy_fields)}:
         return {"authorized": False, "errors": ["authorization_schema_invalid"]}
     payload = _contract_payload(contract)
-    if review_html is None:
-        try:
-            review_digest = canonical_digest(render_design_review_v3(payload))
-        except ValueError:
-            return {"authorized": False, "errors": ["canonical_review_invalid"]}
-    else:
-        review_digest = canonical_digest(review_html)
     expected = _authorization_record(
         payload, mode=str(authorization.get("mode")), actor=str(authorization.get("actor")),
         authorized_at=str(authorization.get("authorized_at")),
-        review_digest=review_digest,
     )
+    if "review_digest" in authorization:
+        if review_html is None:
+            return {"authorized": False, "errors": ["legacy_review_required"]}
+        expected["review_digest"] = canonical_digest(review_html)
     if authorization != expected:
         return {"authorized": False, "errors": ["authorization_bundle_drift"]}
     mode = authorization["mode"]
@@ -1839,7 +1555,7 @@ def execution_authorized(
         normalized = normalize_project_config(project)
         if normalized["status"] == "invalid":
             return {"authorized": False, "errors": normalized["errors"]}
-    return {"authorized": True, "errors": [], "review_digest": review_digest}
+    return {"authorized": True, "errors": [], "contract_digest": expected["contract_digest"]}
 
 
 def convert_legacy_contract(legacy: dict[str, Any]) -> dict[str, Any]:
@@ -1921,8 +1637,7 @@ def apply_amendment(
     if "contract" not in authorized:
         return {"status": "invalid_amendment", "errors": authorized.get("errors", [authorized["status"]])}
     rebound = authorized["contract"]
-    review_html = render_design_review_v3(_contract_payload(rebound))
-    return {"status": "applied", "contract": rebound, "event": event, "review_html": review_html}
+    return {"status": "applied", "contract": rebound, "event": event}
 
 
 def canonical_repo_identity(
@@ -2030,7 +1745,8 @@ def commit_item(
     return {"status": "committed", "item_id": item_id, "commit": revision, "paths": sorted(normalized_paths)}
 
 
-DESIGN_ONLY_FILES = {"contract.json", "review/design.html"}
+DESIGN_ONLY_FILES = {"contract.json"}
+LEGACY_DESIGN_ONLY_FILES = {"contract.json", "review/design.html"}
 STARTED_WORK_FILES = {
     "contract.json", "work.json", "review/design.html", "review/result.html",
     "result.json", "evidence.jsonl", "agent/evidence.jsonl",
@@ -2077,8 +1793,6 @@ def _validate_saved_design(
     *,
     supplied_contract: dict[str, Any] | None,
     project: dict[str, Any] | None,
-    require_review: bool,
-    canonical_review: bool = True,
 ) -> tuple[dict[str, Any] | None, list[str]]:
     stored, errors = _read_work_object(work_root / "contract.json", "stored_contract_corrupt")
     if stored is None:
@@ -2087,24 +1801,18 @@ def _validate_saved_design(
         errors.append("stored_contract_identity_mismatch")
     if supplied_contract is not None and canonical_digest(stored) != canonical_digest(supplied_contract):
         errors.append("stored_contract_mismatch")
-    review_path = work_root / "review" / "design.html"
+    authorization = stored.get("authorization")
+    legacy_review = isinstance(authorization, dict) and "review_digest" in authorization
     observed_review_text: str | None = None
-    if require_review or review_path.exists() or review_path.is_symlink():
+    if legacy_review:
+        review_path = work_root / "review" / "design.html"
         try:
-            observed_review = review_path.read_bytes()
-            observed_review_text = observed_review.decode("utf-8")
-            expected_review = (
-                render_design_review_v3(_contract_payload(stored)).encode("utf-8")
-                if canonical_review else observed_review
-            )
-        except (OSError, UnicodeError, ValueError, FileNotFoundError):
-            errors.append("canonical_review_unreadable")
-        else:
-            if observed_review != expected_review:
-                errors.append("canonical_review_mismatch")
+            observed_review_text = review_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            errors.append("legacy_review_unreadable")
     authorization = execution_authorized(
         stored,
-        review_html=observed_review_text if not canonical_review else None,
+        review_html=observed_review_text,
         project=project,
     )
     if not authorization["authorized"]:
@@ -2120,17 +1828,22 @@ def _validate_design_only_directory(
     project: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any] | None, list[str]]:
     files, directories, errors = _work_artifacts(work_root)
-    for relative in sorted(files - DESIGN_ONLY_FILES):
+    expected_files = (
+        LEGACY_DESIGN_ONLY_FILES
+        if "review/design.html" in files else DESIGN_ONLY_FILES
+    )
+    expected_directories = {"review"} if expected_files == LEGACY_DESIGN_ONLY_FILES else set()
+    for relative in sorted(files - expected_files):
         errors.append(f"unexpected_work_artifact:{relative}")
-    for relative in sorted(DESIGN_ONLY_FILES - files):
+    for relative in sorted(expected_files - files):
         errors.append(f"missing_design_artifact:{relative}")
-    for relative in sorted(directories - {"review"}):
+    for relative in sorted(directories - expected_directories):
         errors.append(f"unexpected_work_artifact:{relative}")
     stored: dict[str, Any] | None = None
     if not errors:
         stored, saved_errors = _validate_saved_design(
             work_root, work_id, supplied_contract=supplied_contract,
-            project=project, require_review=True,
+            project=project,
         )
         errors.extend(saved_errors)
     return stored, sorted(set(errors))
@@ -2248,7 +1961,6 @@ def _classify_start_root(
         errors.append(f"unexpected_work_artifact:{relative}")
     stored, saved_errors = _validate_saved_design(
         work_root, work_id, supplied_contract=contract, project=project,
-        require_review=False,
     )
     errors.extend(saved_errors)
     manifest, manifest_errors = _read_work_object(
@@ -2327,14 +2039,22 @@ def start_work(
             "errors": normalized_project["errors"],
         }
     project = normalized_project["project"]
-    authorization = execution_authorized(contract, project=project)
-    if not authorization["authorized"]:
-        return {
-            "status": "authorization_failed", "classification": "conflict_or_corrupt",
-            "errors": authorization["errors"],
-        }
+    authorization = contract.get("authorization")
+    legacy_authorization = isinstance(authorization, dict) and "review_digest" in authorization
+    if not legacy_authorization:
+        authorization_check = execution_authorized(contract, project=project)
+        if not authorization_check["authorized"]:
+            return {
+                "status": "authorization_failed", "classification": "conflict_or_corrupt",
+                "errors": authorization_check["errors"],
+            }
     classified = _classify_start_root(root, work_id, contract, project=project)
     classification = classified["classification"]
+    if legacy_authorization and classification == "missing":
+        return {
+            "status": "authorization_failed", "classification": classification,
+            "errors": ["legacy_review_required"],
+        }
     if classification == "conflict_or_corrupt":
         return {
             "status": "conflict", "classification": classification,
@@ -2355,6 +2075,11 @@ def start_work(
     try:
         classified = _classify_start_root(root, work_id, contract, project=project)
         classification = classified["classification"]
+        if legacy_authorization and classification == "missing":
+            return {
+                "status": "authorization_failed", "classification": classification,
+                "errors": ["legacy_review_required"],
+            }
         if classification == "conflict_or_corrupt":
             return {
                 "status": "conflict", "classification": classification,
@@ -2415,10 +2140,6 @@ def start_work(
                 work_root.mkdir(exist_ok=False)
                 created_work_root = True
                 _durable_write_json(work_root / "contract.json", contract)
-                _durable_write_bytes(
-                    work_root / "review" / "design.html",
-                    render_design_review_v3(_contract_payload(contract)).encode("utf-8"),
-                )
             _durable_write_json(manifest_path, manifest)
         except OSError as error:
             rollback_errors = _rollback_start_files(work_root, created_root=created_work_root)
@@ -2677,63 +2398,6 @@ def evaluate_result(
     }
 
 
-def render_result_review_v3(
-    contract: dict[str, Any], result: dict[str, Any], impact: dict[str, Any] | None = None
-) -> str:
-    if impact is None:
-        rule = result.get("full", {}).get("rule")
-        impact = {
-            "full_required": result.get("full", {}).get("status") == "passed",
-            "unresolved": [], "not_required_rule_ids": [rule] if rule else [],
-        }
-    evaluation = evaluate_result(contract, result, impact)
-    evaluated_by_id = {item["id"]: item for item in evaluation["items"]}
-    result_by_id = {item.get("id"): item for item in result.get("items", [])}
-    cards: list[str] = []
-    completed = 0
-    for planned in contract.get("items", []):
-        actual = result_by_id.get(planned["id"], {})
-        checks = actual.get("checks", [])
-        delta = actual.get("delta", {})
-        material = bool(delta.get("material"))
-        complete = evaluated_by_id.get(planned["id"], {}).get("status") == "complete"
-        completed += int(complete)
-        status = "✓ 완료" if complete else "! 미완료"
-        delta_text = str(delta.get("summary") or ("계획대로 구현됨" if not material else "material delta"))
-        outcome_values = list(actual.get("actual_outcomes", []))
-        outcomes = _list_html(outcome_values, class_name="outcome-list") if outcome_values else ""
-        behavior_type = str(planned.get("behavior_type", "tool"))
-        material_notice = (
-            '<div class="material-notice"><strong>! 승인 필요</strong><span>' + html.escape(delta_text) + "</span></div>"
-            if material else ""
-        )
-        cards.append(
-            '<article class="item" data-item-id="' + html.escape(planned["id"]) + '"><header class="item-heading"><span class="item-id">'
-            + html.escape(planned["id"]) + '</span><h2>' + html.escape(planned["title"])
-            + '</h2><span class="status">' + status + "</span></header>"
-            + '<section class="review-section purpose-section"><h3>핵심 목적</h3><div class="section-body"><p class="lead-copy">'
-            + html.escape(str(planned.get("what", ""))) + "</p></div></section>"
-            + '<section class="review-section process-section"><h3>핵심 프로세스</h3><div class="section-body">'
-            + _behavior_visual(behavior_type, list(actual.get("actual_steps", [])), actual=True) + "</div></section>"
-            + '<section class="review-section test-section"><h3>핵심 테스트</h3><div class="section-body">'
-            + _result_test_table(checks) + "</div></section>"
-            + '<section class="review-section result-section"><h3>핵심 결과</h3><div class="section-body"><p class="lead-copy">'
-            + html.escape(str(actual.get("actual", "결과 없음"))) + "</p>" + outcomes + material_notice + "</div></section></article>"
-        )
-    full = result.get("full", {})
-    full_label = "Full 통과" if full.get("status") == "passed" else (
-        "Full 제외" if full.get("status") == "not_required" else "Full 미실행"
-    )
-    summary = (
-        '<header class="review-masthead result-masthead"><div class="document-mark"><span>구현 결과</span><strong>RESULT / '
-        + html.escape(str(contract.get("work_id", ""))) + '</strong></div><h1>'
-        + html.escape(contract.get("goal", "")) + '</h1><p class="standfirst">'
-        + str(completed) + " / " + str(len(contract.get("items", []))) + " Item 완료 · "
-        + html.escape(full_label) + "</p></header>"
-    )
-    return _review_template("result-item-review.html").replace("{{SUMMARY}}", summary).replace("{{ITEMS}}", "".join(cards)).rstrip() + "\n"
-
-
 def _lifecycle_move_locked(
     root: Path, source: Path, destination: Path, manifest: dict[str, Any], *,
     operation: str, fault_after: str | None = None, crash_after: str | None = None,
@@ -2925,7 +2589,7 @@ def close_work(
         return {"status": "invalid_work", "errors": ["active_work_missing"]}
 
     files, directories, artifact_errors = _work_artifacts(source)
-    required_files = {"contract.json", "work.json", "review/design.html"}
+    required_files = {"contract.json", "work.json"}
     artifact_errors.extend(
         f"missing_work_artifact:{relative}" for relative in sorted(required_files - files)
     )
@@ -2942,8 +2606,7 @@ def close_work(
     if transaction_errors:
         return {"status": "precondition_failed", "errors": transaction_errors}
     stored_contract, contract_errors = _validate_saved_design(
-        source, work_id, supplied_contract=contract, project=None, require_review=True,
-        canonical_review=False,
+        source, work_id, supplied_contract=contract, project=None,
     )
     if stored_contract is None or contract_errors:
         return {"status": "invalid_work", "errors": contract_errors}
@@ -2956,10 +2619,6 @@ def close_work(
     evaluation = evaluate_result(stored_contract, result, impact)
     if evaluation["status"] != "complete":
         return evaluation
-    try:
-        review_bytes = render_result_review_v3(stored_contract, result, impact).encode("utf-8")
-    except (OSError, UnicodeError, ValueError) as error:
-        return {"status": "invalid_work", "errors": [f"result_review_invalid:{error}"]}
     if destination.exists() or destination.is_symlink():
         return {"status": "conflict", "errors": ["completed_destination_exists"]}
     result_bytes = (
@@ -2968,7 +2627,7 @@ def close_work(
     return _transition_work_to_completed(
         root, work_id, completed_at=completed_at, completed_days=completed_days,
         trash_days=trash_days, fault_after=fault_after, crash_after=crash_after,
-        source_writes={"result.json": result_bytes, "review/result.html": review_bytes},
+        source_writes={"result.json": result_bytes},
     )
 
 
@@ -3291,19 +2950,13 @@ COHORT_MANIFEST_RESOURCE = "maintain-agent-harness/resources/public-resource-man
 REQUIRED_COHORT_RESOURCES = frozenset({
     "close-goal/SKILL.md",
     "close-goal/references/documentation-policy.md",
-    "close-goal/references/human-readability-policy.md",
     "close-goal/references/testing-policy.md",
     "close-goal/schemas/contract.schema.json",
     "close-goal/schemas/work.schema.json",
     "close-goal/scripts/core_harness.py",
-    "close-goal/scripts/render_result_review.py",
-    "close-goal/templates/result-item-review.html",
     "design-goal/SKILL.md",
-    "design-goal/references/human-readability-policy.md",
     "design-goal/schemas/contract.schema.json",
     "design-goal/scripts/core_harness.py",
-    "design-goal/scripts/render_item_review.py",
-    "design-goal/templates/design-item-review.html",
     "diagnose/SKILL.md",
     "diagnose/references/goal-execution-policy.md",
     "execute-codex-goal/SKILL.md",
@@ -3312,7 +2965,6 @@ REQUIRED_COHORT_RESOURCES = frozenset({
     "execute-codex-goal/schemas/contract.schema.json",
     "execute-codex-goal/schemas/work.schema.json",
     "execute-codex-goal/scripts/core_harness.py",
-    "execute-codex-goal/templates/design-item-review.html",
     "maintain-agent-harness/SKILL.md",
     "maintain-agent-harness/references/testing-policy.md",
     "maintain-agent-harness/schemas/project.schema.json",
@@ -3758,21 +3410,12 @@ def _cli_parser(owner: str | None = None) -> argparse.ArgumentParser:
         )
         design_create_parser.add_argument("--actor", required=True)
         design_create_parser.add_argument("--at", required=True)
-    design = command("render-design")
-    if design:
-        design.add_argument("--contract", type=Path, required=True)
-        design.add_argument("--output", type=Path, required=True)
     authorize = command("authorize")
     if authorize:
         authorize.add_argument("--contract", type=Path, required=True)
         authorize.add_argument("--intent", choices=("default", "veto", "explicit_approve"), default="default")
         authorize.add_argument("--actor", required=True)
         authorize.add_argument("--at", required=True)
-    result = command("render-result")
-    if result:
-        result.add_argument("--contract", type=Path, required=True)
-        result.add_argument("--result", type=Path, required=True)
-        result.add_argument("--output", type=Path, required=True)
     impact = command("impacted")
     if impact:
         impact.add_argument("--project", type=Path, required=True)
@@ -3891,21 +3534,11 @@ def main() -> int:
                 work_id=args.work_id, intent=args.intent, actor=args.actor,
                 authorized_at=args.at,
             )
-        elif args.command == "render-design":
-            page = render_design_review_v3(_json_object(args.contract))
-            args.output.parent.mkdir(parents=True, exist_ok=True)
-            args.output.write_text(page, encoding="utf-8", newline="\n")
-            payload = {"status": "rendered", "output": str(args.output)}
         elif args.command == "authorize":
             payload = authorize_design(
                 _json_object(args.contract), intent=args.intent, actor=args.actor,
                 authorized_at=args.at,
             )
-        elif args.command == "render-result":
-            page = render_result_review_v3(_json_object(args.contract), _json_object(args.result))
-            args.output.parent.mkdir(parents=True, exist_ok=True)
-            args.output.write_text(page, encoding="utf-8", newline="\n")
-            payload = {"status": "rendered", "output": str(args.output)}
         elif args.command == "impacted":
             payload = select_impacted_checks(args.changed, _json_object(args.project))
         elif args.command == "cleanup-plan":

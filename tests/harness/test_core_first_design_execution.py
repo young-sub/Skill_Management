@@ -82,15 +82,12 @@ def authorized_contract(core, work_id: str) -> dict:
 
 def write_design_only(root: Path, core, source: dict) -> tuple[Path, bytes, bytes]:
     work_root = root / ".work" / "goals" / "active" / source["work_id"]
-    review_root = work_root / "review"
-    review_root.mkdir(parents=True)
+    work_root.mkdir(parents=True)
     contract_bytes = (
         json.dumps(source, ensure_ascii=False, indent=2) + "\n"
     ).encode("utf-8")
-    review_bytes = core.render_design_review_v3(core._contract_payload(source)).encode("utf-8")
     (work_root / "contract.json").write_bytes(contract_bytes)
-    (review_root / "design.html").write_bytes(review_bytes)
-    return work_root, contract_bytes, review_bytes
+    return work_root, contract_bytes, b""
 
 
 def git_branch(root: Path) -> str:
@@ -115,66 +112,6 @@ def project_policy(*, protected: tuple[str, ...] = ("main",)) -> dict:
 
 
 class CoreFirstDesignExecutionTests(unittest.TestCase):
-    def test_korean_design_review_is_item_bound_visual_and_human_readable(self) -> None:
-        core = load_core()
-        source = contract()
-        source["non_goals"] = ["No public API changes"]
-        source["items"][0].update({
-            "behavior_type": "migration",
-            "what": "기존 API 계약을 유지하면서 새 검증 경로로 안전하게 전환하고, 실패하면 이전 상태를 보존한다.",
-            "steps": ["기존 요청 경로와 기준선을 확인한다", "새 검증 경로를 활성화한다", "대표 요청의 응답을 비교한다", "오류가 나면 기존 경로로 복구한다"],
-            "tests": [
-                {"target": "기존 응답 유지", "method": "전환 전후 대표 요청을 비교한다", "expected": "응답 형식과 값이 같다", "selector": "tests.api.test_contract"},
-                {"target": "실패 복구", "method": "새 경로에서 오류를 발생시킨다", "expected": "기존 경로로 복구된다", "selector": "tests.api.test_rollback"},
-            ],
-            "non_goals": ["No public response changes"],
-            "material_risks": ["irreversible_migration"],
-        })
-        source["items"][1]["depends_on"] = ["I-01"]
-        for index, test in enumerate(source["items"][0]["tests"], 1):
-            test["id"] = f"T-{index:02d}"
-        page = core.render_design_review_v3(source)
-        self.assertIn('lang="ko"', page)
-        self.assertLess(page.index('data-item-id="I-01"'), page.index('data-item-id="I-02"'))
-        for label in ("핵심 목적", "핵심 프로세스", "핵심 테스트", "예상 결과"):
-            self.assertIn(label, page)
-        for table_label in ("검증 대상", "수행할 테스트", "통과 기준"):
-            self.assertIn(table_label, page)
-        self.assertIn("기존 응답 유지", page)
-        self.assertIn("전환 전후 대표 요청을 비교한다", page)
-        self.assertIn("응답 형식과 값이 같다", page)
-        self.assertEqual(page.count('class="section-body"'), 8)
-        self.assertIn('data-visual="migration"', page)
-        self.assertIn("복구", page)
-        self.assertIn("review-masthead", page)
-        self.assertIn("Impact rule", page)
-        self.assertIn("변경과 검사를 연결하는 규칙", page)
-        self.assertIn("No public API changes", page)
-        self.assertIn("No public response changes", page)
-        self.assertIn("비가역 마이그레이션", page)
-        self.assertIn("우선순위", page)
-        self.assertIn("핵심", page)
-        self.assertIn("선택", page)
-        self.assertIn("선행 Item", page)
-        self.assertIn("I-01 이후", page)
-        for removed in ("검토 요청", "변경 후 달라지는 점", "동작 설계", "완료 판정 기준", "의존성과 작업 경계", "리스크와 검토 포인트", "review-facts", "기술 세부 정보", "tests.api.test_contract"):
-            self.assertNotIn(removed, page)
-        for forbidden in ("sha256:", "<pre", "frontmatter", "감사 부록", "```"):
-            self.assertNotIn(forbidden, page)
-        self.assertNotIn("source-sha256", page.casefold())
-
-    def test_natural_approval_authorizes_without_host_goal_or_pasted_hash(self) -> None:
-        core = load_core()
-        source = contract()
-        review = core.render_design_review_v3(source)
-        approved = core.approve_review(source, review, utterance="승인합니다", actor="human", approved_at="2026-08-02T12:00:00+09:00")
-        self.assertEqual(approved["status"], "approved")
-        self.assertTrue(core.execution_authorized(approved["contract"], review, host_goal=None)["authorized"])
-        unresolved = contract()
-        unresolved["items"][0]["decision"]["state"] = "unresolved"
-        blocked = core.approve_review(unresolved, core.render_design_review_v3(unresolved), utterance="승인", actor="human", approved_at="2026-08-02T12:00:00+09:00")
-        self.assertEqual(blocked["status"], "unresolved_decisions")
-
     def test_valid_design_is_default_authorized_without_affirmative_text(self) -> None:
         core = load_core()
         authorized = core.authorize_design(
@@ -187,6 +124,33 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
         self.assertTrue(core.execution_authorized(
             authorized["contract"], project=v3_project(), host_goal=None,
         )["authorized"])
+
+    def test_design_create_persists_only_default_authorized_contract(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source = contract()
+            source["work_id"] = "W-json-design"
+
+            created = core.design_create(
+                root, source, slug="json-design", work_id="W-json-design",
+                intent="default", actor="policy",
+                authorized_at="2026-08-22T12:00:00+09:00",
+            )
+
+            self.assertEqual(created["status"], "created", created)
+            work_root = root / ".work" / "goals" / "active" / "W-json-design"
+            self.assertEqual(
+                {
+                    path.relative_to(work_root).as_posix()
+                    for path in work_root.rglob("*") if path.is_file()
+                },
+                {"contract.json"},
+            )
+            stored = json.loads((work_root / "contract.json").read_text(encoding="utf-8"))
+            self.assertEqual(stored["authorization"]["mode"], "default")
+            self.assertNotIn("review_digest", stored["authorization"])
+            self.assertTrue(core.execution_authorized(stored, project=v3_project())["authorized"])
 
     def test_veto_invalid_contract_and_high_risk_design_fail_closed(self) -> None:
         core = load_core()
@@ -206,6 +170,13 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
             invalid, intent="default", actor="policy",
             authorized_at="2026-08-02T12:00:00+09:00",
         )["status"], "invalid_contract")
+
+        unresolved = contract()
+        unresolved["items"][0]["decision"]["state"] = "unresolved"
+        self.assertEqual(core.authorize_design(
+            unresolved, intent="default", actor="policy",
+            authorized_at="2026-08-02T12:00:00+09:00",
+        )["status"], "unresolved_decisions")
 
         high = contract()
         high["items"][0]["material_risks"] = ["security_privacy"]
@@ -301,7 +272,7 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
             root = Path(temp_dir)
             revision = init_git_repository(root)
             source = authorized_contract(core, "W-design-only")
-            work_root, contract_bytes, review_bytes = write_design_only(root, core, source)
+            work_root, contract_bytes, _ = write_design_only(root, core, source)
 
             result = core.start_work(
                 root, "W-design-only", "feature", source,
@@ -311,7 +282,7 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
             self.assertEqual(result["status"], "started", result)
             self.assertEqual(git_branch(root), "develop")
             self.assertEqual((work_root / "contract.json").read_bytes(), contract_bytes)
-            self.assertEqual((work_root / "review" / "design.html").read_bytes(), review_bytes)
+            self.assertFalse((work_root / "review").exists())
             self.assertEqual(result["manifest"]["source_commit"], revision)
             self.assertTrue((work_root / "work.json").is_file())
 
@@ -338,13 +309,25 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
             self.assertEqual(git_branch(root), "main")
             self.assertFalse((work_root / "work.json").exists())
 
-    def test_start_rejects_canonical_review_mismatch_before_git_mutation(self) -> None:
+    def test_start_rejects_legacy_review_digest_mismatch_before_git_mutation(self) -> None:
         core = load_core()
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             init_git_repository(root, branch="main")
-            source = authorized_contract(core, "W-review-drift")
-            work_root, _, _ = write_design_only(root, core, source)
+            source = contract()
+            source["work_id"] = "W-review-drift"
+            legacy_review = "<html>legacy design</html>\n"
+            source["authorization"] = {
+                "schema_version": 3, "mode": "default",
+                "contract_digest": core.canonical_digest(core._contract_payload(source)),
+                "review_digest": core.canonical_digest(legacy_review),
+                "item_ids": [item["id"] for item in source["items"]],
+                "actor": "legacy-policy",
+                "authorized_at": "2026-08-01T12:00:00+09:00",
+            }
+            work_root = root / ".work" / "goals" / "active" / "W-review-drift"
+            (work_root / "review").mkdir(parents=True)
+            (work_root / "contract.json").write_text(json.dumps(source), encoding="utf-8")
             (work_root / "review" / "design.html").write_bytes(b"drift\n")
             before_reflog = git_reflog(root)
 
@@ -354,7 +337,7 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
             )
 
             self.assertEqual(result["status"], "conflict", result)
-            self.assertIn("canonical_review_mismatch", result["errors"])
+            self.assertIn("stored_authorization_bundle_drift", result["errors"])
             self.assertEqual(git_reflog(root), before_reflog)
             self.assertFalse((work_root / "work.json").exists())
 
@@ -449,7 +432,7 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
             root = Path(temp_dir)
             init_git_repository(root, branch="main")
             source = authorized_contract(core, "W-write-fault")
-            work_root, contract_bytes, review_bytes = write_design_only(root, core, source)
+            work_root, contract_bytes, _ = write_design_only(root, core, source)
             real_replace = os.replace
 
             def fail_manifest_replace(source_path, destination_path):
@@ -472,7 +455,7 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
             ).stdout.splitlines()
             self.assertEqual(branches, ["main"])
             self.assertEqual((work_root / "contract.json").read_bytes(), contract_bytes)
-            self.assertEqual((work_root / "review" / "design.html").read_bytes(), review_bytes)
+            self.assertFalse((work_root / "review").exists())
             self.assertFalse((work_root / "work.json").exists())
             self.assertFalse((work_root / "work.json.tmp").exists())
 
@@ -505,14 +488,14 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
             root = Path(temp_dir)
             init_git_repository(root)
             source = authorized_contract(core, "W-windows-existing")
-            work_root, contract_bytes, review_bytes = write_design_only(root, core, source)
+            work_root, contract_bytes, _ = write_design_only(root, core, source)
 
             result = core.start_work(root, "W-windows-existing", "feature", source, project=project_policy())
 
             self.assertEqual(result["status"], "started", result)
             self.assertNotIn("WinError 183", " ".join(result.get("errors", [])))
             self.assertEqual((work_root / "contract.json").read_bytes(), contract_bytes)
-            self.assertEqual((work_root / "review" / "design.html").read_bytes(), review_bytes)
+            self.assertFalse((work_root / "review").exists())
 
     def test_start_rejects_collision_artifacts_and_incomplete_transactions_before_git(self) -> None:
         core = load_core()
@@ -612,7 +595,7 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
                     path.relative_to(work_root).as_posix()
                     for path in work_root.rglob("*") if path.is_file()
                 }
-                self.assertEqual(files, {"contract.json", "review/design.html"})
+                self.assertEqual(files, {"contract.json"})
                 stored = json.loads((work_root / "contract.json").read_text(encoding="utf-8"))
                 self.assertEqual(stored["work_id"], work_id)
                 self.assertTrue(core.execution_authorized(stored)["authorized"])
@@ -645,7 +628,7 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
                     path.relative_to(work_root).as_posix()
                     for path in work_root.rglob("*") if path.is_file()
                 },
-                {"contract.json", "review/design.html"},
+                {"contract.json"},
             )
 
     def test_design_create_write_failure_rolls_back_only_its_reserved_root(self) -> None:
@@ -665,12 +648,12 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
             failing["work_id"] = "W-failing"
             real_replace = os.replace
 
-            def fail_review(source_path, destination_path):
-                if Path(destination_path).name == "design.html":
-                    raise OSError("injected design review write failure")
+            def fail_contract(source_path, destination_path):
+                if Path(destination_path).name == "contract.json":
+                    raise OSError("injected contract write failure")
                 return real_replace(source_path, destination_path)
 
-            with mock.patch.object(core.os, "replace", side_effect=fail_review):
+            with mock.patch.object(core.os, "replace", side_effect=fail_contract):
                 result = create(
                     root, failing, slug="failing", work_id="W-failing", intent="default",
                     actor="policy", authorized_at="2026-08-09T12:00:00+09:00",

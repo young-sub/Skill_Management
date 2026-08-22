@@ -8,8 +8,6 @@
     {"source": "skills/close-goal/SKILL.md", "targets": ["close-goal/SKILL.md"]},
     {"source": "skills/maintain-agent-harness/SKILL.md", "targets": ["maintain-agent-harness/SKILL.md"]},
     {"source": "scripts/core_harness.py", "targets": ["setup-agent-harness/scripts/core_harness.py", "design-goal/scripts/core_harness.py", "execute-codex-goal/scripts/core_harness.py", "close-goal/scripts/core_harness.py", "maintain-agent-harness/scripts/core_harness.py"]},
-    {"source": "scripts/render_item_review.py", "targets": ["design-goal/scripts/render_item_review.py"]},
-    {"source": "scripts/render_result_review.py", "targets": ["close-goal/scripts/render_result_review.py"]},
     {"source": "schemas/v3/project.schema.json", "targets": ["setup-agent-harness/schemas/project.schema.json", "maintain-agent-harness/schemas/project.schema.json"]},
     {"source": "schemas/v3/work.schema.json", "targets": ["execute-codex-goal/schemas/work.schema.json", "close-goal/schemas/work.schema.json", "maintain-agent-harness/schemas/work.schema.json"]},
     {"source": "schemas/v3/contract.schema.json", "targets": ["design-goal/schemas/contract.schema.json", "execute-codex-goal/schemas/contract.schema.json", "close-goal/schemas/contract.schema.json"]},
@@ -17,11 +15,8 @@
     {"source": "templates/project/CLAUDE.md", "targets": ["setup-agent-harness/templates/project/CLAUDE.md"]},
     {"source": "templates/project/TESTING.md", "targets": ["setup-agent-harness/templates/project/TESTING.md"]},
     {"source": "templates/project/project.yaml", "targets": ["setup-agent-harness/templates/project/project.yaml"]},
-      {"source": "templates/review/design-item-review.html", "targets": ["design-goal/templates/design-item-review.html", "execute-codex-goal/templates/design-item-review.html"]},
-    {"source": "templates/review/result-item-review.html", "targets": ["close-goal/templates/result-item-review.html"]},
     {"source": "references/documentation-policy.md", "targets": ["setup-agent-harness/references/documentation-policy.md", "close-goal/references/documentation-policy.md"]},
     {"source": "references/testing-policy.md", "targets": ["execute-codex-goal/references/testing-policy.md", "close-goal/references/testing-policy.md", "maintain-agent-harness/references/testing-policy.md"]},
-    {"source": "references/human-readability-policy.md", "targets": ["design-goal/references/human-readability-policy.md", "close-goal/references/human-readability-policy.md"]},
     {"source": "references/goal-execution-policy.md", "targets": ["execute-codex-goal/references/goal-execution-policy.md", "diagnose/references/goal-execution-policy.md"]},
     {"source": "public-resource-manifest.json", "targets": ["maintain-agent-harness/resources/public-resource-manifest.json"]}
   ]

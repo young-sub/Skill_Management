@@ -52,7 +52,7 @@
       "additionalProperties": false
     },
     "authorization": {
-      "type": "object", "required": ["schema_version", "mode", "contract_digest", "review_digest", "item_ids", "actor", "authorized_at"],
+      "type": "object", "required": ["schema_version", "mode", "contract_digest", "item_ids", "actor", "authorized_at"],
       "properties": {
         "schema_version": {"const": 3}, "contract_digest": {"type": "string"}, "review_digest": {"type": "string"},
         "mode": {"enum": ["default", "explicit", "vetoed"]},

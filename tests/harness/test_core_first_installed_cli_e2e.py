@@ -226,16 +226,10 @@ class InstalledCliEndToEndTests(unittest.TestCase):
                 "--actor", "policy", "--at", "2026-08-09T12:00:00+09:00",
             )["contract"]
             work_root = root / ".work" / "goals" / "active" / "W-e2e-start"
-            (work_root / "review").mkdir(parents=True)
+            work_root.mkdir(parents=True)
             contract_path = work_root / "contract.json"
             write_json(contract_path, authorized)
-            design_path = work_root / "review" / "design.html"
-            run_cli(
-                "design-goal", "render-design", "--contract", str(contract_path),
-                "--output", str(design_path),
-            )
             contract_bytes = contract_path.read_bytes()
-            review_bytes = design_path.read_bytes()
 
             completed = subprocess.run(
                 [
@@ -250,7 +244,6 @@ class InstalledCliEndToEndTests(unittest.TestCase):
             self.assertEqual(started["status"], "started", started)
             self.assertEqual(git(root, "branch", "--show-current"), "develop")
             self.assertEqual(contract_path.read_bytes(), contract_bytes)
-            self.assertEqual(design_path.read_bytes(), review_bytes)
             self.assertTrue((work_root / "work.json").is_file())
 
     def test_07_parallel_design_create_is_isolated_and_explicit_collision_has_one_owner(self) -> None:

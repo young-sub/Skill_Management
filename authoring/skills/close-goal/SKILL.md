@@ -1,16 +1,16 @@
 ---
 name: close-goal
-description: Close a Harness contract Item by Item, render the Korean Result Review, and transition retained work safely.
+description: Close a Harness contract Item by Item, persist result evidence, and transition retained work safely.
 ---
 
 # Close Goal
 
-Use [the runtime](scripts/core_harness.py), [the result renderer](scripts/render_result_review.py), [the contract schema](schemas/contract.schema.json), [the work schema](schemas/work.schema.json), [the testing policy](references/testing-policy.md), and [the documentation policy](references/documentation-policy.md).
+Use [the runtime](scripts/core_harness.py), [the contract schema](schemas/contract.schema.json), [the work schema](schemas/work.schema.json), [the testing policy](references/testing-policy.md), and [the documentation policy](references/documentation-policy.md).
 
 1. Match Result Items to Design Item IDs and order. Each Item needs observable implementation, relevant check results, Done status, and planned-versus-actual delta.
 2. Require Impacted checks for that Item. Require Full only when cumulative impact matches a configured trigger or the human requested it; otherwise record `not_required` with the matched rule.
 3. A failed or required-but-unrun check blocks only the affected Item. Unresolved impact blocks completion. A material delta needs focused approval.
-4. Update only mapped durable documents whose current truth changed. Ordinary work creates no tracked plan, decision, Review, or evidence archive.
-5. Render Korean `review/result.html` with the same Item identities and behavior visual grammar. Do not expose raw Markdown, hashes, frontmatter, detailed logs, or audit appendices.
+4. Update only mapped durable documents whose current truth changed. Ordinary work creates no tracked plan, decision, HTML Review, or evidence archive.
+5. Persist the validated machine evidence as `result.json`; provide the human-facing Result only as the final chat summary.
 6. Write `completed_at`, `retain_until`, and `delete_after` to `work.json`, then move the intact active directory to `.work/goals/completed/YYYY-MM/<work-id>`.
 7. Re-resolve captured base movement and protection. Merge locally only when repository policy authorizes it and the base is unprotected; otherwise leave a verified branch and handoff. Never auto-push.

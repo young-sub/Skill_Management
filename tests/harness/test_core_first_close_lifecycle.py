@@ -70,6 +70,88 @@ def started_work(core, root: Path, work_id: str) -> tuple[Path, dict]:
 
 
 class CoreFirstCloseLifecycleTests(unittest.TestCase):
+    def test_json_only_design_closes_with_result_json_and_maintains_cleanly(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            init_git_repository(root)
+            source = contract()
+            source["work_id"] = "W-json-close"
+            created = core.design_create(
+                root, source, slug="json-close", work_id="W-json-close",
+                intent="default", actor="policy",
+                authorized_at="2026-08-22T12:00:00+09:00",
+            )
+            self.assertEqual(created["status"], "created", created)
+            stored = created["contract"]
+            started = core.start_work(
+                root, "W-json-close", "json-close", stored,
+                project=project_policy(protected=("main",)),
+            )
+            self.assertEqual(started["status"], "started", started)
+
+            closed = core.close_work(
+                root, "W-json-close", contract=stored, result=result_payload(),
+                impact={
+                    "full_required": False, "unresolved": [],
+                    "not_required_rule_ids": ["independent_capability"],
+                },
+                completed_at="2026-08-22T12:30:00+09:00",
+                completed_days=30, trash_days=7,
+            )
+
+            self.assertEqual(closed["status"], "completed", closed)
+            destination = root / ".work" / "goals" / "completed" / "2026-08" / "W-json-close"
+            self.assertTrue((destination / "result.json").is_file())
+            self.assertFalse((destination / "review").exists())
+            self.assertEqual(
+                core.audit_work_lifecycle(root)["findings"], [],
+            )
+
+    def test_legacy_html_digest_work_continues_without_new_result_html(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            init_git_repository(root)
+            source = contract()
+            source["work_id"] = "W-legacy-html"
+            legacy_review = "<html lang='ko'>legacy design</html>\n"
+            source["authorization"] = {
+                "schema_version": 3,
+                "mode": "default",
+                "contract_digest": core.canonical_digest(core._contract_payload(source)),
+                "review_digest": core.canonical_digest(legacy_review),
+                "item_ids": [item["id"] for item in source["items"]],
+                "actor": "legacy-policy",
+                "authorized_at": "2026-08-01T12:00:00+09:00",
+            }
+            active = root / ".work" / "goals" / "active" / "W-legacy-html"
+            (active / "review").mkdir(parents=True)
+            (active / "contract.json").write_text(json.dumps(source), encoding="utf-8")
+            (active / "review" / "design.html").write_text(legacy_review, encoding="utf-8")
+
+            started = core.start_work(
+                root, "W-legacy-html", "legacy-html", source,
+                project=project_policy(protected=("main",)),
+            )
+            self.assertEqual(started["status"], "started", started)
+            closed = core.close_work(
+                root, "W-legacy-html", contract=source, result=result_payload(),
+                impact={
+                    "full_required": False, "unresolved": [],
+                    "not_required_rule_ids": ["independent_capability"],
+                },
+                completed_at="2026-08-22T13:00:00+09:00",
+                completed_days=30, trash_days=7,
+            )
+
+            self.assertEqual(closed["status"], "completed", closed)
+            destination = root / ".work" / "goals" / "completed" / "2026-08" / "W-legacy-html"
+            self.assertEqual(
+                (destination / "review" / "design.html").read_text(encoding="utf-8"),
+                legacy_review,
+            )
+            self.assertFalse((destination / "review" / "result.html").exists())
     def test_close_is_item_based_and_full_is_conditional(self) -> None:
         core = load_core()
         independent = core.evaluate_result(contract(), result_payload(), {"full_required": False, "unresolved": [], "not_required_rule_ids": ["independent_capability"]})
@@ -130,7 +212,6 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
             self.assertIn("supplied_contract_identity_mismatch", closed["errors"])
             self.assertTrue(active.is_dir())
             self.assertFalse((active / "result.json").exists())
-            self.assertFalse((active / "review" / "result.html").exists())
             self.assertFalse((root / ".work" / "goals" / "completed").exists())
 
     def test_close_prechecks_destination_and_restores_result_preimages_on_move_failure(self) -> None:
@@ -143,9 +224,7 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
             root = Path(temp_dir)
             active, source = started_work(core, root, "W-close-conflict")
             result_path = active / "result.json"
-            review_path = active / "review" / "result.html"
             result_path.write_bytes(b"existing-result\r\n")
-            review_path.write_bytes(b"existing-review\r\n")
             destination = root / ".work" / "goals" / "completed" / "2026-08" / "W-close-conflict"
             destination.mkdir(parents=True)
 
@@ -157,15 +236,12 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
 
             self.assertEqual(closed["status"], "conflict", closed)
             self.assertEqual(result_path.read_bytes(), b"existing-result\r\n")
-            self.assertEqual(review_path.read_bytes(), b"existing-review\r\n")
 
         with self.subTest("move_failure"), tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             active, source = started_work(core, root, "W-close-rollback")
             result_path = active / "result.json"
-            review_path = active / "review" / "result.html"
             result_path.write_bytes(b"result-preimage\r\n")
-            review_path.write_bytes(b"review-preimage\r\n")
 
             closed = core.close_work(
                 root, "W-close-rollback", contract=source, result=result_payload(),
@@ -176,32 +252,6 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
             self.assertEqual(closed["status"], "rolled_back", closed)
             self.assertTrue(active.is_dir())
             self.assertEqual(result_path.read_bytes(), b"result-preimage\r\n")
-            self.assertEqual(review_path.read_bytes(), b"review-preimage\r\n")
-
-    def test_korean_result_review_matches_design_identity_and_shows_actual_visual(self) -> None:
-        core = load_core()
-        page = core.render_result_review_v3(contract(), result_payload())
-        self.assertIn('lang="ko"', page)
-        self.assertLess(page.index('data-item-id="I-01"'), page.index('data-item-id="I-02"'))
-        for label in ("핵심 목적", "핵심 프로세스", "핵심 테스트", "핵심 결과"):
-            self.assertIn(label, page)
-        for table_label in ("검증 대상", "수행한 테스트", "확인 결과"):
-            self.assertIn(table_label, page)
-        self.assertIn("정상 요청은 기존 응답 형식을 유지한다", page)
-        self.assertIn("정상·거부 요청의 공개 응답을 검증", page)
-        self.assertEqual(page.count('class="section-body"'), 8)
-        self.assertIn('<section class="review-section result-section"><h3>핵심 결과</h3><div class="section-body">', page)
-        self.assertIn("✓ 완료", page)
-        for removed in ("구현된 변화", "실제 동작과 관찰 결과", "검증 근거", "완료 기준별 판정", "계획 대비 변경", "criteria-table", "review-facts", "기술 세부 정보", "python -m unittest auth", "관련 공개 동작이 통과한다", "정상·거부 요청 회귀 테스트 통과", "승인된 설계와 동일", "추가 승인 불필요"):
-            self.assertNotIn(removed, page)
-        for forbidden in ("sha256:", "<pre", "frontmatter", "감사 부록", "```"):
-            self.assertNotIn(forbidden, page)
-        self.assertNotIn("source-sha256", page.casefold())
-        material = result_payload()
-        material["items"][0]["delta"] = {"material": True, "summary": "공개 응답 변경", "approval": "required"}
-        changed = core.render_result_review_v3(contract(), material)
-        self.assertIn("승인 필요", changed)
-        self.assertIn("공개 응답 변경", changed)
 
     def test_close_moves_active_work_and_writes_manifest_retention_dates(self) -> None:
         core = load_core()
@@ -221,7 +271,7 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
             self.assertEqual(manifest["delete_after"], "2026-09-08T12:00:00+09:00")
             self.assertEqual(manifest["owned_paths"], [".work/goals/completed/2026-08/W-1"])
             self.assertTrue((destination / "result.json").is_file())
-            self.assertTrue((destination / "review" / "result.html").is_file())
+            self.assertFalse((destination / "review").exists())
             self.assertFalse(active.exists())
             journals = list((root / ".work" / "transactions").glob("*/journal.json"))
             self.assertEqual(len(journals), 1)
@@ -406,12 +456,9 @@ module._transition_work_to_completed(Path(sys.argv[2]), 'W-crash', completed_at=
                 authorized_at="2026-08-09T12:00:00+09:00",
             )["contract"]
             design = root / ".work" / "goals" / "active" / "W-design-only"
-            (design / "review").mkdir(parents=True)
+            design.mkdir(parents=True)
             (design / "contract.json").write_text(
                 json.dumps(source, ensure_ascii=False), encoding="utf-8",
-            )
-            (design / "review" / "design.html").write_bytes(
-                core.render_design_review_v3(core._contract_payload(source)).encode("utf-8"),
             )
             malformed = root / ".work" / "goals" / "active" / "W-malformed"
             malformed.mkdir(parents=True)
@@ -483,13 +530,13 @@ module._transition_work_to_completed(Path(sys.argv[2]), 'W-crash', completed_at=
             self.assertEqual(deleted["status"], "deleted")
             self.assertFalse(trash.exists())
 
-    def test_owned_review_directory_is_not_an_orphan(self) -> None:
+    def test_owned_result_is_not_an_orphan(self) -> None:
         core = load_core()
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             work = root / ".work" / "goals" / "completed" / "2026-08" / "W-1"
-            (work / "review").mkdir(parents=True)
-            (work / "review" / "result.html").write_text("ok", encoding="utf-8")
+            work.mkdir(parents=True)
+            (work / "result.json").write_text("{}", encoding="utf-8")
             (work / "work.json").write_text(json.dumps({"work_id":"W-1","state":"completed"}), encoding="utf-8")
             self.assertNotIn("work.orphan", [finding["rule_id"] for finding in core.audit_work_lifecycle(root)["findings"]])
 

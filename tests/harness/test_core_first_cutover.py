@@ -142,6 +142,25 @@ class CoreFirstCutoverTests(unittest.TestCase):
             workflow,
         )
 
+    def test_html_review_generation_pipeline_is_retired(self) -> None:
+        core = load_core()
+        self.assertFalse(hasattr(core, "render_design_review_v3"))
+        self.assertFalse(hasattr(core, "render_result_review_v3"))
+        self.assertNotIn("render-design", core.ALL_CLI_COMMANDS)
+        self.assertNotIn("render-result", core.ALL_CLI_COMMANDS)
+        for relative in (
+            "authoring/scripts/render_item_review.py",
+            "authoring/scripts/render_result_review.py",
+            "authoring/templates/review/design-item-review.html",
+            "authoring/templates/review/result-item-review.html",
+            "skills/design-goal/scripts/render_item_review.py",
+            "skills/close-goal/scripts/render_result_review.py",
+            "skills/design-goal/templates/design-item-review.html",
+            "skills/execute-codex-goal/templates/design-item-review.html",
+            "skills/close-goal/templates/result-item-review.html",
+        ):
+            self.assertFalse((ROOT / relative).exists(), relative)
+
     def test_design_skill_routes_all_namespace_creation_through_design_create(self) -> None:
         for root in (ROOT / "authoring" / "skills", ROOT / "skills"):
             text = (root / "design-goal" / "SKILL.md").read_text(encoding="utf-8")
@@ -194,7 +213,7 @@ class CoreFirstCutoverTests(unittest.TestCase):
         self.assertTrue(discovery["full_required"])
         self.assertIn("test_discovery", discovery["full_trigger_ids"])
 
-    def test_public_core_script_exposes_inventory_and_review_cli(self) -> None:
+    def test_public_core_script_exposes_inventory_and_json_design_cli(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             (root / "src").mkdir()
@@ -207,11 +226,16 @@ class CoreFirstCutoverTests(unittest.TestCase):
             self.assertEqual(json.loads(inventory.stdout)["dynamic_evidence"]["status"], "unknown")
             contract_path = root / "contract.json"
             contract_path.write_text(json.dumps(contract(), ensure_ascii=False), encoding="utf-8")
-            output = root / "design.html"
             design_script = ROOT / "skills" / "design-goal" / "scripts" / "core_harness.py"
-            rendered = subprocess.run([sys.executable, str(design_script), "render-design", "--contract", str(contract_path), "--output", str(output)], capture_output=True, text=True, check=False)
-            self.assertEqual(rendered.returncode, 0, rendered.stderr)
-            self.assertIn('data-item-id="I-01"', output.read_text(encoding="utf-8"))
+            created = subprocess.run([
+                sys.executable, str(design_script), "design-create", "--root", str(root),
+                "--contract", str(contract_path), "--slug", "cli", "--work-id", contract()["work_id"],
+                "--actor", "policy", "--at", "2026-08-02T12:00:00+09:00",
+            ], capture_output=True, text=True, check=False)
+            self.assertEqual(created.returncode, 0, created.stderr)
+            payload = json.loads(created.stdout)
+            work_root = root / payload["path"]
+            self.assertEqual([path.name for path in work_root.iterdir()], ["contract.json"])
 
 
 if __name__ == "__main__":

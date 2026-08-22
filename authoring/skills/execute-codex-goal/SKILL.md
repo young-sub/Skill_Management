@@ -7,7 +7,7 @@ description: Execute a default- or explicitly-authorized Core-First Harness Item
 
 Use [the runtime](scripts/core_harness.py), [the contract schema](schemas/contract.schema.json), [the work schema](schemas/work.schema.json), [the testing policy](references/testing-policy.md), and [the execution policy](references/goal-execution-policy.md). The authorized contract is authority; a host Goal is optional tracking state.
 
-1. Verify default or explicit authorization against a freshly rendered canonical Review and fail closed on veto, contract/Review drift, unresolved decisions, unknown legacy project declarations, or incomplete lifecycle transactions.
+1. Verify default or explicit authorization against the canonical contract and fail closed on veto, contract drift, unresolved decisions, unknown legacy project declarations, or incomplete lifecycle transactions. Existing active work with a legacy HTML digest may continue only when its retained Review still matches that digest; never rewrite or delete it automatically.
 2. Capture the current branch and commit as base and record the dirty baseline. Create a feature branch only when repository policy or the reviewed work requires one; never assume the default branch.
 3. Select the first dependency-ready core Item; optional work cannot displace incomplete core behavior.
 4. For a behavior change, observe the smallest relevant RED, implement the core behavior, observe GREEN, and refactor. For a behavior-preserving move, use baseline/equivalent GREEN.

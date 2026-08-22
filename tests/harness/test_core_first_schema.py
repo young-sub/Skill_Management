@@ -141,18 +141,16 @@ class CoreFirstSchemaTests(unittest.TestCase):
         ):
             self.assertIn(expected, errors)
 
-    def test_approval_bundle_binds_contract_review_and_visible_item_ids(self) -> None:
+    def test_authorization_record_binds_contract_without_review_digest(self) -> None:
         core = load_core()
         contract = {"schema_version": 3, "work_id": "W-1", "items": [{"id": "I-01"}, {"id": "I-02"}]}
-        bundle = core.build_approval_bundle(
-            contract, "<html lang='ko'>review</html>", utterance="승인합니다",
-            actor="human", approved_at="2026-08-02T12:00:00+09:00",
+        authorization = core._authorization_record(
+            contract, mode="default", actor="policy",
+            authorized_at="2026-08-02T12:00:00+09:00",
         )
-        self.assertEqual(bundle["item_ids"], ["I-01", "I-02"])
-        self.assertTrue(bundle["contract_digest"].startswith("sha256:"))
-        self.assertTrue(bundle["review_digest"].startswith("sha256:"))
-        changed = dict(contract, work_id="W-2")
-        self.assertFalse(core.approval_bundle_matches(bundle, changed, "<html lang='ko'>review</html>"))
+        self.assertEqual(authorization["item_ids"], ["I-01", "I-02"])
+        self.assertTrue(authorization["contract_digest"].startswith("sha256:"))
+        self.assertNotIn("review_digest", authorization)
 
     def test_versioned_schema_and_active_policy_assets_exist(self) -> None:
         for name in ("project.schema.json", "work.schema.json", "contract.schema.json"):
@@ -161,7 +159,7 @@ class CoreFirstSchemaTests(unittest.TestCase):
         for relative in (
             "authoring/templates/project/AGENTS.md", "authoring/templates/project/CLAUDE.md", "authoring/templates/project/project.yaml",
             "authoring/references/documentation-policy.md", "authoring/references/testing-policy.md",
-            "authoring/references/human-readability-policy.md", "authoring/references/goal-execution-policy.md",
+            "authoring/references/goal-execution-policy.md",
         ):
             self.assertTrue((ROOT / relative).is_file(), relative)
         for skill in ("setup-agent-harness", "design-goal", "execute-codex-goal", "close-goal", "maintain-agent-harness"):
@@ -207,6 +205,7 @@ class CoreFirstSchemaTests(unittest.TestCase):
         self.assertFalse(contract_schema["$defs"]["term"]["additionalProperties"])
         self.assertFalse(contract_schema["$defs"]["decision"]["additionalProperties"])
         self.assertFalse(contract_schema["$defs"]["authorization"]["additionalProperties"])
+        self.assertNotIn("review_digest", contract_schema["$defs"]["authorization"]["required"])
         self.assertFalse(contract_schema["$defs"]["amendment"]["additionalProperties"])
         for field in ("terms", "tests", "done"):
             self.assertIn("items", item["properties"][field], field)
