@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/core_harness.py
-# Source-SHA256: 3eaacf1c6a3041db6a121882fef585c73a6df27499cd836c3f689fff5772ac76
+# Source-SHA256: 5862a28d077739ffb113a92e2c937fc81cc2d3bf5b83bb4ea2a493d4f5045ab2
 
 #!/usr/bin/env python3
 """Deterministic Core-First Agent Harness contracts and compatibility checks."""
@@ -657,9 +657,18 @@ def _identity(path: Path, *, case_sensitive: bool) -> str:
     return value if case_sensitive else value.casefold()
 
 
+def _standard_resolved_path(path: Path) -> Path:
+    value = str(path)
+    if os.name == "nt" and value.startswith("\\\\?\\UNC\\"):
+        return Path("\\\\" + value[8:])
+    if os.name == "nt" and value.startswith("\\\\?\\"):
+        return Path(value[4:])
+    return path
+
+
 def _safe_repo_path(root: Path, relative: str) -> Path:
-    root = root.resolve()
-    candidate = (root / relative).resolve(strict=False)
+    root = _standard_resolved_path(root.resolve())
+    candidate = _standard_resolved_path((root / relative).resolve(strict=False))
     try:
         candidate.relative_to(root)
     except ValueError as error:

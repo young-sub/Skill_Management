@@ -653,9 +653,18 @@ def _identity(path: Path, *, case_sensitive: bool) -> str:
     return value if case_sensitive else value.casefold()
 
 
+def _standard_resolved_path(path: Path) -> Path:
+    value = str(path)
+    if os.name == "nt" and value.startswith("\\\\?\\UNC\\"):
+        return Path("\\\\" + value[8:])
+    if os.name == "nt" and value.startswith("\\\\?\\"):
+        return Path(value[4:])
+    return path
+
+
 def _safe_repo_path(root: Path, relative: str) -> Path:
-    root = root.resolve()
-    candidate = (root / relative).resolve(strict=False)
+    root = _standard_resolved_path(root.resolve())
+    candidate = _standard_resolved_path((root / relative).resolve(strict=False))
     try:
         candidate.relative_to(root)
     except ValueError as error:
