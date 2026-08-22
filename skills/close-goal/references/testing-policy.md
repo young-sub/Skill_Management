@@ -1,10 +1,11 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/testing-policy.md -->
-<!-- Source-SHA256: 487a5efe24384ec958c8ec8f06c44129de5bad91f8dcc869f2ca62770d892210 -->
+<!-- Source-SHA256: f046a01c3b0531887d8e9769637140f04cab4e7216fc277e0bf164d946a1fb45 -->
 
 # Testing Policy
 
-- Select exact TDD/regression tests first, then path/dependency/cross-cutting mappings, then the configured Feature selector.
-- An Item completes on observable Done evidence plus Impacted tests and relevant fast checks. Test command or selector changes are implementation details unless they change acceptance. Full is required only by a cumulative executable-impact trigger or explicit request.
-- Unclassified relevant impact blocks completion until mapped or explicitly broadened; it cannot silently become `not_required`.
+- Record `changed_logic`, `affected_behaviors`, `scope`, and `reason` from the diff plus direct-caller/public-behavior searches. Paths and names provide candidate tests, features, and Full warnings only.
+- Local impact runs exact behavior tests. Capability impact adds only relevant contract/integration tests. Cross-cutting impact runs Full. Unknown or unexplained logic impact is `unresolved_logic_impact` and blocks completion without auto-expanding to Full.
+- `feature_commands` are fallback candidates, not automatic selections. A configured `full_trigger` is a warning until the logic assessment is cross-cutting; an explicit human Full request is the only other way to require Full.
+- Re-evaluate the cumulative Git change set before close so a stale per-Item assessment cannot complete the work.
 - Behavior-preserving test relocation uses baseline GREEN, ownership-confined structural change, equivalent GREEN, and unchanged public behavior.

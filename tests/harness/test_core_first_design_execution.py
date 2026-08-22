@@ -889,27 +889,145 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
             self.assertEqual(upper_identity, composed_identity)
             self.assertEqual(decomposed_identity, composed_identity)
 
-    def test_impacted_selection_requires_mapping_and_promotes_shared_changes(self) -> None:
+    def test_logic_impact_selects_exact_tests_while_path_rules_stay_candidates(self) -> None:
         core = load_core()
         project = v3_project()
         project["impact"] = {
             "rules": [
-                {"id": "auth", "source_prefixes": ["src/auth/"], "tests": ["tests/auth"], "feature": "auth", "triggers": []},
-                {"id": "shared", "source_prefixes": ["src/core/"], "tests": ["tests/core"], "feature": "core", "triggers": ["shared_policy"]},
+                {"id": "cli", "source_prefixes": ["src/main.py"], "tests": ["tests/test_cli.py"], "feature": "cli", "triggers": ["bootstrap"]},
+                {"id": "xlsx", "source_prefixes": ["src/exporters/xlsx.py"], "tests": ["tests/exporters"], "feature": "export", "triggers": []},
+                {"id": "shared", "source_prefixes": ["vendor/shared_runtime/"], "tests": ["tests/shared"], "feature": "shared", "triggers": ["shared_runtime"]},
             ],
-            "feature_selectors": {"auth": ["python", "-m", "unittest", "tests.auth"], "core": ["python", "-m", "unittest", "tests.core"]},
-            "full_triggers": ["shared_policy"],
+            "feature_selectors": {
+                "cli": ["python", "-m", "unittest", "tests.test_cli"],
+                "export": ["python", "-m", "unittest", "tests.exporters"],
+                "shared": ["python", "-m", "unittest", "tests.shared"],
+            },
+            "full_triggers": ["bootstrap", "shared_runtime"],
         }
-        selected = core.select_impacted_checks(["src/auth/service.py"], project)
-        self.assertEqual(selected["tests"], ["tests/auth"])
-        self.assertEqual(selected["feature_commands"], [{"feature": "auth", "argv": ["python", "-m", "unittest", "tests.auth"]}])
-        self.assertFalse(selected["full_required"])
-        self.assertEqual(selected["not_required_rule_ids"], ["auth"])
-        self.assertEqual(selected["unresolved"], [])
-        shared = core.select_impacted_checks(["src/core/state.py"], project)
+
+        command_branch = core.select_impacted_checks(
+            ["src/main.py"], project,
+            logic_impact={
+                "changed_logic": ["main.run_export branch"],
+                "affected_behaviors": ["export command dispatch"],
+                "scope": "local", "reason": "Only the export command branch changed.",
+                "tests": ["tests/test_export_command.py"],
+            },
+        )
+        self.assertEqual(command_branch["tests"], ["tests/test_export_command.py"])
+        self.assertEqual(command_branch["candidate_tests"], ["tests/test_cli.py"])
+        self.assertEqual(command_branch["candidate_features"], ["cli"])
+        self.assertEqual(command_branch["features"], [])
+        self.assertEqual(command_branch["feature_commands"], [{
+            "feature": "cli", "argv": ["python", "-m", "unittest", "tests.test_cli"],
+            "selection": "fallback_candidate",
+        }])
+        self.assertEqual(command_branch["scope"], "local")
+        self.assertFalse(command_branch["full_required"])
+        self.assertEqual(command_branch["unresolved"], [])
+        self.assertEqual(command_branch["full_warnings"][0]["trigger_id"], "bootstrap")
+
+        docstring = core.select_impacted_checks(
+            ["src/main.py"], project,
+            logic_impact={
+                "changed_logic": ["main.run_export docstring"],
+                "affected_behaviors": ["export help text"],
+                "scope": "local", "reason": "Executable logic is unchanged.",
+                "tests": ["tests/test_export_help.py"],
+            },
+        )
+        self.assertEqual(docstring["tests"], ["tests/test_export_help.py"])
+        self.assertFalse(docstring["full_required"])
+
+        xlsx = core.select_impacted_checks(
+            ["src/exporters/xlsx.py"], project,
+            logic_impact={
+                "changed_logic": ["XlsxExporter.write_cell"],
+                "affected_behaviors": ["XLSX cell serialization contract"],
+                "scope": "capability", "reason": "Only XLSX output is affected.",
+                "tests": ["tests/test_xlsx_contract.py"],
+            },
+        )
+        self.assertEqual(xlsx["tests"], ["tests/test_xlsx_contract.py"])
+        self.assertFalse(xlsx["full_required"])
+
+    def test_full_requires_cross_cutting_logic_or_explicit_request(self) -> None:
+        core = load_core()
+        project = v3_project()
+        project["impact"] = {
+            "rules": [
+                {"id": "cli", "source_prefixes": ["src/main.py"], "tests": ["tests/test_cli.py"], "feature": "cli", "triggers": ["bootstrap"]},
+                {"id": "shared", "source_prefixes": ["vendor/shared_runtime/"], "tests": ["tests/shared"], "feature": "shared", "triggers": ["shared_runtime"]},
+            ],
+            "feature_selectors": {
+                "cli": ["python", "-m", "unittest", "tests.test_cli"],
+                "shared": ["python", "-m", "unittest", "tests.shared"],
+            },
+            "full_triggers": ["bootstrap", "shared_runtime"],
+        }
+        bootstrap = core.select_impacted_checks(
+            ["src/main.py"], project,
+            logic_impact={
+                "changed_logic": ["main.bootstrap", "shared command routing"],
+                "affected_behaviors": ["all CLI command startup and dispatch"],
+                "scope": "cross-cutting", "reason": "The shared bootstrap routes every command.",
+                "tests": ["tests/test_cli_bootstrap.py"],
+            },
+        )
+        self.assertTrue(bootstrap["full_required"])
+        self.assertEqual(bootstrap["full_required_by"], ["logic_impact:cross-cutting"])
+
+        shared = core.select_impacted_checks(
+            ["vendor/shared_runtime/router.py"], project,
+            logic_impact={
+                "changed_logic": ["SharedRouter.dispatch"],
+                "affected_behaviors": ["all vendored runtime consumers"],
+                "scope": "cross-cutting", "reason": "Every feature imports this router.",
+                "tests": ["tests/test_shared_router.py"],
+            },
+        )
         self.assertTrue(shared["full_required"])
-        self.assertEqual(shared["full_trigger_ids"], ["shared_policy"])
-        self.assertEqual(core.select_impacted_checks(["src/unknown.py"], project)["unresolved"], ["src/unknown.py"])
+
+        explicit = core.select_impacted_checks(
+            ["src/main.py"], project,
+            logic_impact={
+                "changed_logic": ["main.version command"],
+                "affected_behaviors": ["version output"],
+                "scope": "local", "reason": "Only version output changed.",
+                "tests": ["tests/test_version.py"],
+            },
+            full_requested=True,
+        )
+        self.assertTrue(explicit["full_required"])
+        self.assertEqual(explicit["full_required_by"], ["user_requested"])
+
+    def test_missing_or_unexplained_logic_impact_blocks_without_auto_full(self) -> None:
+        core = load_core()
+        project = v3_project()
+        project["impact"] = {
+            "rules": [{
+                "id": "cli", "source_prefixes": ["src/main.py"],
+                "tests": ["tests/test_cli.py"], "feature": "cli", "triggers": ["bootstrap"],
+            }],
+            "feature_selectors": {"cli": ["python", "-m", "unittest", "tests.test_cli"]},
+            "full_triggers": ["bootstrap"],
+        }
+        missing = core.select_impacted_checks(["src/main.py"], project)
+        self.assertEqual(missing["status"], "unresolved_logic_impact")
+        self.assertEqual(missing["unresolved"], ["unresolved_logic_impact"])
+        self.assertEqual(missing["candidate_tests"], ["tests/test_cli.py"])
+        self.assertFalse(missing["full_required"])
+        self.assertEqual(missing["tests"], [])
+        unknown = core.select_impacted_checks(
+            ["src/main.py"], project,
+            logic_impact={
+                "changed_logic": ["main.py change"], "affected_behaviors": ["unknown"],
+                "scope": "unknown", "reason": "Direct callers were not traced.", "tests": [],
+            },
+        )
+        self.assertEqual(unknown["status"], "unresolved_logic_impact")
+        self.assertFalse(unknown["full_required"])
 
     def test_project_consumers_fail_closed_before_git_or_impact_selection(self) -> None:
         core = load_core()

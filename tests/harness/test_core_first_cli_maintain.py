@@ -321,10 +321,6 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
                 "--slug", "closure", "--contract", str(contract_path),
             )
             self.assertEqual(started["status"], "started", started)
-            invoke(
-                "execute-codex-goal", "impacted", "--project", str(project_path),
-                "--changed", "src/app.py",
-            )
             value_path = container / "value.json"
             value_path.write_text(json.dumps("deliver safer behavior"), encoding="utf-8")
             invoke(
@@ -363,6 +359,19 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
                 "--project", str(project_path), "--approved-exact-path", str(worktree),
             )
 
+            logic_impact_path = container / "logic-impact.json"
+            logic_impact_path.write_text(json.dumps({
+                "changed_logic": ["item delivery and worktree result"],
+                "affected_behaviors": ["two completed Item outputs"],
+                "scope": "local", "reason": "Only the two Item outputs changed.",
+                "tests": ["tests.test_app"],
+            }), encoding="utf-8")
+            impact = invoke(
+                "execute-codex-goal", "impacted", "--project", str(project_path),
+                "--changed", "docs/generated.md", "--changed", "item.txt",
+                "--changed", "worktree.txt",
+                "--logic-impact", str(logic_impact_path),
+            )
             result = {
                 "items": [{
                     "id": item_id, "actual": "delivered", "actual_steps": ["input", "output"],
@@ -376,9 +385,8 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
                     }],
                     "delta": {"material": False},
                 } for item_id in ("I-01", "I-02")],
-                "full": {"status": "not_required", "rule": "src"},
+                "full": {"status": "not_required", "rule": impact["not_required_rule_ids"][0]},
             }
-            impact = {"full_required": False, "unresolved": [], "not_required_rule_ids": ["src"]}
             result_path = container / "result.json"
             impact_path = container / "impact.json"
             result_path.write_text(json.dumps(result), encoding="utf-8")
@@ -425,6 +433,25 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
             payload = json.loads(completed.stdout)
             self.assertEqual(payload["status"], "default_authorized")
             self.assertEqual(payload["contract"]["authorization"]["mode"], "default")
+
+    def test_impacted_cli_blocks_unresolved_logic_without_auto_full(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_path = Path(temp_dir) / "project.json"
+            project_path.write_text(
+                (ROOT / "authoring" / "templates" / "project" / "project.yaml").read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+            completed = subprocess.run(
+                [
+                    "python", str(CORE), "impacted", "--project", str(project_path),
+                    "--changed", "src/main.py",
+                ],
+                text=True, capture_output=True, check=False,
+            )
+            self.assertEqual(completed.returncode, 2, completed.stdout)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["status"], "unresolved_logic_impact")
+            self.assertFalse(payload["full_required"])
 
     def test_design_create_invalid_root_is_a_failing_cli_result(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

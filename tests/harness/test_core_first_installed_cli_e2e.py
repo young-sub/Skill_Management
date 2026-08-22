@@ -69,15 +69,27 @@ class InstalledCliEndToEndTests(unittest.TestCase):
             )
             authorized_path = root / "authorized.json"
             write_json(authorized_path, authorized["contract"])
+            project_path = root / "project.json"
+            logic_path = root / "logic-impact.json"
+            write_json(project_path, project_config())
+            write_json(logic_path, {
+                "changed_logic": ["tiny feature output"],
+                "affected_behaviors": ["tiny feature result"],
+                "scope": "local", "reason": "One tiny feature changed.",
+                "tests": ["sample"],
+            })
+            impact = run_cli(
+                "execute-codex-goal", "impacted", "--project", str(project_path),
+                "--changed", "feature.py", "--logic-impact", str(logic_path),
+            )
             result = {
                 "items": [{
                     "id": item_id, "checks": [{"check_id": "T-01", "status": "passed", "command": "python -m unittest sample"}],
                     "criteria": [{"criterion_id": "D-01", "criterion": "output is delivered", "status": "passed", "evidence": "observed"}],
                     "delta": {"material": False},
                 } for item_id in ("I-01", "I-02")],
-                "full": {"status": "not_required", "rule": "feature"},
+                "full": {"status": "not_required", "rule": impact["not_required_rule_ids"][0]},
             }
-            impact = {"full_required": False, "unresolved": [], "not_required_rule_ids": ["feature"]}
             result_path, impact_path = root / "result.json", root / "impact.json"
             write_json(result_path, result)
             write_json(impact_path, impact)
@@ -124,9 +136,16 @@ class InstalledCliEndToEndTests(unittest.TestCase):
             project = project_config()
             project["impact"] = {"rules": rules, "feature_selectors": selectors, "full_triggers": []}
             write_json(project_path, project)
+            logic_path = root / "logic-impact.json"
+            write_json(logic_path, {
+                "changed_logic": ["capability 347 branch"],
+                "affected_behaviors": ["capability 347 output"],
+                "scope": "local", "reason": "Only capability 347 changed.",
+                "tests": ["tests/test_cap_347.py"],
+            })
             selected = run_cli(
                 "execute-codex-goal", "impacted", "--project", str(project_path),
-                "--changed", "src/cap_347/feature.py",
+                "--changed", "src/cap_347/feature.py", "--logic-impact", str(logic_path),
             )
             self.assertEqual(selected["matched_rules"], ["cap-347"])
             self.assertEqual(len(selected["feature_commands"]), 1)

@@ -69,7 +69,66 @@ def started_work(core, root: Path, work_id: str) -> tuple[Path, dict]:
     return active, source
 
 
+def close_impact(core, scope: str = "local") -> tuple[dict, dict]:
+    project = project_policy(protected=())
+    project["impact"] = {"rules": [], "feature_selectors": {}, "full_triggers": []}
+    impact = core.select_impacted_checks(
+        [], project,
+        logic_impact={
+            "changed_logic": ["completed work result"],
+            "affected_behaviors": ["goal completion evidence"],
+            "scope": scope, "reason": "The fixture records the assessed logic scope.",
+            "tests": ["tests/test_goal_result.py"],
+        },
+    )
+    return project, impact
+
+
 class CoreFirstCloseLifecycleTests(unittest.TestCase):
+    def test_close_blocks_when_cumulative_changed_paths_outgrow_logic_assessment(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            active, source = started_work(core, root, "W-cumulative-impact")
+            project = project_policy(protected=())
+            project["impact"] = {
+                "rules": [{
+                    "id": "app", "source_prefixes": ["src/"],
+                    "tests": ["tests/test_app.py"], "feature": "app", "triggers": [],
+                }],
+                "feature_selectors": {"app": ["python", "-m", "unittest", "tests.test_app"]},
+                "full_triggers": [],
+            }
+            (root / "src").mkdir()
+            (root / "src" / "app.py").write_text("VALUE = 1\n", encoding="utf-8")
+            subprocess.run(["git", "add", "src/app.py"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-m", "app"], cwd=root, check=True, capture_output=True)
+            impact = core.select_impacted_checks(
+                ["src/app.py"], project,
+                logic_impact={
+                    "changed_logic": ["app.VALUE"],
+                    "affected_behaviors": ["app output"],
+                    "scope": "local", "reason": "One app value changed.",
+                    "tests": ["tests/test_app_value.py"],
+                },
+            )
+            (root / "src" / "bootstrap.py").write_text("ENABLED = True\n", encoding="utf-8")
+            subprocess.run(["git", "add", "src/bootstrap.py"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-m", "bootstrap"], cwd=root, check=True, capture_output=True)
+            result = result_payload()
+            result["full"]["rule"] = "app"
+
+            closed = core.close_work(
+                root, "W-cumulative-impact", contract=source, result=result,
+                impact=impact, project=project,
+                completed_at="2026-08-22T14:00:00+09:00",
+                completed_days=30, trash_days=7,
+            )
+
+            self.assertEqual(closed["status"], "incomplete", closed)
+            self.assertIn("cumulative_logic_impact_stale", closed["errors"])
+            self.assertTrue(active.is_dir())
+
     def test_json_only_design_closes_with_result_json_and_maintains_cleanly(self) -> None:
         core = load_core()
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -89,13 +148,13 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
                 project=project_policy(protected=("main",)),
             )
             self.assertEqual(started["status"], "started", started)
+            project, impact = close_impact(core)
+            result = result_payload()
+            result["full"]["rule"] = impact["not_required_rule_ids"][0]
 
             closed = core.close_work(
-                root, "W-json-close", contract=stored, result=result_payload(),
-                impact={
-                    "full_required": False, "unresolved": [],
-                    "not_required_rule_ids": ["independent_capability"],
-                },
+                root, "W-json-close", contract=stored, result=result,
+                impact=impact, project=project,
                 completed_at="2026-08-22T12:30:00+09:00",
                 completed_days=30, trash_days=7,
             )
@@ -154,21 +213,28 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
             self.assertFalse((destination / "review" / "result.html").exists())
     def test_close_is_item_based_and_full_is_conditional(self) -> None:
         core = load_core()
-        independent = core.evaluate_result(contract(), result_payload(), {"full_required": False, "unresolved": [], "not_required_rule_ids": ["independent_capability"]})
+        _, local = close_impact(core)
+        local_result = result_payload()
+        local_result["full"]["rule"] = local["not_required_rule_ids"][0]
+        independent = core.evaluate_result(contract(), local_result, local)
         self.assertEqual(independent["status"], "complete")
         self.assertEqual(independent["full"], "not_required")
-        shared = core.evaluate_result(contract(), result_payload(), {"full_required": True, "unresolved": []})
+        _, cross_cutting = close_impact(core, "cross-cutting")
+        shared = core.evaluate_result(contract(), result_payload(), cross_cutting)
         self.assertEqual(shared["status"], "incomplete")
         self.assertIn("full_required_but_unrun", shared["errors"])
         failed = result_payload()
         failed["items"][0]["checks"][0]["status"] = "failed"
-        evaluated = core.evaluate_result(contract(), failed, {"full_required": False, "unresolved": [], "not_required_rule_ids": ["independent_capability"]})
+        failed["full"]["rule"] = local["not_required_rule_ids"][0]
+        evaluated = core.evaluate_result(contract(), failed, local)
         self.assertEqual(evaluated["items"][0]["status"], "incomplete")
         self.assertEqual(evaluated["items"][1]["status"], "complete")
 
     def test_close_requires_exact_planned_test_and_done_evidence(self) -> None:
         core = load_core()
+        impact = close_impact(core)[1]
         unrelated = result_payload()
+        unrelated["full"]["rule"] = impact["not_required_rule_ids"][0]
         unrelated["items"][0]["checks"] = [{
             "check_id": "T-other", "kind": "Targeted", "command": "python -m unittest unrelated",
             "status": "passed",
@@ -178,8 +244,7 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
         }]
 
         evaluated = core.evaluate_result(
-            contract(), unrelated,
-            {"full_required": False, "unresolved": [], "not_required_rule_ids": ["independent_capability"]},
+            contract(), unrelated, impact,
         )
 
         self.assertEqual(evaluated["items"][0]["status"], "incomplete")
@@ -187,10 +252,10 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
         self.assertIn("planned_done_evidence_mismatch", evaluated["items"][0]["errors"])
 
         changed_command = result_payload()
+        changed_command["full"]["rule"] = impact["not_required_rule_ids"][0]
         changed_command["items"][0]["checks"][0]["command"] = "python -m unittest exact.runtime.case"
         proportional = core.evaluate_result(
-            contract(), changed_command,
-            {"full_required": False, "unresolved": [], "not_required_rule_ids": ["independent_capability"]},
+            contract(), changed_command, impact,
         )
         self.assertEqual(proportional["items"][0]["status"], "complete")
 
@@ -216,10 +281,9 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
 
     def test_close_prechecks_destination_and_restores_result_preimages_on_move_failure(self) -> None:
         core = load_core()
-        impact = {
-            "full_required": False, "unresolved": [],
-            "not_required_rule_ids": ["independent_capability"],
-        }
+        project, impact = close_impact(core)
+        result = result_payload()
+        result["full"]["rule"] = impact["not_required_rule_ids"][0]
         with self.subTest("destination_conflict"), tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             active, source = started_work(core, root, "W-close-conflict")
@@ -229,8 +293,8 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
             destination.mkdir(parents=True)
 
             closed = core.close_work(
-                root, "W-close-conflict", contract=source, result=result_payload(),
-                impact=impact, completed_at="2026-08-02T12:00:00+09:00",
+                root, "W-close-conflict", contract=source, result=result,
+                impact=impact, project=project, completed_at="2026-08-02T12:00:00+09:00",
                 completed_days=30, trash_days=7,
             )
 
@@ -244,8 +308,8 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
             result_path.write_bytes(b"result-preimage\r\n")
 
             closed = core.close_work(
-                root, "W-close-rollback", contract=source, result=result_payload(),
-                impact=impact, completed_at="2026-08-02T12:00:00+09:00",
+                root, "W-close-rollback", contract=source, result=result,
+                impact=impact, project=project, completed_at="2026-08-02T12:00:00+09:00",
                 completed_days=30, trash_days=7, fault_after="move",
             )
 
@@ -258,9 +322,12 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             active, source = started_work(core, root, "W-1")
+            project, impact = close_impact(core)
+            result = result_payload()
+            result["full"]["rule"] = impact["not_required_rule_ids"][0]
             closed = core.close_work(
-                root, "W-1", contract=source, result=result_payload(),
-                impact={"full_required": False, "unresolved": [], "not_required_rule_ids": ["independent_capability"]},
+                root, "W-1", contract=source, result=result,
+                impact=impact, project=project,
                 completed_at="2026-08-02T12:00:00+09:00", completed_days=30,
                 trash_days=7,
             )

@@ -2249,16 +2249,56 @@ def integrate_worktree(
     return {"status": "integrated", "branch": branch, "base": base, "commit": revision}
 
 
+def _normalize_logic_impact(logic_impact: dict[str, Any] | None) -> tuple[dict[str, Any] | None, list[str]]:
+    if not isinstance(logic_impact, dict):
+        return None, ["logic_impact_missing"]
+    errors: list[str] = []
+
+    def strings(field: str, *, required: bool = True) -> list[str]:
+        value = logic_impact.get(field)
+        if not isinstance(value, list) or any(not isinstance(item, str) or not item.strip() for item in value):
+            errors.append(f"logic_impact_invalid:{field}")
+            return []
+        normalized = list(dict.fromkeys(item.strip() for item in value))
+        if required and not normalized:
+            errors.append(f"logic_impact_empty:{field}")
+        return normalized
+
+    changed_logic = strings("changed_logic")
+    affected_behaviors = strings("affected_behaviors")
+    scope = logic_impact.get("scope")
+    if scope not in {"local", "capability", "cross-cutting", "unknown"}:
+        errors.append("logic_impact_invalid:scope")
+        scope = "unknown"
+    reason = logic_impact.get("reason")
+    if not isinstance(reason, str) or not reason.strip():
+        errors.append("logic_impact_invalid:reason")
+        reason = ""
+    tests = strings("tests", required=scope != "unknown")
+    return {
+        "changed_logic": changed_logic,
+        "affected_behaviors": affected_behaviors,
+        "scope": scope,
+        "reason": reason.strip(),
+        "tests": tests,
+    }, errors
+
+
 def select_impacted_checks(
-    changed_paths: list[str], project: dict[str, Any]
+    changed_paths: list[str], project: dict[str, Any],
+    logic_impact: dict[str, Any] | None = None, *, full_requested: bool = False,
 ) -> dict[str, Any]:
     normalized_project = normalize_project_config(project)
     if normalized_project["status"] == "invalid":
         errors = list(normalized_project["errors"])
         return {
             "status": "invalid", "errors": errors,
-            "matched_rules": [], "tests": [], "features": [],
-            "feature_commands": [], "trigger_ids": [], "full_trigger_ids": [],
+            "changed_paths": [], "logic_impact": None,
+            "changed_logic": [], "affected_behaviors": [], "scope": "unknown", "reason": "",
+            "matched_rules": [], "tests": [], "features": [], "candidate_tests": [],
+            "candidate_features": [], "candidate_unmapped_paths": [],
+            "feature_commands": [], "trigger_ids": [], "full_trigger_ids": [], "full_warnings": [],
+            "full_required_by": [], "full_requested": bool(full_requested),
             "not_required_rule_ids": [], "full_required": False,
             "unresolved": [f"project_configuration:{error}" for error in errors],
         }
@@ -2267,46 +2307,80 @@ def select_impacted_checks(
     rules = impact_config.get("rules", [])
     feature_selectors = impact_config.get("feature_selectors", {})
     full_triggers = set(impact_config.get("full_triggers", []))
+    normalized_paths = list(dict.fromkeys(path.replace("\\", "/") for path in changed_paths))
     matched_rules: list[str] = []
-    tests: list[str] = []
-    features: list[str] = []
+    candidate_tests: list[str] = []
+    candidate_features: list[str] = []
     trigger_ids: list[str] = []
-    unresolved: list[str] = []
-    for path in changed_paths:
+    candidate_unmapped_paths: list[str] = []
+    trigger_rules: dict[str, list[str]] = {}
+    for path in normalized_paths:
         matches = [
             rule for rule in rules
-            if any(path.replace("\\", "/").startswith(prefix.replace("\\", "/")) for prefix in rule.get("source_prefixes", []))
+            if any(path.startswith(prefix.replace("\\", "/")) for prefix in rule.get("source_prefixes", []))
         ]
         if not matches:
-            unresolved.append(path)
+            candidate_unmapped_paths.append(path)
             continue
         for rule in matches:
             rule_id = str(rule.get("id", "unnamed"))
             if rule_id not in matched_rules:
                 matched_rules.append(rule_id)
             for test in rule.get("tests", []):
-                if test not in tests:
-                    tests.append(test)
+                if test not in candidate_tests:
+                    candidate_tests.append(test)
             feature = rule.get("feature")
-            if feature and feature not in features:
-                features.append(feature)
+            if feature and feature not in candidate_features:
+                candidate_features.append(feature)
             for trigger in rule.get("triggers", []):
                 if trigger not in trigger_ids:
                     trigger_ids.append(trigger)
-    full_trigger_ids = [trigger for trigger in trigger_ids if trigger in full_triggers]
+                trigger_rules.setdefault(trigger, [])
+                if rule_id not in trigger_rules[trigger]:
+                    trigger_rules[trigger].append(rule_id)
+    full_warning_ids = [trigger for trigger in trigger_ids if trigger in full_triggers]
+    full_warnings = [{
+        "trigger_id": trigger,
+        "rule_ids": trigger_rules[trigger],
+        "reason": "path_candidate_requires_logic_impact",
+    } for trigger in full_warning_ids]
     feature_commands = [
-        {"feature": feature, "argv": list(feature_selectors[feature])}
-        for feature in features if feature in feature_selectors
+        {
+            "feature": feature, "argv": list(feature_selectors[feature]),
+            "selection": "fallback_candidate",
+        }
+        for feature in candidate_features if feature in feature_selectors
     ]
-    missing_feature_selectors = [feature for feature in features if feature not in feature_selectors]
-    unresolved.extend(f"feature_selector:{feature}" for feature in missing_feature_selectors)
+    normalized_logic, logic_errors = _normalize_logic_impact(logic_impact)
+    scope = normalized_logic["scope"] if normalized_logic else "unknown"
+    unresolved = [] if normalized_logic and not logic_errors and scope != "unknown" else ["unresolved_logic_impact"]
+    full_required_by: list[str] = []
+    if full_requested:
+        full_required_by.append("user_requested")
+    elif scope == "cross-cutting" and not unresolved:
+        full_required_by.append("logic_impact:cross-cutting")
+    full_required = bool(full_required_by)
+    not_required_rule_ids = (
+        matched_rules or [f"logic_impact:{scope}"]
+        if not unresolved and not full_required else []
+    )
     return {
-        "status": "selected",
-        "matched_rules": matched_rules, "tests": tests, "features": features,
+        "status": "selected" if not unresolved else "unresolved_logic_impact",
+        "errors": logic_errors,
+        "changed_paths": normalized_paths, "logic_impact": normalized_logic,
+        "changed_logic": normalized_logic["changed_logic"] if normalized_logic else [],
+        "affected_behaviors": normalized_logic["affected_behaviors"] if normalized_logic else [],
+        "scope": scope, "reason": normalized_logic["reason"] if normalized_logic else "",
+        "matched_rules": matched_rules,
+        "tests": normalized_logic["tests"] if normalized_logic and not unresolved else [],
+        "features": [], "candidate_tests": candidate_tests,
+        "candidate_features": candidate_features,
+        "candidate_unmapped_paths": candidate_unmapped_paths,
         "feature_commands": feature_commands, "trigger_ids": trigger_ids,
-        "full_trigger_ids": full_trigger_ids,
-        "not_required_rule_ids": matched_rules if not full_trigger_ids and not unresolved else [],
-        "full_required": bool(full_trigger_ids), "unresolved": unresolved,
+        "full_trigger_ids": [], "full_warnings": full_warnings,
+        "not_required_rule_ids": not_required_rule_ids,
+        "full_requested": bool(full_requested), "full_required_by": full_required_by,
+        "full_required": full_required, "unresolved": unresolved,
     }
 
 
@@ -2378,8 +2452,13 @@ def evaluate_result(
                 item_errors.append("material_delta_unapproved")
         evaluated.append({"id": planned["id"], "status": "complete" if not item_errors else "incomplete", "errors": item_errors})
         errors.extend(f"{planned['id']}:{error}" for error in item_errors)
-    if impact.get("unresolved"):
-        errors.append("unresolved_test_impact")
+    impact_status = impact.get("status")
+    if (
+        impact_status not in {"selected", "legacy_cohort"}
+        or impact_status == "selected" and not isinstance(impact.get("logic_impact"), dict)
+        or impact.get("unresolved")
+    ):
+        errors.append("unresolved_logic_impact")
     full_status = result.get("full", {}).get("status", "unrun")
     if impact.get("full_required") and full_status != "passed":
         errors.append("full_required_but_unrun")
@@ -2551,6 +2630,7 @@ def _transition_work_to_completed(
 def close_work(
     root: Path, work_id: str, *, contract: dict[str, Any], result: dict[str, Any],
     impact: dict[str, Any], completed_at: str, completed_days: int, trash_days: int,
+    project: dict[str, Any] | None = None,
     fault_after: str | None = None, crash_after: str | None = None,
 ) -> dict[str, Any]:
     """Validate and close one active Goal as a single recoverable lifecycle transition."""
@@ -2612,6 +2692,48 @@ def close_work(
     manifest_errors.extend(_validate_active_manifest(manifest, work_id, stored_contract))
     if manifest_errors:
         return {"status": "invalid_work", "errors": sorted(set(manifest_errors))}
+    authorization = stored_contract.get("authorization")
+    legacy_impact = isinstance(authorization, dict) and "review_digest" in authorization
+    if not legacy_impact:
+        if project is None:
+            project_path = root / ".harness" / "project.yaml"
+            try:
+                project = json.loads(project_path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, json.JSONDecodeError):
+                return {"status": "incomplete", "errors": ["cumulative_logic_impact_unavailable"]}
+        try:
+            committed = _git_paths(
+                root, ["diff", "--name-only", f"{manifest['source_commit']}..HEAD"],
+            )
+            dirty = {
+                str(entry["path"])
+                for entry in collect_git_baseline(root).get("entries", [])
+            }
+        except (KeyError, ValueError) as error:
+            return {
+                "status": "incomplete", "errors": ["cumulative_logic_impact_unavailable"],
+                "detail": str(error),
+            }
+        cumulative_paths = sorted(committed | dirty)
+        reevaluated = select_impacted_checks(
+            cumulative_paths, project, impact.get("logic_impact"),
+            full_requested=bool(impact.get("full_requested")),
+        )
+        if reevaluated["unresolved"]:
+            return {
+                "status": "incomplete", "errors": ["unresolved_logic_impact"],
+                "impact": reevaluated,
+            }
+        assessed_paths = impact.get("changed_paths")
+        if not isinstance(assessed_paths, list) or sorted({str(path).replace("\\", "/") for path in assessed_paths}) != cumulative_paths:
+            return {
+                "status": "incomplete", "errors": ["cumulative_logic_impact_stale"],
+                "assessed_paths": assessed_paths if isinstance(assessed_paths, list) else [],
+                "cumulative_paths": cumulative_paths,
+            }
+        impact = reevaluated
+    else:
+        impact = {**impact, "status": "legacy_cohort"}
     evaluation = evaluate_result(stored_contract, result, impact)
     if evaluation["status"] != "complete":
         return evaluation
@@ -3416,6 +3538,8 @@ def _cli_parser(owner: str | None = None) -> argparse.ArgumentParser:
     if impact:
         impact.add_argument("--project", type=Path, required=True)
         impact.add_argument("--changed", action="append", default=[])
+        impact.add_argument("--logic-impact", type=Path)
+        impact.add_argument("--full", action="store_true")
     cleanup_plan = command("cleanup-plan")
     if cleanup_plan:
         cleanup_plan.add_argument("--root", type=Path, required=True)
@@ -3478,6 +3602,7 @@ def _cli_parser(owner: str | None = None) -> argparse.ArgumentParser:
         close.add_argument("--contract", type=Path, required=True)
         close.add_argument("--result", type=Path, required=True)
         close.add_argument("--impact", type=Path, required=True)
+        close.add_argument("--project", type=Path)
         close.add_argument("--at", required=True)
         close.add_argument("--completed-days", type=int, required=True)
         close.add_argument("--trash-days", type=int, required=True)
@@ -3536,7 +3661,11 @@ def main() -> int:
                 authorized_at=args.at,
             )
         elif args.command == "impacted":
-            payload = select_impacted_checks(args.changed, _json_object(args.project))
+            payload = select_impacted_checks(
+                args.changed, _json_object(args.project),
+                _json_object(args.logic_impact) if args.logic_impact else None,
+                full_requested=args.full,
+            )
         elif args.command == "cleanup-plan":
             request = _json_object(args.request)
             plan = build_cleanup_plan(
@@ -3588,6 +3717,7 @@ def main() -> int:
             payload = close_work(
                 args.root, args.work_id, contract=_json_object(args.contract),
                 result=_json_object(args.result), impact=_json_object(args.impact),
+                project=_json_object(args.project) if args.project else None,
                 completed_at=args.at, completed_days=args.completed_days,
                 trash_days=args.trash_days,
             )
@@ -3629,6 +3759,7 @@ def main() -> int:
             "git_error", "invalid_work", "invalid_target", "recovery_failed",
             "explicit_approval_required", "focused_approval_required", "vetoed",
             "unresolved_decisions", "ambiguous_intent", "invalid_amendment",
+            "unresolved_logic_impact",
             "invalid_manifest", "invalid_source", "staging_invalid", "rolled_back",
             "rollback_failed", "write_failed", "invalid_root", "invalid_slug",
             "invalid_branch_policy",

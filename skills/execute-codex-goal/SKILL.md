@@ -4,7 +4,7 @@ description: Execute a default- or explicitly-authorized Core-First Harness Item
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/execute-codex-goal/SKILL.md -->
-<!-- Source-SHA256: 9756d5a7b39053c07558640fd8b835452de90c654e6cad6fbd9e03f452319ad0 -->
+<!-- Source-SHA256: 3522e99405e1dd0b35fb112f9309f826f382530e84d20fc16eb6e5ca77d965d5 -->
 
 
 # Execute Codex Goal
@@ -15,7 +15,7 @@ Use [the runtime](scripts/core_harness.py), [the contract schema](schemas/contra
 2. Capture the current branch and commit as base and record the dirty baseline. Create a feature branch only when repository policy or the reviewed work requires one; never assume the default branch.
 3. Select the first dependency-ready core Item; optional work cannot displace incomplete core behavior.
 4. For a behavior change, observe the smallest relevant RED, implement the core behavior, observe GREEN, and refactor. For a behavior-preserving move, use baseline/equivalent GREEN.
-5. Resolve Impacted tests from exact behavior, mapped paths/dependencies, cross-cutting rules, and the Feature selector. Unknown relevant impact blocks Item completion; Full runs only on a configured trigger.
+5. Inspect changed functions, branches, state transitions, configuration rules, direct callers, and public behavior with the existing diff and symbol searches. Record `changed_logic`, `affected_behaviors`, `scope`, and `reason`; select exact tests from that logic assessment. Treat path mappings, Feature commands, and Full triggers only as candidates. Unknown impact blocks completion without auto-Full; Full runs only for cross-cutting logic impact or an explicit human request.
 6. A commit unit is the smallest complete functional unit that works when checked out by itself, including required source, tests, docs, schemas, and generated resources. Commit every such unit after its mapped verification passes and exclude dirty baseline files. Group coupled Items into one commit; split only independently working units. Never create an intentionally broken intermediate commit. Create independent Item worktrees only through the runtime-owned `/.worktree/` directory; callers never choose an external path. Record concise evidence in `.work/goals/active/<work-id>/agent/evidence.jsonl`.
 7. Apply an unambiguous low-risk user delta immediately as `approved_amendment`. Request focused approval only for material public contract, acceptance, architecture, destructive, security/privacy, secret, irreversible, or costly external change.
 

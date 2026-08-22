@@ -1,6 +1,6 @@
 # Core-First Harness System
 
-The Harness maps a repository only when setup is explicitly requested, turns authorized work into one to five observable Items, implements dependency-ready core behavior first, selects tests from explicit impact rules, and retains work evidence only for a configured period.
+The Harness maps a repository only when setup is explicitly requested, turns authorized work into one to five observable Items, implements dependency-ready core behavior first, selects tests from explicit logic impact with path rules as candidates, and retains work evidence only for a configured period.
 
 ```text
 static inventory -> mapped project -> default-authorized Item contract

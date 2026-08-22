@@ -172,7 +172,15 @@ class CoreFirstCutoverTests(unittest.TestCase):
         core = load_core()
         config = json.loads((ROOT / ".harness" / "project.yaml").read_text(encoding="utf-8"))
         samples = [".harness/project.yaml", "tests/harness/test_core_first_cutover.py", ".github/workflows/validate-distribution.yml", "skill_recreate_plan.md"]
-        selected = core.select_impacted_checks(samples, config)
+        selected = core.select_impacted_checks(
+            samples, config,
+            logic_impact={
+                "changed_logic": ["repository control plane and CI routing"],
+                "affected_behaviors": ["Harness configuration, discovery, and distribution CI"],
+                "scope": "cross-cutting", "reason": "Multiple repository-wide control surfaces changed.",
+                "tests": ["tests/harness", "tests/distribution", "tests/release"],
+            },
+        )
         self.assertEqual(selected["unresolved"], [])
         self.assertTrue(selected["full_required"])
         workflow = (ROOT / ".github" / "workflows" / "validate-distribution.yml").read_text(encoding="utf-8")
@@ -184,15 +192,27 @@ class CoreFirstCutoverTests(unittest.TestCase):
         core = load_core()
         config = json.loads((ROOT / ".harness" / "project.yaml").read_text(encoding="utf-8"))
 
-        independent = core.select_impacted_checks(["skills/finance-research/SKILL.md"], config)
-        shared = core.select_impacted_checks(["skills/design-goal/SKILL.md"], config)
-        template = core.select_impacted_checks(["authoring/templates/review/design-item-review.html"], config)
-        runtime = core.select_impacted_checks(["authoring/scripts/core_harness.py"], config)
+        local = {
+            "changed_logic": ["skill instructions"], "affected_behaviors": ["one skill workflow"],
+            "scope": "local", "reason": "Only one skill instruction changed.",
+            "tests": ["tests/distribution/test_sync_skill_resources.py"],
+        }
+        independent = core.select_impacted_checks(["skills/finance-research/SKILL.md"], config, local)
+        shared = core.select_impacted_checks(["skills/design-goal/SKILL.md"], config, local)
+        policy = core.select_impacted_checks(["authoring/references/testing-policy.md"], config, {
+            **local, "changed_logic": ["testing policy wording"],
+        })
+        runtime = core.select_impacted_checks(["authoring/scripts/core_harness.py"], config, {
+            "changed_logic": ["shared Harness command routing"],
+            "affected_behaviors": ["all installed Harness skill commands"],
+            "scope": "cross-cutting", "reason": "Every Harness skill distributes this runtime.",
+            "tests": ["tests/harness", "tests/distribution"],
+        })
 
         self.assertEqual(independent["unresolved"], [])
         self.assertFalse(independent["full_required"])
         self.assertFalse(shared["full_required"])
-        self.assertFalse(template["full_required"])
+        self.assertFalse(policy["full_required"])
         self.assertTrue(runtime["full_required"])
 
     def test_ordinary_test_edits_are_impacted_only_but_discovery_controls_require_full(self) -> None:
@@ -201,17 +221,32 @@ class CoreFirstCutoverTests(unittest.TestCase):
 
         ordinary = core.select_impacted_checks(
             ["tests/harness/test_core_first_design_execution.py"], config,
+            logic_impact={
+                "changed_logic": ["one impact selector regression"],
+                "affected_behaviors": ["logic impact selection"],
+                "scope": "local", "reason": "Only one test case changed.",
+                "tests": ["tests/harness/test_core_first_design_execution.py"],
+            },
         )
-        discovery = core.select_impacted_checks(["tests/harness/__init__.py"], config)
+        discovery = core.select_impacted_checks(["tests/harness/__init__.py"], config, {
+            "changed_logic": ["unittest discovery package boundary"],
+            "affected_behaviors": ["repository test discovery"],
+            "scope": "cross-cutting", "reason": "The package boundary affects discovery globally.",
+            "tests": ["tests"],
+        })
 
         self.assertEqual(ordinary["unresolved"], [])
         self.assertFalse(ordinary["full_required"])
         self.assertEqual(
             ordinary["feature_commands"],
-            [{"feature": "harness-core", "argv": config["impact"]["feature_selectors"]["harness-core"]}],
+            [{
+                "feature": "harness-core",
+                "argv": config["impact"]["feature_selectors"]["harness-core"],
+                "selection": "fallback_candidate",
+            }],
         )
         self.assertTrue(discovery["full_required"])
-        self.assertIn("test_discovery", discovery["full_trigger_ids"])
+        self.assertIn("test_discovery", [warning["trigger_id"] for warning in discovery["full_warnings"]])
 
     def test_public_core_script_exposes_inventory_and_json_design_cli(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

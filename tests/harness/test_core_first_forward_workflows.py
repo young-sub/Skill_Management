@@ -100,10 +100,18 @@ class CoreFirstForwardWorkflowTests(unittest.TestCase):
                 dirty_baseline=[],
             )
             self.assertEqual(committed["status"], "committed")
-        impact = execute.select_impacted_checks(["feature.py"], project_config({"rules": [{
-            "id": "feature", "source_prefixes": ["feature.py"], "tests": ["test_feature"],
-            "feature": "tiny", "triggers": [],
-        }], "feature_selectors": {"tiny": ["python", "-m", "unittest", "test_feature"]}, "full_triggers": []}))
+        impact = execute.select_impacted_checks(
+            ["feature.py"],
+            project_config({"rules": [{
+                "id": "feature", "source_prefixes": ["feature.py"], "tests": ["test_feature"],
+                "feature": "tiny", "triggers": [],
+            }], "feature_selectors": {"tiny": ["python", "-m", "unittest", "test_feature"]}, "full_triggers": []}),
+            logic_impact={
+                "changed_logic": ["feature.VALUE"], "affected_behaviors": ["tiny feature output"],
+                "scope": "local", "reason": "One independent feature changed.",
+                "tests": ["test_feature"],
+            },
+        )
         self.assertEqual(impact["tests"], ["test_feature"])
         evaluated = close.evaluate_result(approved, result_payload(), impact)
         self.assertEqual(evaluated["status"], "complete")
@@ -206,9 +214,16 @@ class CoreFirstForwardWorkflowTests(unittest.TestCase):
         selected = execute.select_impacted_checks(
             ["src/cap_347/feature.py"],
             project_config({"rules": rules, "feature_selectors": selectors, "full_triggers": []}),
+            logic_impact={
+                "changed_logic": ["cap_347 feature branch"],
+                "affected_behaviors": ["capability 347 output"],
+                "scope": "local", "reason": "Only capability 347 changed.",
+                "tests": ["tests/test_cap_347.py"],
+            },
         )
         self.assertEqual(selected["tests"], ["tests/test_cap_347.py"])
-        self.assertEqual(selected["features"], ["cap-347"])
+        self.assertEqual(selected["features"], [])
+        self.assertEqual(selected["candidate_features"], ["cap-347"])
         self.assertFalse(selected["full_required"])
         self.assertEqual(selected["unresolved"], [])
 
