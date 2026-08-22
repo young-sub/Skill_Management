@@ -26,6 +26,44 @@ class CoreFirstSchemaTests(unittest.TestCase):
         self.assertIn("project_config:unknown_field:unexpected", normalized["errors"])
         self.assertIn("project_config:missing:project", normalized["errors"])
 
+    def test_selector_argv_allows_exact_duplicate_paths_but_set_fields_do_not(self) -> None:
+        core = load_core()
+        project = json.loads(
+            (ROOT / "authoring" / "templates" / "project" / "project.yaml").read_text(encoding="utf-8")
+        )
+        same_path = ".harness/project.yaml"
+        project["impact"]["feature_selectors"] = {
+            "impact": [
+                "python", "core_harness.py", "impacted",
+                "--project", same_path, "--changed", same_path,
+            ],
+        }
+        project["commands"]["targeted"]["argv"] = ["python", "tool.py", same_path, same_path]
+
+        self.assertEqual(core.validate_project_config(project), [])
+
+        for field, value in (
+            ("source_prefixes", ["src/", "src/"]),
+            ("tests", ["tests/test_app.py", "tests/test_app.py"]),
+            ("triggers", ["shared", "shared"]),
+        ):
+            duplicate = json.loads(json.dumps(project))
+            duplicate["impact"]["rules"] = [{
+                "id": "app", "source_prefixes": ["src/"],
+                "tests": ["tests/test_app.py"], "feature": "impact", "triggers": [],
+            }]
+            duplicate["impact"]["rules"][0][field] = value
+            self.assertIn(
+                f"project_config:duplicate_value:impact.rules.0.{field}",
+                core.validate_project_config(duplicate),
+            )
+        duplicate = json.loads(json.dumps(project))
+        duplicate["impact"]["full_triggers"] = ["shared", "shared"]
+        self.assertIn(
+            "project_config:duplicate_value:impact.full_triggers",
+            core.validate_project_config(duplicate),
+        )
+
     def test_legacy_project_preview_is_deterministic_and_has_no_runtime_version_branding(self) -> None:
         core = load_core()
         legacy = {

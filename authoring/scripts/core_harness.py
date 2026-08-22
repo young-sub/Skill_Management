@@ -173,11 +173,14 @@ def validate_project_config(project: dict[str, Any]) -> list[str]:
         if not isinstance(value, str) or not value:
             errors.append(f"project_config:expected_nonempty_string:{location}")
 
-    def string_list(value: Any, location: str, *, allowed: set[str] | None = None) -> None:
+    def string_list(
+        value: Any, location: str, *, allowed: set[str] | None = None,
+        unique: bool = True,
+    ) -> None:
         if not isinstance(value, list):
             errors.append(f"project_config:expected_list:{location}")
             return
-        if len(value) != len(set(item for item in value if isinstance(item, str))):
+        if unique and len(value) != len(set(item for item in value if isinstance(item, str))):
             errors.append(f"project_config:duplicate_value:{location}")
         for index, item in enumerate(value):
             if not isinstance(item, str) or not item:
@@ -234,7 +237,7 @@ def validate_project_config(project: dict[str, Any]) -> list[str]:
         else:
             for key, argv in selectors.items():
                 nonempty_string(key, "impact.feature_selectors.key")
-                string_list(argv, f"impact.feature_selectors.{key}")
+                string_list(argv, f"impact.feature_selectors.{key}", unique=False)
         string_list(impact.get("full_triggers"), "impact.full_triggers")
 
     command_names = {"targeted", "feature", "lint", "type", "build", "full", "live", "eval"}
@@ -3502,6 +3505,32 @@ def _runtime_cli_owner() -> str:
     return script.parent.parent.name
 
 
+def _wrong_skill_command_guidance(argv: list[str]) -> dict[str, Any] | None:
+    owner = _runtime_cli_owner()
+    if owner in {"authoring", "unknown"} or len(argv) < 2:
+        return None
+    requested = argv[1]
+    if requested not in ALL_CLI_COMMANDS or requested in PUBLIC_COMMANDS_BY_SKILL.get(owner, ()):
+        return None
+    owners = sorted(
+        skill for skill, commands in PUBLIC_COMMANDS_BY_SKILL.items()
+        if requested in commands
+    )
+    install_root = Path(__file__).resolve().parents[2]
+    paths = [
+        str((install_root / skill / "scripts" / "core_harness.py").resolve())
+        for skill in owners
+    ]
+    guidance: dict[str, Any] = {
+        "status": "wrong_skill_command", "requested_command": requested,
+    }
+    if len(owners) == 1:
+        guidance.update({"owning_skill": owners[0], "execution_path": paths[0]})
+    else:
+        guidance.update({"owning_skills": owners, "execution_paths": paths})
+    return guidance
+
+
 def _cli_parser(owner: str | None = None) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Core-First Agent Harness")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -3644,6 +3673,10 @@ def _cli_parser(owner: str | None = None) -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    guidance = _wrong_skill_command_guidance(sys.argv)
+    if guidance is not None:
+        print(json.dumps(guidance, ensure_ascii=False, sort_keys=True), file=sys.stderr)
+        return 2
     args = _cli_parser().parse_args()
     try:
         if args.command == "inventory":

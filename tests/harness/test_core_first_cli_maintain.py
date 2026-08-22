@@ -194,7 +194,14 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
                 text=True, capture_output=True, check=False,
             )
             self.assertEqual(rejected.returncode, 2)
-            self.assertIn("invalid choice", rejected.stderr)
+            guidance = json.loads(rejected.stderr)
+            self.assertEqual(guidance["status"], "wrong_skill_command")
+            self.assertEqual(guidance["requested_command"], "maintain")
+            self.assertEqual(guidance["owning_skill"], "maintain-agent-harness")
+            self.assertEqual(
+                Path(guidance["execution_path"]),
+                (install_root / "maintain-agent-harness" / "scripts" / "core_harness.py").resolve(),
+            )
             self.assertEqual(list(install_root.rglob("*.html")), [])
             self.assertEqual(list(install_root.rglob("render_*_review.py")), [])
 
