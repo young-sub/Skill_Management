@@ -129,6 +129,7 @@ class SyncSkillResourcesTests(unittest.TestCase):
                 encoding="utf-8",
             )
             (fixture_skill / "LICENSE").write_bytes(b"line one\r\nline two\r\n")
+            (fixture_skill / "helper.js").write_bytes(b"const value = 1;\r\n")
             (maintain_skill / "SKILL.md").write_text(
                 "---\nname: maintain-agent-harness\ndescription: audit\n---\n",
                 encoding="utf-8",
@@ -177,16 +178,18 @@ class SyncSkillResourcesTests(unittest.TestCase):
             expected_paths = {
                 "fixture-skill/LICENSE",
                 "fixture-skill/SKILL.md",
+                "fixture-skill/helper.js",
                 "fixture-skill/scripts/helper.py",
                 "maintain-agent-harness/SKILL.md",
             }
             self.assertEqual(set(manifest["files"]), expected_paths)
             for relative, digest in manifest["files"].items():
                 file_bytes = (fixture_root / "skills" / relative).read_bytes()
-                if Path(relative).name == "LICENSE" or Path(relative).suffix in {
+                if not Path(relative).suffix or Path(relative).suffix in {
                     ".json",
                     ".md",
                     ".html",
+                    ".js",
                     ".py",
                     ".ps1",
                     ".txt",

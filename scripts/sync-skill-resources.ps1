@@ -48,8 +48,8 @@ function Get-StableTextHash([string]$Content) {
 }
 
 function Get-StableFileHash([System.IO.FileInfo]$File) {
-    $textExtensions = @('.json', '.md', '.html', '.py', '.ps1', '.txt', '.yaml', '.yml')
-    if ($File.Name -eq 'LICENSE' -or $File.Extension.ToLowerInvariant() -in $textExtensions) {
+    $textExtensions = @('.cmd', '.html', '.js', '.json', '.md', '.ps1', '.py', '.toml', '.txt', '.yaml', '.yml')
+    if ([string]::IsNullOrEmpty($File.Extension) -or $File.Extension.ToLowerInvariant() -in $textExtensions) {
         return Get-StableTextHash ([System.IO.File]::ReadAllText($File.FullName))
     }
     return Get-Sha256Hex -LiteralPath $File.FullName
