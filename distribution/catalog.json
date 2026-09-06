@@ -2,6 +2,8 @@
   "schema_version": 1,
   "public_skills": [
     "finance-research",
+    "fixing-accessibility",
+    "impeccable",
     "explore-idea",
     "design-goal",
     "execute-codex-goal",
@@ -12,6 +14,7 @@
     "prototype",
     "setup-agent-harness",
     "teach",
+    "vercel-react-best-practices",
     "write-a-skill",
     "zoom-out"
   ],

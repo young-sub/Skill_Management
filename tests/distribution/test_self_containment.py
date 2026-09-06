@@ -113,6 +113,21 @@ class SelfContainmentTests(unittest.TestCase):
             self.assertEqual(payload["findings"], [])
             self.assertEqual(len(payload["allowlisted_findings"]), 1)
 
+    def test_ignores_paths_inside_fenced_code_examples(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            skill = self._skill(root)
+            (skill / "SKILL.md").write_text(
+                (skill / "SKILL.md").read_text(encoding="utf-8")
+                + "\n```js\nfetch('/api/example')\nconst local = 'file:///tmp/example'\n```\n",
+                encoding="utf-8",
+            )
+
+            result = scan(root)
+
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            self.assertEqual(self._payload(result)["findings"], [])
+
     def test_resource_map_missing_target_is_a_missing_resource(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

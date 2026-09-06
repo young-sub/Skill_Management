@@ -51,7 +51,7 @@ class ValidateDistributionTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1, diagnostics)
         self.assertIn("directory/name mismatch", diagnostics)
 
-    def test_rejects_unsupported_public_skill_frontmatter_fields(self) -> None:
+    def test_accepts_standard_optional_public_skill_frontmatter_fields(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             fixture_root = Path(temp_dir)
             skill_dir = fixture_root / "skills" / "fixture-skill"
@@ -60,7 +60,10 @@ class ValidateDistributionTests(unittest.TestCase):
                 "---\n"
                 "name: fixture-skill\n"
                 "description: fixture\n"
-                "license: unexpected\n"
+                "license: MIT\n"
+                "metadata:\n"
+                "  author: fixture\n"
+                "  version: 1.0.0\n"
                 "---\n",
                 encoding="utf-8",
             )
@@ -80,8 +83,8 @@ class ValidateDistributionTests(unittest.TestCase):
             )
 
         diagnostics = f"{result.stdout}\n{result.stderr}"
-        self.assertEqual(result.returncode, 1, diagnostics)
-        self.assertIn("unsupported frontmatter field", diagnostics)
+        self.assertNotIn("unsupported frontmatter field", diagnostics)
+        self.assertNotIn("invalid frontmatter line", diagnostics)
 
     def test_rejects_missing_required_public_skill_frontmatter_fields(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -62,9 +62,19 @@ foreach ($skillDirectory in Get-ChildItem -LiteralPath $skillsRoot -Directory) {
         )
     }
 
-    $allowedFields = @('name', 'description')
+    $allowedFields = @('name', 'description', 'license', 'metadata')
+    $requiredFields = @('name', 'description')
+    $parentField = ''
     foreach ($line in $frontmatter) {
         if ([string]::IsNullOrWhiteSpace($line)) {
+            continue
+        }
+        if ($line -match '^\s+') {
+            if ($parentField -ne 'metadata' -or $line -notmatch '^\s+[A-Za-z0-9_-]+:\s*.+$') {
+                $errors.Add(
+                    "invalid frontmatter line: '$line' in '$($skillDirectory.Name)'"
+                )
+            }
             continue
         }
         if ($line -notmatch '^([A-Za-z0-9_-]+):') {
@@ -74,6 +84,7 @@ foreach ($skillDirectory in Get-ChildItem -LiteralPath $skillsRoot -Directory) {
             continue
         }
         $field = $Matches[1]
+        $parentField = $field
         if ($allowedFields -notcontains $field) {
             $errors.Add(
                 "unsupported frontmatter field: '$field' in '$($skillDirectory.Name)'"
@@ -81,7 +92,7 @@ foreach ($skillDirectory in Get-ChildItem -LiteralPath $skillsRoot -Directory) {
         }
     }
 
-    foreach ($requiredField in $allowedFields) {
+    foreach ($requiredField in $requiredFields) {
         $hasField = $frontmatter | Where-Object {
             $_ -match "^$([Regex]::Escape($requiredField)):\s*.+$"
         }

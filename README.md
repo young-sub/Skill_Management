@@ -11,6 +11,8 @@
 
 공개 Harness Skill은 `setup-agent-harness`, `explore-idea`, `design-goal`, `execute-codex-goal`, `diagnose`, `close-goal`, `maintain-agent-harness`입니다. 기존 v2.0.0 배포 사실은 [`docs/releases/v2.0.0.md`](docs/releases/v2.0.0.md)에 역사적 릴리스 증거로 남아 있으며, 현재 workflow authority는 아닙니다.
 
+프론트엔드 작업에는 `impeccable`(화면 설계·UX), `vercel-react-best-practices`(React/Next.js 구현·성능), `fixing-accessibility`(키보드·포커스·폼 접근성) 중 필요한 역할만 선택합니다. 기존 기술 스택과 컴포넌트를 우선하며 실제 브라우저 검증은 별도로 수행합니다.
+
 ## 프로젝트에 설치
 
 대상 프로젝트 루트에서 실행한 뒤 설치할 Skill과 적용 범위를 선택합니다. 전체 흐름에는 `setup-agent-harness`, `design-goal`, `execute-codex-goal`, `diagnose`, `close-goal`, `maintain-agent-harness`를 선택하고, 아이디어 탐색이 필요하면 `explore-idea`를 추가합니다. 적용 범위는 사용할 에이전트와 Project를 선택합니다. `-g`를 사용하지 않으므로 프로젝트 로컬에 설치됩니다.
@@ -55,3 +57,9 @@ git diff --check
 ```
 
 외부 설치 smoke는 네트워크에서 코드를 내려받아 실행하므로 별도 명시적 승인이 필요합니다. 저장소 변경만으로 push, publish, release, protected branch merge를 수행하지 않습니다.
+
+## 외부 Skill 출처
+
+- [Impeccable](https://github.com/pbakaus/impeccable) — Apache-2.0
+- [Vercel React Best Practices](https://github.com/vercel-labs/agent-skills/tree/main/skills/react-best-practices) — MIT
+- [fixing-accessibility](https://github.com/ibelick/ui-skills/tree/main/skills/fixing-accessibility) — MIT

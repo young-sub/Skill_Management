@@ -22,7 +22,6 @@ class ReleaseCandidateTests(unittest.TestCase):
         self.assertEqual(candidate["release_notes"], "../docs/releases/v2.0.0.md")
         self.assertEqual(candidate["public_skill_count"], 18)
         self.assertEqual(len(candidate["public_skills"]), 18)
-        self.assertEqual(len(catalog["public_skills"]), 13)
         self.assertNotEqual(candidate["public_skills"], catalog["public_skills"])
         self.assertEqual(candidate["future_core_skills"], [])
         self.assertEqual(catalog["future_core_skills"], [])

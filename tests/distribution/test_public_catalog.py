@@ -10,6 +10,8 @@ class PublicCatalogTests(unittest.TestCase):
     def test_only_supported_and_professional_skills_are_public(self) -> None:
         expected = {
             "finance-research",
+            "fixing-accessibility",
+            "impeccable",
             "explore-idea",
             "design-goal",
             "execute-codex-goal",
@@ -20,6 +22,7 @@ class PublicCatalogTests(unittest.TestCase):
             "prototype",
             "setup-agent-harness",
             "teach",
+            "vercel-react-best-practices",
             "write-a-skill",
             "zoom-out",
         }

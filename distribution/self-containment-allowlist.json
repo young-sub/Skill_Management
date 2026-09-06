@@ -9,6 +9,42 @@
       "reason": "The link is a literal placeholder inside the documented SKILL.md template, not a runtime dependency of write-a-skill.",
       "owner": "distribution-maintainers",
       "review_after": "2027-07-20"
+    },
+    {
+      "rule_id": "SC_FILE_URI",
+      "skill": "impeccable",
+      "source_path": "reference/critique.md",
+      "normalized_target": "file://",
+      "reason": "The text explicitly rejects this browser URL scheme; it is not a runtime resource dependency.",
+      "owner": "distribution-maintainers",
+      "review_after": "2027-09-06"
+    },
+    {
+      "rule_id": "SC_MISSING_RESOURCE",
+      "skill": "vercel-react-best-practices",
+      "source_path": "AGENTS.md",
+      "normalized_target": "./async-defer-await.md",
+      "reason": "The compiled upstream document preserves a rule-local link whose installed target is under rules/.",
+      "owner": "distribution-maintainers",
+      "review_after": "2027-09-06"
+    },
+    {
+      "rule_id": "SC_MISSING_RESOURCE",
+      "skill": "vercel-react-best-practices",
+      "source_path": "AGENTS.md",
+      "normalized_target": "./async-cheap-condition-before-await.md",
+      "reason": "The compiled upstream document preserves a rule-local link whose installed target is under rules/.",
+      "owner": "distribution-maintainers",
+      "review_after": "2027-09-06"
+    },
+    {
+      "rule_id": "SC_MISSING_RESOURCE",
+      "skill": "vercel-react-best-practices",
+      "source_path": "AGENTS.md",
+      "normalized_target": "./server-hoist-static-io.md",
+      "reason": "The compiled upstream document preserves a rule-local link whose installed target is under rules/.",
+      "owner": "distribution-maintainers",
+      "review_after": "2027-09-06"
     }
   ]
 }
