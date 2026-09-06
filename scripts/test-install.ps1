@@ -118,7 +118,7 @@ function Get-SkillTreeDrift {
         )
         foreach ($sourceFile in Get-ChildItem -LiteralPath $sourceSkill -Recurse -File) {
             if ($sourceFile.Extension -eq '.pyc' -or $sourceFile.FullName -match '[\\/]__pycache__[\\/]') { continue }
-            $relative = $sourceFile.FullName.Substring($sourceSkill.Length).TrimStart('\').Replace('\', '/')
+            $relative = $sourceFile.FullName.Substring($sourceSkill.Length).TrimStart([char[]]'\/').Replace('\', '/')
             $sourceFiles[$relative] = Get-Sha256Hex -LiteralPath $sourceFile.FullName
             $parent = ([string][System.IO.Path]::GetDirectoryName($relative)).Replace('\', '/')
             while (-not [string]::IsNullOrWhiteSpace($parent)) {
@@ -137,12 +137,12 @@ function Get-SkillTreeDrift {
                 [System.StringComparer]::Ordinal
             )
             foreach ($installedDirectory in Get-ChildItem -LiteralPath $installedSkill -Recurse -Directory) {
-                $relative = $installedDirectory.FullName.Substring($installedSkill.Length).TrimStart('\').Replace('\', '/')
+                $relative = $installedDirectory.FullName.Substring($installedSkill.Length).TrimStart([char[]]'\/').Replace('\', '/')
                 [void]$installedDirectories.Add($relative)
             }
             foreach ($installedFile in Get-ChildItem -LiteralPath $installedSkill -Recurse -File) {
                 if ($installedFile.Extension -eq '.pyc' -or $installedFile.FullName -match '[\\/]__pycache__[\\/]') { continue }
-                $relative = $installedFile.FullName.Substring($installedSkill.Length).TrimStart('\').Replace('\', '/')
+                $relative = $installedFile.FullName.Substring($installedSkill.Length).TrimStart([char[]]'\/').Replace('\', '/')
                 $installedFiles[$relative] = Get-Sha256Hex -LiteralPath $installedFile.FullName
             }
             foreach ($relative in $sourceFiles.Keys) {
@@ -215,12 +215,12 @@ function Get-PublicSkillTreeDigest {
         foreach ($providerRoot in @('.agents\skills', '.claude\skills')) {
             $installedSkill = Join-Path $InstallRoot "$providerRoot\$skillName"
             foreach ($installedDirectory in Get-ChildItem -LiteralPath $installedSkill -Recurse -Directory) {
-                $relative = $installedDirectory.FullName.Substring($InstallRoot.Length).TrimStart('\').Replace('\', '/')
+                $relative = $installedDirectory.FullName.Substring($InstallRoot.Length).TrimStart([char[]]'\/').Replace('\', '/')
                 $entries.Add("directory:$relative")
             }
             foreach ($installedFile in Get-ChildItem -LiteralPath $installedSkill -Recurse -File) {
                 if ($installedFile.Extension -eq '.pyc' -or $installedFile.FullName -match '[\\/]__pycache__[\\/]') { continue }
-                $relative = $installedFile.FullName.Substring($InstallRoot.Length).TrimStart('\').Replace('\', '/')
+                $relative = $installedFile.FullName.Substring($InstallRoot.Length).TrimStart([char[]]'\/').Replace('\', '/')
                 $hash = Get-Sha256Hex -LiteralPath $installedFile.FullName
                 $entries.Add("$relative=$hash")
             }
