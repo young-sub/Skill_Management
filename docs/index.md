@@ -6,6 +6,7 @@ Before invoking a Skill, plugin, or Harness capability, read the ignored reposit
 - [Harness architecture](architecture/harness.md) — project, contract, execution, environment, retention, and distribution boundaries.
 - [Testing](testing.md) — source-to-test impact rules and local/CI verification selectors.
 - [Agent workflow](agents/workflow.md) — repository delivery, Git, approval, and close workflow.
+- [Global guidance](agents/global-guidance.md) — maintained global instructions, authorized target selection, and mandatory revision backups.
 - [Domain](agents/domain.md) — repository responsibilities and source-of-truth map.
 - [Tracker integration](agents/issue-tracker.md) — optional local/GitHub tracker channel policy.
 - [Triage labels](agents/triage-labels.md) — current issue vocabulary.
