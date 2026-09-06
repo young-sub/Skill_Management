@@ -4,20 +4,20 @@
 
 - This repository distributes the Personal Agent Harness skills. Read `docs/index.md` for current implementation knowledge and `.harness/project.yaml` for path ownership, impact selection, commands, retention, and Git policy.
 - Read the nearest nested `AGENTS.md` before editing a path. `back-up/` is read-only unless a task explicitly targets it.
-- Canonical shared resources live under `authoring/`; generated public Skill resources live under `skills/`. Regenerate them with the configured resource-sync command instead of editing generated copies.
+- `authoring/resource-map.json` identifies canonical sources and generated `skills/` copies. Regenerate mapped resources; edit unmapped independent skills at their own source paths.
+- Keep the latest global instructions in `authoring/global/AGENTS.md`. For every global revision, follow `docs/agents/global-guidance.md` and retain the previous bytes in `back-up/global-agents/`.
 
 ## Delivery
 
-- Implement dependency-ready core Items before optional work. Use RED/GREEN for behavior changes; use baseline GREEN → structural change → equivalent GREEN for behavior-preserving document or test relocation.
-- Select verification from `.harness/project.yaml`. Unresolved relevant impact blocks completion; Full is required only by a configured cumulative-impact trigger or explicit human request.
+- Use the contract lifecycle only at the Work Packet threshold or when explicitly requested; small clear changes use direct development. See `docs/agents/workflow.md`.
+- Select verification from actual logic impact and `.harness/project.yaml`. Full requires cross-cutting logic impact or an explicit request; configured triggers are candidate warnings. See `docs/testing.md`.
 - Capture the current branch and commit as the base; never assume a branch name. Preserve the dirty baseline.
-- A commit unit is the smallest complete functional unit that works when checked out by itself, including required source, tests, docs, schemas, and generated resources. Commit every such unit after its mapped verification passes. Group coupled Items into one commit; split only independently working units. Never create an intentionally broken intermediate commit.
+- Commit each verified complete functional unit with its required tests, docs, schemas, and generated resources. Keep coupled Items together; the execution policy defines commit boundaries.
 
 ## State And Risk
 
 - Durable current technical truth is tracked under the configured documentation roots. Contracts, reviews, evidence, logs, transactions, and completed Goal state expire under `.work/`.
-- Require explicit approval for destructive actions, security/privacy or secret handling, irreversible migration, external cost, push, publish, or other high-risk state changes.
-- Do not edit global provider configuration or installed Skills. Do not publish releases, rename remotes, change licensing, or auto-merge protected branches.
+- Repository authoring does not authorize installed-Skill updates, provider changes, push, publish, remote/licensing changes, or protected-branch integration. Preserve explicit user authorization within its named scope.
 
 ## Commands
 

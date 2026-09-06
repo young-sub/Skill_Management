@@ -1,6 +1,12 @@
 ---
 name: zoom-out
-description: Tell the agent to zoom out and give broader context or a higher-level perspective. Use when you're unfamiliar with a section of code or need to understand how it fits into the bigger picture.
+description: Explain how a code area fits the wider user flow and system responsibilities when the user asks for broader context. Bound the explanation to the current question and resume active work afterward.
 ---
 
-I don't know this area of code well. Go up a layer of abstraction. Give me a map of all the relevant modules and callers, using the project's domain glossary vocabulary.
+# Zoom Out
+
+Go up one level of abstraction. Trace the relevant public entry point through its main callers, state owner, and observable output. Use the project's established vocabulary and a few concrete file references; distinguish inspected facts from assumptions.
+
+Explain why these boundaries matter to the user's current question. Use a small diagram only if it makes the flow clearer. Do not inventory unrelated modules, invent a glossary, or create documentation artifacts for a short explanation.
+
+Keep this step read-only. When it occurs during an authorized task, give the explanation and resume that task unless the user explicitly pauses or replaces it.

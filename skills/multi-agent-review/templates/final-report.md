@@ -1,27 +1,9 @@
-# Final Report
+# Final Report Guide
 
-Default final report cap:
-- status and one-sentence conclusion
-- max 5 evidence bullets
-- max 5 objection/adjudication bullets
-- max 3 remaining risks
-- one next action
+Lead with the conclusion and its practical consequence. Use prose or a short list scaled to the review.
 
-**Verdict**
-Status: approve | approve-with-conditions | hold | reject
+- Decisive evidence, with primary file/source references.
+- Material objections that changed the decision or remain unresolved; explain why a central rejected objection did not hold.
+- Remaining uncertainty and the smallest next action that resolves it.
 
-<one short conclusion>
-
-**Evidence**
-- <evidence-backed reason>
-
-**Objection Adjudication**
-- sustained: <accepted material objections and impact>
-- reserved: <unresolved material objections and missing evidence/owner>
-- overruled: <important rejected objections and reason>
-
-**Remaining Risks**
-- <risk or unverified assumption>
-
-**Next Action**
-<one concrete next action>
+Use `approve`, `approve-with-conditions`, `hold`, or `reject` only when the task calls for a verdict. Do not manufacture risks, separate headings, objection quotas, or unanimous agreement. State whether real agents were used and any material tool/model limitations; omit raw agent output unless requested.

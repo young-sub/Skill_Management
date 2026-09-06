@@ -1,14 +1,14 @@
 ---
 name: maintain-agent-harness
-description: Report deterministic Harness resource, mapping, and work-lifecycle integrity.
+description: Audit Harness mapping, distributed resources, and retained work integrity when maintenance or drift diagnosis is requested. Defaults to reporting; repairs and cleanup follow the user's scope.
 ---
 
 # Maintain Agent Harness
 
-Use [the runtime](scripts/core_harness.py), [the project schema](schemas/project.schema.json), [the work schema](schemas/work.schema.json), and [the testing policy](references/testing-policy.md). Default to the `maintain` report-only command.
+Use [the runtime](scripts/core_harness.py). Choose `audit-work` for lifecycle-only questions or `maintain` for repository/cohort integrity. Read the [project](schemas/project.schema.json) or [work](schemas/work.schema.json) schema only to interpret relevant findings; [testing policy](references/testing-policy.md) applies if a repair changes behavior.
 
-Audit instruction mirrors, direct `docs/index.md` links, unmapped impact surfaces, the exact installed cohort tree, retired Harness names, typed work namespaces, transaction markers, branch/worktree state, and the optional ignored `.harness/environment-exceptions.json`. A missing exception file is a no-op; an invalid file is a finding. Optional brownfield baselines may suppress only exact unexpired findings; selector budgets and broad architecture analysis are not default maintenance gates.
+Report deterministic findings with affected paths, consequences, and the smallest useful repair. Inspect installed cohort hashes only when installation is in scope and its actual root is known. A missing environment-exception file is a no-op; invalid entries are findings. Exact unexpired brownfield baselines may suppress known findings. Report success as the checks performed, not proof of product correctness or model performance.
 
-A deterministic safe sweep may move manifest-expired `completed` work to recoverable `trash`; it is idempotent and uses manifest dates. Unknown or contradictory legacy dates move to `legacy-unclassified` and are never swept automatically. Physical trash deletion requires explicit approval of the exact target and reports that recovery is no longer available.
+An ordinary audit is read-only. If the user also requested repair, proceed with covered reversible fixes and their relevant checks; do not stop merely because this skill defaults to reporting. Do not make routine implementation wait for a full maintenance audit, architecture review, or selector budget exercise.
 
-Never rewrite production/test/document content, remove worktrees, or delete trash during an ordinary maintenance audit.
+When retention cleanup is requested, use the `close-goal` runtime's sweep to move manifest-expired completed work to recoverable trash. Unknown or contradictory legacy state stays unclassified. Physical deletion needs explicit authorization for the exact target. Worktree removal and production changes are separate scope.

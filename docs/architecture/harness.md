@@ -8,9 +8,9 @@ Older project files may contain redundant cohort and component-version declarati
 
 ## Work contract and authorization
 
-`contract.json` is the canonical, language-independent Item contract. Every Item has stable identity, a concrete changed outcome, ordered behavior steps, observable verification, and stable Done criteria. Terms, dependencies, non-goals, structured risk flags, and priority are present only when relevant. Contracts contain one to five Items.
+`contract.json` is the canonical, language-independent Item contract. Every Item has stable identity, a concrete changed outcome, ordered behavior steps, observable verification, and stable Done criteria. Contracts contain one to five Items. `design-create` accepts omitted descriptive `terms`, `depends_on`, and `non_goals` as empty lists and omitted `priority` as `core`; it expands only its input copy before validation. Decision state and material risk declarations remain explicit, including resolved/empty values. Saved contracts and `authorize` remain strict; no existing authorization payload is silently normalized.
 
-Ordinary contracts are default-authorized from their canonical payload. Explicit approval is reserved for destructive, security/privacy, secret, irreversible migration, external cost, push, publish, and global-configuration risks. A veto remains bound to the unchanged contract. `result.json` owns machine evidence; the final chat response is the only human-facing Design or Result summary.
+Ordinary contracts are default-authorized from their canonical payload. Structured material risks require explicit approval. User instructions establish permission; the runtime records it and checks consistency. A low-risk amendment changes only descriptive title/outcome/steps/terms; veto, identity, decisions, acceptance criteria, dependencies, non-goals, risks, and priority cannot be changed by that shortcut. An authorized structural/material revision is validated and explicitly rebound from its revised canonical payload without repeating covered human approval. `result.json` owns submitted machine evidence; validators do not execute or authenticate the reported checks. The final chat response is the human-facing Design or Result summary.
 
 ## Runtime and state
 

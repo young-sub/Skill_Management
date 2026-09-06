@@ -1,23 +1,24 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/templates/project/CLAUDE.md -->
-<!-- Source-SHA256: fad9b358a8c7eaaacb2c383fda44a398170bd148eb9eb175ca84a5f14fa1e4f8 -->
+<!-- Source-SHA256: fe29a4fc2858639d44fc2edfa82d7ad53f8e90a9a09944c80f8c05bb496f1510 -->
 
 # Project Agent Instructions
 
 ## Routing
 
 - Read `docs/index.md` for current implementation knowledge and `.harness/project.yaml` for path ownership, impact, command, retention, and Git policy.
-- Before invoking a capability, load ignored `.harness/environment-exceptions.json` when present; honor `skip_until_manual_reenable` and use its fallback.
+- Load ignored `.harness/environment-exceptions.json` once per task when present; refresh after relevant environment changes and honor manual-disable entries.
 - Read the nearest nested `AGENTS.md` before editing a path. Preserve user changes and map coherent brownfield structures before proposing moves.
 
 ## Delivery
 
-- Implement dependency-ready core Items before optional work. Use RED/GREEN for behavior changes and impact-selected verification for Item completion.
+- Use contract Items only when the task warrants a Work Packet or the user requests one. Otherwise follow ordinary development without setup or contract creation.
+- Select checks from actual logic impact and `.harness/project.yaml`; Full requires cross-cutting logic impact or an explicit request. Path triggers are warnings.
 - Capture the current branch and commit as the base; do not assume a branch name. Preserve the dirty baseline.
-- A commit unit is the smallest complete functional unit that works when checked out by itself, including required source, tests, docs, schemas, and generated resources. Commit every such unit after its mapped verification passes. Group coupled Items into one commit; split only independently working units. Never create an intentionally broken intermediate commit.
+- Follow the configured Git policy: commit complete functional units after relevant verification, including required source, tests, docs, and generated resources. Keep coupled Items together.
 - Keep durable current truth under configured document roots. Contracts, reviews, evidence, logs, and transactions expire under `.work/`.
 
 ## Risk
 
-- Require explicit approval for destructive actions, security/privacy or secret handling, irreversible migration, external cost, push, publish, or other high-risk state changes.
+- Reuse user authorization within scope; ask only for uncovered high-risk actions. Completion does not authorize push, publish, or protected-branch integration.
 - Unknown legacy work is quarantined and never swept or deleted automatically.

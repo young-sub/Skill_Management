@@ -1,6 +1,6 @@
 # Core-First Harness System
 
-The Harness maps a repository only when setup is explicitly requested, turns authorized work into one to five observable Items, implements dependency-ready core behavior first, selects tests from explicit logic impact with path rules as candidates, and retains work evidence only for a configured period.
+The Harness maps a repository only when setup is explicitly requested. Small, clear tasks use direct development. Work that needs a contract uses one to five observable Items, dependency-ready core behavior, logic-impact-selected checks, and time-limited work evidence. Existing mapped repositories enter the relevant step directly.
 
 ```text
 static inventory -> mapped project -> default-authorized Item contract
@@ -10,7 +10,7 @@ static inventory -> mapped project -> default-authorized Item contract
 
 Durable current knowledge is tracked under configured document roots. `contract.json`, `result.json`, evidence, logs, and transaction journals are ephemeral under `.work/`. Unknown legacy records enter `legacy-unclassified` and are never swept automatically.
 
-Valid ordinary designs continue without an affirmative phrase: the runtime binds `default` authorization to the canonical contract. A clear veto stops execution. Destructive, security/privacy, secret, irreversible, costly external, push, and publish risks require explicit approval.
+Valid ordinary designs continue without an affirmative phrase: the runtime binds `default` authorization to the canonical contract. A clear veto stops execution. Material risks require explicit user authorization, including global configuration and external delivery; matching permission already supplied is reused. Runtime records check consistency and do not establish user consent or prove reported product checks ran.
 
 Ignored `.harness/environment-exceptions.json` stores repository-local capability failures. A manual-reenable exception skips the unavailable capability, selects its fallback, and reports `verification_unavailable` or `execution_blocked` evidence instead of an approval block.
 

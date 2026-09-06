@@ -20,21 +20,6 @@ class RepositoryDocsTests(unittest.TestCase):
         self.assertTrue(repository["git"]["commit_per_item"])
         self.assertTrue(template["git"]["commit_per_item"])
 
-        policy_surfaces = (
-            ROOT / "AGENTS.md",
-            ROOT / "CLAUDE.md",
-            ROOT / "docs" / "agents" / "workflow.md",
-            ROOT / "authoring" / "templates" / "project" / "AGENTS.md",
-            ROOT / "authoring" / "templates" / "project" / "CLAUDE.md",
-            ROOT / "authoring" / "references" / "goal-execution-policy.md",
-            ROOT / "authoring" / "skills" / "execute-codex-goal" / "SKILL.md",
-        )
-        for path in policy_surfaces:
-            text = path.read_text(encoding="utf-8")
-            self.assertIn("complete functional unit", text, path)
-            self.assertIn("works when checked out by itself", text, path)
-            self.assertIn("Never create an intentionally broken intermediate commit", text, path)
-
     def test_current_documents_are_reachable_and_links_resolve(self) -> None:
         index = ROOT / "docs" / "index.md"
         text = index.read_text(encoding="utf-8")

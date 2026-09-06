@@ -1,6 +1,6 @@
 # Agent Documentation Index
 
-Before invoking a Skill, plugin, or Harness capability, read the ignored repository-local `.harness/environment-exceptions.json` when it exists. `skip_until_manual_reenable` selects the recorded fallback without retrying the unavailable capability.
+Load ignored repository-local `.harness/environment-exceptions.json` once per task when present; refresh after relevant environment changes. `skip_until_manual_reenable` selects the recorded fallback without retrying the unavailable capability.
 
 - [System](system.md) — end-to-end Core-First Harness flow and state ownership.
 - [Harness architecture](architecture/harness.md) — project, contract, execution, environment, retention, and distribution boundaries.

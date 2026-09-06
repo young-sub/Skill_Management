@@ -1,49 +1,12 @@
 # Subagent Brief
 
-Role: researcher | challenger
+Use the fields that make the assignment unambiguous; a short message is enough for a small task.
 
-Suggested model and reasoning:
-main/high required, e.g. `gpt-5.5 high` | main/high with `xhigh` if hardest-risk | fast/small allowed | inherit default
+- Question and lens: the bounded evidence or challenge question.
+- Context: constraints and primary file/source pointers; include an existing claim summary only when needed. Avoid supplying the preferred verdict to a blind reviewer.
+- Scope: read-only by default, allowed tools/actions, excluded paths and decisions.
+- Model: inherit the current model at or above the user's GPT-5.6 Sol floor. State an override and its reason only when one is needed and supported.
+- Result: concise material findings, evidence pointers, uncertainties, and the strongest counterexample. No raw dumps or final team verdict.
+- Stop: the evidence needed to answer the question, or the specific missing input that prevents it. Do not search beyond the assigned boundary.
 
-Reason:
-<why this model/reasoning choice fits the task shape; if downgraded, name the bounded/checkable reason>
-Forbidden decisions:
-<decisions this subagent must not make>
-
-Goal:
-<specific question this subagent must answer>
-
-Task:
-<task, plan, design, or proposal under review>
-
-Decision frame:
-<main-agent provisional frame>
-
-Canonical claim ledger:
-<for challenger waves, pass the compressed ledger only; do not pass raw researcher outputs by default>
-
-Lens:
-<one distinct evidence or critique lens>
-
-Scope:
-- Work only within this lens.
-- Return concise evidence-backed findings.
-- Do not decide the final verdict.
-
-Output limits:
-- max 6 bullets
-- max 45 words per bullet
-- no raw excerpts unless one short quote is essential
-- every claim must include an evidence pointer, or explicitly say "inference"
-- include exactly one "Not checked" line
-- include exactly one "Confidence basis" line
-
-Output:
-- For researchers: findings, evidence, confidence, contradictions, not checked, recommendation.
-- For challengers: strongest objections only; failure mode, severity, likelihood, evidence or reasoning, suggested resolution, falsifier.
-
-Challenger priority:
-Prioritize only the strongest objections. Do not list low-materiality objections after the cap is reached.
-
-Stop condition:
-<when to stop searching or critiquing>
+For a challenge, request the failure mode, supporting evidence, and what would resolve or falsify it. For research, request evidence both for and against the relevant claim. Use [an evidence note](evidence-card.md) only when a disputed claim needs more detail. The main agent adjudicates; repeated formatting fields and low-value objections are unnecessary.

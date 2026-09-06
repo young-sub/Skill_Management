@@ -1545,6 +1545,13 @@ def design_create(
         assert candidate is not None
         candidate_contract = deepcopy(contract)
         candidate_contract["work_id"] = candidate
+        candidate_contract.setdefault("non_goals", [])
+        if isinstance(candidate_contract.get("items"), list):
+            for item in candidate_contract["items"]:
+                if isinstance(item, dict):
+                    for field in ("terms", "depends_on", "non_goals"):
+                        item.setdefault(field, [])
+                    item.setdefault("priority", "core")
         authorization = authorize_design(
             candidate_contract, intent=intent, actor=actor,
             authorized_at=authorized_at,
@@ -1727,6 +1734,13 @@ def apply_amendment(
     item = next((candidate for candidate in amended.get("items", []) if candidate.get("id") == item_id), None)
     if item is None or field not in ITEM_FIELDS:
         return {"status": "invalid_amendment", "errors": ["unknown_item_or_field"]}
+    authorization = contract.get("authorization", {})
+    if not isinstance(authorization, dict):
+        return {"status": "invalid_amendment", "errors": ["authorization_schema_invalid"]}
+    if authorization.get("mode") == "vetoed":
+        return {"status": "vetoed", "item_id": item_id}
+    if field not in {"title", "what", "steps", "terms"} and value != item.get(field):
+        return {"status": "focused_approval_required", "item_id": item_id, "field": field, "risk": "contract_structure"}
     old_digest = canonical_digest(_contract_payload(contract))
     amended.pop("approval", None)
     amended.pop("authorization", None)
@@ -3913,7 +3927,8 @@ def main() -> int:
             "invalid_manifest", "invalid_source", "staging_invalid", "rolled_back",
             "rollback_failed", "write_failed", "invalid_root", "invalid_slug",
             "invalid_branch_policy",
-            "cleanup_failed",
+            "cleanup_failed", "invalid_path", "dirty_baseline_conflict",
+            "not_found", "retention_active",
         } else 2
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
         print(json.dumps({"status": "invalid", "errors": [str(error)]}, ensure_ascii=False), file=sys.stderr)

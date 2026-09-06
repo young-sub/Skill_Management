@@ -152,6 +152,36 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
             self.assertNotIn("review_digest", stored["authorization"])
             self.assertTrue(core.execution_authorized(stored, project=v3_project())["authorized"])
 
+    def test_design_create_expands_only_optional_input_fields(self) -> None:
+        core = load_core()
+        source = contract()
+        source.pop("non_goals")
+        for item in source["items"]:
+            for field in ("terms", "depends_on", "non_goals", "priority"):
+                item.pop(field)
+        original = json.dumps(source, sort_keys=True)
+        for missing in (None, "decision", "material_risks"):
+            with self.subTest(missing=missing), tempfile.TemporaryDirectory() as temp_dir:
+                candidate = json.loads(original)
+                if missing:
+                    candidate["items"][0].pop(missing)
+                result = core.design_create(
+                    Path(temp_dir), candidate, slug="compact", work_id=None,
+                    intent="default", actor="policy", authorized_at="2026-09-06T13:00:00+09:00",
+                )
+                if missing:
+                    self.assertEqual(result["status"], "invalid_contract", result)
+                    self.assertFalse((Path(temp_dir) / ".work").exists())
+                else:
+                    self.assertEqual(result["status"], "created", result)
+                    saved = json.loads((Path(temp_dir) / result["path"] / "contract.json").read_text(encoding="utf-8"))
+                    self.assertEqual(core.validate_contract_v3(saved), [])
+                    self.assertEqual(saved["non_goals"], [])
+                    self.assertEqual(saved["items"][0]["priority"], "core")
+                    self.assertTrue(core.execution_authorized(saved)["authorized"])
+                    self.assertEqual(json.dumps(candidate, sort_keys=True), original)
+        self.assertTrue(core.validate_contract_v3(source))
+
     def test_veto_invalid_contract_and_high_risk_design_fail_closed(self) -> None:
         core = load_core()
         vetoed = core.authorize_design(
@@ -695,6 +725,31 @@ class CoreFirstDesignExecutionTests(unittest.TestCase):
             approved_at="2026-08-02T13:00:00+09:00", risk="low",
         )
         self.assertEqual(low["status"], "applied")
+
+    def test_low_risk_amendment_cannot_erase_risks_or_veto(self) -> None:
+        core = load_core()
+        risky = contract()
+        risky["items"][0]["material_risks"] = ["destructive"]
+        vetoed = core.authorize_design(
+            contract(), intent="veto", actor="human", authorized_at="2026-09-06T13:00:00+09:00",
+        )["contract"]
+        unresolved = contract()
+        unresolved["items"][0]["decision"] = {"state": "unresolved"}
+        for source, field, value, expected in (
+            (risky, "material_risks", [], "focused_approval_required"),
+            (unresolved, "decision", {"state": "resolved"}, "focused_approval_required"),
+            (contract(), "done", [{"id": "D-01", "criterion": "always pass"}], "focused_approval_required"),
+            (vetoed, "what", "renamed behavior", "vetoed"),
+            (dict(contract(), authorization=None), "what", "renamed behavior", "invalid_amendment"),
+        ):
+            with self.subTest(field=field):
+                original = json.dumps(source, sort_keys=True)
+                result = core.apply_amendment(
+                    source, item_id="I-01", field=field, value=value,
+                    message_id="m-low", actor="human", approved_at="2026-09-06T13:00:00+09:00", risk="low",
+                )
+                self.assertEqual(result["status"], expected)
+                self.assertEqual(json.dumps(source, sort_keys=True), original)
 
     def test_item_commit_excludes_preexisting_dirty_baseline(self) -> None:
         core = load_core()

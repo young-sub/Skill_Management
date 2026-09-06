@@ -1,16 +1,15 @@
 ---
 name: close-goal
-description: Close a Harness contract Item by Item, persist result evidence, and transition retained work safely.
+description: Finish an existing Harness contract by reconciling actual Item evidence, cumulative impact, durable docs, and retained work state. Use after implementation, not as a mandatory ceremony for ordinary small edits.
 ---
 
 # Close Goal
 
-Use [the runtime](scripts/core_harness.py), [the contract schema](schemas/contract.schema.json), [the work schema](schemas/work.schema.json), [the testing policy](references/testing-policy.md), and [the documentation policy](references/documentation-policy.md).
+Use the `close` command in [the runtime](scripts/core_harness.py). Consult [testing policy](references/testing-policy.md), [documentation policy](references/documentation-policy.md), and the [contract](schemas/contract.schema.json)/[work](schemas/work.schema.json) schemas only for the affected closing requirements.
 
-1. Match Result Items to Design Item IDs and order. Each Item needs observable implementation, relevant check results, Done status, and planned-versus-actual delta.
-2. Recompute Impacted scope from every Git change since the captured source commit and the recorded logic assessment. A stale changed-path set blocks close. Require Full only for cross-cutting logic impact or an explicit human request; path triggers remain warnings.
-3. A failed or required-but-unrun check blocks only the affected Item. Missing, unknown, or unexplained logic impact is `unresolved_logic_impact` and blocks completion. A material delta needs focused approval.
-4. Update only mapped durable documents whose current truth changed. Ordinary work creates no tracked plan, decision, HTML Review, or evidence archive.
-5. Persist the validated machine evidence as `result.json`; when a Skill/plugin/Harness capability could not run, include its name, intent, failure reason, fallback, disable method, and remaining unverified scope. Provide the human-facing Result only as the final chat summary.
-6. Write `completed_at`, `retain_until`, and `delete_after` to `work.json`, then move the intact active directory to `.work/goals/completed/YYYY-MM/<work-id>`.
-7. Re-resolve captured base movement and protection. Merge locally only when repository policy authorizes it and the base is unprotected; otherwise leave a verified branch and handoff. Never auto-push.
+1. Match Result Items to contract IDs/order, planned tests, and Done criteria. Reconcile observable implementation, actual check results, and planned-versus-actual deltas. Result validation checks consistency; it does not run commands or authenticate submitted evidence. Inspect the underlying evidence before claiming completion.
+2. Recompute cumulative Impacted scope from every Git change since the captured source commit. Reuse still-current check evidence; rerun only when relevant code, conditions, acceptance criteria, or required scope changed. Full requires cross-cutting logic impact or an explicit request; path triggers are warnings.
+3. Failed or required-but-unrun checks leave affected Items incomplete. Unknown impact needs investigation. Reuse existing authorization for material deltas within scope; ask only about an uncovered decision or risk. Do not erase failures to close the contract.
+4. Update mapped durable docs only where current truth changed. Prepare `result.json` with capability failure, fallback, disable method, and remaining unverified scope when relevant. Ordinary work creates no tracked plan, HTML Review, or evidence archive.
+5. Invoke `close` with the contract, result, and cumulative impact. It validates the records, persists evidence and retention dates, then moves intact work to `.work/goals/completed/YYYY-MM/<work-id>`. `complete` is an optional validation-only preflight, not a required preceding step or additional product check. Leave incomplete work active.
+6. Re-resolve captured base movement and protection before any authorized integration. Leave a verified branch when integration is not authorized; never infer push/publish permission from completion. Summarize delivered behavior, checks, and material remaining limits in final chat.

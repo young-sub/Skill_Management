@@ -460,6 +460,43 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
             self.assertEqual(payload["status"], "unresolved_logic_impact")
             self.assertFalse(payload["full_required"])
 
+    def test_commit_rejections_are_failing_cli_results(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            baseline = root / "baseline.json"
+            baseline.write_text(json.dumps({"baseline": ["user.txt"]}), encoding="utf-8")
+            for target, expected in (("../escape.txt", "invalid_path"), ("user.txt", "dirty_baseline_conflict")):
+                with self.subTest(target=target):
+                    completed = subprocess.run(
+                        ["python", str(CORE), "commit", "--root", str(root), "--item-id", "I-01",
+                         "--path", target, "--message", "must not commit", "--baseline", str(baseline)],
+                        text=True, capture_output=True, check=False,
+                    )
+                    self.assertEqual(json.loads(completed.stdout)["status"], expected)
+                    self.assertEqual(completed.returncode, 2, completed.stdout)
+
+    def test_delete_rejections_are_failing_cli_results_and_preserve_work(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            target = ".work/goals/trash/2026-09-06/W-retained"
+            work = root / target
+            manifest = {"work_id": "W-retained", "state": "trash", "delete_after": "2026-09-13T00:00:00+00:00"}
+            for expected in ("not_found", "retention_active"):
+                if expected == "retention_active":
+                    work.mkdir(parents=True)
+                    (work / "work.json").write_text(json.dumps(manifest), encoding="utf-8")
+                for script in (CORE, ROOT / "skills/close-goal/scripts/core_harness.py"):
+                    with self.subTest(expected=expected, script=script):
+                        completed = subprocess.run(
+                            ["python", str(script), "delete", "--root", str(root), "--target", target,
+                             "--approved-exact-target", target, "--at", "2026-09-06T00:00:00+00:00"],
+                            text=True, capture_output=True, check=False,
+                        )
+                        self.assertEqual(json.loads(completed.stdout)["status"], expected)
+                        self.assertEqual(completed.returncode, 2, completed.stdout)
+                if expected == "retention_active":
+                    self.assertEqual(json.loads((work / "work.json").read_text(encoding="utf-8")), manifest)
+
     def test_design_create_invalid_root_is_a_failing_cli_result(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             container = Path(temp_dir)
