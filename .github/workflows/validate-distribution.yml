@@ -85,11 +85,16 @@ jobs:
     needs: scope
     if: ${{ needs.scope.result == 'success' }}
     strategy:
+      fail-fast: false
       matrix:
         os: ${{ fromJSON(needs.scope.outputs.os_matrix) }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - name: Provide PowerShell command on Ubuntu
+        if: runner.os != 'Windows'
+        shell: bash
+        run: sudo ln -s "$(command -v pwsh)" /usr/local/bin/powershell
       - uses: actions/setup-node@v4
         if: needs.scope.outputs.docs_only != 'true'
         with:

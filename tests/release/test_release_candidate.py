@@ -40,6 +40,8 @@ class ReleaseCandidateTests(unittest.TestCase):
         self.assertIn('python -m unittest discover -s tests -p "test_*.py"', workflow)
         self.assertIn("scripts/sync-skill-resources.ps1 -Check", workflow)
         self.assertIn("scripts/validate-distribution.ps1", workflow)
+        self.assertIn("fail-fast: false", workflow)
+        self.assertIn('sudo ln -s "$(command -v pwsh)" /usr/local/bin/powershell', workflow)
         self.assertNotIn("npx skills", workflow)
 
     def test_readme_routes_current_harness_and_preserves_release_evidence(self) -> None:
