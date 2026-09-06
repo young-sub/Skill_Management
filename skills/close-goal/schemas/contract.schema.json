@@ -8,7 +8,7 @@
     "schema_version": {"const": 3}, "work_id": {"type": "string", "minLength": 1},
     "goal": {"type": "string", "minLength": 1}, "scope": {"type": "string", "minLength": 1},
     "non_goals": {"$ref": "#/$defs/stringList"},
-    "items": {"type": "array", "minItems": 1, "maxItems": 5, "items": {"$ref": "#/$defs/item"}},
+    "items": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/item"}},
     "authorization": {"$ref": "#/$defs/authorization"},
     "amendments": {"type": "array", "items": {"$ref": "#/$defs/amendment"}},
     "extensions": {"type": "object"}
@@ -38,7 +38,7 @@
         "behavior_type": {"enum": ["tool", "api", "ui", "bugfix", "migration"]}, "what": {"type": "string", "minLength": 1},
         "steps": {"type": "array", "minItems": 1, "items": {"type": "string"}},
         "terms": {"type": "array", "items": {"$ref": "#/$defs/term"}},
-        "tests": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/testCase"}},
+        "tests": {"type": "array", "items": {"$ref": "#/$defs/testCase"}},
         "done": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/doneCriterion"}},
         "depends_on": {"$ref": "#/$defs/stringList"}, "non_goals": {"$ref": "#/$defs/stringList"},
         "decision": {"$ref": "#/$defs/decision"}, "material_risks": {"$ref": "#/$defs/riskList"},

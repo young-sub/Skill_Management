@@ -152,23 +152,69 @@ class InstalledCliEndToEndTests(unittest.TestCase):
 
     def test_04_low_risk_amendment_rebinds_via_cli(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            root = Path(temp_dir)
-            source = root / "contract.json"
-            write_json(source, contract())
-            authorized = run_cli(
-                "design-goal", "authorize", "--contract", str(source), "--intent", "default",
-                "--actor", "policy", "--at", "2026-08-02T12:00:00+09:00",
+            container = Path(temp_dir)
+            root = container / "repo"
+            root.mkdir()
+            git(root, "init", "-q")
+            git(root, "config", "user.email", "agent@example.com")
+            git(root, "config", "user.name", "Agent")
+            (root / ".harness").mkdir()
+            project_path = root / ".harness/project.yaml"
+            write_json(project_path, project_config())
+            (root / ".gitignore").write_text(".work/\n", encoding="utf-8")
+            (root / "guide.md").write_text("Original wording\n", encoding="utf-8")
+            git(root, "add", ".")
+            git(root, "commit", "-qm", "base")
+            source = container / "input.json"
+            draft = contract()
+            for item in draft["items"]:
+                item["tests"] = []
+            draft["items"][0]["material_risks"] = ["global_configuration"]
+            write_json(source, draft)
+            created = run_cli(
+                "design-goal", "design-create", "--root", str(root), "--contract", str(source),
+                "--slug", "wording", "--work-id", draft["work_id"], "--intent", "explicit_approve",
+                "--actor", "human", "--at", "2026-09-06T14:00:00+09:00",
             )
-            write_json(source, authorized["contract"])
-            value = root / "value.json"
-            value.write_text(json.dumps("deliver safer output"), encoding="utf-8")
+            source = root / created["path"] / "contract.json"
+            start_args = ("start", "--root", str(root), "--work-id", draft["work_id"],
+                          "--slug", "wording", "--contract", str(source))
+            started = run_cli("execute-codex-goal", *start_args)
+            value = container / "value.json"
+            value.write_text(json.dumps("Clarify wording"), encoding="utf-8")
             amended = run_cli(
-                "execute-codex-goal", "amend", "--contract", str(source), "--item-id", "I-01",
-                "--field", "what", "--value", str(value), "--message-id", "m-1", "--actor", "human",
-                "--at", "2026-08-02T12:30:00+09:00", "--risk", "low",
+                "execute-codex-goal", "amend", "--root", str(root), "--contract", str(source),
+                "--item-id", "I-01", "--field", "title", "--value", str(value),
+                "--message-id", "m-1", "--actor", "human", "--at", "2026-09-06T14:30:00+09:00", "--risk", "low",
             )
             self.assertEqual(amended["status"], "applied")
-            self.assertEqual(amended["contract"]["authorization"]["mode"], "default")
+            self.assertEqual(amended["contract"]["authorization"]["mode"], "explicit")
+            self.assertEqual(json.loads(source.read_text(encoding="utf-8")), amended["contract"])
+            resumed = run_cli("execute-codex-goal", *start_args)
+            self.assertEqual(resumed["status"], "already_started")
+            self.assertEqual(resumed["manifest"]["source_commit"], started["manifest"]["source_commit"])
+            (root / "guide.md").write_text("Clearer wording\n", encoding="utf-8")
+            self.assertEqual((root / "guide.md").read_text(encoding="utf-8"), "Clearer wording\n")
+            logic = container / "logic.json"
+            write_json(logic, {"scope": "none", "changed_logic": [], "affected_behaviors": [],
+                               "reason": "Explanatory wording reviewed; no executable behavior changed.", "tests": []})
+            impact = run_cli("execute-codex-goal", "impacted", "--project", str(project_path),
+                             "--changed", "guide.md", "--logic-impact", str(logic))
+            impact_path, result_path = container / "impact.json", container / "result.json"
+            write_json(impact_path, impact)
+            write_json(result_path, {"items": [{"id": item["id"], "checks": [], "criteria": [
+                {"criterion_id": "D-01", "criterion": "output is delivered", "status": "satisfied",
+                 "evidence": "Read guide.md and observed Clearer wording."}
+            ]} for item in draft["items"]]})
+            closed = run_cli(
+                "close-goal", "close", "--root", str(root), "--work-id", draft["work_id"],
+                "--contract", str(source), "--result", str(result_path), "--impact", str(impact_path),
+                "--at", "2026-09-06T15:00:00+09:00", "--completed-days", "30", "--trash-days", "7",
+            )
+            self.assertEqual(closed["status"], "completed", closed)
+            retained = root / closed["path"]
+            self.assertEqual(json.loads((retained / "contract.json").read_text(encoding="utf-8")), amended["contract"])
+            self.assertTrue((retained / "result.json").is_file())
 
     def test_05_parallel_worktrees_create_commit_and_integrate_via_cli(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

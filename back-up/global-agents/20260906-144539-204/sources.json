@@ -1,0 +1,14 @@
+﻿[
+    {
+        "source":  "C:/Users/YS/.codex/AGENTS.md",
+        "snapshot":  "AGENTS.md",
+        "bytes":  6120,
+        "sha256":  "0AAD29D978C82A6DFECB96BC53781CC99C52A4D82C8D471E90B9A753BA52E7D6"
+    },
+    {
+        "source":  "C:/Users/YS/AppData/Roaming/orca/codex-accounts/2aee60bf-4748-41e0-970d-a0075cbc1f92/home/AGENTS.md",
+        "snapshot":  "account-AGENTS.md",
+        "bytes":  6120,
+        "sha256":  "0AAD29D978C82A6DFECB96BC53781CC99C52A4D82C8D471E90B9A753BA52E7D6"
+    }
+]

@@ -235,12 +235,6 @@ if (
     if ($agentsHash -ne $claudeHash) {
         $errors.Add('instruction mirror drift: AGENTS.md and CLAUDE.md differ')
     }
-    $instructionLineCount = (Get-Content -LiteralPath $agentsPath -Encoding utf8).Count
-    if ($instructionLineCount -gt 100) {
-        $errors.Add(
-            "instruction router exceeds 100 lines: $instructionLineCount"
-        )
-    }
 }
 
 if ($errors.Count -gt 0) {

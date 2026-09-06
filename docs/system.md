@@ -1,6 +1,6 @@
 # Core-First Harness System
 
-The Harness maps a repository only when setup is explicitly requested. Small, clear tasks use direct development. Work that needs a contract uses one to five observable Items, dependency-ready core behavior, logic-impact-selected checks, and time-limited work evidence. Existing mapped repositories enter the relevant step directly.
+The Harness maps a repository only when setup is explicitly requested. Small, clear tasks use direct development. Work that needs a contract uses observable Items matching meaningful review boundaries, dependency-ready core behavior, logic-impact-selected checks, and time-limited work evidence. Existing mapped repositories enter the relevant step directly.
 
 ```text
 static inventory -> mapped project -> default-authorized Item contract

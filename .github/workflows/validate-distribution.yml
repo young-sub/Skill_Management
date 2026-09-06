@@ -9,24 +9,104 @@ permissions:
   contents: read
 
 jobs:
+  scope:
+    runs-on: ubuntu-latest
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+      os_matrix: ${{ steps.classify.outputs.os_matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Classify changed surfaces
+        id: classify
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          zero_sha=0000000000000000000000000000000000000000
+          base=""
+          head="$PUSH_SHA"
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            base="$PR_BASE"
+            head="$PR_HEAD"
+          elif [[ -n "$PUSH_BEFORE" && "$PUSH_BEFORE" != "$zero_sha" ]]; then
+            base="$PUSH_BEFORE"
+          fi
+
+          changed=()
+          comparison_valid=false
+          if [[ -n "$base" ]] \
+            && git rev-parse --verify "$base^{commit}" >/dev/null 2>&1 \
+            && git rev-parse --verify "$head^{commit}" >/dev/null 2>&1; then
+            if changed_output="$(git diff --name-only "$base" "$head")"; then
+              comparison_valid=true
+              if [[ -n "$changed_output" ]]; then
+                mapfile -t changed <<< "$changed_output"
+              fi
+            fi
+          fi
+
+          docs_only=false
+          if [[ "$comparison_valid" == true ]] && ((${#changed[@]} > 0)); then
+            docs_only=true
+            for path in "${changed[@]}"; do
+              case "$path" in
+                AGENTS.md|CLAUDE.md|README.md|authoring/public-resource-manifest.json|back-up/global-agents/*) ;;
+                docs/*)
+                  case "$path" in
+                    *.md|*.png|*.jpg|*.jpeg|*.gif|*.svg|*.webp) ;;
+                    *) docs_only=false; break ;;
+                  esac
+                  ;;
+                *.md)
+                  case "$path" in
+                    docs/*|authoring/*|skills/*) ;;
+                    *) docs_only=false; break ;;
+                  esac
+                  ;;
+                *) docs_only=false; break ;;
+              esac
+            done
+          fi
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+          if [[ "$docs_only" == true ]]; then
+            echo 'os_matrix=["ubuntu-latest"]' >> "$GITHUB_OUTPUT"
+          else
+            echo 'os_matrix=["windows-latest","ubuntu-latest"]' >> "$GITHUB_OUTPUT"
+          fi
+
   validate:
+    needs: scope
+    if: ${{ needs.scope.result == 'success' }}
     strategy:
       matrix:
-        os: [windows-latest, ubuntu-latest]
+        os: ${{ fromJSON(needs.scope.outputs.os_matrix) }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
+        if: needs.scope.outputs.docs_only != 'true'
         with:
           node-version: '22.20.0'
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Documentation checks
+        if: needs.scope.outputs.docs_only == 'true'
+        run: python -m unittest tests.distribution.test_repository_docs
+      - name: Distribution contract
+        if: needs.scope.outputs.docs_only == 'true'
+        shell: pwsh
+        run: scripts/validate-distribution.ps1
       - name: Unit and contract tests
+        if: needs.scope.outputs.docs_only != 'true'
         run: python -m unittest discover -s tests -p "test_*.py"
       - name: Generated resource drift
         shell: pwsh
         run: scripts/sync-skill-resources.ps1 -Check
-      - name: Distribution contract
-        shell: pwsh
-        run: scripts/validate-distribution.ps1

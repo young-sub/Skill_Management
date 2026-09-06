@@ -405,7 +405,7 @@ def validate_contract_v3(contract: dict[str, Any]) -> list[str]:
             if not isinstance(value, str):
                 errors.append(f"contract:non_goals:{index}:expected_string")
     items = contract.get("items")
-    if not isinstance(items, list) or not 1 <= len(items) <= 5:
+    if not isinstance(items, list) or not items:
         errors.append("items:count_out_of_range")
         return errors
     seen: set[str] = set()
@@ -462,8 +462,6 @@ def validate_contract_v3(contract: dict[str, Any]) -> list[str]:
             errors.append(f"item:{item_id}:invalid_decision_state")
         tests = item.get("tests")
         if isinstance(tests, list):
-            if not tests:
-                errors.append(f"item:{item_id}:tests:empty")
             test_ids: set[str] = set()
             for test_index, test in enumerate(tests):
                 if not isinstance(test, dict):
@@ -910,9 +908,9 @@ def _restore_lifecycle_move(root: Path, journal: dict[str, Any]) -> list[str]:
     try:
         source = _safe_repo_path(root, str(journal["source"]))
         destination = _safe_repo_path(root, str(journal["destination"]))
-        if source.exists() and destination.exists():
+        if source != destination and source.exists() and destination.exists():
             raise ValueError("lifecycle_recovery_conflict:source_and_destination_exist")
-        if destination.exists():
+        if source != destination and destination.exists():
             source.parent.mkdir(parents=True, exist_ok=True)
             os.replace(destination, source)
         if not source.is_dir():
@@ -1611,13 +1609,13 @@ def authorize_design(
     mode = {"default": "default", "veto": "vetoed", "explicit_approve": "explicit"}[intent]
     if _has_high_risk(contract) and mode != "explicit":
         if mode == "vetoed":
-            vetoed = deepcopy(_contract_payload(contract))
+            vetoed = deepcopy(contract)
             vetoed["authorization"] = _authorization_record(
                 vetoed, mode=mode, actor=actor, authorized_at=authorized_at
             )
             return {"status": "vetoed", "contract": vetoed}
         return {"status": "explicit_approval_required"}
-    authorized = deepcopy(_contract_payload(contract))
+    authorized = deepcopy(contract)
     authorized["authorization"] = _authorization_record(
         authorized, mode=mode, actor=actor, authorized_at=authorized_at
     )
@@ -1722,13 +1720,15 @@ def next_item(contract: dict[str, Any], state: dict[str, str]) -> dict[str, Any]
 
 def apply_amendment(
     contract: dict[str, Any], *, item_id: str, field: str, value: Any, message_id: str,
-    actor: str, approved_at: str, risk: str,
+    actor: str, approved_at: str, risk: str, intent: str = "default",
 ) -> dict[str, Any]:
     material_amendment_risks = MATERIAL_RISK_FLAGS | {
         "public_contract", "acceptance", "architecture", "high",
         "security", "privacy", "secret", "irreversible",
     }
-    if risk in material_amendment_risks:
+    if intent not in {"default", "explicit_approve"}:
+        return {"status": "invalid_amendment", "errors": ["ambiguous_intent"]}
+    if risk in material_amendment_risks and intent != "explicit_approve":
         return {"status": "focused_approval_required", "item_id": item_id, "field": field, "risk": risk}
     amended = deepcopy(contract)
     item = next((candidate for candidate in amended.get("items", []) if candidate.get("id") == item_id), None)
@@ -1739,7 +1739,13 @@ def apply_amendment(
         return {"status": "invalid_amendment", "errors": ["authorization_schema_invalid"]}
     if authorization.get("mode") == "vetoed":
         return {"status": "vetoed", "item_id": item_id}
-    if field not in {"title", "what", "steps", "terms"} and value != item.get(field):
+    if authorization:
+        existing = execution_authorized(contract)
+        if not existing["authorized"]:
+            return {"status": "invalid_amendment", "errors": existing["errors"]}
+    if field == "id" and value != item_id:
+        return {"status": "invalid_amendment", "errors": ["item_identity_change"]}
+    if intent != "explicit_approve" and field not in {"title", "what", "steps", "terms"} and value != item.get(field):
         return {"status": "focused_approval_required", "item_id": item_id, "field": field, "risk": "contract_structure"}
     old_digest = canonical_digest(_contract_payload(contract))
     amended.pop("approval", None)
@@ -1753,12 +1759,46 @@ def apply_amendment(
     amended.setdefault("amendments", []).append(event)
     event["new_contract_digest"] = canonical_digest(_contract_payload(amended))
     authorized = authorize_design(
-        amended, intent="default", actor=actor, authorized_at=approved_at
+        amended, intent="explicit_approve" if authorization.get("mode") == "explicit" else intent,
+        actor=actor, authorized_at=approved_at
     )
     if "contract" not in authorized:
         return {"status": "invalid_amendment", "errors": authorized.get("errors", [authorized["status"]])}
     rebound = authorized["contract"]
     return {"status": "applied", "contract": rebound, "event": event}
+
+
+def amend_work(root: Path, contract: dict[str, Any], **amendment: Any) -> dict[str, Any]:
+    """Revise a saved contract and its active integrity record under the lifecycle lock."""
+    root = root.resolve()
+    try:
+        work_id = validate_work_id(contract.get("work_id"))
+        project = json.loads((root / ".harness/project.yaml").read_text(encoding="utf-8"))
+    except (ValueError, OSError, UnicodeError) as error:
+        return {"status": "invalid_work", "errors": [str(error)]}
+    lock_path, lock_payload, lock_error = _acquire_operation_lock(root, "transaction")
+    if lock_error:
+        return {"status": "precondition_failed", "errors": [lock_error]}
+    try:
+        state = _classify_start_root(root, work_id, contract, project=project)
+        if state["classification"] not in {"valid_design_only", "valid_already_started"}:
+            return {"status": "invalid_work", "errors": state["errors"] or ["saved_contract_missing"]}
+        amended = apply_amendment(contract, **amendment)
+        if amended["status"] != "applied":
+            return amended
+        manifest = deepcopy(state.get("manifest"))
+        if manifest is not None:
+            manifest["integrity_digest"] = canonical_digest(_contract_payload(amended["contract"]))
+        content = (json.dumps(amended["contract"], ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+        transaction = _lifecycle_move_locked(
+            root, state["work_root"], state["work_root"], manifest, operation="amend",
+            source_writes={"contract.json": content},
+        )
+        if transaction["status"] != "committed":
+            return transaction
+        return {**amended, "path": state["work_root"].relative_to(root).as_posix()}
+    finally:
+        _release_operation_lock(lock_path, lock_payload)
 
 
 def canonical_repo_identity(
@@ -2186,7 +2226,7 @@ def start_work(
             "status": "already_started", "classification": classification,
             "manifest": classified["manifest"],
         }
-    lock_name = f"start-{work_id}"
+    lock_name = "transaction"
     lock_path, lock_payload, lock_error = _acquire_operation_lock(root, lock_name)
     if lock_error:
         return {
@@ -2389,17 +2429,19 @@ def _normalize_logic_impact(logic_impact: dict[str, Any] | None) -> tuple[dict[s
             errors.append(f"logic_impact_empty:{field}")
         return normalized
 
-    changed_logic = strings("changed_logic")
-    affected_behaviors = strings("affected_behaviors")
     scope = logic_impact.get("scope")
-    if scope not in {"local", "capability", "cross-cutting", "unknown"}:
+    if scope not in {"none", "local", "capability", "cross-cutting", "unknown"}:
         errors.append("logic_impact_invalid:scope")
         scope = "unknown"
+    changed_logic = strings("changed_logic", required=scope != "none")
+    affected_behaviors = strings("affected_behaviors", required=scope != "none")
     reason = logic_impact.get("reason")
     if not isinstance(reason, str) or not reason.strip():
         errors.append("logic_impact_invalid:reason")
         reason = ""
-    tests = strings("tests", required=scope != "unknown")
+    tests = strings("tests", required=scope not in {"none", "unknown"})
+    if scope == "none" and (changed_logic or affected_behaviors):
+        errors.append("logic_impact_conflicting:none")
     return {
         "changed_logic": changed_logic,
         "affected_behaviors": affected_behaviors,
@@ -2599,13 +2641,13 @@ def evaluate_result(
 
 
 def _lifecycle_move_locked(
-    root: Path, source: Path, destination: Path, manifest: dict[str, Any], *,
+    root: Path, source: Path, destination: Path, manifest: dict[str, Any] | None, *,
     operation: str, fault_after: str | None = None, crash_after: str | None = None,
     source_writes: dict[str, bytes] | None = None,
 ) -> dict[str, Any]:
-    """Move one work directory with durable recovery across process interruption."""
+    """Update or move one work directory with recovery across process interruption."""
     try:
-        work_id = validate_work_id(manifest.get("work_id"))
+        work_id = validate_work_id(manifest.get("work_id") if manifest is not None else source.name)
         source.relative_to(root)
         destination.relative_to(root)
     except ValueError as error:
@@ -2666,18 +2708,20 @@ def _lifecycle_move_locked(
             _durable_write_bytes(
                 source.joinpath(*PurePosixPath(normalized).parts), content,
             )
-        _durable_write_bytes(
-            manifest_path,
-            (json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8"),
-        )
+        if manifest is not None:
+            _durable_write_bytes(
+                manifest_path,
+                (json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8"),
+            )
         _durable_write_json(journal_path, journal)
         if crash_after == "manifest":
             os._exit(92)
         if fault_after == "manifest":
             raise RuntimeError("injected_fault_after_manifest")
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        os.replace(source, destination)
-        journal["moved"] = True
+        if source != destination:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            os.replace(source, destination)
+            journal["moved"] = True
         _durable_write_json(journal_path, journal)
         if crash_after == "move":
             os._exit(92)
@@ -2718,7 +2762,7 @@ def _lifecycle_move(
 def _transition_work_to_completed(
     root: Path, work_id: str, *, completed_at: str, completed_days: int, trash_days: int,
     fault_after: str | None = None, crash_after: str | None = None,
-    source_writes: dict[str, bytes] | None = None,
+    source_writes: dict[str, bytes] | None = None, lock_held: bool = False,
 ) -> dict[str, Any]:
     root = root.resolve()
     try:
@@ -2743,7 +2787,8 @@ def _transition_work_to_completed(
         "retain_until": retain_until.isoformat(), "delete_after": delete_after.isoformat(),
         "owned_paths": [destination.relative_to(root).as_posix()],
     })
-    transaction = _lifecycle_move(
+    transition = _lifecycle_move_locked if lock_held else _lifecycle_move
+    transaction = transition(
         root, source, destination, manifest, operation="close", fault_after=fault_after,
         crash_after=crash_after, source_writes=source_writes,
     )
@@ -2752,7 +2797,19 @@ def _transition_work_to_completed(
     return {"status": "completed", "path": destination.relative_to(root).as_posix(), "manifest": manifest}
 
 
-def close_work(
+def close_work(root: Path, work_id: str, **options: Any) -> dict[str, Any]:
+    """Keep contract validation and retention in the same transaction as amendments."""
+    root = root.resolve()
+    lock_path, lock_payload, lock_error = _acquire_operation_lock(root, "transaction")
+    if lock_error:
+        return {"status": "precondition_failed", "errors": [lock_error]}
+    try:
+        return _close_work_locked(root, work_id, **options)
+    finally:
+        _release_operation_lock(lock_path, lock_payload)
+
+
+def _close_work_locked(
     root: Path, work_id: str, *, contract: dict[str, Any], result: dict[str, Any],
     impact: dict[str, Any], completed_at: str, completed_days: int, trash_days: int,
     project: dict[str, Any] | None = None,
@@ -2870,7 +2927,7 @@ def close_work(
     return _transition_work_to_completed(
         root, work_id, completed_at=completed_at, completed_days=completed_days,
         trash_days=trash_days, fault_after=fault_after, crash_after=crash_after,
-        source_writes={"result.json": result_bytes},
+        source_writes={"result.json": result_bytes}, lock_held=True,
     )
 
 
@@ -3722,6 +3779,8 @@ def _cli_parser(owner: str | None = None) -> argparse.ArgumentParser:
         start.add_argument("--contract", type=Path, required=True)
     amend = command("amend")
     if amend:
+        amend.add_argument("--root", type=Path, help="Persist the revision in this repository's active work")
+        amend.add_argument("--intent", choices=["default", "explicit_approve"], default="default")
         amend.add_argument("--contract", type=Path, required=True)
         amend.add_argument("--item-id", required=True)
         amend.add_argument("--field", required=True)
@@ -3852,11 +3911,12 @@ def main() -> int:
             )
         elif args.command == "amend":
             value = json.loads(args.value.read_text(encoding="utf-8"))
-            payload = apply_amendment(
-                _json_object(args.contract), item_id=args.item_id, field=args.field,
+            amendment = dict(item_id=args.item_id, field=args.field,
                 value=value, message_id=args.message_id, actor=args.actor,
-                approved_at=args.at, risk=args.risk,
+                approved_at=args.at, risk=args.risk, intent=args.intent,
             )
+            contract = _json_object(args.contract)
+            payload = amend_work(args.root, contract, **amendment) if args.root else apply_amendment(contract, **amendment)
         elif args.command == "complete":
             payload = evaluate_result(
                 _json_object(args.contract), _json_object(args.result), _json_object(args.impact)

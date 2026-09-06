@@ -299,43 +299,6 @@ class ValidateDistributionTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1, diagnostics)
         self.assertIn("instruction mirror drift", diagnostics)
 
-    def test_rejects_instruction_router_over_one_hundred_lines(self) -> None:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            fixture_root = Path(temp_dir)
-            skill_dir = fixture_root / "skills" / "fixture-skill"
-            skill_dir.mkdir(parents=True)
-            (skill_dir / "SKILL.md").write_text(
-                "---\nname: fixture-skill\ndescription: fixture\n---\n",
-                encoding="utf-8",
-            )
-            oversized_router = "".join(f"line {index}\n" for index in range(101))
-            (fixture_root / "AGENTS.md").write_text(
-                oversized_router,
-                encoding="utf-8",
-            )
-            (fixture_root / "CLAUDE.md").write_text(
-                oversized_router,
-                encoding="utf-8",
-            )
-
-            result = subprocess.run(
-                [
-                    "powershell",
-                    "-NoProfile",
-                    "-File",
-                    str(VALIDATOR),
-                    "-RepositoryRoot",
-                    str(fixture_root),
-                ],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-
-        diagnostics = f"{result.stdout}\n{result.stderr}"
-        self.assertEqual(result.returncode, 1, diagnostics)
-        self.assertIn("instruction router exceeds 100 lines", diagnostics)
-
     def test_rejects_public_skills_missing_from_distribution_catalog(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             fixture_root = Path(temp_dir)

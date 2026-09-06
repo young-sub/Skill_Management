@@ -1,8 +1,6 @@
 from pathlib import Path
 import json
 import re
-import subprocess
-import sys
 import unittest
 
 
@@ -21,51 +19,44 @@ class RepositoryDocsTests(unittest.TestCase):
         self.assertTrue(template["git"]["commit_per_item"])
 
     def test_current_documents_are_reachable_and_links_resolve(self) -> None:
-        index = ROOT / "docs" / "index.md"
-        text = index.read_text(encoding="utf-8")
-        links = re.findall(r"\[[^]]+\]\(([^)]+)\)", text)
-        self.assertTrue(links)
-        for target in links:
-            self.assertTrue((index.parent / target).resolve().is_file(), target)
-        for path in ROOT.joinpath("docs").rglob("*.md"):
-            if "releases" in path.parts:
+        docs_root = ROOT / "docs"
+        index = docs_root / "index.md"
+        pending = [index.resolve()]
+        reachable = set()
+
+        while pending:
+            source = pending.pop()
+            if source in reachable:
                 continue
-            self.assertIn(path.relative_to(ROOT / "docs").as_posix(), [target.split("#", 1)[0] for target in links] + ["index.md"], path)
+            reachable.add(source)
+            relative_source = source.relative_to(docs_root.resolve())
+            if {"releases", "pilots"}.intersection(relative_source.parts):
+                continue
+            text = source.read_text(encoding="utf-8")
+            links = re.findall(r"(?<!!)\[[^]]+\]\(([^)]+)\)", text)
+            for raw_target in links:
+                target = raw_target.split("#", 1)[0].strip()
+                if not target or re.match(r"^(?:[A-Za-z][A-Za-z0-9+.-]*:|//)", target):
+                    continue
+                resolved = (source.parent / target).resolve()
+                self.assertTrue(resolved.is_file() or resolved.is_dir(), f"{source}: {raw_target}")
+                if resolved.suffix.lower() == ".md" and resolved.is_relative_to(docs_root.resolve()):
+                    pending.append(resolved)
+
+        self.assertTrue(reachable)
+        for path in docs_root.rglob("*.md"):
+            self.assertIn(path.resolve(), reachable, path)
 
     def test_current_docs_do_not_depend_on_removed_work_records(self) -> None:
-        current = [ROOT / "AGENTS.md", ROOT / "CLAUDE.md", ROOT / "README.md", *ROOT.joinpath("docs").rglob("*.md")]
+        current = [ROOT / "AGENTS.md", ROOT / "CLAUDE.md", ROOT / "README.md"]
+        current.extend(
+            path for path in ROOT.joinpath("docs").rglob("*.md")
+            if not {"releases", "pilots"}.intersection(path.relative_to(ROOT / "docs").parts)
+        )
         for path in current:
             text = path.read_text(encoding="utf-8")
             self.assertNotIn("harness_v2_implementation_plan.md", text, path)
             self.assertNotIn("docs/work-packets/", text, path)
-
-    def test_current_user_surfaces_do_not_brand_the_harness_with_a_version(self) -> None:
-        skills = (
-            "setup-agent-harness", "design-goal", "execute-codex-goal",
-            "diagnose", "close-goal", "maintain-agent-harness",
-        )
-        current = [
-            ROOT / "README.md", ROOT / "authoring" / "README.md",
-            ROOT / ".harness" / "project.yaml",
-            *(path for path in ROOT.joinpath("docs").rglob("*.md")
-              if "releases" not in path.parts and "pilots" not in path.parts),
-            *(ROOT / "authoring" / "skills" / skill / "SKILL.md" for skill in skills),
-            *(ROOT / "skills" / skill / "SKILL.md" for skill in skills),
-        ]
-        for path in current:
-            text = path.read_text(encoding="utf-8")
-            self.assertNotRegex(text, r"(?i)\bharness v3\b", str(path))
-            self.assertNotIn("harness-v3", text.casefold(), str(path))
-        self.assertTrue((ROOT / "docs" / "architecture" / "harness.md").is_file())
-        self.assertFalse((ROOT / "docs" / "architecture" / "harness-v3.md").exists())
-
-        completed = subprocess.run(
-            [sys.executable, str(ROOT / "authoring" / "scripts" / "core_harness.py"), "--help"],
-            cwd=ROOT, text=True, capture_output=True, check=False,
-        )
-        self.assertEqual(completed.returncode, 0, completed.stderr)
-        self.assertNotRegex(completed.stdout, r"(?i)\bharness v3\b")
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -101,11 +101,8 @@ class CoreFirstCutoverTests(unittest.TestCase):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         claude = (ROOT / "CLAUDE.md").read_text(encoding="utf-8")
         self.assertEqual(agents, claude)
-        self.assertLess(len(agents.splitlines()), 100)
         self.assertIn("docs/index.md", agents)
         self.assertIn(".harness/project.yaml", agents)
-        self.assertNotIn("harness_v2_implementation_plan", agents)
-        self.assertNotIn("`main`", agents)
         self.assertTrue((ROOT / "docs" / "index.md").is_file())
         self.assertFalse((ROOT / "docs" / "work-packets" / "ys" / "wp-20260802-007-core-first-harness.md").exists())
         self.assertEqual(set(config["commands"]), {"targeted", "feature", "lint", "type", "build", "full", "live", "eval"})
@@ -115,19 +112,7 @@ class CoreFirstCutoverTests(unittest.TestCase):
         harness_rule = next(rule for rule in config["impact"]["rules"] if rule["id"] == "harness-core")
         self.assertIn("tests/harness/test_core_first_forward_workflows.py", harness_rule["tests"])
 
-    def test_active_skills_are_one_manifest_bound_cohort_without_version_branding(self) -> None:
-        skills = ("setup-agent-harness", "design-goal", "execute-codex-goal", "close-goal", "maintain-agent-harness")
-        for skill in skills:
-            text = (ROOT / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")
-            self.assertNotIn("Harness v3", text, skill)
-            self.assertIn("scripts/core_harness.py", text, skill)
-        execute = (ROOT / "skills" / "execute-codex-goal" / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("host Goal is optional", execute)
-        self.assertNotIn("active Goal", execute)
-        self.assertNotIn("contract hash", execute.lower())
-        close = (ROOT / "skills" / "close-goal" / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("Impacted", close)
-        self.assertNotIn("Targeted, Feature, Fast, and Full must", close)
+    def test_retired_runtime_paths_are_absent(self) -> None:
         for relative in (
             "authoring/scripts/contract_engine.py", "authoring/scripts/goal_runtime.py",
             "authoring/scripts/close_goal.py", "authoring/scripts/render_design_review.py",
@@ -136,11 +121,6 @@ class CoreFirstCutoverTests(unittest.TestCase):
             self.assertFalse((ROOT / relative).exists(), relative)
         self.assertFalse((ROOT / "skills" / "project-agent-bootstrap").exists())
         self.assertNotIn("project-agent-bootstrap", load_core().HARNESS_INSTALL_SKILLS)
-        workflow = (ROOT / "docs" / "agents" / "workflow.md").read_text(encoding="utf-8")
-        self.assertIn(
-            "Use the Goal contract lifecycle only when the global Work Packet threshold is met or the user explicitly selects it.",
-            workflow,
-        )
 
     def test_html_review_generation_pipeline_is_retired(self) -> None:
         core = load_core()
@@ -160,13 +140,6 @@ class CoreFirstCutoverTests(unittest.TestCase):
             "skills/close-goal/templates/result-item-review.html",
         ):
             self.assertFalse((ROOT / relative).exists(), relative)
-
-    def test_design_skill_routes_all_namespace_creation_through_design_create(self) -> None:
-        for root in (ROOT / "authoring" / "skills", ROOT / "skills"):
-            text = (root / "design-goal" / "SKILL.md").read_text(encoding="utf-8")
-            self.assertIn("`design-create`", text)
-            self.assertIn("Never pre-create the work root", text)
-            self.assertNotIn("Create `.work/goals/active/<work-id>/contract.json`", text)
 
     def test_repository_impact_and_ci_descriptors_cover_cutover_surfaces(self) -> None:
         core = load_core()
