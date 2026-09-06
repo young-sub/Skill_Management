@@ -296,15 +296,19 @@ try {
             -SourceRoot $resolvedRoot `
             -InstallRoot $resolvedDestination `
             -SkillNames $expectedSkills)
-        if ($treeDrift.Count -gt 0 -and $SourceType -eq 'github') {
-            throw "Remote GitHub update left stale public Skill trees: $($treeDrift -join ', ')"
-        }
         if ($treeDrift.Count -gt 0) {
-            $nativeUpdateStatus = 'unsupported_for_local_source'
-            Write-Output 'Native update unsupported/no-op for local source; running local source refresh.'
+            $nativeUpdateStatus = $(
+                if ($SourceType -eq 'github') { 'drift_recovered_by_source_refresh' }
+                else { 'unsupported_for_local_source' }
+            )
+            if ($SourceType -eq 'github') {
+                Write-Output 'Native update left drift; running complete source refresh.'
+            } else {
+                Write-Output 'Native update unsupported/no-op for local source; running local source refresh.'
+            }
             & $SkillsCommand @installArguments
             if ($LASTEXITCODE -ne 0) {
-                throw "skills CLI local source refresh failed with exit code $LASTEXITCODE"
+                throw "skills CLI source refresh failed with exit code $LASTEXITCODE"
             }
             if ($hasCompleteHarnessCohort) {
                 Install-ExactHarnessCohort -SourceRoot $resolvedRoot -InstallRoot $resolvedDestination
@@ -314,7 +318,7 @@ try {
                 -InstallRoot $resolvedDestination `
                 -SkillNames $expectedSkills)
             if ($treeDrift.Count -gt 0) {
-                throw "Local source refresh left stale public Skill trees: $($treeDrift -join ', ')"
+                throw "Complete source refresh left stale public Skill trees: $($treeDrift -join ', ')"
             }
             $localRefreshStatus = 'passed'
             Write-Output "Local source refresh passed for $($expectedSkills.Count) public skills across codex and claude-code."

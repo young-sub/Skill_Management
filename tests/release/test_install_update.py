@@ -66,6 +66,10 @@ class InstallUpdateSmokeTests(unittest.TestCase):
                 "    $victim = Get-ChildItem -LiteralPath (Join-Path (Get-Location) '.agents\\skills') -Recurse -File | Where-Object Name -ne 'SKILL.md' | Select-Object -First 1\n"
                 "    if ($null -ne $victim) { Set-Content -LiteralPath $victim.FullName -Value 'stale nested resource' -Encoding utf8 }\n"
                 "  }\n"
+                "  if ($env:HARNESS_FAKE_UPDATE_MODE -eq 'tamper-independent') {\n"
+                "    $victim = Get-ChildItem -LiteralPath (Join-Path (Get-Location) '.agents\\skills\\finance-research') -Recurse -File | Select-Object -First 1\n"
+                "    if ($null -ne $victim) { Set-Content -LiteralPath $victim.FullName -Value 'stale independent skill' -Encoding utf8 }\n"
+                "  }\n"
                 "  exit 0\n"
                 "}\n"
                 "Write-Error \"Unexpected arguments: $($CliArgs -join ' ')\"\nexit 2\n",
@@ -182,6 +186,20 @@ class InstallUpdateSmokeTests(unittest.TestCase):
     def test_nested_resource_tamper_triggers_complete_tree_refresh(self) -> None:
         diagnostics, _ = self.run_fake_smoke(update_mode="tamper-resource")
         self.assertIn("Native update unsupported/no-op for local source", diagnostics)
+
+    def test_remote_update_drift_triggers_complete_tree_refresh(self) -> None:
+        commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=True
+        ).stdout.strip()
+        diagnostics, evidence = self.run_fake_smoke(
+            update_mode="tamper-independent",
+            source_type="github",
+            source_package="https://github.com/young-sub/Skill_Management/tree/main",
+            approve_remote=True,
+            expected_source_commit=commit,
+        )
+        self.assertIn("Native update left drift; running complete source refresh", diagnostics)
+        self.assertEqual(evidence["remote_github_update"]["status"], "passed")
 
     def test_remote_source_parameters_emit_machine_readable_evidence(self) -> None:
         _, evidence = self.run_fake_smoke(
