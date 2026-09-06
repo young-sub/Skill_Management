@@ -9,24 +9,6 @@
       "reason": "The link is a literal placeholder inside the documented SKILL.md template, not a runtime dependency of write-a-skill.",
       "owner": "distribution-maintainers",
       "review_after": "2027-07-20"
-    },
-    {
-      "rule_id": "SC_FILE_URI",
-      "skill": "webapp-testing",
-      "source_path": "SKILL.md",
-      "normalized_target": "file://",
-      "reason": "Documentation describes the URL scheme used by a bundled local HTML helper; it is not a runtime resource dependency.",
-      "owner": "distribution-maintainers",
-      "review_after": "2027-07-20"
-    },
-    {
-      "rule_id": "SC_ABSOLUTE_PATH",
-      "skill": "webapp-testing",
-      "source_path": "SKILL.md",
-      "normalized_target": "/tmp/inspect.png",
-      "reason": "Documentation-only screenshot output example for a temporary directory, not a runtime resource dependency.",
-      "owner": "distribution-maintainers",
-      "review_after": "2027-07-20"
     }
   ]
 }

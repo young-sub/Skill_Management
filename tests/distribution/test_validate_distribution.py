@@ -167,7 +167,7 @@ class ValidateDistributionTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1, diagnostics)
         self.assertIn("invalid frontmatter line", diagnostics)
 
-    def test_rejects_discoverable_legacy_skill_entrypoints(self) -> None:
+    def test_rejects_retired_legacy_skills_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             fixture_root = Path(temp_dir)
             public_dir = fixture_root / "skills" / "fixture-skill"
@@ -178,7 +178,7 @@ class ValidateDistributionTests(unittest.TestCase):
             )
             legacy_dir = fixture_root / "legacy-skills" / "old-skill"
             legacy_dir.mkdir(parents=True)
-            (legacy_dir / "SKILL.md").write_text(
+            (legacy_dir / "SKILL.legacy.md").write_text(
                 "---\nname: old-skill\ndescription: legacy\n---\n",
                 encoding="utf-8",
             )
@@ -199,7 +199,7 @@ class ValidateDistributionTests(unittest.TestCase):
 
         diagnostics = f"{result.stdout}\n{result.stderr}"
         self.assertEqual(result.returncode, 1, diagnostics)
-        self.assertIn("legacy skill remains discoverable", diagnostics)
+        self.assertIn("retired distribution artifact remains: legacy-skills/", diagnostics)
 
     def test_rejects_resource_references_that_escape_a_public_skill(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -353,7 +353,6 @@ class ValidateDistributionTests(unittest.TestCase):
                     {
                         "schema_version": 1,
                         "public_skills": ["expected-skill"],
-                        "legacy_skills": [],
                         "future_core_skills": [],
                         "intentionally_absent": [],
                     }
@@ -395,7 +394,6 @@ class ValidateDistributionTests(unittest.TestCase):
                     {
                         "schema_version": 1,
                         "public_skills": ["present-skill", "missing-skill"],
-                        "legacy_skills": [],
                         "future_core_skills": [],
                         "intentionally_absent": [],
                     }
@@ -420,48 +418,6 @@ class ValidateDistributionTests(unittest.TestCase):
         diagnostics = f"{result.stdout}\n{result.stderr}"
         self.assertEqual(result.returncode, 1, diagnostics)
         self.assertIn("missing expected public skill", diagnostics)
-
-    def test_rejects_missing_preserved_legacy_skills(self) -> None:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            fixture_root = Path(temp_dir)
-            skill_dir = fixture_root / "skills" / "present-skill"
-            skill_dir.mkdir(parents=True)
-            (skill_dir / "SKILL.md").write_text(
-                "---\nname: present-skill\ndescription: fixture\n---\n",
-                encoding="utf-8",
-            )
-            distribution_dir = fixture_root / "distribution"
-            distribution_dir.mkdir()
-            (distribution_dir / "catalog.json").write_text(
-                json.dumps(
-                    {
-                        "schema_version": 1,
-                        "public_skills": ["present-skill"],
-                        "legacy_skills": ["missing-legacy"],
-                        "future_core_skills": [],
-                        "intentionally_absent": [],
-                    }
-                ),
-                encoding="utf-8",
-            )
-
-            result = subprocess.run(
-                [
-                    "powershell",
-                    "-NoProfile",
-                    "-File",
-                    str(VALIDATOR),
-                    "-RepositoryRoot",
-                    str(fixture_root),
-                ],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-
-        diagnostics = f"{result.stdout}\n{result.stderr}"
-        self.assertEqual(result.returncode, 1, diagnostics)
-        self.assertIn("missing preserved legacy skill", diagnostics)
 
     def test_rejects_missing_distribution_catalog(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -513,7 +469,6 @@ class ValidateDistributionTests(unittest.TestCase):
                     {
                         "schema_version": 1,
                         "public_skills": ["fixture-skill"],
-                        "legacy_skills": [],
                         "future_core_skills": [],
                         "intentionally_absent": [],
                     }
@@ -556,7 +511,6 @@ class ValidateDistributionTests(unittest.TestCase):
                     {
                         "schema_version": 1,
                         "public_skills": [],
-                        "legacy_skills": [],
                         "future_core_skills": [],
                         "intentionally_absent": [],
                     }
@@ -588,54 +542,6 @@ class ValidateDistributionTests(unittest.TestCase):
             diagnostics,
         )
 
-    def test_reports_a_missing_legacy_skills_directory(self) -> None:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            fixture_root = Path(temp_dir)
-            skill_dir = fixture_root / "skills" / "fixture-skill"
-            skill_dir.mkdir(parents=True)
-            (skill_dir / "SKILL.md").write_text(
-                "---\nname: fixture-skill\ndescription: fixture\n---\n",
-                encoding="utf-8",
-            )
-            distribution_dir = fixture_root / "distribution"
-            distribution_dir.mkdir()
-            (distribution_dir / "catalog.json").write_text(
-                json.dumps(
-                    {
-                        "schema_version": 1,
-                        "public_skills": ["fixture-skill"],
-                        "legacy_skills": [],
-                        "future_core_skills": [],
-                        "intentionally_absent": [],
-                    }
-                ),
-                encoding="utf-8",
-            )
-            router = "# Router\n"
-            (fixture_root / "AGENTS.md").write_text(router, encoding="utf-8")
-            (fixture_root / "CLAUDE.md").write_text(router, encoding="utf-8")
-
-            result = subprocess.run(
-                [
-                    "powershell",
-                    "-NoProfile",
-                    "-File",
-                    str(VALIDATOR),
-                    "-RepositoryRoot",
-                    str(fixture_root),
-                ],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-
-        diagnostics = f"{result.stdout}\n{result.stderr}"
-        self.assertEqual(result.returncode, 1, diagnostics)
-        self.assertIn(
-            "missing required distribution artifact: legacy-skills/",
-            diagnostics,
-        )
-
     def test_rejects_unsupported_distribution_catalog_schema(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             fixture_root = Path(temp_dir)
@@ -645,7 +551,6 @@ class ValidateDistributionTests(unittest.TestCase):
                 "---\nname: fixture-skill\ndescription: fixture\n---\n",
                 encoding="utf-8",
             )
-            (fixture_root / "legacy-skills").mkdir()
             distribution_dir = fixture_root / "distribution"
             distribution_dir.mkdir()
             (distribution_dir / "catalog.json").write_text(
@@ -653,7 +558,6 @@ class ValidateDistributionTests(unittest.TestCase):
                     {
                         "schema_version": 2,
                         "public_skills": ["fixture-skill"],
-                        "legacy_skills": [],
                         "future_core_skills": [],
                         "intentionally_absent": [],
                     }

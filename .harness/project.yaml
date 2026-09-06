@@ -27,7 +27,6 @@
       {"id": "ci-workflow", "source_prefixes": [".github/"], "tests": ["tests/release/test_release_candidate.py"], "feature": "distribution", "triggers": ["repository_workflow_cutover"]},
       {"id": "retired-root-design", "source_prefixes": ["skill_recreate_plan.md"], "tests": ["tests/distribution/test_repository_docs.py"], "feature": "documentation", "triggers": []},
       {"id": "distribution-metadata", "source_prefixes": ["distribution/"], "tests": ["tests/distribution", "tests/release"], "feature": "distribution", "triggers": []},
-      {"id": "legacy-preservation", "source_prefixes": ["legacy-skills/"], "tests": ["tests/distribution/test_validate_distribution.py"], "feature": "distribution", "triggers": []},
       {"id": "repository-ignore", "source_prefixes": [".gitignore"], "tests": ["tests/harness/test_core_first_setup.py", "tests/harness/test_core_first_design_execution.py"], "feature": "harness-core", "triggers": []}
     ],
     "feature_selectors": {

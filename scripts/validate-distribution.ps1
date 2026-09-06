@@ -118,15 +118,9 @@ if (-not (Test-Path -LiteralPath $selfContainmentValidator -PathType Leaf)) {
     }
 }
 
-$legacyRoot = Join-Path $resolvedRoot 'legacy-skills'
-if (Test-Path -LiteralPath $legacyRoot -PathType Container) {
-    foreach ($legacyEntrypoint in Get-ChildItem -LiteralPath $legacyRoot -Filter 'SKILL.md' -File -Recurse) {
-        $errors.Add(
-            "legacy skill remains discoverable: '$($legacyEntrypoint.FullName)'"
-        )
-    }
-} else {
-    $errors.Add('missing required distribution artifact: legacy-skills/')
+$retiredLegacyRoot = Join-Path $resolvedRoot 'legacy-skills'
+if (Test-Path -LiteralPath $retiredLegacyRoot -PathType Container) {
+    $errors.Add('retired distribution artifact remains: legacy-skills/')
 }
 
 $catalogPath = Join-Path $resolvedRoot 'distribution\catalog.json'
@@ -147,12 +141,6 @@ if (Test-Path -LiteralPath $catalogPath -PathType Leaf) {
     foreach ($skillName in $expectedPublicSkills) {
         if ($actualPublicSkills -notcontains $skillName) {
             $errors.Add("missing expected public skill: '$skillName'")
-        }
-    }
-    foreach ($skillName in @($catalog.legacy_skills)) {
-        $legacyEntrypoint = Join-Path $legacyRoot "$skillName\SKILL.legacy.md"
-        if (-not (Test-Path -LiteralPath $legacyEntrypoint -PathType Leaf)) {
-            $errors.Add("missing preserved legacy skill: '$skillName'")
         }
     }
 } else {
@@ -176,6 +164,12 @@ if (Test-Path -LiteralPath $candidatePath -PathType Leaf) {
             if ($candidate.live_release -ne $false -or $null -ne $candidate.tag) {
                 $errors.Add('release candidate must not claim a live release or tag')
             }
+            if ($candidate.public_skill_count -ne $expectedPublicSkills.Count) {
+                $errors.Add('release candidate public skill count does not match catalog')
+            }
+            if (@(Compare-Object @($candidate.public_skills) @($expectedPublicSkills)).Count -ne 0) {
+                $errors.Add('release candidate public skills do not match catalog')
+            }
         } elseif ($candidate.stage -eq 'stable') {
             if ($candidate.live_release -ne $true -or $candidate.tag -ne 'v2.0.0') {
                 $errors.Add('stable release must claim the v2.0.0 live tag')
@@ -189,12 +183,6 @@ if (Test-Path -LiteralPath $candidatePath -PathType Leaf) {
             }
         } else {
             $errors.Add("unsupported release stage: '$($candidate.stage)'")
-        }
-        if ($candidate.public_skill_count -ne $expectedPublicSkills.Count) {
-            $errors.Add('release candidate public skill count does not match catalog')
-        }
-        if (@(Compare-Object @($candidate.public_skills) @($expectedPublicSkills)).Count -ne 0) {
-            $errors.Add('release candidate public skills do not match catalog')
         }
         if (@($candidate.future_core_skills).Count -ne 0 -or @($catalog.future_core_skills).Count -ne 0) {
             $errors.Add('release candidate future Core Skill list must be empty')
