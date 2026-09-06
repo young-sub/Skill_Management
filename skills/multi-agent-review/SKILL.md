@@ -10,9 +10,9 @@ Review the actual decision and its consequences. A review does not authorize imp
 ## Scope And Models
 
 - Natural-language requests for multiple agents authorize delegation; no magic flag is required. `--subagents allowed` remains a supported expression of that intent. Otherwise follow the applicable delegation permissions.
-- Inherit the current model. Respect the user's model floor: GPT-5.6 Sol or GPT-6 Astra, with no downgrade for mechanical work. Override model/reasoning only when requested or justified by the applicable instructions and supported by the host. Never pretend a requested model was enforced when it was not.
+- Choose each agent's specialization, tools, model, and reasoning effort for its assigned question, evidence needs, and risk. Respect explicit user constraints and host capabilities; there is no fixed model requirement or mandatory inheritance. Report a material selection limitation honestly.
 - Honor explicit user counts and roles within host limits; there is no requirement that challengers outnumber researchers. Stage work if concurrency is limited. Report infeasible constraints and use an honest fallback.
-- Without specified counts, start with the smallest useful team: one evidence researcher and one independent challenger, or just a challenger when the main agent already has the evidence. Add an agent only for a distinct unanswered question. For a generic review with no explicit request for real agents, use a main-only pass if coordination would cost more than it saves.
+- Without specified counts, select agents for distinct evidence or challenge questions the review actually needs. Add an agent only for an unanswered question. For a generic review with no explicit request for real agents, use a main-only pass if coordination would cost more than it saves.
 
 ## Review Loop
 

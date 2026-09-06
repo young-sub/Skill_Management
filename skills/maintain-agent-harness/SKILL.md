@@ -4,15 +4,15 @@ description: Audit Harness mapping, distributed resources, and retained work int
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/maintain-agent-harness/SKILL.md -->
-<!-- Source-SHA256: 4e329e5dd6c143d10c7e54a270e3a195f37cc311ccc0001438ee67c66e158ea7 -->
+<!-- Source-SHA256: 84c5c8303da708960cd2c39c0b934b706b7d7d601830525088c4e09d1d808774 -->
 
 
 # Maintain Agent Harness
 
 Use [the runtime](scripts/core_harness.py). Choose `audit-work` for lifecycle-only questions or `maintain` for repository/cohort integrity. Read the [project](schemas/project.schema.json) or [work](schemas/work.schema.json) schema only to interpret relevant findings; [testing policy](references/testing-policy.md) applies if a repair changes behavior.
 
-Report deterministic findings with affected paths, consequences, and the smallest useful repair. Inspect installed cohort hashes only when installation is in scope and its actual root is known. A missing environment-exception file is a no-op; invalid entries are findings. Exact unexpired brownfield baselines may suppress known findings. Report success as the checks performed, not proof of product correctness or model performance.
+Report deterministic findings with affected paths, consequences, and the smallest useful repair. Inspect installed cohort hashes only when installation is in scope and its actual root is known. A missing environment-exception file is a no-op; invalid entries are findings. Exact unexpired brownfield baselines may suppress known findings. Scope conclusions to the integrity checks actually performed.
 
-An ordinary audit is read-only. If the user also requested repair, proceed with covered reversible fixes and their relevant checks; do not stop merely because this skill defaults to reporting. Do not make routine implementation wait for a full maintenance audit, architecture review, or selector budget exercise.
+An ordinary audit is read-only. If the user also requested repair, proceed with covered reversible fixes and their relevant checks. Maintenance is on demand, not a prerequisite for routine implementation.
 
 When retention cleanup is requested, use the `close-goal` runtime's sweep to move manifest-expired completed work to recoverable trash. Unknown or contradictory legacy state stays unclassified. Physical deletion needs explicit authorization for the exact target. Worktree removal and production changes are separate scope.

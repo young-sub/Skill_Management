@@ -1,6 +1,6 @@
 ---
 name: design-goal
-description: Design a Harness Item contract for explicitly requested planning, multiple review boundaries, material risk, or unresolved product decisions. Use ordinary development directly for small, clear changes.
+description: Create or revise a Harness Item contract when persistent implementation design is requested or work spans multiple review boundaries, material risk, or unresolved product decisions. Use ordinary development directly for small, clear changes.
 ---
 
 # Design Goal
