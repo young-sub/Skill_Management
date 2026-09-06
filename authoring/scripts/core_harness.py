@@ -2615,7 +2615,10 @@ def evaluate_result(
                             break
             if not criteria_match:
                 item_errors.append("planned_done_evidence_mismatch")
-            if actual.get("delta", {}).get("material") and actual.get("delta", {}).get("approval") != "approved":
+            delta = actual.get("delta", {})
+            if not isinstance(delta, dict):
+                item_errors.append("delta_invalid")
+            elif delta.get("material") and delta.get("approval") != "approved":
                 item_errors.append("material_delta_unapproved")
         evaluated.append({"id": planned["id"], "status": "complete" if not item_errors else "incomplete", "errors": item_errors})
         errors.extend(f"{planned['id']}:{error}" for error in item_errors)
@@ -2626,11 +2629,15 @@ def evaluate_result(
         or impact.get("unresolved")
     ):
         errors.append("unresolved_logic_impact")
-    full_status = result.get("full", {}).get("status", "unrun")
+    full = result.get("full", {})
+    if not isinstance(full, dict):
+        errors.append("full_invalid")
+        full = {}
+    full_status = full.get("status", "unrun")
     if impact.get("full_required") and full_status != "passed":
         errors.append("full_required_but_unrun")
     if not impact.get("full_required") and full_status == "not_required":
-        rule = result.get("full", {}).get("rule")
+        rule = full.get("rule")
         if not rule or rule not in impact.get("not_required_rule_ids", []):
             errors.append("full_not_required_rule_invalid")
     return {
@@ -3428,7 +3435,10 @@ def inspect_installed_cohort(installed_root: Path, resource_manifest: dict[str, 
         except (OSError, UnicodeError, json.JSONDecodeError):
             blockers.append(f"installed_resource_drift:{COHORT_MANIFEST_RESOURCE}")
         else:
-            if installed_manifest != resource_manifest:
+            if (
+                not _cohort_manifest_valid(installed_manifest)
+                or _cohort_manifest_files(installed_manifest) != files
+            ):
                 blockers.append(f"installed_resource_drift:{COHORT_MANIFEST_RESOURCE}")
     blockers = sorted(set(blockers))
     return {

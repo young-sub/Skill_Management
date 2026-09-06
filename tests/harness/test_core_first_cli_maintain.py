@@ -748,6 +748,41 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
         self.assertEqual(inspected["status"], "invalid_manifest", inspected)
         self.assertIn("installed_manifest_invalid", inspected["blockers"])
 
+    def test_installed_cohort_ignores_only_unrelated_manifest_resource_changes(self) -> None:
+        core = load_core()
+        manifest = json.loads((ROOT / "authoring/public-resource-manifest.json").read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as temp_dir:
+            installed_root = Path(temp_dir) / "skills"
+            installed = core.install_harness_cohort(
+                ROOT / "skills", installed_root, manifest,
+                approved_install_root=str(installed_root),
+            )
+            self.assertEqual(installed["status"], "installed", installed)
+            updated = json.loads(json.dumps(manifest))
+            updated["files"]["explore-idea/SKILL.md"] = "0" * 64
+            updated["files"].pop("teach/SKILL.md")
+            updated["files"]["unrelated/SKILL.md"] = "1" * 64
+            self.assertEqual(core.inspect_installed_cohort(installed_root, updated)["status"], "complete")
+
+            bundled = installed_root / core.COHORT_MANIFEST_RESOURCE
+            for change in ("hash", "missing", "extra", "metadata", "shape"):
+                with self.subTest(change=change):
+                    drifted = json.loads(json.dumps(updated))
+                    if change == "hash":
+                        drifted["files"]["diagnose/SKILL.md"] = "2" * 64
+                    elif change == "missing":
+                        drifted["files"].pop("diagnose/SKILL.md")
+                    elif change == "extra":
+                        drifted["files"]["diagnose/extra.md"] = "3" * 64
+                    elif change == "metadata":
+                        drifted["algorithm"] = "sha512"
+                    else:
+                        drifted = []
+                    bundled.write_text(json.dumps(drifted), encoding="utf-8")
+                    inspected = core.inspect_installed_cohort(installed_root, updated)
+                    self.assertEqual(inspected["status"], "invalid", inspected)
+                    self.assertIn(f"installed_resource_drift:{core.COHORT_MANIFEST_RESOURCE}", inspected["blockers"])
+
     def test_installed_cohort_uses_exact_manifest_resources_not_skill_version_text(self) -> None:
         core = load_core()
         manifest = json.loads(
