@@ -10,8 +10,8 @@ class PublicCatalogTests(unittest.TestCase):
     def test_only_supported_and_professional_skills_are_public(self) -> None:
         expected = {
             "finance-research",
-            "find-skills",
-            "frontend-design",
+            "fixing-accessibility",
+            "impeccable",
             "explore-idea",
             "design-goal",
             "execute-codex-goal",
@@ -22,9 +22,7 @@ class PublicCatalogTests(unittest.TestCase):
             "prototype",
             "setup-agent-harness",
             "teach",
-            "theme-factory",
-            "webapp-testing",
-            "web-artifacts-builder",
+            "vercel-react-best-practices",
             "write-a-skill",
             "zoom-out",
         }
@@ -41,6 +39,8 @@ class PublicCatalogTests(unittest.TestCase):
 
         self.assertSetEqual(declared, expected)
         self.assertSetEqual(actual, declared)
+        self.assertNotIn("legacy_skills", catalog)
+        self.assertFalse((REPO_ROOT / "legacy-skills").exists())
 
 
 if __name__ == "__main__":

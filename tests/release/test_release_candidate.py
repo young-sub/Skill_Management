@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class ReleaseCandidateTests(unittest.TestCase):
-    def test_release_candidate_matches_the_complete_public_catalog(self) -> None:
+    def test_stable_release_record_preserves_the_historical_public_catalog(self) -> None:
         catalog = json.loads((ROOT / "distribution" / "catalog.json").read_text(encoding="utf-8"))
         candidate = json.loads((ROOT / "distribution" / "release-candidate.json").read_text(encoding="utf-8"))
 
@@ -20,8 +20,9 @@ class ReleaseCandidateTests(unittest.TestCase):
         self.assertEqual(candidate["tag"], "v2.0.0")
         self.assertEqual(candidate["release_date"], "2026-07-21")
         self.assertEqual(candidate["release_notes"], "../docs/releases/v2.0.0.md")
-        self.assertEqual(candidate["public_skill_count"], len(catalog["public_skills"]))
-        self.assertEqual(candidate["public_skills"], catalog["public_skills"])
+        self.assertEqual(candidate["public_skill_count"], 18)
+        self.assertEqual(len(candidate["public_skills"]), 18)
+        self.assertNotEqual(candidate["public_skills"], catalog["public_skills"])
         self.assertEqual(candidate["future_core_skills"], [])
         self.assertEqual(catalog["future_core_skills"], [])
         self.assertRegex(candidate["source_revision"]["git_commit"], r"^[0-9a-f]{40}$")

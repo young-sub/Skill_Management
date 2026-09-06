@@ -2,8 +2,8 @@
   "schema_version": 1,
   "public_skills": [
     "finance-research",
-    "find-skills",
-    "frontend-design",
+    "fixing-accessibility",
+    "impeccable",
     "explore-idea",
     "design-goal",
     "execute-codex-goal",
@@ -14,24 +14,9 @@
     "prototype",
     "setup-agent-harness",
     "teach",
-    "theme-factory",
-    "webapp-testing",
-    "web-artifacts-builder",
+    "vercel-react-best-practices",
     "write-a-skill",
     "zoom-out"
-  ],
-  "legacy_skills": [
-    "diagnose",
-    "grill-me",
-    "grill-with-docs",
-    "handoff",
-    "improve-codebase-architecture",
-    "setup-matt-pocock-skills",
-    "tdd",
-    "to-issues",
-    "to-prd",
-    "triage",
-    "work-packet"
   ],
   "future_core_skills": [],
   "intentionally_absent": [

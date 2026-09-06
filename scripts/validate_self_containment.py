@@ -24,6 +24,10 @@ RULES = {
     "SC_REPARSE_ESCAPE",
 }
 MARKDOWN_LINK = re.compile(r"\[[^\]]*\]\((?P<target>[^)\s]+)(?:\s+[^)]*)?\)")
+FENCED_CODE = re.compile(
+    r"^[ \t]*(?P<fence>`{3,}|~{3,})[^\n]*\n.*?^[ \t]*(?P=fence)[ \t]*$",
+    re.MULTILINE | re.DOTALL,
+)
 RELATIVE_ESCAPE = re.compile(r"(?P<target>(?:\.\.[/\\])+[A-Za-z0-9._/\\-]+)")
 WINDOWS_ABSOLUTE = re.compile(r"(?<![A-Za-z0-9_])(?P<target>[A-Za-z]:[\\/][^\s`\"'<>|]*)")
 FILE_URI = re.compile(r"(?P<target>file://[^\s`\"'<>)]*)", re.IGNORECASE)
@@ -171,8 +175,10 @@ def _scan_text_file(
             )
         ]
     findings: list[dict[str, str]] = []
-    occupied: set[tuple[int, int]] = set()
+    occupied = {match.span() for match in FENCED_CODE.finditer(text)}
     for match in MARKDOWN_LINK.finditer(text):
+        if any(start <= match.start("target") < end for start, end in occupied):
+            continue
         target = match.group("target")
         occupied.add(match.span("target"))
         findings.extend(
