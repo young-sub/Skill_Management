@@ -120,10 +120,10 @@ function Get-SkillTreeDrift {
             if ($sourceFile.Extension -eq '.pyc' -or $sourceFile.FullName -match '[\\/]__pycache__[\\/]') { continue }
             $relative = $sourceFile.FullName.Substring($sourceSkill.Length).TrimStart('\').Replace('\', '/')
             $sourceFiles[$relative] = Get-Sha256Hex -LiteralPath $sourceFile.FullName
-            $parent = [System.IO.Path]::GetDirectoryName($relative).Replace('\', '/')
+            $parent = ([string][System.IO.Path]::GetDirectoryName($relative)).Replace('\', '/')
             while (-not [string]::IsNullOrWhiteSpace($parent)) {
                 [void]$sourceDirectories.Add($parent)
-                $parent = [System.IO.Path]::GetDirectoryName($parent).Replace('\', '/')
+                $parent = ([string][System.IO.Path]::GetDirectoryName($parent)).Replace('\', '/')
             }
         }
         foreach ($providerRoot in @('.agents\skills', '.claude\skills')) {

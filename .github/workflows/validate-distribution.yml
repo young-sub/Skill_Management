@@ -89,6 +89,10 @@ jobs:
       matrix:
         os: ${{ fromJSON(needs.scope.outputs.os_matrix) }}
     runs-on: ${{ matrix.os }}
+    env:
+      PYTHONUTF8: '1'
+      TEMP: ${{ runner.temp }}
+      TMP: ${{ runner.temp }}
     steps:
       - uses: actions/checkout@v4
       - name: Provide PowerShell command on Ubuntu

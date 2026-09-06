@@ -42,6 +42,8 @@ class ReleaseCandidateTests(unittest.TestCase):
         self.assertIn("scripts/validate-distribution.ps1", workflow)
         self.assertIn("fail-fast: false", workflow)
         self.assertIn('sudo ln -s "$(command -v pwsh)" /usr/local/bin/powershell', workflow)
+        self.assertIn("PYTHONUTF8: '1'", workflow)
+        self.assertIn("TEMP: ${{ runner.temp }}", workflow)
         self.assertNotIn("npx skills", workflow)
 
     def test_readme_routes_current_harness_and_preserves_release_evidence(self) -> None:
