@@ -230,6 +230,45 @@ class CoreFirstCloseLifecycleTests(unittest.TestCase):
         self.assertEqual(evaluated["items"][0]["status"], "incomplete")
         self.assertEqual(evaluated["items"][1]["status"], "complete")
 
+    def test_result_rejects_non_object_full_and_delta(self) -> None:
+        core = load_core()
+        _, impact = close_impact(core)
+        for field in ("full", "delta"):
+            for value in (None, "invalid", [], False, 1):
+                with self.subTest(field=field, value=value):
+                    result = result_payload()
+                    result["full"]["rule"] = impact["not_required_rule_ids"][0]
+                    target = result if field == "full" else result["items"][0]
+                    target[field] = value
+
+                    evaluated = core.evaluate_result(contract(), result, impact)
+
+                    self.assertEqual(evaluated["status"], "incomplete", evaluated)
+                    expected = "full_invalid" if field == "full" else "I-01:delta_invalid"
+                    self.assertIn(expected, evaluated["errors"])
+
+    def test_close_keeps_active_work_when_result_full_or_delta_is_malformed(self) -> None:
+        core = load_core()
+        project, impact = close_impact(core)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            active, source = started_work(core, root, "W-malformed-result")
+            for field in ("full", "delta"):
+                with self.subTest(field=field):
+                    result = result_payload()
+                    result["full"]["rule"] = impact["not_required_rule_ids"][0]
+                    target = result if field == "full" else result["items"][0]
+                    target[field] = None
+                    closed = core.close_work(
+                        root, "W-malformed-result", contract=source, result=result,
+                        impact=impact, project=project, completed_at="2026-09-06T00:00:00+00:00",
+                        completed_days=30, trash_days=7,
+                    )
+                    self.assertEqual(closed["status"], "incomplete", closed)
+                    self.assertTrue(active.is_dir())
+                    self.assertFalse((active / "result.json").exists())
+                    self.assertFalse((root / ".work/goals/completed/2026-09/W-malformed-result").exists())
+
     def test_close_requires_exact_planned_test_and_done_evidence(self) -> None:
         core = load_core()
         impact = close_impact(core)[1]
