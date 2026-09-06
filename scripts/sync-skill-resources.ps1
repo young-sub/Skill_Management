@@ -49,7 +49,7 @@ function Get-StableTextHash([string]$Content) {
 
 function Get-StableFileHash([System.IO.FileInfo]$File) {
     $textExtensions = @('.json', '.md', '.html', '.py', '.ps1', '.txt', '.yaml', '.yml')
-    if ($File.Extension.ToLowerInvariant() -in $textExtensions) {
+    if ($File.Name -eq 'LICENSE' -or $File.Extension.ToLowerInvariant() -in $textExtensions) {
         return Get-StableTextHash ([System.IO.File]::ReadAllText($File.FullName))
     }
     return Get-Sha256Hex -LiteralPath $File.FullName
