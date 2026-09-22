@@ -11,6 +11,7 @@ class PublicCatalogTests(unittest.TestCase):
         expected = {
             "finance-research",
             "fixing-accessibility",
+            "hwp-form-fill",
             "impeccable",
             "explore-idea",
             "design-goal",

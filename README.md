@@ -13,6 +13,8 @@
 
 프론트엔드 작업에는 `impeccable`(화면 설계·UX), `vercel-react-best-practices`(React/Next.js 구현·성능), `fixing-accessibility`(키보드·포커스·폼 접근성) 중 필요한 역할만 선택합니다. 기존 기술 스택과 컴포넌트를 우선하며 실제 브라우저 검증은 별도로 수행합니다.
 
+한글 양식 작성·채움·검증 작업에는 독립 공개 Skill인 `hwp-form-fill`을 선택합니다.
+
 ## 프로젝트에 설치
 
 대상 프로젝트 루트에서 실행한 뒤 설치할 Skill과 적용 범위를 선택합니다. 전체 흐름에는 `setup-agent-harness`, `design-goal`, `execute-codex-goal`, `diagnose`, `close-goal`, `maintain-agent-harness`를 선택하고, 아이디어 탐색이 필요하면 `explore-idea`를 추가합니다. 적용 범위는 사용할 에이전트와 Project를 선택합니다. `-g`를 사용하지 않으므로 프로젝트 로컬에 설치됩니다.
