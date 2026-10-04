@@ -18,7 +18,7 @@
 | 유지보수 | 변경·실제 회귀·확인된 drift에 반응. 모든 작업에 회고·새 규칙·새 테스트를 요구하지 않음 |
 | 플러그인 | CLI와 프로젝트 설정의 책임이 명확해진 뒤 얇게 묶음. 처음부터 MCP 서버·대시보드·범용 router를 만들지 않음 |
 
-2026-10-04 후속 구현에서 최신 기준을 재확인하고 카탈로그 정리, 실행 캡처, Windows 런처 보완과 repository/harness Feature 검증 경로를 구현했다. 실제 제품 적용과 플러그인 설치·로딩은 아직 수행하지 않았다. 현재 사용법은 [Testing](../testing.md), 기능 지도는 [Feature Map](../feature-map.md), 채택·보류와 후속 범위는 [실행 상태와 후속 프롬프트](agent-coding-next-session.md)에 있다. 아래 비교·평가 기록은 당시 기준의 연구 근거다.
+2026-10-04 후속 구현에서 최신 기준을 재확인하고 카탈로그 정리, 실행 캡처, Windows 런처 보완과 repository/harness Feature 검증 경로를 구현했다. 10-04~05에는 독립 Labeler에서 실제 browser/API/D1/인쇄·통제 결함·Agent 위임을 수행하고 native JSON 캡처와 프로젝트 연결을 보완했다. 임시 Plugin 설치·fresh host discovery·직접 명령도 확인했다. 상세 판단은 [파일럿 결과](labeler-verification-pilot.md)에 통합했다. 원본 제품·일반 설치본·공개 배포와 모델 Skill A/B 우월성은 별도 미검증 범위다. 현재 사용법은 [Testing](../testing.md), 기능 지도는 [Feature Map](../feature-map.md), 수행한 프롬프트는 [실행 상태](agent-coding-next-session.md)에 있다. 아래 비교·평가 기록은 당시 기준의 연구 근거다.
 
 ## 2. 해결해야 하는 문제와 판단 기준
 
