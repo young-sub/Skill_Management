@@ -89,12 +89,19 @@ fi
 # egress preinstall the binary on PATH instead.
 fetch_url() {
   if command -v curl >/dev/null 2>&1; then
-    curl -fsSL --retry 2 -o "$tmp" "$1" 2>/dev/null
+    if curl -fsSL --retry 2 --connect-timeout 15 --max-time 120 -o "$2" "$1"; then return 0; fi
   elif command -v wget >/dev/null 2>&1; then
-    wget -q -O "$tmp" "$1" 2>/dev/null
-  else
-    return 1
+    if wget -O "$2" "$1"; then return 0; fi
   fi
+  if [ "$os" = windows ]; then
+    echo "impeccable: curl/wget failed or is unavailable; retrying $1 with PowerShell." >&2
+    # Git Bash paths (including spaces) must be native paths for PowerShell.
+    fetch_path=$2
+    if command -v cygpath >/dev/null 2>&1; then fetch_path=$(cygpath -w "$2"); fi
+    if IMPECCABLE_FETCH_URL="$1" IMPECCABLE_FETCH_PATH="$fetch_path" powershell.exe -NoProfile -NonInteractive -Command '$ErrorActionPreference="Stop"; try { Invoke-WebRequest -UseBasicParsing -Uri $env:IMPECCABLE_FETCH_URL -OutFile $env:IMPECCABLE_FETCH_PATH -TimeoutSec 120 } catch { [Console]::Error.WriteLine(("impeccable: PowerShell download failed: " + $_.Exception.Message)); exit 1 }'; then return 0; fi
+  fi
+  echo "impeccable: download failed: $1. Check network, proxy and certificate trust/revocation access, then retry; do not disable certificate validation. For offline recovery, download the engine and .sha256 on a trusted connection and verify SHA-256 before using IMPECCABLE_BIN." >&2
+  return 1
 }
 check_download() {
   download_file=${1:-$tmp}
@@ -121,12 +128,12 @@ if [ -n "$version" ] && [ "$os" != unknown ] && [ "$arch" != unknown ]; then
   tmp="$cache_root/bin/$version/.impeccable.part.$$"
   mkdir -p "$cache_root/bin/$version" 2>/dev/null
   fetched=0
-  if fetch_url "$url"; then
+  if fetch_url "$url" "$tmp"; then
     fetched=1
   elif [ "$os" = windows ] && [ "$arch" = arm64 ]; then
     # Windows on ARM runs x64 binaries; fall back when no arm64 asset exists.
     url="$base/engine-v$version/impeccable-windows-x64.exe"
-    fetch_url "$url" && fetched=1
+    fetch_url "$url" "$tmp" && fetched=1
   fi
   if [ "$fetched" = 1 ]; then
     check_download
@@ -136,11 +143,7 @@ if [ -n "$version" ] && [ "$os" != unknown ] && [ "$arch" != unknown ]; then
     # an unverified binary. (A binary already on PATH or in the cache that
     # passes engine-probe is unaffected.)
     sidecar_ok=0
-    if command -v curl >/dev/null 2>&1; then
-      curl -fsSL --retry 2 -o "$tmp.sha256" "$url.sha256" 2>/dev/null && sidecar_ok=1
-    elif command -v wget >/dev/null 2>&1; then
-      wget -q -O "$tmp.sha256" "$url.sha256" 2>/dev/null && sidecar_ok=1
-    fi
+    fetch_url "$url.sha256" "$tmp.sha256" && sidecar_ok=1
     check_download
     expected=""
     [ "$sidecar_ok" = 1 ] && expected=$(cut -d' ' -f1 < "$tmp.sha256")
@@ -183,5 +186,5 @@ if [ -n "$version" ] && [ "$os" != unknown ] && [ "$arch" != unknown ]; then
 fi
 
 echo "impeccable: no engine binary for $os-$arch found (looked in $bin, $cached, PATH)." >&2
-echo "Download impeccable-$os-$arch from https://github.com/pbakaus/impeccable/releases (tag engine-v$version) into $cache_root/bin/$version/impeccable$exe (then chmod +x), or set IMPECCABLE_BIN to a preinstalled engine binary. Docs: https://impeccable.style" >&2
+echo "Download impeccable-$os-$arch$exe and its .sha256 from https://github.com/pbakaus/impeccable/releases (tag engine-v$version). Verify SHA-256 before placing it at $cached (then chmod +x) or using IMPECCABLE_BIN. Docs: https://impeccable.style" >&2
 exit 127
