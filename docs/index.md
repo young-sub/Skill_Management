@@ -5,6 +5,7 @@ Load ignored repository-local `.harness/environment-exceptions.json` once per ta
 - [System](system.md) — end-to-end Core-First Harness flow and state ownership.
 - [Harness architecture](architecture/harness.md) — project, contract, execution, environment, retention, and distribution boundaries.
 - [Testing](testing.md) — source-to-test impact rules and local/CI verification selectors.
+- [Feature Map](feature-map.md) — repository user functions, invariants, side effects, and directly executable checks.
 - [Agent workflow](agents/workflow.md) — repository delivery, Git, approval, and close workflow.
 - [Global guidance](agents/global-guidance.md) — maintained global instructions, authorized target selection, and mandatory revision backups.
 - [Domain](agents/domain.md) — repository responsibilities and source-of-truth map.

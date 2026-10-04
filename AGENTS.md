@@ -3,6 +3,7 @@
 ## Routing
 
 - This repository distributes the Personal Agent Harness skills. Read `docs/index.md` for current implementation knowledge and `.harness/project.yaml` for path ownership, impact selection, commands, retention, and Git policy.
+- `docs/feature-map.md` owns the user-function map. Update affected rows and identify the Feature in verification results, or explain why there is no feature impact. Direct evidence capture and scoped verification commands are in `docs/testing.md`.
 - Read the nearest nested `AGENTS.md` before editing a path. `back-up/` is read-only unless a task explicitly targets it.
 - `authoring/resource-map.json` identifies canonical sources and generated `skills/` copies. Regenerate mapped resources; edit unmapped independent skills at their own source paths.
 - Keep the latest global instructions in `authoring/global/AGENTS.md`. For every global revision, follow `docs/agents/global-guidance.md` and retain the previous bytes in `back-up/global-agents/`.

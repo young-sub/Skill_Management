@@ -18,7 +18,7 @@
 | 유지보수 | 변경·실제 회귀·확인된 drift에 반응. 모든 작업에 회고·새 규칙·새 테스트를 요구하지 않음 |
 | 플러그인 | CLI와 프로젝트 설정의 책임이 명확해진 뒤 얇게 묶음. 처음부터 MCP 서버·대시보드·범용 router를 만들지 않음 |
 
-현재 세션은 최신 기준 전환과 문서화까지다. 실행 도구 이식, 카탈로그 정리, 프로젝트 적용, 플러그인 구현은 [다음 세션 프롬프트](agent-coding-next-session.md)의 범위에 따라 진행한다.
+2026-10-04 후속 구현에서 최신 기준을 재확인하고 카탈로그 정리, 실행 캡처, Windows 런처 보완과 repository/harness Feature 검증 경로를 구현했다. 실제 제품 적용과 플러그인 설치·로딩은 아직 수행하지 않았다. 현재 사용법은 [Testing](../testing.md), 기능 지도는 [Feature Map](../feature-map.md), 채택·보류와 후속 범위는 [실행 상태와 후속 프롬프트](agent-coding-next-session.md)에 있다. 아래 비교·평가 기록은 당시 기준의 연구 근거다.
 
 ## 2. 해결해야 하는 문제와 판단 기준
 
@@ -83,7 +83,7 @@
 | 규칙·문서 | Global/프로젝트 AGENTS, testing·execution policy, docs index | 중복 규칙 추가보다 기존 소유 문서 수정. 프로젝트별 도메인 정답 보완 |
 | 영향 선택 | `.harness/project.yaml`, `select_impacted_checks()` | path candidate와 사용자 Feature의 연결. 변경된 실제 동작으로 최종 선택 |
 | 결과 검사 | `evaluate_result()`, `complete`, `close`, evidence schema/provenance | 실행 여부·대상·실제 결과와 판정의 연결. 기록 정합성과 제품 검증 구분 |
-| 실행 도구 | 기존 native test/CLI, 후보 `run_check.py` | 종료 코드 보존·증거 캡처 재사용. 필요한 프로젝트 adapter만 추가 |
+| 실행 도구 | 기존 native test/CLI, `scripts/run_check.py`, repository용 `scripts/verify_product.py` | 종료 코드와 원본 기록·판정 연결을 유지. 외부 제품용 parser는 실제 소비자가 생길 때만 추가 |
 | UI | Impeccable `document`·`extract`·`doctor`, accessibility·React 도구 | 실제 프로젝트의 token/component/DESIGN와 Feature 검증 연결 |
 | 제품 검증 | 설치 CLI·transaction·schema·경계 테스트 | 사용자 Feature Map, 검증 기준, 실제 프로젝트의 FE/BE/Domain 실행 경로 |
 | 유지보수 | Harness integrity·retention·환경 예외 | 제품 기능·검증·UI 기준의 drift를 좁게 검토하는 절차 |
@@ -337,6 +337,18 @@ standalone skill과 plugin에 같은 기능이 함께 설치되면 중복 발견
 source→generated mapping, 최신 설치 경로/해시 수정, Harness result 방어를 보존한다. 최신과 후보의 manifest·generated core를 통째로 비교 복사하지 않는다. 도구 이식마다 실패 원인과 검증할 효과를 적고, 실제 consumer가 없으면 그 도구도 미룬다.
 
 완료 보고에서는 소스 변경, 임시 설치 무결성, 실제 동작, Agent 행동 평가, 실환경 적용을 구분한다. 필요한 검사와 비용 대비 효과가 확인되기 전에는 규칙·skill·plugin 수를 늘리지 않는다. 이식 진행 후 이 문서의 구현 상태와 다음 세션 prompt를 갱신해 계획 문서가 현재 구현으로 오인되지 않게 한다.
+
+## 16. 후속 구현에서 확정한 경계
+
+`origin/main`을 다시 fetch하여 `e19134358141f901bb22c4af1aea17d7a9e2898c`가 유지됨을 확인했고, 준비된 `wp-20261004-agent-coding-foundation`에서 진행했다. 후보 브랜치를 병합하지 않았다. `write-a-skill`만 공개 배포에서 제거하고 HWP·최신 Harness runtime·cohort·hash/CI 수정은 보존했다. 일반 설치본은 변경하지 않았다.
+
+실행 캡처는 `scripts/run_check.py`에 독립 CLI로 두었다. 새로운 Skill이나 generated core 변경 없이 repository adapter가 소비한다. `scripts/verify_product.py`는 단일 Markdown Feature Map과 기존 프로젝트 selectors를 읽고, 특정 실행의 run ID·Feature/check·argv/cwd·before/after/current Git 상태를 검사한다. 선택한 unittest의 유효한 성공 요약만 check 범위의 PASS로 해석하며 원본 `behavior_verdict`는 null이다. 0건, skip, 다른 대상, 미실행과 stale 상태는 PASS가 아니다. 편집 가능한 로컬 evidence의 진위, untracked 내용·dependency·fixture·server identity까지 인증하는 도구는 아니다.
+
+Windows Impeccable은 아직 없던 전송 fallback·오류 노출만 이식했다. 기존 SHA-256 거절과 공유 version cache를 유지하고 cmd/Git Bash native fixture로 검증했다. 공개 release/TLS 다운로드 성공은 검증 범위 밖이다. Agent eval runner는 실제 모델 평가 consumer가 없어 보류했으며, 신규 5개 Skill·UI framework·범용 router·MCP도 추가하지 않았다. timeout의 Windows taskkill은 샌드박스에서 Access denied가 관찰됐고, 같은 native fixture는 허용된 도구 권한으로 실행해 소유 child 종료와 무관한 프로세스 보존을 확인했다. 제한된 환경의 cleanup 실패를 성공으로 바꾸지는 않는다.
+
+플러그인 경계는 common capture CLI와 project-owned Feature Map/argv/업무 기준, repository-specific 판정 adapter로 나눈다. 공통 배포가 실제 필요해지면 현재 `authoring/resource-map.json` 방식으로 한 원본에서 산출한다. 플러그인에 프로젝트의 업무 기준을 복사하거나 다른 Skill의 private 경로를 참조하지 않는다. standalone CLI는 계속 직접 실행 가능해야 한다. 중복 설치·버전 충돌·generated 소유권을 package 설치/업데이트 검증에서 확인한다.
+
+공식 [패키징 문서](https://developers.openai.com/plugins/build/plugins#bundled-mcp-servers-and-lifecycle-hooks)에서 root `plugin.json`의 OpenAI extension, `./` 상대 hook 경로와 기본 `hooks/hooks.json`, plugin root/data 환경변수를 재확인했다. [Hook trust 문서](https://learn.chatgpt.com/docs/hooks#review-and-trust-hooks)에 따르면 설치·활성화만으로 비관리 hook의 trust가 부여되지 않으며, 정의 변경 시 재검토가 필요하다. 로컬 `codex-cli 0.160.0`의 `plugin --help` 및 `plugin add --help`는 marketplace 기반 add/list/remove를 제공한다. 샌드박스에서는 CLI 임시 alias 경로의 접근 경고도 발생했다. 도움말 확인은 설치·로딩·hook 실행 검증이 아니다. 실제 프로젝트/host에서 설치 consumer를 확인하기 전에는 빈 local package를 만들지 않으며, hook 실패·timeout을 release gate로 의존하지 않고 직접 CLI/CI를 유지한다.
 
 ## 근거 탐색 경로
 
