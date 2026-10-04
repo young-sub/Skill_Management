@@ -16,12 +16,12 @@
     "setup-agent-harness",
     "teach",
     "vercel-react-best-practices",
-    "write-a-skill",
     "zoom-out"
   ],
   "future_core_skills": [],
   "intentionally_absent": [
     "caveman",
-    "codex-delegation"
+    "codex-delegation",
+    "write-a-skill"
   ]
 }

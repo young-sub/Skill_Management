@@ -24,7 +24,6 @@ class PublicCatalogTests(unittest.TestCase):
             "setup-agent-harness",
             "teach",
             "vercel-react-best-practices",
-            "write-a-skill",
             "zoom-out",
         }
         actual = {
@@ -40,6 +39,7 @@ class PublicCatalogTests(unittest.TestCase):
 
         self.assertSetEqual(declared, expected)
         self.assertSetEqual(actual, declared)
+        self.assertIn("write-a-skill", catalog["intentionally_absent"])
         self.assertNotIn("legacy_skills", catalog)
         self.assertFalse((REPO_ROOT / "legacy-skills").exists())
 
