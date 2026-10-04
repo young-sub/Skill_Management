@@ -40,6 +40,7 @@ def main():
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--feature', help='Optional project-owned Feature ID')
     parser.add_argument('--check', help='Optional project-owned command ID')
+    parser.add_argument('--json-report', type=Path, help='New native JSON report path (relative to cwd); embed after execution, without assigning a verdict. Must contain no secrets.')
     parser.add_argument('--timeout', type=float, default=300, help='Seconds before stopping the owned process tree (default: 300)')
     parser.add_argument('command', nargs=argparse.REMAINDER)
     args = parser.parse_args()
@@ -47,6 +48,11 @@ def main():
     if not argv or not args.cwd.is_dir() or not math.isfinite(args.timeout) or args.timeout <= 0:
         parser.error('A command and existing working directory are required')
     cwd = args.cwd.resolve()
+    report = (cwd / args.json_report).absolute() if args.json_report else None
+    if report:
+        if report.exists() or report.is_symlink() or report == args.output.resolve():
+            parser.error('Native JSON report must be a new path distinct from evidence')
+        report.parent.mkdir(parents=True, exist_ok=True)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     # Reserve first: an old result can neither be overwritten nor mistaken for this run.
     with args.output.open('x', encoding='utf-8') as stream:
@@ -85,6 +91,17 @@ def main():
             record.update(execution='unavailable', exit_code=None, stdout='', stderr=str(error))
             code = 127
         record.update(elapsed_seconds=time.monotonic() - start, after=git_identity(cwd))
+        if report:
+            captured = {'path': str(report.resolve()), 'sha256': None, 'data': None, 'error': None}
+            try:
+                if report.is_symlink():
+                    raise ValueError('Native report became a symlink')
+                raw = report.read_bytes()
+                captured['sha256'] = hashlib.sha256(raw).hexdigest()
+                captured['data'] = json.loads(raw)
+            except (OSError, ValueError) as error:
+                captured['error'] = str(error)
+            record['json_report'] = captured
         json.dump(record, stream, ensure_ascii=False, indent=2)
         stream.write('\n')
     print(json.dumps({'run_id': record['run_id'], 'execution': record['execution'], 'exit_code': record['exit_code'], 'evidence': str(args.output.resolve()), 'behavior_verdict': None}))

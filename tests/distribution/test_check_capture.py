@@ -1,5 +1,6 @@
 from pathlib import Path
 import json
+import hashlib
 import os
 import subprocess
 import sys
@@ -10,6 +11,51 @@ import unittest
 RUNNER = Path(__file__).resolve().parents[2] / 'scripts/run_check.py'
 
 class CheckCaptureTests(unittest.TestCase):
+    def test_native_json_report_is_captured_with_exit_and_no_verdict(self):
+        for native_exit in (0, 7):
+            with self.subTest(native_exit=native_exit), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                record, report = root / 'execution.json', root / 'native.json'
+                command = 'from pathlib import Path; import json; Path("native.json").write_text(json.dumps({"tests": 2, "passed": 1}), encoding="utf-8"); raise SystemExit(' + str(native_exit) + ')'
+                result = subprocess.run([sys.executable, str(RUNNER), '--cwd', tmp,
+                                         '--output', str(record), '--json-report', str(report),
+                                         '--', sys.executable, '-c', command], capture_output=True)
+                self.assertTrue(record.exists(), result.stderr)
+                data = json.loads(record.read_text(encoding='utf-8'))
+                self.assertEqual((result.returncode, data['exit_code']), (native_exit, native_exit))
+                self.assertEqual(data['json_report']['data'], {'tests': 2, 'passed': 1})
+                self.assertEqual(data['json_report']['sha256'], hashlib.sha256(report.read_bytes()).hexdigest())
+                self.assertEqual(data['json_report']['path'], str(report.resolve()))
+                self.assertIsNone(data['behavior_verdict'])
+
+    def test_preexisting_json_report_cannot_be_reused_or_overwritten(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            report = root / 'old.json'
+            report.write_text('{"success":true}', encoding='utf-8')
+            result = subprocess.run([sys.executable, str(RUNNER), '--cwd', tmp,
+                                     '--output', str(root / 'run.json'), '--json-report', str(report),
+                                     '--', sys.executable, '-c', 'from pathlib import Path; Path("executed").touch()'], capture_output=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertFalse((root / 'executed').exists())
+            self.assertFalse((root / 'run.json').exists())
+            self.assertEqual(report.read_text(), '{"success":true}')
+
+    def test_missing_or_malformed_json_report_preserves_execution_and_records_error(self):
+        for command in ('pass', 'from pathlib import Path; Path("native.json").write_text("broken")'):
+            with self.subTest(command=command), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                record = root / 'run.json'
+                result = subprocess.run([sys.executable, str(RUNNER), '--cwd', tmp,
+                                         '--output', str(record), '--json-report', str(root / 'native.json'),
+                                         '--', sys.executable, '-c', command], capture_output=True)
+                self.assertTrue(record.exists(), result.stderr)
+                data = json.loads(record.read_text())
+                self.assertEqual((result.returncode, data['exit_code']), (0, 0))
+                self.assertTrue(data['json_report']['error'])
+                self.assertIsNone(data['json_report']['data'])
+                self.assertIsNone(data['behavior_verdict'])
+
     def test_capture_binds_a_unique_run_to_check_and_feature(self):
         with tempfile.TemporaryDirectory() as tmp:
             record = Path(tmp) / 'execution.json'
