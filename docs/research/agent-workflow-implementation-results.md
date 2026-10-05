@@ -4,6 +4,27 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Recovery export boundary repair, 2026-10-05
+
+Inspection found that `recover` promised an unchanged active installation but
+accepted a new output directory inside its home, including a missing cache after
+a failed update. RED reproduced that write through the existing destructive-update
+fixture. Recovery now reads the snapshot's home and refuses overlapping output
+before copying. Existing separate export, corruption, user-edit refusal and
+native update cases remain supported; package/update tests passed 4 cases normally.
+This is a local path guard, not authenticated snapshot or host enforcement.
+
+Candidate 0.1.21 was freshly installed with the native CLI into task-owned
+`host-006`; all 244 package files match. Its actual recovery CLI refused a new
+directory inside the original isolated home with exit 1 and no output creation.
+The same installed CLI then exported the retained real interrupted-update backup
+`host-002/guard-backup-0117` to a separate new directory with exit 0. All 244
+exported files match the snapshot, and the original backup remains unchanged.
+Commands, native installation receipts and comparisons are retained in
+`.work/plugin-transition/host-006/recovery-trial.json`. This proves recovery export
+from that interrupted native update, not rollback of active host registry/cache
+state or authenticated Agent task continuation. Feature: `plugin-package`.
+
 ## Controller process-death recovery, 2026-10-05
 
 The previous exception-based interruption coverage now has a real process-death

@@ -176,7 +176,11 @@ def recover(backup, output):
     if output.is_relative_to(backup) or backup.is_relative_to(output):
         raise ValueError('Recovery output must be separate from backup')
     checked_path(backup / 'snapshot.json')
-    expected = json.loads((backup / 'snapshot.json').read_text(encoding='utf-8'))['files']
+    snapshot = json.loads((backup / 'snapshot.json').read_text(encoding='utf-8'))
+    home = checked_path(snapshot['home'])
+    if output.is_relative_to(home) or home.is_relative_to(output):
+        raise ValueError('Recovery output must be separate from installation home')
+    expected = snapshot['files']
     previous = files(checked_path(backup / 'previous'))
     if not expected or hashes(previous) != expected:
         raise ValueError('Invalid snapshot; nothing restored')

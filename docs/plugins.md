@@ -114,7 +114,9 @@ the host from deleting files written by another process during its native update
 If the native operation fails or the wrapper is interrupted after snapshot
 creation, the backup remains. `recover` verifies it and exports the previous
 version directories into a new destination without overwriting active or user
-files. It does not automatically roll back the installed version or replay an
+files. Destinations inside or overlapping the snapshot's installation home are
+refused before copying, including a missing active cache after failed installation.
+It does not automatically roll back the installed version or replay an
 interrupted native command. If copying a backup/export itself is interrupted,
 retain it and retry using a new destination; no completed snapshot is claimed.
 Active-host rollback and authenticated Agent task resumption remain U7 work.

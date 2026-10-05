@@ -92,6 +92,9 @@ class PluginUpdateTests(unittest.TestCase):
             with self.assertRaises(subprocess.CalledProcessError):
                 api['update'](home, marketplace, backup, native)
             self.assertFalse(cache.exists())
+            with self.assertRaisesRegex(ValueError, 'separate from installation home'):
+                api['recover'](backup, cache)
+            self.assertFalse(cache.exists(), 'export recovery must not recreate the active cache')
             recovered = root / 'recovered'
             api['recover'](backup, recovered)
             self.assertEqual(expected, {p.relative_to(recovered).as_posix(): p.read_bytes()
