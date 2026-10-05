@@ -50,3 +50,16 @@ For runners whose stdout only names a separate JSON report, pass `--json-report 
 Timeout requests termination of the owned foreground process/tree (Windows taskkill, POSIX process group), preserves partial output, and records the cleanup exit when attempted. A detached child or an exited parent retaining child pipes may escape; `cleanup_incomplete` means pipe draining timed out. A zero cleanup-tool exit does not prove all descendants terminated. The helper does not provide a process sandbox or replace the deferred Agent eval supervisor. No model/provider call is needed for these native checks.
 
 The current adapter classifies a nonzero native command as check-scoped `ISSUES`; it does not distinguish a product assertion failure from every runner/import/environment error. Product-level consumers must inspect the raw failure and retain unavailable or unknown observations as `BLOCKED`, rather than calling every command failure a product defect. The current `--evidence` command reassesses one record against current Git identity; it is not a task-history viewer or a multi-layer result aggregator. Those planned consumers and their acceptance tasks are specified in the [requirements review](research/agent-coding-requirements-review.md) and [system direction](research/agent-coding-system-direction.md).
+# Native unittest workflow connection
+
+`python scripts/verify_product.py --feature <feature-id> --all-checks --output .work/<new-run>`
+runs that Feature's registered unittest checks once and produces a workflow
+`bundle.json`. For an existing capture, `--check <check-id> --evidence <capture>
+--run-id <run-id> --bundle-output <new-bundle>` creates its binding without rerunning.
+Use that project-relative bundle in a workflow semantic review. Audit reuses the
+same canonical unittest assessor, not a stored PASS. Missing checks, wrong targets,
+failed/zero/skipped suites and stale Git identity leave the obligation unresolved.
+Lookup performs no test execution and writes no evidence. The adapter is scoped
+to native unittest assertions and does not establish UI, Agent behavior, ignored
+data, dependency or runtime identity. Native JSON observations retain their
+existing richer condition binding in the result viewer.

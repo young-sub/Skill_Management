@@ -12,7 +12,50 @@ import re
 import subprocess
 import sys
 
-from run_check import git_identity
+from unittest_evidence import assess
+
+
+def capture_check(argv, cwd, output, feature, check, timeout):
+    result = subprocess.run([sys.executable, str(Path(__file__).with_name('run_check.py')),
+                             '--cwd', str(cwd), '--output', str(output),
+                             '--feature', feature, '--check', check,
+                             '--timeout', str(timeout), '--', *argv],
+                            capture_output=True, text=True, encoding='utf-8', errors='replace')
+    if not result.stdout.strip():
+        raise ValueError('Capture did not produce a new run; inspect path/permissions')
+    return json.loads(result.stdout)['run_id']
+
+
+def execute_feature(root, feature, output, timeout):
+    """Run each registered check once, then recheck all captures at the final state."""
+    project = json.loads((root / '.harness/project.yaml').read_text(encoding='utf-8'))
+    commands = dict(project['commands'])
+    commands.update(project.get('impact', {}).get('feature_selectors', {}))
+    checks = feature_checks(root, commands).get(feature)
+    if not checks:
+        raise ValueError('Feature has no connected checks')
+    selected = [(check, *check_target(root, feature, check)) for check in dict.fromkeys(checks)]
+    output = output.resolve()
+    if not output.is_relative_to(root):
+        raise ValueError('Workflow evidence must be inside the project')
+    output.mkdir(parents=True, exist_ok=False)
+    records = []
+    for index, (check, argv, cwd) in enumerate(selected):
+        path = output / f'{index}.json'
+        run_id = capture_check(argv, cwd, path, feature, check, timeout)
+        records.append({'check': check, 'run_id': run_id, 'path': path.relative_to(root).as_posix()})
+    bundle = output / 'bundle.json'
+    bundle.write_text(json.dumps({'format': 'unittest-captures-v1', 'feature': feature,
+                                 'records': records}), encoding='utf-8')
+    results = []
+    for record, (check, argv, cwd) in zip(records, selected):
+        try:
+            results.append(assess(root / record['path'], record['run_id'], feature, check, argv, cwd))
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            results.append({'check': check, 'status': 'BLOCKED', 'reason': str(error)})
+    statuses = {item['status'] for item in results}
+    return {'status': 'BLOCKED' if 'BLOCKED' in statuses else 'ISSUES' if 'ISSUES' in statuses else 'PASS',
+            'feature': feature, 'bundle': str(bundle), 'results': results}
 
 
 def feature_checks(root, commands):
@@ -58,73 +101,49 @@ def check_target(root, feature, check):
     return argv, cwd
 
 
-def assess(path, run_id, feature, check, argv, cwd):
-    raw = path.read_bytes()
-    record = json.loads(raw)
-    if not isinstance(record, dict):
-        raise ValueError('Evidence must be a capture record')
-    binding = {'run_id': run_id, 'feature': feature, 'check': check,
-               'argv': argv, 'cwd': str(cwd)}
-    if any(record.get(key) != value for key, value in binding.items()):
-        raise ValueError('Evidence does not match the selected run, Feature, command or cwd')
-    current = git_identity(cwd)
-    if current is None or record.get('before') != current or record.get('after') != current:
-        raise ValueError('Git identity unavailable, changed during execution or stale')
-    verdict = {**binding, 'evidence': str(path.resolve()),
-               'evidence_sha256': hashlib.sha256(raw).hexdigest(),
-               'scope': 'repository/harness; selected unittest command only',
-               'remaining': 'Untracked contents, dependencies, runtime/server identity, '
-                            'agent quality and external products are not attested.'}
-    if record.get('execution') != 'exited' or type(record.get('exit_code')) is not int:
-        raise ValueError('Command did not exit normally; not_run/unavailable/timeout is not PASS')
-    if record.get('cleanup_incomplete') or record.get('behavior_verdict') is not None:
-        raise ValueError('Incomplete cleanup or submitted behavior verdict cannot establish PASS')
-    output = record['stdout'] + '\n' + record['stderr']
-    counts = re.findall(r'^Ran (\d+) tests? in [^\r\n]+$', output, re.MULTILINE)
-    if len(counts) == 1 and int(counts[0]) == 0:
-        raise ValueError('No tests ran; not_run is not PASS')
-    if record['exit_code'] != 0:
-        return {**verdict, 'status': 'ISSUES', 'reason': 'Native command failed',
-                'exit_code': record['exit_code']}
-    # This project owns these unittest commands. Output strings are not
-    # signatures; this parser is deliberately not a generic runner framework.
-    if len(counts) != 1 or int(counts[0]) == 0 or not re.search(r'^OK\s*$', output, re.MULTILINE):
-        raise ValueError('No unambiguous, nonempty unittest success summary')
-    if re.search(r'^FAILED\b|^OK \(|^.*skipped=\d+', output, re.MULTILINE):
-        raise ValueError('Skipped, expected-failure or contradictory results require scoped review')
-    return {**verdict, 'status': 'PASS', 'reason': 'Selected unittest assertions passed',
-            'tests_run': int(counts[0]), 'exit_code': 0}
-
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument('--feature', required=True)
-    parser.add_argument('--check', required=True)
+    selection = parser.add_mutually_exclusive_group(required=True)
+    selection.add_argument('--check')
+    selection.add_argument('--all-checks', action='store_true', help='Run all checks registered for this Feature into a new output directory')
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument('--output', type=Path, help='New evidence file; execute the selected check')
     source.add_argument('--evidence', type=Path, help='Existing evidence; assess without execution')
     parser.add_argument('--run-id', help='Required when assessing an existing run')
+    parser.add_argument('--bundle-output', type=Path, help='New workflow binding for this native capture; no test rerun')
     parser.add_argument('--timeout', type=float, default=300)
     args = parser.parse_args()
     try:
         if not math.isfinite(args.timeout) or args.timeout <= 0:
             raise ValueError('Timeout must be finite and positive')
         root = args.root.resolve()
+        if args.all_checks:
+            if not args.output or args.bundle_output or args.run_id:
+                raise ValueError('--all-checks requires a new --output directory only')
+            verdict = execute_feature(root, args.feature, args.output, args.timeout)
+            print(json.dumps(verdict, ensure_ascii=False))
+            return {'PASS': 0, 'ISSUES': 1, 'BLOCKED': 2}[verdict['status']]
+        if args.bundle_output and args.bundle_output.exists():
+            raise ValueError('Bundle output already exists')
         argv, cwd = check_target(root, args.feature, args.check)
         run_id = args.run_id
         if args.output:
-            result = subprocess.run([sys.executable, str(Path(__file__).with_name('run_check.py')),
-                                     '--cwd', str(cwd), '--output', str(args.output),
-                                     '--feature', args.feature, '--check', args.check,
-                                     '--timeout', str(args.timeout), '--', *argv],
-                                    capture_output=True, text=True, encoding='utf-8', errors='replace')
-            if not result.stdout.strip():
-                raise ValueError('Capture did not produce a new run; inspect path/permissions')
-            run_id = json.loads(result.stdout)['run_id']
+            run_id = capture_check(argv, cwd, args.output, args.feature, args.check, args.timeout)
         elif not run_id:
             raise ValueError('Existing evidence requires an explicit run ID')
         verdict = assess(args.output or args.evidence, run_id, args.feature, args.check, argv, cwd)
+        if args.bundle_output:
+            capture = (args.output or args.evidence).resolve()
+            if not capture.is_relative_to(root):
+                raise ValueError('Workflow capture must be inside the project')
+            args.bundle_output.parent.mkdir(parents=True, exist_ok=True)
+            with args.bundle_output.open('x', encoding='utf-8') as stream:
+                json.dump({'format': 'unittest-captures-v1', 'feature': args.feature,
+                           'records': [{'check': args.check, 'run_id': run_id,
+                                        'path': capture.relative_to(root).as_posix()}]}, stream)
     except (OSError, ValueError, KeyError, TypeError) as error:
         verdict = {'status': 'BLOCKED', 'feature': args.feature, 'check': args.check,
                    'reason': str(error), 'scope': 'repository/harness; selected check only'}

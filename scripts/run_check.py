@@ -12,26 +12,7 @@ import time
 import uuid
 
 
-def git_identity(cwd):
-    def git(*args):
-        try:
-            result = subprocess.run(['git', '-C', str(cwd), *args], capture_output=True)
-        except OSError:
-            return None
-        return result.stdout if result.returncode == 0 else None
-    head = git('rev-parse', 'HEAD')
-    if head is None:
-        return None
-    diff = git('diff', 'HEAD', '--binary')
-    status = git('status', '--porcelain')
-    if diff is None or status is None:
-        return None
-    return {
-        'head': head.decode().strip(),
-        'tracked_diff_sha256': hashlib.sha256(diff).hexdigest() if diff is not None else None,
-        'status': status.decode('utf-8', errors='replace'),
-        'limit': 'Untracked contents, dependencies, runtime data and server identity are not attested.',
-    }
+from unittest_evidence import git_identity
 
 
 def main():

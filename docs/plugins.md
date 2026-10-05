@@ -8,7 +8,7 @@ The package identity and version are owned by `distribution/plugin.json`.
 ## Build
 
 ```powershell
-python scripts/build_plugin.py --output .work/plugins/agentic-coding-0.1.0
+python scripts/build_plugin.py --output .work/plugins/agentic-coding-0.1.2
 ```
 
 The builder first runs the existing generated-resource check. It selects tracked
@@ -16,7 +16,8 @@ files from the public Skill catalog, rejects aliased/private sources, and refuse
 to overwrite any existing destination. Use a new build directory for each update.
 `plugin.json` and its older Codex compatibility overlay share one identity.
 `package-files.json` records content hashes; it is not a signature or task verdict.
-The installed capture CLI is `<plugin-root>/scripts/run_check.py`; workflow and
+The installed capture CLI is `<plugin-root>/scripts/run_check.py`, with its shared
+native unittest evidence reader beside it; workflow and
 result tools remain in the installed `skills/agent-workflow/scripts/` directory.
 The repository-specific unittest adapter remains in this repository, not in the
 common plugin. Project native runners and business assertions retain ownership
@@ -58,6 +59,11 @@ Do not point this isolated procedure at the ordinary account home. Fresh-host
 installed cache path and plugin ID. The isolated home establishes installation
 and discovery without credentials; it does not inherit an authenticated model
 session. Current measured outcomes are in the [implementation results](research/agent-workflow-implementation-results.md).
+
+The isolated 0.1.0 to 0.1.1 update showed that the host deletes its old plugin cache,
+including local changes there. Treat the cache as replaceable output. A native
+`plugin add` update is not a user-change-preserving installer; guarded backup and
+recovery remain required before this transition can claim that acceptance scope.
 
 ## Verification
 

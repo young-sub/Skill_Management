@@ -4,7 +4,7 @@ description: Coordinate a coding task from a natural-language request through re
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: 3733e9b6f404846b6aa75499fd01122a92c83b9238d85be2748e6f782a04008e -->
+<!-- Source-SHA256: 3c40cb86fe08b5cf3b5b44bba9d0f339bfebcf1c82d97c576bd3649ed343214b -->
 
 
 # Agent Workflow
@@ -24,6 +24,8 @@ Read the project AGENTS/index, current checkout and dirty baseline, requirement 
 Load [verification responsibilities](references/project-verification.md) for setup, verification, maintenance or feedback. For feedback/UI work also read [repair and reuse](references/repair-and-reuse.md). If a named capability is unavailable, perform its bounded responsibility using project commands; do not silently treat missing checks as passed or install a new framework.
 
 For configured projects, [workflow obligations](references/workflow-obligations.md) provides the direct audit/resume CLI. Consume its affected references and perform the required semantic work. Local consistency and host-protected acceptance are distinct; the CLI reports the unsupported enforcement boundary explicitly.
+
+When the project already provides the native unittest adapter described in its guide, reuse its `--all-checks --output <new-directory>` or bind an existing capture with `--evidence` and `--bundle-output`. The workflow audit consumes that bundle directly without rerunning tests. This producer belongs to the project and is not bundled as a universal product adapter. If absent, setup must connect the project's actual runner first. Do not fabricate native JSON observations to make unittest output fit the browser/API viewer.
 
 For existing structured project evidence, the bundled [read-only viewer](scripts/verification_results.py) joins a project plan, capture, adapter assessment and raw observations. Read its [input and reuse contract](references/result-viewer.md); preserve the project's native report format and use its criterion/observation pointers. It never launches a recorded command. If the project has no compatible plan, inspect raw directly and report the missing binding; do not manufacture a successful plan or silently execute during lookup.
 

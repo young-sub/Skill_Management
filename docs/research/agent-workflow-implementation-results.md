@@ -4,6 +4,55 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Native unittest workflow connection, 2026-10-05
+
+The existing unittest assessor and Git capture identity now have one canonical
+source, distributed beside the workflow consumer. The repository adapter can
+execute all checks registered to a Feature once and produce a capture bundle,
+or bind an existing run without executing it. Workflow audit reuses that native
+assessor directly; no project code or recorded test command runs during lookup.
+Actual changes can now satisfy a verification obligation with native unittest
+captures without fabricating a browser/API JSON report. Missing checks, mismatched
+targets, stale source, skipped/zero suites and failed captures remain unresolved.
+This is local consistency for unittest assertions, not protected host acceptance
+or evidence about ignored inputs/dependencies/runtime identity.
+
+Independent review identified unchanged Git status names hiding changed untracked
+test inputs. A real regression test reproduced the false reuse; the shared capture
+identity now hashes safe untracked file bytes and rejects private/aliased inputs
+without reading them. Ignored runtime inputs still require separately bound native
+conditions. A fully rewritten capture is not authenticated by this local reader;
+host-owned acceptance remains a separate unfinished requirement.
+
+The real repository `plugin-package` Feature was executed through `--all-checks`.
+The 0.1.1 plugin was installed in the existing isolated marketplace, and its
+installed workflow reader reassessed that bundle as PASS with zero test commands
+and unchanged evidence bytes. All 237 recorded package hashes matched the cache.
+Raw update execution and reader results are retained under
+`.work/plugin-transition/host-001/`; the native bundle is under
+`.work/plugin-transition/native-plugin-package-v011/`.
+
+The update also exposed a real U7 gap: Codex removed the previous 0.1.0 cache,
+including a deliberate test-only user note. The preservation assertion failed;
+`update-result.json` records `old_user_file_preserved: false`. This was an isolated
+fixture, not a normal installation. Native plugin update alone is therefore not
+accepted as the user-change-preserving delivery path. A guarded update/backup
+path remains required. Installed model task behavior is still unverified.
+
+The corrected 0.1.2 package was freshly installed in `host-002`; all 237 recorded
+file hashes matched. A retained independent Git fixture at
+`.work/plugin-transition/native-consumer-v012/` ran the installed public
+begin/review/audit CLI around a real price repair. Its unchanged unittest ran
+once, the bound semantic review reached READY_FOR_REVIEW, read-only audit retained
+identical evidence bytes and run count, and a later source change returned PARTIAL.
+`trial.json` retains each argv, exit and raw output. This is installed CLI behavior,
+not an autonomous Agent trial.
+
+Final validation for this connection: **285 tests passed**, generated-resource and
+distribution checks passed. The earlier 284-test pass preceded the untracked-input
+repair and is not used as its evidence. Full used the scoped external execution
+needed by the existing owned-process cleanup test.
+
 ## Plugin transition and environment recheck, 2026-10-05
 
 The transition resumed from clean `3c3a5be` on the same branch. The [plugin

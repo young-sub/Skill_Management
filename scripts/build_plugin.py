@@ -33,6 +33,7 @@ def build(output):
     selected = {name: name for name in names if name and
                 Path(name).parts[1] in catalog['public_skills']}
     selected['scripts/run_check.py'] = 'scripts/run_check.py'
+    selected['scripts/unittest_evidence.py'] = 'authoring/scripts/unittest_evidence.py'
     files = {}
     for target, source in sorted(selected.items()):
         path = ROOT / source

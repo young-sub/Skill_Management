@@ -1,5 +1,6 @@
 """Repository adapter checks use real commands in a disposable Git project."""
 import json
+import runpy
 from pathlib import Path
 import subprocess
 import sys
@@ -63,6 +64,64 @@ class VerifyProductTests(unittest.TestCase):
         code, verdict = self.verify('--evidence', str(self.output), '--run-id', record['run_id'])
         self.assertEqual((code, verdict['status']), (0, 'PASS'), verdict)
 
+    def test_workflow_bundle_reuses_native_capture_without_running_tests(self):
+        runtime = runpy.run_path(str(ROOT / 'authoring/scripts/project_workflow.py'))
+        project = json.loads((self.root / '.harness/project.yaml').read_text())
+        project['extensions'] = {'workflow': {'roots': ['suite.py'], 'features': [{
+            'id': 'native-verification', 'partition': 'verification', 'sources': ['suite.py'],
+            'map': ['docs/feature-map.md'], 'criteria': ['docs/feature-map.md'], 'checks': ['fixture']}]}}
+        state = runtime['begin'](self.root, project, 'change')
+        self.suite.write_text('import unittest\nfrom pathlib import Path\n'
+            'p=Path("evidence/count"); p.parent.mkdir(exist_ok=True)\n'
+            'p.write_text(str(int(p.read_text())+1) if p.exists() else "1")\n'
+            'class Behavior(unittest.TestCase):\n'
+            '    def test_result(self): self.assertEqual(2 + 2, 4)\n')
+        bundle = self.root / 'evidence/bundle.json'
+        code, verdict = self.verify('--output', str(self.output), '--bundle-output', str(bundle))
+        self.assertEqual((code, verdict['status']), (0, 'PASS'), verdict)
+        feature = {'id': 'native-verification', 'checks': ['fixture']}
+        commands = {'fixture': {'argv': self.argv, 'runtime': 'python'}}
+        before = {p: p.read_bytes() for p in (self.root / 'evidence').iterdir()}
+        observed = runtime['inspect_evidence'](self.root, feature, commands, 'evidence/bundle.json')
+        self.assertEqual(observed['status'], 'PASS', observed)
+        pending = runtime['inspect_project'](self.root, project, state)
+        self.assertIn('verification', pending['obligations'][0]['requires'])
+        state = runtime['record_review'](self.root, project, state, {
+            'feature': feature['id'], 'basis': pending['features'][0]['basis'],
+            'analysis': 'The native suite exercises the required arithmetic behavior.',
+            'references': ['suite.py', 'docs/feature-map.md'], 'findings': [],
+            'bundle': 'evidence/bundle.json'})
+        self.assertEqual(runtime['inspect_project'](self.root, project, state)['status'], 'READY_FOR_REVIEW')
+        self.assertEqual(before, {p: p.read_bytes() for p in (self.root / 'evidence').iterdir()})
+        self.assertEqual((self.root / 'evidence/count').read_text(), '1')
+        feature['checks'].append('missing')
+        self.assertEqual(runtime['inspect_evidence'](self.root, feature, commands,
+                         'evidence/bundle.json')['status'], 'BLOCKED')
+
+        feature['checks'].pop()
+        forged = json.loads(bundle.read_text())
+        forged['status'] = 'PASS'
+        bundle.write_text(json.dumps(forged))
+        record = json.loads(self.output.read_text())
+        record['exit_code'] = 1
+        self.output.write_text(json.dumps(record))
+        self.assertEqual(runtime['inspect_evidence'](self.root, feature, commands,
+                         'evidence/bundle.json')['status'], 'BLOCKED')
+
+    def test_all_feature_checks_produce_one_reusable_workflow_bundle(self):
+        result = subprocess.run([sys.executable, str(VERIFIER), '--root', str(self.root),
+            '--feature', 'native-verification', '--all-checks', '--output', str(self.root / 'evidence/all')],
+            capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        verdict = json.loads(result.stdout)
+        bundle = Path(verdict['bundle'])
+        self.assertEqual(len(json.loads(bundle.read_text())['records']), 1)
+        runtime = runpy.run_path(str(ROOT / 'authoring/scripts/project_workflow.py'))
+        observed = runtime['inspect_evidence'](self.root,
+            {'id': 'native-verification', 'checks': ['fixture']}, {'fixture': self.argv},
+            bundle.relative_to(self.root).as_posix())
+        self.assertEqual(observed['status'], 'PASS', observed)
+
     def test_failure_skip_and_zero_tests_never_pass(self):
         for body, expected in [
             ('import unittest\nclass T(unittest.TestCase):\n def test_fail(self): self.fail("defect")\n', 'ISSUES'),
@@ -82,6 +141,17 @@ class VerifyProductTests(unittest.TestCase):
         self.suite.write_text(self.suite.read_text() + '# changed after execution\n')
         code, verdict = self.verify('--evidence', str(self.output), '--run-id', record['run_id'])
         self.assertEqual(verdict['status'], 'BLOCKED')
+
+    def test_untracked_input_byte_change_invalidates_native_capture(self):
+        dependency = self.root / 'new_input.py'
+        dependency.write_text('value = 10\n')
+        self.suite.write_text('import unittest\nfrom new_input import value\n'
+                             'class T(unittest.TestCase):\n'
+                             ' def test_value(self): self.assertEqual(value, 10)\n')
+        record = self.run_check()
+        dependency.write_text('value = 11\n')
+        code, verdict = self.verify('--evidence', str(self.output), '--run-id', record['run_id'])
+        self.assertEqual(verdict['status'], 'BLOCKED', verdict)
 
     def test_unlinked_missing_or_wrong_target_evidence_never_passes(self):
         record = self.run_check()

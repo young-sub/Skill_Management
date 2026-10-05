@@ -35,3 +35,16 @@ Begin/review writes use a unique task-local temporary file followed by replaceme
 A changed-behavior review can reference a task-local `bundle` JSON produced by the result viewer's explicit execution path. Audit reopens its plan/captures/raw/current inputs through read-only bundle inspection, then checks Feature/check IDs and exact registered argv/cwd. Missing, stale or mismatched evidence cannot discharge the obligation. Feedback also needs an observed repair relative to the original basis; a new analysis or PASS flag alone is insufficient. Map/UI meaning and whether a regression covers the reported cause remain review responsibilities, distinct from those mechanical checks.
 
 `accept` returns BLOCKED because no protected verifier identity/policy/results boundary exists on this host. An Agent with equal filesystem authority can modify config/records or skip commands; the local close guard cannot prevent that bypass. A hash, fresh context or submitted PASS is not enforcement. Draft/test/map edits remain allowed; no global hook or general installation is performed.
+# Native unittest evidence
+
+Projects using the existing unittest adapter can bind captures with
+`verify_product.py --feature <id> --check <id> --output <new-capture> --bundle-output <new-bundle>`.
+For every check registered to one Feature, use `--all-checks --output <new-directory>`;
+the resulting `bundle.json` binds each selected check to its actual native run.
+Attach that project-relative bundle path to the semantic review's `bundle` field.
+Workflow audit uses the same native unittest assessor to reread stdout, exit,
+counts, skips, exact target and current Git identity. It never runs the suite or
+loads project code during lookup, and ignores submitted bundle verdict fields.
+The native-JSON path remains available for browser/API/DB observations.
+Unittest captures establish only their assertions; ignored inputs, dependencies,
+live runtime identity and protected acceptance require separate evidence.

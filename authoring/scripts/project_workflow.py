@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 import runpy
 import subprocess
+import sys
 import tempfile
 
 
@@ -193,6 +194,9 @@ def inspect_evidence(root, feature, commands, bundle):
     """Reinspect raw execution; submitted review/status strings cannot discharge checks."""
     try:
         path = local_path(root, bundle)
+        binding = json.loads(path.read_text(encoding='utf-8'))
+        if isinstance(binding, dict) and binding.get('format') == 'unittest-captures-v1':
+            return inspect_unittest_evidence(root, feature, commands, binding)
         viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
         observed = viewer['view_bundle'](path)
         if observed['status'] != 'PASS':
@@ -212,6 +216,39 @@ def inspect_evidence(root, feature, commands, bundle):
         return {'status': 'PASS', 'findings': []}
     except (OSError, ValueError, TypeError, KeyError) as error:
         return {'status': 'BLOCKED', 'findings': [f'verification_unavailable:{error}']}
+
+
+def inspect_unittest_evidence(root, feature, commands, binding):
+    """Use the existing native adapter without loading or executing project code."""
+    reader = runpy.run_path(str(Path(__file__).with_name('unittest_evidence.py')))
+    if binding.get('feature') != feature['id']:
+        raise ValueError('verification_feature_mismatch')
+    records = binding.get('records')
+    if not isinstance(records, list) or not records:
+        raise ValueError('verification_records_required')
+    verified = set()
+    findings = []
+    for record in records:
+        check = record['check']
+        if check not in feature['checks'] or check in verified:
+            raise ValueError('duplicate_or_unselected_check')
+        descriptor = commands.get(check)
+        argv = descriptor.get('argv') if isinstance(descriptor, dict) else descriptor
+        if not isinstance(argv, list) or len(argv) < 4 or argv[1:3] != ['-m', 'unittest']:
+            raise ValueError('native_unittest_command_required')
+        if isinstance(descriptor, dict) and descriptor.get('runtime', 'python') != 'python':
+            raise ValueError('native_unittest_runtime_required')
+        cwd = local_path(root, descriptor.get('working_directory', '.') if isinstance(descriptor, dict) else '.')
+        observed = reader['assess'](local_path(root, record['path']), record['run_id'],
+                                   feature['id'], check, [sys.executable, *argv[1:]], cwd.resolve())
+        if observed['status'] == 'PASS':
+            verified.add(check)
+        else:
+            findings.append(f'verification_failed:{feature["id"]}:{check}')
+    findings.extend(f'verification_missing:{feature["id"]}:{check}'
+                    for check in sorted(set(feature['checks']) - verified))
+    return {'status': 'BLOCKED' if findings else 'PASS', 'findings': findings,
+            'test_commands_executed': 0, 'scope': 'native unittest assertions; local consistency only'}
 
 
 def inspect_configured(root, project):
