@@ -1063,7 +1063,7 @@ Installation reuses an already exact cohort without rewriting it. A replacement 
 
 | Unit | Implementation and actual acceptance evidence | Remaining scope |
 | --- | --- | --- |
-| U1 | Executable partitioned obligations; Git fixtures cover full API/CLI inventory, unconnected coverage, addition/deletion, shared criteria/command changes, stale/duplicate review and resume. Independent Labeler survey exported 319 safe tracked donor files, created 11 functional areas including roles/API/CLI/webhooks/recovery and retained the map in local fixture commit `c770500`. The subsequent installed audit records all 11 Features as reviewed/mapping-ready, while retaining translation quality and catalog completeness as product findings. | Local map readiness is observed; complete semantic coverage of every completion-design section 3.2 field across the linked references remains unproven. The two product findings do not block map readiness and do not authorize provider/product work. File coverage (`unmapped=0`) alone is insufficient; runtime/provider/print acceptance is separate from this survey. |
+| U1 | Executable partitioned obligations; Git fixtures cover full API/CLI inventory, unconnected coverage, addition/deletion, shared criteria/command changes, stale/duplicate review and resume. Independent Labeler survey exported 319 safe tracked donor files, created 11 functional areas including roles/API/CLI/webhooks/recovery and retained the map in local fixture commit `c770500`. The subsequent installed audit records all 11 Features as reviewed/mapping-ready, while retaining translation quality and catalog completeness as product findings. | Historical local map readiness was observed, but the current semantic-map repair correctly reopens all 11 reviews after adding their missing shared-map dependencies. Complete semantic coverage of every completion-design section 3.2 field across the linked references remains unproven. The two product findings do not block map readiness and do not authorize provider/product work. File coverage (`unmapped=0`) alone is insufficient; runtime/provider/print acceptance is separate from this survey. |
 | U2 | Same-authority child probe actually changed a task-local policy and wrote forged success; `accept` still refused protected acceptance. Configured local close rejects unresolved obligations and submitted success. Normal edits and native runs remain available. | Protected policy, verifier identity, result authority and bypass-resistant acceptance are BLOCKED. The earlier model-startup block is resolved in the approved isolated native trial; successful login/task execution does not supply protected result authority. No unsupported security promise is made. |
 | U3 | Actual child runs produce current native facts, captures and bundles; zero/skip/missing/stale/changed-criterion cases reject reuse. Fresh installed v3 executed the price save/read/quote check once and then queried the bundle with zero test executions and 12 retained files unchanged. The authenticated 0.1.25 trial later queried without re-execution, resumed with zero commands and 14 files unchanged, then captured/bound the registered 41-case command after feedback. | External runtime attestation and independently authenticated semantic criteria are unavailable. Only explicitly selected facts are covered. |
 | U4 | Fresh collaboration context read installed diagnose/workflow resources, traced save and quote to the same faulty float converter, repaired that owner with Decimal in fixture commit `d2f1181`, and preserved the original requirement/check. RED observed `1.15 -> 114` and invalid overwrite; GREEN observed 115, valid zero/12.30 and unchanged saved bytes on rejection. Installed v3 bundle moved the actual feedback obligation from PARTIAL to READY_FOR_REVIEW. Authenticated 0.1.25 diagnosis repaired the same shared owner; a subsequent user-shaped maintenance complaint resolved default-command and binding gaps with 41 native cases and zero remaining local obligations. | Controlled repairs with an explicit follow-up needed in the native trial, not longitudinal prevention effectiveness. The environment checks registered prevention connections and changed evidence; semantic cause/coverage remains review work. |
@@ -1209,3 +1209,47 @@ R01–R16 are the acceptance criteria in the [requirements review](agent-coding-
 | R14 Boundary and distribution architecture | Observed within scope | Project owns business meaning and native reports; shared runner captures facts; viewer reads; Skills select; canonical/generated and direct CLI preserved | No new universal Domain framework, Plugin, registry database or runtime attestation service |
 | R15 Actual delivery and layered evidence | PARTIAL / BLOCKED | Source commits `c7c064a`, `7e9eb8d`, `95eed81`; real local Skill installation/discovery; T1–T6 collaboration tasks and local product/browser/DB observations | Overall delegation system remains PARTIAL/BLOCKED for CLI host behavior and current-reuse/update/cleanup limits above; no speed/cost claim |
 | R16 History, isolation and constraints | Observed within scope | New independent tracked exports, synthetic DB only, old raw preserved, copied-current false PASS explicitly invalidated, no general install/original/remote changes | `.work` follows retention and is not permanent archival proof; real-environment application was not authorized |
+
+
+## U1 shared map connection repair, 2026-10-06
+
+The isolated Labeler fixture at `38296e5` declared requirements/source references
+for all eleven Features, but none of their `map` lists included the actual
+`docs/feature-map.md`. The runtime inventory caught the document only as a
+`repository-runtime` source. Changing the guest/local-preview meaning therefore
+left its prior semantic review valid. This was a project connection defect;
+the existing runtime already invalidates declared map dependencies.
+
+Fixture commit `3a8e7ba` connects the shared map to all eleven Features and distinguishes
+anonymous in-memory browsing from role-specific local sessions with D1/R2
+persistence. The Agent checked `App.LocalRoleEntry`, `GuestApp`, `localAccess`
+and the existing account setup instructions; no product server/provider was
+run. The map also identifies its source/requirements revision and separates
+historical mapping readiness from current product evidence. It no longer calls
+translation quality or catalog completeness a map-partition blocker.
+
+Actual installed 0.1.32 CLI evidence is retained under
+`.work/plugin-transition/u1-semantic-repair-v032/`. Before connecting the map,
+the changed guest row still reported `reviewed=true` and `mapping_ready=true`.
+After connection, every Feature had a `map_review` obligation and no valid
+review; inventory/configuration had no unmapped, unlinked or structural findings.
+These are observed obligation transitions, not a product behavior PASS. Old
+review records are preserved; no new semantic approval is fabricated. The
+fixture's current mapping remains PARTIAL pending fresh review of the linked
+requirements/flows. Its two product-quality findings remain separate.
+
+A whole-file shared dependency deliberately reopens all eleven reviews even for
+one changed row. That review burden remains a limitation; no section parser,
+additional model call or per-row registry was added. The installed audit itself
+calls no model or product check. No source/runtime/generated resource changed,
+so no new package version or installation was needed. Original Labeler, the
+ordinary installation and global configuration remain unchanged. U5's separate
+native UI trial still awaits trust approval for its nested Git repository;
+unelevated sandbox approval is already in effect and is not that folder trust.
+
+Validation: the installed audit retained the old review bytes and all 318
+unrelated tracked fixture files unchanged. Repository documentation/cutover
+checks passed 12 tests; both diffs passed `git diff --check`. The bounded
+independent crosswalk is retained at
+`.work/plugin-transition/u1-semantic-crosswalk-v032/crosswalk.md`; its remaining
+reference/flow review suggestions are not claimed implemented by this unit.
