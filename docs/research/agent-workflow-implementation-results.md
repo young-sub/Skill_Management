@@ -4,6 +4,42 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Descriptive-document impact selection, 2026-10-05
+
+Broad source inventories previously required product execution even when only a
+descriptive map changed. A Feature can now declare `documentation_only` as exact
+paths with reviewed reasons. Work start retains that policy. An existing file
+declared both before and after the change still requires current semantic review,
+but does not by itself require product execution. Filename extensions do not
+grant exemptions. New/deleted paths, mixed code changes, feedback/UI requests,
+late declarations and legacy states without the policy snapshot remain subject
+to their previous verification requirements. Audit exposes the changed paths and
+the narrower `verification_changed` set. Project policy remains editable local
+state, not a protected authorization boundary; executable/generator/Agent inputs
+must not be declared descriptive merely to avoid their checks.
+
+RED reproduced product execution being required after only a map clarification.
+The regression also checks mixed code changes, late reclassification, legacy
+records, document deletion and wildcard rejection. Actual guarded installation
+of package 0.1.8 into host-002 was followed by public installed workflow CLI runs
+in `.work/plugin-transition/documentation-consumer-v018`. A descriptive map edit
+reached readiness after semantic review with zero suite runs; resume preserved
+its state. Changing price 10 to 9, then attempting a late documentation exemption,
+still required execution. The unchanged native assertion failed, remained
+PARTIAL, and passed only after repair to `5 + 5`. There were exactly two suite
+runs (failure and repair); lookup launched none. Commands, native raw output and
+result are retained in that fixture's `.work/`. This is installed CLI behavior,
+not autonomous Agent classification or general performance superiority.
+
+Validation: Full `python -m unittest discover -s tests -p "test_*.py"` passed
+294 tests in 258.977 seconds; documentation tests (3), distribution validation,
+resource drift and formatting checks also passed.
+
+The earlier Labeler state and product-gap evidence were not retroactively
+rewritten to waive its existing obligation. New project declarations require
+consumer review; this policy does not automatically classify every Markdown file
+or invalidate already required tests. U1-U7 overall acceptance remains open.
+
 ## Mapping readiness and product gaps, 2026-10-05
 
 The workflow now reports `mapping_status` independently from overall task

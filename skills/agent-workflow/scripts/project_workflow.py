@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: 71d606aac1c381ba1634ba7b91426adb60c87ce256480720d2c038a499b67e53
+# Source-SHA256: 7da67a7104f9ec03ebee8c52a7d9facba08534f288254f4062f900146e5d065c
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -87,6 +87,13 @@ def configuration(project):
             if len(value) != len(set(value)):
                 raise ValueError(f'duplicate:{feature["id"]}:{field}')
         ids.append(feature['id'])
+        documents = feature.get('documentation_only', {})
+        if not isinstance(documents, dict) or any(
+                not isinstance(name, str) or not name or Path(name).is_absolute()
+                or any(c in name for c in '*?[') or '..' in Path(name).parts
+                or not isinstance(reason, str) or not reason.strip()
+                for name, reason in documents.items()):
+            raise ValueError('documentation_only_requires_exact_paths_and_reasons')
     if len(ids) != len(set(ids)):
         raise ValueError('duplicate_feature_identity')
     return config
@@ -107,6 +114,7 @@ def begin(root, project, intent, targets=()):
             'dirty_baseline': git(root, 'status', '--porcelain').decode('utf-8'),
             'baseline': inventory(root, config['roots']), 'reviews': {},
             'source_patterns': {f['id']: list(f['sources']) for f in config['features']},
+            'documentation_only': {f['id']: dict(f.get('documentation_only', {})) for f in config['features']},
             'input_bases': {item['id']: item['basis'] for item in inspect_project(root, project)['features']}}
 
 
@@ -164,7 +172,7 @@ def inspect_project(root, project, state=None):
     if state and (state.get('schema_version') != 1 or state.get('root') != str(root)):
         raise ValueError('work_target_mismatch')
     state = state or {}
-    for field in ('reviews', 'retired_reviews', 'baseline', 'input_bases', 'source_patterns'):
+    for field in ('reviews', 'retired_reviews', 'baseline', 'input_bases', 'source_patterns', 'documentation_only'):
         if not isinstance(state.get(field, {}), dict):
             raise ValueError(f'workflow_state_requires_object:{field}')
     if state.get('intent') in {'feedback', 'ui'} and not state.get('targets'):
@@ -211,8 +219,15 @@ def inspect_project(root, project, state=None):
         patterns = feature['sources'] + state.get('source_patterns', {}).get(identity, [])
         affected = sorted(name for name in changed
                           if any(fnmatchcase(name, pattern) for pattern in patterns))
+        # Only a predeclared, still-existing document edit can avoid product execution.
+        # Changing the declaration during work never retroactively exempts a path.
+        documents = feature.get('documentation_only', {})
+        original_documents = state.get('documentation_only', {}).get(identity, {})
+        verification_changed = [name for name in affected if not (
+            name in documents and name in original_documents
+            and old.get(name) is not None and files.get(name) is not None)]
         requires = ['map_review']
-        if affected and state:
+        if verification_changed and state:
             requires.append('verification')
         if state.get('intent') == 'feedback' and identity in state.get('targets', []):
             requires.extend(['repair', 'regression', 'normal_case'])
@@ -239,6 +254,7 @@ def inspect_project(root, project, state=None):
         if pending:
             result['obligations'].append({'id': f'feature:{identity}:{basis}', 'target': identity,
                 'basis': basis, 'reason': 'initial_or_changed_inputs', 'changed': affected,
+                'verification_changed': verification_changed,
                 'requires': requires, 'references': sorted(refs)})
         result['features'].append({'id': identity, 'basis': basis, 'partition': feature['partition'],
                                    'reviewed': reviewed, 'mapping_ready': bool(mapping_ready), 'source_count': len(sources)})

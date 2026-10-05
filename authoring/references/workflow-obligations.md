@@ -66,6 +66,23 @@ than silently accepting the work. Recover its original Feature connections from
 the retained baseline before reconciling that legacy record; do not replace the
 baseline with current files to clear the finding.
 
+For a source inventory that also contains purely descriptive documents, a Feature
+may declare exact project-relative paths and reasons, for example
+`"documentation_only":{"docs/feature-map.md":"Descriptive index; no runtime or generator consumes it."}`.
+This is project-owned impact policy, not an inference from `.md` or a free-text
+waiver submitted after implementation. Review consumers before declaring a file;
+executable specifications, generated-code inputs, configuration and Agent
+instructions that alter execution must not be classified as descriptive prose.
+Wildcards and missing reasons are rejected. Start snapshots the declarations.
+Only an existing file declared both at start and now avoids automatic product
+execution; it still invalidates semantic review. New/deleted paths, other changed
+sources, feedback and UI requests retain their execution obligations. A later
+declaration cannot excuse an already changed path; legacy states without the
+snapshot remain conservative. Audit exposes both `changed` and
+`verification_changed` so selection is inspectable. Existing document/link checks
+remain available. This local policy is not protected against an actor rewriting
+the project and manifest with equal authority.
+
 Begin/review writes use a unique task-local temporary file followed by replacement. Harness review attempts stage under `.work` outside the strictly validated active-work artifact directory, so an orphan cannot prevent Harness resume. Abrupt process exit leaves the previous valid state intact (or no initial state), and a fresh invocation can resume without deleting an orphan attempt. One writer owns a task record; concurrent writes to the same record are not supported. Interrupted attempt files remain subject to the existing `.work` retention policy.
 
 Inspection validates review analysis, findings and existing references as well as

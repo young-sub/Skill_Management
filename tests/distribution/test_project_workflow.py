@@ -106,6 +106,42 @@ class ProjectWorkflowTests(unittest.TestCase):
                 runtime.record_review(self.root, self.project, state,
                     dict(state['reviews']['api'], product_findings=malformed))
 
+    def test_declared_document_edit_needs_review_without_product_execution(self):
+        runtime = self.runtime()
+        config = self.project['extensions']['workflow']
+        config['roots'].append('docs')
+        feature = config['features'][0]
+        feature['sources'].append('docs/*')
+        feature['documentation_only'] = {'docs/map.md': 'Descriptive map; no runtime or generator consumes it.'}
+        state = runtime.begin(self.root, self.project, 'change')
+        for name in ('api', 'cli'):
+            state = self.review(runtime, state, name)
+        self.write('docs/map.md', 'API and CLI both return ten; clarified references.\n')
+        pending = runtime.inspect_project(self.root, self.project, state)
+        obligation = next(o for o in pending['obligations'] if o['target'] == 'api')
+        self.assertEqual(obligation['changed'], ['docs/map.md'])
+        self.assertNotIn('verification', obligation['requires'])
+        for name in ('api', 'cli'):
+            state = self.review(runtime, state, name)
+        self.assertEqual(runtime.inspect_project(self.root, self.project, state)['status'], 'READY_FOR_REVIEW')
+        # A mixed change and an exemption added after start cannot hide execution.
+        self.write('src/api.py', 'price = 11\n')
+        feature['documentation_only']['src/api.py'] = 'Incorrect reclassification after start'
+        state = self.review(runtime, state, 'api')
+        pending = runtime.inspect_project(self.root, self.project, state)
+        self.assertIn('verification', pending['obligations'][0]['requires'])
+        self.assertEqual(pending['obligations'][0]['verification_changed'], ['src/api.py'])
+        legacy = dict(state)
+        legacy.pop('documentation_only')
+        self.assertIn('docs/map.md', runtime.inspect_project(self.root, self.project, legacy)['obligations'][0]['verification_changed'])
+        # Removal is not a prose-only edit, even for an explicitly declared document.
+        (self.root / 'docs/map.md').unlink()
+        pending = runtime.inspect_project(self.root, self.project, state)
+        self.assertIn('docs/map.md', pending['obligations'][0]['verification_changed'])
+        feature['documentation_only'] = {'docs/*': 'Broad exemption'}
+        with self.assertRaisesRegex(ValueError, 'documentation_only'):
+            runtime.begin(self.root, self.project, 'change')
+
     def test_new_deleted_duplicate_and_stale_review_cannot_disappear(self):
         runtime = self.runtime()
         state = runtime.begin(self.root, self.project, 'init')

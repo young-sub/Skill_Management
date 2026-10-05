@@ -8,7 +8,7 @@ The package identity and version are owned by `distribution/plugin.json`.
 ## Build
 
 ```powershell
-python scripts/build_plugin.py --output .work/plugins/agentic-coding-0.1.7
+python scripts/build_plugin.py --output .work/plugins/agentic-coding-0.1.8
 ```
 
 The builder first runs the existing generated-resource check. It selects tracked
