@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: 443c566b100828bc5b41d32e25960f4d5be66d65995270a42109d2a6a0d01dac
+# Source-SHA256: 2a5399e785c2f4e76a325b3d7cf4816584790c3dc8299362bce9fcaa701f052a
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -373,6 +373,8 @@ def inspect_configured(root, project):
             raise ValueError('state_must_be_task_local_under_work')
         if path.is_file():
             state = json.loads(path.read_text(encoding='utf-8'))
+            if state is None:
+                raise ValueError('workflow_state_must_be_object')
     return inspect_project(root, project, state)
 
 

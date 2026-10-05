@@ -8,7 +8,7 @@ The package identity and version are owned by `distribution/plugin.json`.
 ## Build
 
 ```powershell
-python scripts/build_plugin.py --output .work/plugins/agentic-coding-0.1.14
+python scripts/build_plugin.py --output .work/plugins/agentic-coding-0.1.17
 ```
 
 The builder first runs the existing generated-resource check. It selects tracked
@@ -35,11 +35,35 @@ See the [system direction](research/agent-coding-system-direction.md) and
 [acceptance design](research/agent-workflow-completion-design.md) for the complete
 required behavior; packaging alone does not satisfy those requirements.
 
-The builder never installs, publishes, changes global settings, or enables hooks.
+The builder never installs, publishes, changes global settings, or trusts hooks.
 Local marketplace installation, fresh-host discovery, installed Agent task
 behavior, and protected acceptance are separate checks. An editable local state
 file is not a protected acceptance boundary. Ordinary installation and remote
 publication remain separate authorized actions.
+
+## Read-only request handoff
+
+The package includes `hooks/hooks.json` and `hooks/workflow_context.py`, with an
+explicit compatibility-manifest hook path. `UserPromptSubmit` resolves the Git
+project from the supplied working directory and reuses its existing workflow
+audit and configured task state. It delivers a bounded summary of outstanding
+obligations and references. It does not interpret the prompt, read transcripts,
+start a task, run project checks, write project files, or block lookup requests.
+Projects without workflow configuration receive no additional context; invalid
+configuration/state produces an unavailable warning. Full results remain in the
+existing audit CLI. This handoff does not implement protected completion.
+
+OpenAI documents plugin hooks and a separate trust review before command hooks
+run ([plugin packaging](https://developers.openai.com/plugins/build/plugins),
+[hook lifecycle](https://learn.chatgpt.com/docs/hooks)). The local Codex 0.160.0
+probe isolated a compatibility defect: adding the portable `$schema` marker made
+bundled hooks disappear, including with an explicit extension path. The package
+omits that optional marker and retains its compatibility manifest. Actual 0.1.17
+installed discovery now reports the prompt hook from its cache as enabled and
+untrusted. Direct installed-handler execution is verified separately; automatic
+host delivery and authenticated Agent behavior still require user hook review
+and a logged-in isolated host. Installation does not grant hook trust. No ordinary
+home or project trust setting was changed for this probe.
 
 For an isolated Codex host, place the built package at
 `<marketplace>/plugins/agentic-coding` and create

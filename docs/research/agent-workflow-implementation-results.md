@@ -4,6 +4,66 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Prompt-hook handoff and actual host discovery, 2026-10-05
+
+The previous missing initial handoff prompted a fresh host check rather than
+another reminder in Skills. Codex 0.160.0 reports hooks stable/enabled, and current
+[official documentation](https://learn.chatgpt.com/docs/hooks) defines a
+UserPromptSubmit context hook. The package now includes a read-only handler that
+reuses the configured workflow owner to compute and return bounded obligations,
+targets and references. It reads no user prompt/transcript, executes no product
+commands, starts no work record and does not block lookup-only requests. Supplied
+null state now also fails in the shared configured-audit entry used by this hook
+and existing maintenance/close callers.
+
+RED reproduced the absent handler. The handler/workflow checks passed 22 tests;
+the related workflow, package, close and maintenance run passed 74 tests before
+the later manifest assertion/test-harness correction. Final package assertions
+also passed in a diagnostic run retaining its temporary fixture; ordinary cleanup
+remains separately unverified below. The new package test executes the exact
+distributed shell command, and validates the explicit compatibility hook path.
+
+Actual guarded installation produced 0.1.15 and then 0.1.16 with that explicit
+manifest path. Direct 0.1.16 handler calls observed existing completed feedback
+state, refused configured null state, and returned empty output for an independent
+unconfigured Git project without modifying its inputs. Retained records are in
+`.work/plugin-transition/hook-handler-v016-02`. Initial trial assumptions were
+corrected without rewriting evidence: the first invalid fixture had no configured
+state, and a nested directory without its own Git repository correctly resolved
+the parent project instead of being an independent unconfigured project.
+
+Native discovery was repaired, rather than attributed to sandbox permissions.
+Correcting the trial's stale marketplace registration alone still returned empty
+hook lists. Minimal paired packages then isolated the `$schema` marker: without
+it the identical definition was discovered; with it, both default and explicit
+OpenAI-extension paths were empty. A full package copy without that marker also
+exposed the hook. Candidate 0.1.17 omits the optional marker and retains the
+compatibility manifest. Actual `hooks/list` now returns the installed 0.1.17
+cache path, `source: plugin`, `enabled: true`, and `trustStatus: untrusted`;
+`plugin/read` also exposes UserPromptSubmit. Reproduction records are under
+`.work/plugin-transition/hook-schema-probes` and `host-002/captures/{hooks,plugin}-v017`.
+Earlier empty probes remain retained. This was a packaging/host interpretation
+compatibility issue, not evidence that hooks are unavailable or permissions must
+be broadened. No hook was self-trusted or bypassed. Automatic event delivery,
+authenticated Agent use and protected acceptance remain unverified.
+The final hook/docs/cutover command passed 13 tests.
+Resource drift, distribution validation and diff whitespace checks also passed.
+The guarded 0.1.17 native installer wrote all 243 inventoried payload files, whose
+hashes independently match the candidate, but did not return. After verifying
+its exact PID, parent and command, termination was requested only for the owned installer and wrapper;
+the installer remained visible after that request. The guard has a verified
+snapshot but no completed receipt. Thus installed bytes
+and native discovery are observed, while update-command completion is BLOCKED.
+No duplicate update was launched to conceal that unfinished operation.
+
+Package-test cleanup stalled at Python os.unlink, including a scoped external
+retry; stack and a retained-fixture diagnostic separate successful assertions
+from cleanup. A logged cleanup narrowed the wait to the generated consumer's
+probe.py. A test variable collision was independently corrected; it had reused
+the hook command in the old overwrite check. Do not count terminated cleanup
+runs as passing tests or attribute the remaining wait to sandbox permissions
+without further evidence. No product behavior or access policy was weakened.
+
 ## Follow-up feedback and plugin capture discovery, 2026-10-05
 
 A fresh collaboration Agent received a user-shaped bulk-price repair request in

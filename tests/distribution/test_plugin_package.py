@@ -1,6 +1,7 @@
 """Exercise the distributable tree, including its installed command consumer."""
 import json
 import hashlib
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -23,6 +24,10 @@ class PluginPackageTests(unittest.TestCase):
             manifest = json.loads((package / 'plugin.json').read_text())
             compatibility = json.loads((package / '.codex-plugin/plugin.json').read_text())
             self.assertEqual(manifest['name'], compatibility['name'])
+            # Codex 0.160.0 ignores bundled hooks with the portable $schema marker.
+            # Keep the working compatibility manifest until that host path is fixed.
+            self.assertNotIn('$schema', manifest)
+            self.assertEqual(compatibility.get('hooks'), './hooks/hooks.json')
             catalog = json.loads((ROOT / 'distribution/catalog.json').read_text())
             self.assertEqual({p.parent.name for p in (package / 'skills').glob('*/SKILL.md')},
                              set(catalog['public_skills']))
@@ -35,6 +40,15 @@ class PluginPackageTests(unittest.TestCase):
             self.assertEqual(observed['stdout'].strip(), '42')
             self.assertEqual(observed['exit_code'], 0)
             self.assertIsNone(observed['behavior_verdict'])
+            hook = json.loads((package / 'hooks/hooks.json').read_text())['hooks']
+            self.assertEqual(set(hook), {'UserPromptSubmit'})
+            hook_command = hook['UserPromptSubmit'][0]['hooks'][0]['command']
+            # Exercise the distributed shell command with the host-provided root.
+            hooked = subprocess.run(['powershell', '-NoProfile', '-Command', hook_command],
+                input=json.dumps({'hook_event_name': 'UserPromptSubmit', 'cwd': str(root)}),
+                env=dict(os.environ, PLUGIN_ROOT=str(package)), capture_output=True, text=True, timeout=30)
+            self.assertEqual(hooked.returncode, 0, hooked.stdout + hooked.stderr)
+            self.assertEqual(json.loads(hooked.stdout), {})
             for script in ('project_workflow.py', 'verification_results.py'):
                 help_result = subprocess.run([
                     sys.executable, str(package / 'skills/agent-workflow/scripts' / script),

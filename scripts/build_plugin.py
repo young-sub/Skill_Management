@@ -1,6 +1,6 @@
 """Build the current public Skill cohort as a local plugin, without installing it.
 
-Only tracked public Skill files and the existing capture CLI enter the package.
+Public Skill files, shared execution tools and the read-only prompt hook enter the package.
 Generated-resource drift is rejected before writing. A destination is immutable:
 build a new directory for an update; host installation owns cache/version handling.
 """
@@ -35,6 +35,8 @@ def build(output):
     selected['scripts/run_check.py'] = 'scripts/run_check.py'
     selected['scripts/update_plugin.py'] = 'scripts/update_plugin.py'
     selected['scripts/unittest_evidence.py'] = 'authoring/scripts/unittest_evidence.py'
+    selected['hooks/hooks.json'] = 'distribution/hooks.json'
+    selected['hooks/workflow_context.py'] = 'authoring/scripts/workflow_context.py'
     files = {}
     for target, source in sorted(selected.items()):
         path = ROOT / source
@@ -56,7 +58,7 @@ def build(output):
     # Older Codex CLI hosts consume this overlay; identity has one source above.
     files['.codex-plugin/plugin.json'] = encoded({
         key: manifest[key] for key in ('name', 'version', 'description')
-    } | {'skills': './skills/'})
+    } | {'skills': './skills/', 'hooks': './hooks/hooks.json'})
     files['package-files.json'] = encoded({
         'files': {name: hashlib.sha256(data).hexdigest() for name, data in sorted(files.items())},
         'limit': 'Content inventory, not a signature or evidence of Agent task success.',

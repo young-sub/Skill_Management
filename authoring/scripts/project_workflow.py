@@ -369,6 +369,8 @@ def inspect_configured(root, project):
             raise ValueError('state_must_be_task_local_under_work')
         if path.is_file():
             state = json.loads(path.read_text(encoding='utf-8'))
+            if state is None:
+                raise ValueError('workflow_state_must_be_object')
     return inspect_project(root, project, state)
 
 

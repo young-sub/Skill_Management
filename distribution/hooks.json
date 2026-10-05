@@ -1,0 +1,13 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [{
+      "hooks": [{
+        "type": "command",
+        "command": "python -c \"import os,runpy; runpy.run_path(os.path.join(os.environ['PLUGIN_ROOT'],'hooks','workflow_context.py'),run_name='__main__')\"",
+        "timeout": 30,
+        "additionalContextLimit": 6000,
+        "statusMessage": "Reading project workflow obligations"
+      }]
+    }]
+  }
+}
