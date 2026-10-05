@@ -59,11 +59,13 @@ run ([plugin packaging](https://developers.openai.com/plugins/build/plugins),
 probe isolated a compatibility defect: adding the portable `$schema` marker made
 bundled hooks disappear, including with an explicit extension path. The package
 omits that optional marker and retains its compatibility manifest. Actual 0.1.17
-installed discovery now reports the prompt hook from its cache as enabled and
-untrusted. Direct installed-handler execution is verified separately; automatic
-host delivery and authenticated Agent behavior still require user hook review
-and a logged-in isolated host. Installation does not grant hook trust. No ordinary
-home or project trust setting was changed for this probe.
+installed discovery reported the prompt hook from its cache as enabled and
+untrusted. Subsequent authorized login and hook review enabled the 0.1.25 native
+repair/lookup/resume trial: automatic context delivery and installed diagnosis
+were observed. A subsequent feedback turn repaired its default command and bound
+actual execution to the local workflow; protected acceptance remains unsupported.
+See the current implementation results. Installation itself does not
+grant hook trust. No ordinary home or project trust setting was changed.
 
 The read-only context includes separate summaries for up to eight existing active
 Harness work records, using the same baseline reader as close. Project-wide status
