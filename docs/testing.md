@@ -79,3 +79,5 @@ The adapter refuses mismatched map/workflow check sets before execution.
 NOT_REQUIRED means no commands ran; unresolved semantic/product obligations remain visible.
 Returned workflow status is the pre-execution selection snapshot. Bind new bundles
 through semantic review, then use read-only audit for current completion status.
+
+Registered preparation supports subdirectory commands: keep local `file_refs` relative to command cwd and declare shared inputs as `repository_file_refs` relative to the observed Git root. Config/criteria/map/UI bindings are automatic; changed shared inputs block execution and invalidate lookup.

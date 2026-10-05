@@ -21,6 +21,57 @@ def _digest(data: bytes) -> str:
 
 
 class VerificationExecutionTests(unittest.TestCase):
+    def test_prepare_subdirectory_command_binds_shared_repository_inputs(self):
+        import runpy
+        api = runpy.run_path(str(VIEWER))
+        root = self.project
+        (root / 'backend').mkdir()
+        (root / '.harness').mkdir()
+        (root / '.work').mkdir()
+        (root / '.gitignore').write_text('.work/\nbackend/result.json\n')
+        (root / 'shared.txt').write_text('shared input')
+        (root / 'backend/check.py').write_text("from pathlib import Path\nimport json\nPath('result.json').write_text(json.dumps({'shared':Path('../shared.txt').read_text()}))\n")
+        config = {'commands': {'shared': {'argv': [sys.executable, 'check.py'], 'working_directory': 'backend'}},
+                  'extensions': {'workflow': {'roots': ['backend'], 'features': [{
+                      'id': 'shared', 'partition': 'backend', 'sources': ['backend/*'],
+                      'map': ['fixture.json'], 'criteria': ['fixture.json'], 'checks': ['shared']}]}}}
+        (root / '.harness/project.yaml').write_text(json.dumps(config))
+        spec = {'schema_version': 1, 'checks': [{'id': 'shared', 'feature_id': 'shared',
+            'expected': 'Backend reads the shared repository input', 'required': True,
+            'selection': {'status': 'selected', 'reason': 'Shared dependency changed'},
+            'dependency': {'repository_file_refs': ['shared.txt']},
+            'fixture': {'file_refs': ['check.py']},
+            'raw_observations': [{'path': 'result.json', 'pointer': '',
+                                  'assertions': [{'pointer': '/shared', 'equals': 'shared input'}]}]}]}
+        source, output = root / '.work/spec.json', root / '.work/plan.json'
+        source.write_text(json.dumps(spec))
+        api['prepare_plan'](root, source, output)
+        self.assertFalse((root / 'backend/result.json').exists())
+        plan = json.loads(output.read_text())
+        self.assertEqual(plan['checks'][0]['conditions']['command']['cwd'], str(root / 'backend'))
+        before = api['_git_snapshot'](root / 'backend')
+        (root / 'shared.txt').write_text('changed untracked shared input')
+        self.assertNotEqual(before['untracked'], api['_git_snapshot'](root / 'backend')['untracked'])
+        blocked = api['execute_plan'](output, run_check_path=RUN_CHECK, evidence_dir=self.evidence)
+        self.assertEqual(blocked['status'], 'BLOCKED')
+        self.assertFalse((root / 'backend/result.json').exists())
+        (root / 'shared.txt').write_text('shared input')
+        config_path = root / '.harness/project.yaml'
+        config_bytes = config_path.read_bytes()
+        config_path.write_bytes(config_bytes + b'\n')
+        blocked = api['execute_plan'](output, run_check_path=RUN_CHECK, evidence_dir=self.root / 'changed-config')
+        self.assertEqual(blocked['status'], 'BLOCKED')
+        self.assertFalse((root / 'backend/result.json').exists())
+        config_path.write_bytes(config_bytes)
+        observed = api['execute_plan'](output, run_check_path=RUN_CHECK, evidence_dir=self.root / 'valid')
+        self.assertEqual(observed['status'], 'PASS', observed)
+        self.assertEqual(json.loads((root / 'backend/result.json').read_text())['shared'], 'shared input')
+        (root / 'shared.txt').write_text('later mutation')
+        self.assertNotEqual(api['view_bundle'](Path(observed['execution']['bundle_path']))['status'], 'PASS')
+        for ref in ['../outside.txt', '.env', '.git/config']:
+            with self.assertRaises(ValueError):
+                api['_file_hashes']({'repository_file_refs': [ref]}, root / 'backend', 'dependency')
+
     def test_prepare_registered_plan_without_running_and_reject_stale_inputs(self):
         import runpy
         api = runpy.run_path(str(VIEWER))

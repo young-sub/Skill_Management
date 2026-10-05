@@ -4,6 +4,34 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Shared repository inputs for subdirectory checks, 2026-10-06
+
+Feature: `verification-results`. A backend command previously failed preparation
+when its connected criteria/config lived above its cwd. The focused regression
+observed `fixture.file_ref escapes its allowed root` before implementation.
+Optional `repository_file_refs` now bind inputs against the independently observed
+Git root; ordinary `file_refs` retain command-directory containment. Preparation
+uses repository references for config/criteria/map/UI while preserving registered
+argv and cwd. Source identity now hashes untracked files across the repository,
+including siblings of the command directory. Private, aliased and outside-root
+paths remain refused; output/report boundaries are unchanged.
+
+Source workflow/viewer/execution: 71 tests passed (99.176 seconds). The extended
+subdirectory regression plus docs/cutover/package/resource checks: 40 passed
+(26.957 seconds). After independent review, a second RED showed `.git/config` was still accepted;
+the shared input hasher now rejects Git metadata before reading it. Final viewer/
+execution checks passed 48 tests (87.127 seconds). Final package/
+resource/docs checks passed 39 tests (37.990 seconds).
+Guarded native update installed 0.1.30 in the authorized isolated
+home. Its actual installed viewer and capture ran a backend child reading a root
+shared file and observed `{"shared":"shared input"}`. Preparation did not run it;
+changed shared input and config blocked before a report existed, restoring inputs
+allowed execution, and a later mutation invalidated lookup without rerunning.
+Outside-root/private references were refused. Retained raw report, captures and
+fixture: `.work/plugin-transition/shared-input-installed-v030/trial.json`.
+This is installed CLI behavior, not a new authenticated Agent or full-stack UI/API
+trial. Protected completion acceptance and whole U1-U7 completion remain open.
+
 ## Deterministic registered-plan preparation, 2026-10-05
 
 The authenticated maintenance trial had to write a project adapter to collect
@@ -43,10 +71,8 @@ iterations, not the final acceptance scope.
 
 This removes deterministic adapter authoring for the supported preparation path;
 a new authenticated Agent comparison has not measured model-token savings yet.
-Connected config/criteria/map/UI refs still obey the executor's command-directory
-containment rule. A command in a subdirectory whose references live above it is
-currently refused, not silently stripped of bindings. Supporting that common
-full-stack layout remains open. Protected acceptance and whole U1-U7 completion
+The subsequent repository-input binding unit below supports commands in
+subdirectories with connected config/criteria/map/UI references above them. Protected acceptance and whole U1-U7 completion
 remain unresolved. Feature: `verification-results`.
 
 ## Authenticated native repair, lookup and resume, 2026-10-05

@@ -784,13 +784,19 @@ def _summary(items: list[dict[str, Any]], field: str, *, required_only: bool = F
     return {"status": status, "statuses": statuses, "counts": _counts(included, field)}
 
 
+def _repository_root(cwd: Path) -> Path:
+    root = subprocess.check_output(['git', '-C', str(cwd), 'rev-parse', '--show-toplevel'],
+                                   stderr=subprocess.DEVNULL).decode().strip()
+    return _safe_cwd(Path(root), 'repository root')
+
+
 def _git_snapshot(cwd: Path) -> dict[str, str]:
     """Read the fixed source identity used by execution and current reuse."""
     def git(*tokens: str) -> bytes:
         return subprocess.check_output(["git", "-C", str(cwd), *tokens], stderr=subprocess.DEVNULL)
 
-    root = Path(git('rev-parse', '--show-toplevel').decode().strip())
-    names = git('ls-files', '--others', '--exclude-standard', '--full-name', '-z').decode('utf-8').split('\0')
+    root = _repository_root(cwd)
+    names = git('-C', str(root), 'ls-files', '--others', '--exclude-standard', '--full-name', '-z').decode('utf-8').split('\0')
     untracked = {name: _path_hash(_safe_path(name, root=root, label='untracked source'), 'untracked source')
                  for name in sorted(names) if name}
     return {
@@ -917,10 +923,17 @@ def _file_refs(group: dict[str, Any], label: str) -> list[str]:
 
 def _file_hashes(group: dict[str, Any], cwd: Path, label: str) -> dict[str, str]:
     hashes: dict[str, str] = {}
-    for ref in _file_refs(group, label):
+    refs = [(cwd, ref) for ref in _file_refs(group, label)]
+    repository_refs = _file_refs({'file_refs': group.get('repository_file_refs')}, label)
+    if repository_refs:
+        root = _repository_root(cwd)
+        refs.extend((root, ref) for ref in repository_refs)
+    for root, ref in refs:
         if Path(ref).is_absolute():
             raise ViewerInputError(f"{label}.file_ref_absolute:{ref}")
-        path = _safe_path(ref, root=cwd, label=f"{label}.file_ref")
+        if '.git' in {part.lower() for part in Path(ref).parts}:
+            raise ViewerInputError(f"{label}.file_ref_git_metadata:{ref}")
+        path = _safe_path(ref, root=root, label=f"{label}.file_ref")
         if not path.is_file():
             raise ViewerInputError(f"{label}.file_ref_missing:{ref}")
         try:
@@ -1723,11 +1736,11 @@ def prepare_plan(root: Path, spec_path: Path, output: Path) -> dict[str, Any]:
             if not isinstance(check['conditions'][group], dict) or not check['conditions'][group]:
                 raise ViewerInputError(f'Preparation requires explicit {group} conditions')
         fixtures = check['conditions']['fixture']
-        refs = _file_refs(fixtures, 'fixture')
-        refs += [os.path.relpath(root / name, cwd) for name in
+        repository_root = _repository_root(cwd)
+        refs = _file_refs({'file_refs': fixtures.get('repository_file_refs')}, 'fixture')
+        refs += [os.path.relpath(_safe_path(name, root=root, label='connected reference'), repository_root) for name in
                  dict.fromkeys(['.harness/project.yaml'] + feature['criteria'] + feature['map'] + feature.get('ui', []))]
-        fixtures.pop('files', None)
-        fixtures['file_refs'] = list(dict.fromkeys(refs))
+        fixtures['repository_file_refs'] = list(dict.fromkeys(refs))
         check['conditions'] = _execution_conditions(check, cwd)
         checks.append(check)
     plan = {'schema_version': 1, 'checks': checks}
