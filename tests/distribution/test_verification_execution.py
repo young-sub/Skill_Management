@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from unittest.mock import patch
 from pathlib import Path
@@ -160,7 +161,7 @@ class VerificationExecutionTests(unittest.TestCase):
         self.assertEqual(len(runtime["executable_sha256"]), 64)
         self.assertTrue(runtime["python_version"])
 
-    def test_resume_keeps_completed_commands_and_refuses_unknown_launch(self, first_expected=5, first_required=True) -> None:
+    def test_resume_keeps_completed_commands_and_refuses_unknown_launch(self, first_expected=5, first_required=True, terminate_controller=False) -> None:
         import copy
         child = self.project / 'check.py'
         child.write_text("import json,sys\nfrom pathlib import Path\np=Path('.work');p.mkdir(exist_ok=True)\n"
@@ -189,9 +190,41 @@ class VerificationExecutionTests(unittest.TestCase):
             if args[1] == 'checkpoint-0-':
                 raise KeyboardInterrupt('controller interrupted between commands')
             return result
-        with patch.object(module, '_save_execution_bundle', interrupted):
-            with self.assertRaises(KeyboardInterrupt):
-                module.execute_plan(plan, run_check_path=RUN_CHECK, evidence_dir=self.evidence)
+        if terminate_controller:
+            ready = self.root / 'checkpoint-ready'
+            controller = self.root / 'controller.py'
+            controller.write_text(
+                "import runpy,sys,time\nfrom pathlib import Path\n"
+                "scope=runpy.run_path(sys.argv[1])\n"
+                "execute=scope['execute_plan']\n"
+                "original=execute.__globals__['_save_execution_bundle']\n"
+                "def checkpoint(*args,**kwargs):\n"
+                "    result=original(*args,**kwargs)\n"
+                "    if args[1]=='checkpoint-0-':\n"
+                "        Path(sys.argv[5]).write_text('ready')\n"
+                "        while True: time.sleep(1)\n"
+                "    return result\n"
+                "execute.__globals__['_save_execution_bundle']=checkpoint\n"
+                "execute(Path(sys.argv[2]),run_check_path=Path(sys.argv[3]),evidence_dir=Path(sys.argv[4]))\n",
+                encoding='utf-8',
+            )
+            with subprocess.Popen([sys.executable, str(controller), str(VIEWER), str(plan),
+                                   str(RUN_CHECK), str(self.evidence), str(ready)]) as process:
+                try:
+                    deadline = time.monotonic() + 30
+                    while not ready.exists() and process.poll() is None and time.monotonic() < deadline:
+                        time.sleep(0.05)
+                    self.assertTrue(ready.exists(), 'controller never reached durable checkpoint')
+                    self.assertIsNone(process.poll(), 'controller must still be live before termination')
+                finally:
+                    if process.poll() is None:
+                        process.kill()
+                    process.wait(timeout=10)
+                self.assertNotEqual(process.returncode, 0)
+        else:
+            with patch.object(module, '_save_execution_bundle', interrupted):
+                with self.assertRaises(KeyboardInterrupt):
+                    module.execute_plan(plan, run_check_path=RUN_CHECK, evidence_dir=self.evidence)
         self.assertEqual((self.project / '.work/calls').read_text().splitlines(), ['.work/first.json'])
         retained = {p: p.read_bytes() for p in self.evidence.rglob('*') if p.is_file()}
         def refused():
@@ -235,6 +268,9 @@ class VerificationExecutionTests(unittest.TestCase):
 
     def test_resume_preserves_known_failure_and_runs_pending_check(self) -> None:
         self.test_resume_keeps_completed_commands_and_refuses_unknown_launch(first_expected=6)
+
+    def test_resume_after_controller_process_is_killed(self) -> None:
+        self.test_resume_keeps_completed_commands_and_refuses_unknown_launch(terminate_controller=True)
 
     def test_resume_selected_optional_check_without_changing_policy(self) -> None:
         self.test_resume_keeps_completed_commands_and_refuses_unknown_launch(first_required=False)

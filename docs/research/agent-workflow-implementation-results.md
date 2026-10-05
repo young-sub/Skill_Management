@@ -4,6 +4,28 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Controller process-death recovery, 2026-10-05
+
+The previous exception-based interruption coverage now has a real process-death
+counterpart. The regression starts a separate controller, waits for its first
+durable checkpoint while confirming the process is live, and kills only that
+owned process. A new public CLI process resumes the pending check. The existing
+assertions verify each product command ran once, old evidence remained unchanged,
+and a repeated resume ran zero commands. Changed plan/dependency, missing raw,
+truncated checkpoint and unknown-launch controls remain part of the same test.
+Source execution passed with normal cleanup (1 test, 4.216 seconds). The actual
+0.1.20 installed viewer and capture passed the same test (1 test, 4.287 seconds),
+with its fixture retained under `.work/plugin-transition/process-death-installed-v020`
+for inspection. Installed viewer bytes match the distributed file exactly.
+Two setup assertions stopped before execution: an incorrect assumed capture
+path and comparing canonical bytes with the generated header. The corrected
+paths and comparison are recorded in `trial.json`.
+
+This closes the specific checkpoint-boundary process-death gap for
+`verification-results`, without changing runtime or generated resources. It is
+not power-loss durability, a kill during an active product command, or interrupted
+installation recovery. Those boundaries and protected acceptance remain separate.
+
 ## Installed Agent resume acceptance, 2026-10-05
 
 After implementation commit `5b2cf55`, a fresh collaboration Agent received a
