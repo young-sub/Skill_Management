@@ -34,7 +34,7 @@
 
 ## 3. 하나의 업무 진입점과 선택적 Playbook
 
-공통 신규 Skill은 우선 세 개다. 프로젝트별 Skill은 정답을 복제하는 문서가 아니라 기존 기준·도구를 찾는 연결점이다.
+공통 책임은 아래 세 개로 나누되 Skill 세 개라는 파일 수를 완료 조건으로 삼지 않는다. 기존 진입점으로 책임과 발견 경로를 충족하면 재사용하고, 부족한 공통 판단만 얇은 Skill로 구현한다. 프로젝트별 연결점도 기존 AGENTS/guide로 충분하면 별도 Skill을 만들지 않는다. 이 선택은 §11과 실제 업무 수용 결과로 확인한다.
 
 | 구성요소 | 소유할 책임 | 경계 |
 | --- | --- | --- |
@@ -182,3 +182,52 @@ Plugin은 검증된 공통 Router·Playbook·Skill·capture 등의 **생성 패�
 - 이전 설계·배포 비교·완료 프롬프트: [아카이브](archive/index.md).
 - 현재 명령·소유권: [docs index](../index.md), [Feature Map](../feature-map.md), [Testing](../testing.md), [resource map](../../authoring/resource-map.json).
 - 이번 작업은 결론·프롬프트·문서 정리만 구현한다. 원본 Labeler, 일반 설치, 실행 Skill·도구·전역 지침은 변경하지 않는다. 다음 세션 실행 요청은 관리 source·독립 시험의 구현·검증으로 해석하며 기존 승인·보안 경계를 보존한다.
+
+## 11. 요구사항 검토로 구체화한 실행 연결
+
+2026-10-05 [R01–R16 검토](agent-coding-requirements-review.md)는 수정 전 `53865b0`을 기준으로 한다. 다음 보완은 설계 결정이며 **미구현·효과 미입증**이다. 검토 문서의 T1–T6은 아래 책임의 수용 과업이고, 구현 프롬프트는 이를 실행한다. §3의 세 책임과 여섯 절차는 유지하되 파일 수나 역할 이름으로 완료를 판정하지 않는다.
+
+### 발견, 조합, 실패 처리
+
+주 Agent가 요청의 조회/조사/수정 의도, 허용 범위, 대상 root·base/diff, 요구의 출처, 영향 Feature를 한 번 정리한다. 설치된 진입점의 description과 프로젝트 AGENTS/index의 짧은 연결에서 필요한 절차를 찾는다. 다음 구현의 임시 프로젝트에는 이 발견 경로를 실제 연결한다. 사용자가 Skill 이름·호출 순서를 말하거나 평가자가 매 단계 호출을 지시해야만 동작하면 단일 요청 위임 수용에 실패한 것이다. 전역 지침을 바꾸거나 모든 요청에 Router를 강제하지 않는다.
+
+| 책임 | 입력 → 행동 → 다음 소비자 | 중단·실패 경계 |
+| --- | --- | --- |
+| 주 Agent / 업무 선택 | 자연어 요청·현재 대상·기존 기준 → 필요한 절차/책임/영향 검사 선택 → 하나의 작업 요약과 결과 조회 | 의도 불명확·권한 부족은 의존 작업만 보류. 조회에서는 기존 근거를 읽고 재실행/수리하지 않음 |
+| setup / 최초 검증 연결 | 기존 map/guide/명령/UI와 미연결 범위 → 핵심 flow의 Launch/Doctor/Drive/Evidence/Cleanup 연결·실행 → 변경자·검증자가 재사용 | 요구 불명확·필수 관찰 불가를 기록. 일부 flow 연결을 전체 프로젝트 완성으로 표시하지 않음 |
+| product maintain / 요청·회귀·drift | 영향 diff·요구·현재 map/guide·실패 근거 → 누락/오래된 연결/검사 가치 조사 → 해당 소유자 수리·재검증 | 제품 결함은 diagnose/제품 소유자에게, 실행 도구 오류는 adapter/capture 소유자에게. audit-only는 발견 보고로 종료 |
+| Harness maintain / 실제 mapping·cohort·retention 영향 | 기존 프로젝트 설정·관련 무결성 근거 → 기존 runtime의 해당 점검 → 별도 영역 판정 | 미설치 프로젝트는 해당 없음. 설치나 retention 삭제를 제품 유지보수의 부수 작업으로 수행하지 않음 |
+| UI 작업자 / 화면 변경·반복 불일치 | 기존 의도·reference·token/component·영향 상태 → 기존 UI 능력으로 수정·실제 관찰 → 공유 구현과 관련 guide 갱신 | 의도된 예외를 보존. 정상 animation/관찰 오류는 도구를 고치며 UI 기준을 완화하지 않음 |
+
+조사·검사 선택·원본 실행은 같은 대상과 유효 조건에서 공유하고, 한 실행을 여러 Feature가 참조할 수 있다. 공유 사실은 하나의 작업 기록/기존 Harness evidence에 두고 Skill마다 복사하지 않는다. 공통 파일 수정은 주 Agent가 소유한다. 통합 결과는 제품·Harness·UI의 PASS/ISSUES/BLOCKED를 각각 남긴다. 동일 이름의 check라도 대상·기준·조건이 다르면 같은 실행으로 합치지 않는다.
+
+독립 검증이 필요한 경우 주 Agent는 사용자 기준, 해당 base/diff, 실제 실행 대상, 원본 evidence와 쓰기 범위를 검증자에게 전달한다. ISSUES는 재현과 소유자를 붙여 수정 담당자에게 돌려보내고, 새 diff가 무효화한 근거만 재검증한다. BLOCKED는 필요한 관찰·원인·가능한 fallback·재개 조건을 남기고 독립 작업을 계속한다. 같은 원인/근거만 반복되면 가설이나 수단을 바꾸며 무한 재시도하지 않는다. 주 Agent가 raw와 diff를 확인해 최종 판정한다. verifier 파일이나 구현자 PASS 전달은 이 절차를 대신하지 못한다.
+
+### 변경 영향, 모델, 기준 갱신
+
+| 변경·계기 | 선정할 관찰과 기준 갱신 시점 |
+| --- | --- |
+| Feature 최초 연결 | setup이 사용자 요구/기존 제품 문서와 실제 진입점으로 지도 초안을 만들고 첫 실제 flow로 실행 방법 확인. 다루지 않은 기능은 미연결 범위로 남김 |
+| Feature 추가·수정·삭제 | 변경자가 구현 전 기대 결과/invariant·영향을 확정하고, 같은 기능 단위 diff/commit에서 map·guide·활성 selector를 갱신. 삭제는 실제 호출/사용 여부를 확인하고 활성 연결만 제거하며 과거 결과는 보존 |
+| FE 입력·직렬화·저장·재표시 또는 계층 간 계약 변경 | 관련 UI → API → domain/persistence → 새 조회를 실행. 층별 PASS만으로 대체하지 않음. DB 직접 관찰은 readback으로 확인 못 하는 원자성/중복/이력 규칙에 선택 |
+| Domain 계산·상태 전이 변경 | 요구 기반 정상·경계·실패의 결정적 검사. 외부 표현/호출 계약도 바뀌면 해당 adapter와 사용자 flow를 추가 |
+| 권한·transaction·외부 실패 변경 | 허용/거절 응답, 실패 뒤 데이터 보존·rollback/readback과 관련 사용자 상태. 실제 계정/외부 서비스 권한이 없으면 그 범위는 BLOCKED |
+| UI 표현·공통 component 변경 | 영향 화면·desktop/mobile·keyboard 및 loading/empty/error 등 관련 상태. 저장 경로가 무관하면 제외 이유를 남김. 반복 문제는 가능한 기존 token/component/lint에서 예방하고 후속 요청에서 재사용 |
+| 아키텍처만 변경 | touched interface·caller·상태/효과/의존 소유권과 baseline/equivalent GREEN. 행동 영향이 없으면 별도 제품 flow를 억지 추가하지 않음 |
+| 완료 검토·요청된 유지보수·escaped regression | 검증자가 요구·diff·실제 관찰과 지도/guide의 누락·죽은 명령·삭제 잔존·계층 공백을 비교. 원인이 제품인지 기준/도구인지 분류해 해당 소유 위치만 수리. 매 작업 전수 조사는 하지 않음 |
+
+아키텍처 판단은 `external boundary → parsing/validation → typed domain model → pure business logic → persistence/external adapter`를 사용한다. FE는 입력/표시/상호작용, BE는 권한/외부 계약/transaction, Domain은 계산/업무 상태/invariant를 소유하는지 실제 caller와 데이터 흐름에서 확인한다. controller·route·UI에 공유 업무 규칙이 흩어졌다면 올바른 기존 소유 위치를 우선한다. 상태 전이 복잡성에는 state machine/reducer, 상호 배타 데이터에는 typed model/discriminated union, 확장 목록에는 registry, 수명주기에는 command/event, 규칙 분산에는 domain module을 검토하되 관찰한 문제 없이 패턴이나 폴더를 추가하지 않는다. 이는 이전 설계의 유효한 책임 원칙을 복구한 것이며 전면 재설계 지시가 아니다.
+
+### 계획·실행·조회 사이의 최소 연결
+
+계획의 Feature/check와 기대 결과는 요구/기준의 출처·revision을 참조한다. 선택/제외 이유와 필수 여부를 실행 전에 정하고, 실제 결과는 그 항목에서 capture의 run ID·명령/cwd·코드 상태·raw 위치 및 native assertion/관찰 위치로 연결한다. 한 실행의 raw는 한 번 보존하고 요약은 그 참조를 소비한다. 실행기는 사실을 캡처하고 프로젝트 adapter/검증자는 업무 의미를 판단한다. 사람이 본 시각 관찰은 관찰자·대상·판단 근거를 표시하며 기계 assertion인 것처럼 쓰지 않는다.
+
+조회는 `당시 실행 상태/관찰/판정`과 `현재 재사용 가능 / stale / 확인 불가`를 분리한다. 필요한 source·기준·명령·dependency·fixture·served build/runtime 조건의 식별값/참조가 없거나 달라지면 현재 PASS로 재사용하지 않는다. 모든 환경을 인증하는 새 시스템은 만들지 않는다. raw가 만료·누락되면 역사적 요약은 읽을 수 있지만 원본 재확인은 불가하다고 표시한다. `.work` 과거 record를 조회 시 수정하거나 새 실행으로 덮어쓰지 않는다.
+
+집계는 필수 관찰이 하나라도 미실행/skip/0건/불명확하면 전체 PASS가 될 수 없다. 확인된 ISSUES와 BLOCKED를 함께 보존한다. `not_required`에는 영향 제외 이유를 붙이고 성공 수에 더하지 않는다. 현재 unittest adapter의 `ISSUES`는 native command 실패라는 check 범위 판정이므로 이를 제품 결함으로 바로 바꾸지 않는다. consumer가 raw에서 assertion 위반과 환경/도구 실패를 구분하며 원인 불명은 제품 판정 BLOCKED로 둔다. 기존 capture/adapter를 대체하지 않고 실제 소비자에 필요한 작은 결과 연결만 구현한다.
+
+### PStack 역할과 배포의 최소 배치
+
+Mode/Router는 의도 선택, Playbook은 조건부 순서, Skill은 재사용 판단, Principle은 기존 기준과 구조적 예방, 실행 도구는 명령·raw 캡처, 프로젝트 설정은 root/argv/selector/예외/보존을 소유한다. PStack Automation은 외부 이벤트·주기 실행을 붙이는 별도 계기다. 이번에는 사용자 요청·변경·실패가 충분하므로 Benny/cron/Slack/webhook를 채택하지 않는다. 반복 수요와 권한·비용 근거가 생기면 기존 절차의 입력으로 연결하며 다른 제품 정답을 만들지 않는다. Plugin은 이 능력의 생성 패키징·설치만 맡는다.
+
+세 공통 Skill의 경계는 업무 조정, 최초 검증 경로, 기존 경로 유지로 유지할 수 있다. 기존 Harness 유지보수는 제품 의미를 소유하지 않아 대체재가 아니며, diagnose는 초기 지도/지속 drift 점검의 대체재가 아니다. 다만 setup/maintain이 공유하는 조사·결과 규칙은 한 참조로 유지하고, 공통 조정은 기존 AGENTS/Skill 발견 경로와 함께 검증한다. 프로젝트 `verify-product`/`ui-system`은 기존 진입점으로 발견·실행이 충분하면 그 경로를 재사용한다. 추가 Skill 채택 여부는 T1/T4/T5의 실제 소비로 판단하며 Skill 개수에 맞춰 늘리거나 줄이지 않는다.

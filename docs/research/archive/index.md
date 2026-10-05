@@ -8,3 +8,5 @@
 | [기반 구현 상태·Labeler 파일럿 프롬프트](agent-coding-next-session.md) | 해당 기반과 파일럿은 이미 수행됨. 다음 세션이 완료 과업을 다시 구현하지 않도록 분리 |
 
 이동에 따른 상대 링크와 아카이브 표시만 보완했다. 변경 전 바이트는 Git 이력에 남는다. [PStack 고정 조사](../pstack-analysis.md)와 [Labeler 실제 결과](../labeler-verification-pilot.md)는 현재 결론의 근거로 유지한다. 결과의 제한을 제거하거나 새 설계가 이미 효과를 입증한 것처럼 수정하지 않는다.
+
+후속 [요구사항 검토](../agent-coding-requirements-review.md)는 Router 보류 결론을 되살리지 않고, 압축 과정에서 약해진 domain/boundary 책임과 Feature lifecycle을 현재 설계 §11에 복구했다. 이전 설계 전체를 현재 지침으로 재적용하지 않는다. 2026-10-05 검토 전 방향/프롬프트의 정확한 비교본은 Git `53865b0`에 보존되므로 동일 문서를 다시 복제하거나 삭제하지 않는다.

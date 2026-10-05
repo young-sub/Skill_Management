@@ -39,7 +39,7 @@ Labeler에는 제품·설계·UI 문서, styles tokens, DialogLayer, 공통 입�
 
 원문 요구의 근거는 고정 소스의 `docs/label-signage-design.md`, `docs/product-architecture.md`, `docs/ui-ux-upgrade.md`다. 기존 동작을 요구사항으로 역추론하지 않았다. 복제 프로젝트의 `docs/verification-pilot.md`가 사용자 행동·기대 결과·invariant·FE/BE/Domain·데이터·실행 방법의 단일 연결 지도를 소유한다.
 
-이하 경로는 모두 `.work/labeler-verification-pilot-5a80b570/` 아래다. raw 자료는 기존 임시 보존 정책을 따르며 이 문서가 지속 판단을 남긴다.
+이하 경로는 모두 `.work/labeler-verification-pilot-5a80b570/` 아래다. raw 자료는 임시 보존 대상이며 이 문서가 지속 판단을 남긴다. 아래는 당시 실행 기록이고, 2026-10-05 읽기 전용 재검토에서 확인한 DB producer 연결 등의 제한은 마지막 절을 함께 읽는다. 임시 폴더에 있다는 이유만으로 Harness의 manifest 기반 자동 정리가 등록됐다고 가정하지 않는다.
 
 | Feature | 실제 관찰 | 근거 / 판정 범위 |
 | --- | --- | --- |
@@ -146,3 +146,13 @@ node scripts/verify-flows.mjs ../new-browser all
 ```
 
 `identity.json`, `plan.md`, `native-controls.json`, committed native/browser records, `committed-db-readback.json`, PDF/PNG/DOM, Agent raw records, `plugin-probe/result.json`와 `plugin-probe/repro-runs/20261004T151153Z-cb52dbf2/`의 host/CLI raw 기록 및 `reproduce_plugin_probe.py`가 재현 근거다. JSON report/path/hash는 editable evidence의 consistency 검사이며 signed attestation이 아니다. 초기 실패 로그는 버리지 않았고 제품 결함과 실행 도구 실패를 구분했다. 소유 브라우저를 finally/고유 CLI session close로 닫고 소유 foreground 서버를 종료했다. source repo와 fixture/evidence는 삭제하지 않았다.
+
+## 2026-10-05 요구사항 검토의 근거 재확인
+
+[요구사항 검토](agent-coding-requirements-review.md)에서 기존 파일만 읽었다. 앱·브라우저·DB·모델 평가를 새로 실행하거나 fixture를 바꾸지 않았다. 따라서 다음은 기록의 재확인이고 현재 제품 동작의 재검증은 아니다.
+
+- 독립 repo HEAD `ecd7db768aef3c17c0ffc9834759944cf013b0f0`와 clean 상태, `committed-browser.json`의 run `4d5f6b6d-351f-4c1b-a2d4-43b993e80b37`·exit 0·28개 browser check를 확인했다. native product/design/print는 29/5/7 성공을 기록하며 capture에 담긴 JSON report 해시가 보존된 원문과 일치했다. 이 수치는 실행 범위이지 전체 품질 지표가 아니다.
+- UI 가격 결함의 `3201 !== 3200`, Domain 금액 결함의 native exit 1·29개 중 5개 실패, skip의 exit 0·실행 성공 0개/pending 1개, zero의 0개, 잘못된 대상·서버 미준비의 exit 2 기록이 남아 있다. 요약 PASS 대신 이 원본 출력과 관찰을 확인했다.
+- **DB evidence 연결은 불완전하다.** `committed-db-readback.json`의 상품 `89c990e5-d747-47c8-b728-5bfdaf256b67`과 job ID는 committed browser와 같고 금액도 일치한다. 그러나 파일에는 생성 명령·run ID·source 상태가 없으며, 남아 있는 `db_readback.py:4`는 `browser-baseline-07/observed.json`을 읽어 `db-readback.json`을 생성한다. 최종 readback을 생성한 producer 기록은 이번에 확인한 파일럿 자료에서 찾지 못했다. 데이터의 내용 일치와 **동일 committed 실행에 연결된 DB 검증**을 구분해야 한다. 이를 채우려고 과거 raw를 고치거나 이번에 DB를 다시 실행하지 않았다.
+- `agent-red`, `agent-green`, `independent-browser` 관찰과 native 출력·실제 diff는 존재한다. `agent-implementation.json`과 `independent-verdict.json`은 요약 카드이며 그 자체가 raw Agent 대화/도구 trace나 신원 증명은 아니다. 이번 자료에서는 새 Skill을 스스로 발견·선택한 model/tool transcript를 확인하지 못했다. 당시 역할 분리 과업의 제품 관찰을 뒷받침하지만, 새 업무 Router나 후보 Skill의 독립 선택 효과를 입증하지 않는다.
+- `served-identity.json`과 browser doctor의 source-map 검사는 해당 served source를 대조하는 장치다. 모든 backend/build/dependency/DB 상태와 Agent 신원을 포괄하는 인증은 아니다. 원본 제품·운영·일반 설치 적용, 장기 Agent 품질·속도 우월성은 여전히 미검증이다. 임시 raw가 만료되면 이 문서는 역사적 요약으로만 사용하고 원본 확인 불가를 표시한다.

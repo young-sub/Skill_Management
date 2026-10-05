@@ -13,6 +13,7 @@ Load ignored repository-local `.harness/environment-exceptions.json` once per ta
 - [Triage labels](agents/triage-labels.md) — current issue vocabulary.
 - [Skill inventory](architecture/skill-inventory.md) — public distribution inventory.
 - [Agent Coding direction](research/agent-coding-system-direction.md) — October 5 decisions and discussion history: one workflow entry, full-stack verification, feedback guardrails, Feature/UI maintenance, and evidence-based pruning; agreed capabilities are distinguished from implemented behavior.
+- [Agent Coding requirements review](research/agent-coding-requirements-review.md) — R01–R16 audit of the pre-implementation design, raw-evidence limits, minimal corrections, and concrete acceptance tasks; this review did not execute the implementation prompt.
 - [Next-session implementation prompt](research/agent-coding-next-session.md) — implement the agreed workflow and Skills, test actual delegated tasks in isolated Labeler, and connect each enabled user capability to implementation and raw evidence; not yet executed.
 - [Labeler pilot results](research/labeler-verification-pilot.md) — actual browser/API/D1/print evidence, defect controls, delegated repair, minimal improvements, Skill responsibility and temporary Plugin host checks.
 - [pstack research](research/pstack-analysis.md) — pinned upstream inventory and critical analysis; research evidence rather than repository execution policy.
