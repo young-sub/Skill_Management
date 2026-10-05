@@ -23,6 +23,17 @@ def scan(root: Path) -> subprocess.CompletedProcess[str]:
 
 
 class SelfContainmentTests(unittest.TestCase):
+    def test_python_calls_are_not_markdown_but_docstring_links_are_checked(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            skill = self._skill(root)
+            (skill / 'runner.py').write_text('runtime["inspect"](root, project)\n', encoding='utf-8')
+            self.assertEqual(scan(root).returncode, 0)
+            (skill / 'runner.py').write_text('"""[missing](references/missing.md)"""\nruntime["inspect"](root, project)\n', encoding='utf-8')
+            result = scan(root)
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual([f['normalized_target'] for f in self._payload(result)['findings']], ['references/missing.md'])
+
     def _payload(self, result: subprocess.CompletedProcess[str]) -> dict[str, object]:
         self.assertTrue(result.stdout.strip(), result.stderr)
         return json.loads(result.stdout)

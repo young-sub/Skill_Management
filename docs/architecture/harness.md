@@ -31,6 +31,10 @@ Manifest dates, not filesystem timestamps, drive retention. Transaction journals
 
 ## Environment exceptions
 
+Configured `extensions.workflow` connects the existing project Feature Map, source patterns, criteria and command IDs to [project obligations](../../authoring/references/workflow-obligations.md). Its task record preserves baseline and partition reviews. Source/criteria/command changes reopen consumers; missing links and evidence remain PARTIAL. Harness maintain audits those obligations and close recomputes them before lifecycle completion. This remains editable local consistency: `READY_FOR_REVIEW` is not protected acceptance, and the explicit accept operation reports BLOCKED without a host-owned verifier boundary.
+
+The cohort installer preserves replaced trees at its returned `preserved_previous` path, including user customizations. An already matching installation returns `reused: true` without rewriting it. Failed restoration retains both staging and backup recovery paths instead of deleting remaining previous bytes. This is recoverability for observed exceptions; process-crash recovery and hostile-process isolation require separate host evidence.
+
 `.harness/environment-exceptions.json` is an ignored, repository-local machine exception document. If absent, the runtime does nothing. If present, schema version 1 requires each unique entry to contain non-empty `capability`, `status`, `reason`, `fallback`, `disable`, and `retry`; supported failure statuses are `verification_unavailable` and `execution_blocked`. A `skip_until_manual_reenable` entry prevents another invocation and selects the fallback. The resulting evidence carries the unavailable capability name, intent, reason, fallback, disable method, and remaining unverified scope for `result.json` and final chat. Environment failures never become approval blocks.
 
 ## Distribution

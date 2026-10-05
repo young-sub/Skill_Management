@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import argparse
 from datetime import date
+import io
 import json
 import os
 from pathlib import Path
 import re
 import sys
+import tokenize
 from typing import Any, Iterable
 from urllib.parse import unquote, urlsplit
 
@@ -176,7 +178,21 @@ def _scan_text_file(
         ]
     findings: list[dict[str, str]] = []
     occupied = {match.span() for match in FENCED_CODE.finditer(text)}
+    prose = None
+    if source.suffix == '.py':
+        offsets = [0]
+        for line in text.splitlines(keepends=True):
+            offsets.append(offsets[-1] + len(line))
+        try:
+            prose = [(offsets[token.start[0] - 1] + token.start[1],
+                      offsets[token.end[0] - 1] + token.end[1])
+                     for token in tokenize.generate_tokens(io.StringIO(text).readline)
+                     if token.type in {tokenize.STRING, tokenize.COMMENT}]
+        except (tokenize.TokenError, IndentationError):
+            pass  # Malformed source keeps the conservative text scan.
     for match in MARKDOWN_LINK.finditer(text):
+        if prose is not None and not any(start <= match.start() and match.end() <= end for start, end in prose):
+            continue
         if any(start <= match.start("target") < end for start, end in occupied):
             continue
         target = match.group("target")

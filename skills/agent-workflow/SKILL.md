@@ -4,7 +4,7 @@ description: Coordinate a coding task from a natural-language request through re
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: 735f0bedad7e29076b0d9c1961678324f7afd56eaad8ff49a6566f6cbeb1f713 -->
+<!-- Source-SHA256: 3733e9b6f404846b6aa75499fd01122a92c83b9238d85be2748e6f782a04008e -->
 
 
 # Agent Workflow
@@ -13,7 +13,7 @@ Read the project AGENTS/index, current checkout and dirty baseline, requirement 
 
 | Request | Select the necessary work |
 | --- | --- |
-| First runnable verification path | Available `setup-project-verification`; inspect existing requirements and commands, connect and run one important flow. Mark remaining unmapped scope. |
+| Initial project verification | Available `setup-project-verification`; reconcile the complete function map, partition/resume large surveys, then connect actual checks. Map completeness and execution coverage are separate. |
 | Implement a feature | Existing development workflow; requirements and touched callers first. If the affected Feature lacks a runnable verification connection, use the setup responsibility for that missing path, then implement, verify and update affected map/guide/active selectors in the same functional commit. Small work needs no contract. |
 | Verify a feature | Project verification guide/adapter; select checks from changed behavior, run the real native and affected user flow, inspect raw outcomes. |
 | Show existing results | Read existing plan, capture and raw observations only. Separate original judgment from current reuse. Do not run tests, repair files or start services. |
@@ -22,6 +22,8 @@ Read the project AGENTS/index, current checkout and dirty baseline, requirement 
 | Improve UI consistency or standards | Discover project UI guide/token/component paths and use the relevant existing UI capability. Repair shared implementation and affected guidance, then verify actual states and subsequent reuse. |
 
 Load [verification responsibilities](references/project-verification.md) for setup, verification, maintenance or feedback. For feedback/UI work also read [repair and reuse](references/repair-and-reuse.md). If a named capability is unavailable, perform its bounded responsibility using project commands; do not silently treat missing checks as passed or install a new framework.
+
+For configured projects, [workflow obligations](references/workflow-obligations.md) provides the direct audit/resume CLI. Consume its affected references and perform the required semantic work. Local consistency and host-protected acceptance are distinct; the CLI reports the unsupported enforcement boundary explicitly.
 
 For existing structured project evidence, the bundled [read-only viewer](scripts/verification_results.py) joins a project plan, capture, adapter assessment and raw observations. Read its [input and reuse contract](references/result-viewer.md); preserve the project's native report format and use its criterion/observation pointers. It never launches a recorded command. If the project has no compatible plan, inspect raw directly and report the missing binding; do not manufacture a successful plan or silently execute during lookup.
 

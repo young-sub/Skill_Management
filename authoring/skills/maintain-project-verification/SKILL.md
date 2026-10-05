@@ -13,6 +13,8 @@ When `.harness/project.yaml` exists and mapping/cohort/retention is affected, us
 
 Audit-only ends with findings and their evidence, without writes, launches or side-effecting tests. Authorized improvement continues through the actual owner repair: code for product defects, adapter/driver for observation errors, map/command/guide for drift, shared component/token for repeated UI inconsistency. Reuse `diagnose` and the relevant UI capability. Read [repair and reuse](references/repair-and-reuse.md) when those paths apply.
 
+Use [workflow obligations](references/workflow-obligations.md) for configured project links and resumable review. Its audit computes omissions and changed consumers without executing tests; Harness maintenance consumes the same calculation. Unconfigured projects remain read-only findings until setup is authorized.
+
 Keep feature additions/changes/removals and their map/guide/active selectors in the same functional change. Confirm removed entrypoints really have no callers; remove only active connections and retain historical runs. Execute repaired commands and the affected flow without lowering requirements, assertions, skips or visual baselines. Preserve both verified work and remaining BLOCKED areas.
 
 Review redundant, implementation-coupled or costly checks by the failure each detects. Consolidate only when the remaining mechanism demonstrably rejects the same defect and permits nearby valid behavior. Without that evidence retain the checks and explain why. Counts and coverage alone do not establish value. Do not create a separate test-pruning framework.

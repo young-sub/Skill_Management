@@ -4,7 +4,7 @@ description: Audit and repair drift in a project's Feature Map, executable verif
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/maintain-project-verification/SKILL.md -->
-<!-- Source-SHA256: 55dd393f3ca048afd365ab2363189ce21427fcc4895f3e2e95817a460bf7edbc -->
+<!-- Source-SHA256: 2e4c0fb8be9fd9e0ded98eb4cc48176709fb7a69b5963bbc8ef6ed38dbbf03d9 -->
 
 
 # Maintain Project Verification
@@ -16,6 +16,8 @@ Compare product requirements and current entrypoints with map → active selecto
 When `.harness/project.yaml` exists and mapping/cohort/retention is affected, use available `maintain-agent-harness` and its runtime alongside this product review. Combine shared reads while retaining separate findings and verdicts. Do not call Harness irrelevant merely to avoid a combined maintenance task. A non-Harness project requires no automatic installation; retention deletion is never an incidental product repair.
 
 Audit-only ends with findings and their evidence, without writes, launches or side-effecting tests. Authorized improvement continues through the actual owner repair: code for product defects, adapter/driver for observation errors, map/command/guide for drift, shared component/token for repeated UI inconsistency. Reuse `diagnose` and the relevant UI capability. Read [repair and reuse](references/repair-and-reuse.md) when those paths apply.
+
+Use [workflow obligations](references/workflow-obligations.md) for configured project links and resumable review. Its audit computes omissions and changed consumers without executing tests; Harness maintenance consumes the same calculation. Unconfigured projects remain read-only findings until setup is authorized.
 
 Keep feature additions/changes/removals and their map/guide/active selectors in the same functional change. Confirm removed entrypoints really have no callers; remove only active connections and retain historical runs. Execute repaired commands and the affected flow without lowering requirements, assertions, skips or visual baselines. Preserve both verified work and remaining BLOCKED areas.
 

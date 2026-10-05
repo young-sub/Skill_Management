@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/verification_results.py
-# Source-SHA256: 41e1522350088bd9a4102f7f89fd87c8c8dade176599f5951adebcfa5fec498c
+# Source-SHA256: 84a50eec7822aa6f33d6e42dd8c99dfb071b2d85163339b41c3cbd7729d7e5a3
 
 """Read-only viewer for plan-bound verification captures and observations.
 
@@ -13,9 +13,13 @@ historical assessment is kept separate from its reuse under the current plan.
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
+import math
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -73,20 +77,22 @@ def _load_many(paths: Iterable[str | Path], label: str) -> list[dict[str, Any]]:
     return loaded
 
 
-def _validate_raw_plan(check: dict[str, Any], index: int) -> None:
+def _validate_raw_plan(check: dict[str, Any], index: int, *, allow_unbound: bool = False) -> None:
     descriptors = check.get("raw_observations", [])
     if not isinstance(descriptors, list):
         raise ViewerInputError(f"checks[{index}].raw_observations must be a list")
     for descriptor_index, descriptor in enumerate(descriptors):
         if not isinstance(descriptor, dict):
             raise ViewerInputError(f"checks[{index}].raw_observations[{descriptor_index}] must be an object")
-        if not _text(descriptor.get("path")) or not _text(descriptor.get("sha256")) or not isinstance(descriptor.get("pointer"), str):
+        if not _text(descriptor.get("path")) or (not allow_unbound and not _text(descriptor.get("sha256"))) or not isinstance(descriptor.get("pointer"), str):
             raise ViewerInputError(
                 f"checks[{index}].raw_observations[{descriptor_index}] needs path, sha256 and pointer"
             )
+        if "assertions" in descriptor and descriptor["assertions"] is not None and not isinstance(descriptor["assertions"], list):
+            raise ViewerInputError(f"checks[{index}].raw_observations[{descriptor_index}].assertions must be a list")
 
 
-def _plan_checks(plan: dict[str, Any]) -> list[dict[str, Any]]:
+def _plan_checks(plan: dict[str, Any], *, allow_unbound: bool = False) -> list[dict[str, Any]]:
     if plan.get("schema_version") != 1:
         raise ViewerInputError("Plan schema_version must be 1")
     checks = plan.get("checks")
@@ -128,7 +134,7 @@ def _plan_checks(plan: dict[str, Any]) -> list[dict[str, Any]]:
             raise ViewerInputError(f"checks[{index}].criteria_revision must match conditions.criteria.revision")
         if "run_id" in check and not _text(check["run_id"]):
             raise ViewerInputError(f"checks[{index}].run_id must be a nonempty string when supplied")
-        _validate_raw_plan(check, index)
+        _validate_raw_plan(check, index, allow_unbound=allow_unbound)
     return checks
 
 
@@ -779,6 +785,728 @@ def _summary(items: list[dict[str, Any]], field: str, *, required_only: bool = F
     return {"status": status, "statuses": statuses, "counts": _counts(included, field)}
 
 
+def _git_snapshot(cwd: Path) -> dict[str, str]:
+    """Read the fixed source identity used by execution and current reuse."""
+    def git(*tokens: str) -> bytes:
+        return subprocess.check_output(["git", "-C", str(cwd), *tokens], stderr=subprocess.DEVNULL)
+
+    return {
+        "revision": git("rev-parse", "HEAD").decode().strip(),
+        "diff": _sha256(git("diff", "HEAD", "--binary")),
+        "status": git("status", "--porcelain").decode("utf-8", errors="replace"),
+    }
+
+
+_PRIVATE_PATH_PARTS = {".env", ".dev.vars", "auth", "auth.json", "credentials", "secrets"}
+
+
+def _is_alias(path: Path) -> bool:
+    try:
+        if path.is_symlink():
+            return True
+        is_junction = getattr(path, "is_junction", None)
+        return bool(is_junction and is_junction())
+    except OSError as error:
+        raise ViewerInputError(f"path_unreadable:{path}:{error}") from error
+
+
+def _private_path(path: Path) -> bool:
+    return any(
+        part.lower() in _PRIVATE_PATH_PARTS or part.lower().startswith(".env.")
+        for part in path.parts
+    )
+
+
+def _reject_alias_components(path: Path, label: str) -> None:
+    """Reject symlink/junction components before resolving or reading a path."""
+    if not path.is_absolute():
+        raise ViewerInputError(f"{label} must be absolute before alias checks")
+    cursor = Path(path.anchor)
+    for part in path.parts[1:]:
+        if part in ("", "."):
+            continue
+        if part == "..":
+            cursor = cursor.parent
+            continue
+        cursor = cursor / part
+        if _is_alias(cursor):
+            raise ViewerInputError(f"{label} uses an aliased path")
+
+
+def _safe_cwd(value: Path, label: str) -> Path:
+    if not value.is_absolute() or _private_path(value):
+        raise ViewerInputError(f"{label}.cwd must be an existing non-aliased absolute directory")
+    _reject_alias_components(value, label)
+    if not value.is_dir():
+        raise ViewerInputError(f"{label}.cwd must be an existing non-aliased absolute directory")
+    resolved = value.resolve()
+    _reject_alias_components(resolved, label)
+    return resolved
+
+
+def _safe_path(
+    value: str,
+    *,
+    root: Path,
+    label: str,
+    allow_absolute: bool = False,
+    extra_root: Path | None = None,
+) -> Path:
+    raw = Path(value)
+    if not value.strip() or (raw.is_absolute() and not allow_absolute):
+        raise ViewerInputError(f"{label} must be a relative path")
+    if _private_path(raw):
+        raise ViewerInputError(f"{label} points to a private path")
+    roots = [root]
+    if extra_root is not None:
+        roots.append(extra_root)
+    checked_roots: list[Path] = []
+    for candidate in roots:
+        if not candidate.is_absolute():
+            raise ViewerInputError(f"{label}.root must be absolute")
+        if _private_path(candidate):
+            raise ViewerInputError(f"{label}.root points to a private path")
+        _reject_alias_components(candidate, f"{label}.root")
+        if candidate.exists() and candidate.is_dir():
+            checked_roots.append(_safe_cwd(candidate, f"{label}.root"))
+        elif candidate.exists():
+            raise ViewerInputError(f"{label}.root must be a directory")
+        else:
+            checked_roots.append(candidate.resolve())
+    roots = checked_roots
+    candidate = raw if raw.is_absolute() else root / raw
+    _reject_alias_components(candidate, label)
+    resolved = candidate.resolve()
+    if _private_path(resolved):
+        raise ViewerInputError(f"{label} points to a private path")
+    matching = [candidate_root for candidate_root in roots if resolved == candidate_root or candidate_root in resolved.parents]
+    if not matching:
+        raise ViewerInputError(f"{label} escapes its allowed root")
+    anchor = max(matching, key=lambda item: len(item.parts))
+    relative = candidate.relative_to(anchor) if candidate.is_relative_to(anchor) else raw
+    cursor = anchor
+    for part in relative.parts:
+        if part in ("", "."):
+            continue
+        cursor = cursor / part
+        if _is_alias(cursor):
+            raise ViewerInputError(f"{label} uses an aliased path")
+    return resolved
+
+
+def _file_refs(group: dict[str, Any], label: str) -> list[str]:
+    refs = group.get("file_refs", group.get("files"))
+    if refs is None:
+        return []
+    if not isinstance(refs, list) or not refs:
+        raise ViewerInputError(f"{label}.file_refs must be a nonempty list")
+    result: list[str] = []
+    for index, ref in enumerate(refs):
+        if isinstance(ref, str) and ref.strip():
+            result.append(ref)
+        elif isinstance(ref, dict) and _text(ref.get("path")):
+            result.append(str(ref["path"]))
+        else:
+            raise ViewerInputError(f"{label}.file_refs[{index}] must name a file")
+    return result
+
+
+def _file_hashes(group: dict[str, Any], cwd: Path, label: str) -> dict[str, str]:
+    hashes: dict[str, str] = {}
+    for ref in _file_refs(group, label):
+        if Path(ref).is_absolute():
+            raise ViewerInputError(f"{label}.file_ref_absolute:{ref}")
+        path = _safe_path(ref, root=cwd, label=f"{label}.file_ref")
+        if not path.is_file():
+            raise ViewerInputError(f"{label}.file_ref_missing:{ref}")
+        try:
+            raw = path.read_bytes()
+        except OSError as error:
+            raise ViewerInputError(f"{label}.file_ref_unreadable:{ref}:{error}") from error
+        hashes[str(path)] = _sha256(raw)
+    return hashes
+
+
+def _runtime_identity(check: dict[str, Any]) -> dict[str, str]:
+    argv = check["conditions"]["command"].get("argv")
+    if not isinstance(argv, list) or not argv or not isinstance(argv[0], str) or not argv[0].strip():
+        raise ViewerInputError("runtime executable is missing from command argv")
+    executable = Path(argv[0])
+    located = executable if executable.is_absolute() else Path(shutil.which(argv[0]) or "")
+    if not located or not located.is_file():
+        raise ViewerInputError(f"runtime executable is unavailable: {argv[0]}")
+    try:
+        resolved = located.resolve()
+        raw = resolved.read_bytes()
+    except OSError as error:
+        raise ViewerInputError(f"runtime executable is unreadable: {argv[0]}: {error}") from error
+    identity = {
+        "executable": str(resolved),
+        "executable_sha256": _sha256(raw),
+    }
+    try:
+        current_executable = Path(sys.executable).resolve()
+    except OSError:
+        current_executable = Path(sys.executable)
+    if resolved == current_executable:
+        identity["python_version"] = sys.version
+    return identity
+
+
+def _execution_conditions(check: dict[str, Any], cwd: Path) -> dict[str, Any]:
+    conditions = copy.deepcopy(check["conditions"])
+    snapshot = _git_snapshot(cwd)
+    source = conditions["source"]
+    source["revision"] = snapshot["revision"]
+    source["diff"] = snapshot["diff"]
+    if "status" in source:
+        source["status"] = snapshot["status"]
+    conditions["runtime"].update(_runtime_identity(check))
+    for name in ("dependency", "fixture"):
+        group = conditions[name]
+        hashes = _file_hashes(group, cwd, name)
+        if hashes:
+            group["file_hashes"] = hashes
+    return conditions
+
+
+def _validate_execution_check(
+    check: dict[str, Any], index: int, evidence_dir: Path
+) -> tuple[Path, dict[str, Any], Path]:
+    if _text(check.get("run_id")):
+        raise ViewerInputError(f"checks[{index}] execution plan already has a run binding")
+    conditions = check["conditions"]
+    command = conditions["command"]
+    argv = command.get("argv")
+    cwd_value = command.get("cwd")
+    if not isinstance(argv, list) or not argv or not all(isinstance(item, str) and item for item in argv):
+        raise ViewerInputError(f"checks[{index}].conditions.command.argv must be a nonempty string list")
+    if not isinstance(cwd_value, str):
+        raise ViewerInputError(f"checks[{index}].conditions.command.cwd must be an existing absolute directory")
+    cwd = _safe_cwd(Path(cwd_value), f"checks[{index}].conditions.command")
+    descriptors = check.get("raw_observations", [])
+    if not isinstance(descriptors, list) or len(descriptors) != 1:
+        raise ViewerInputError(f"checks[{index}] execution needs exactly one native raw_observation")
+    descriptor = descriptors[0]
+    if _text(descriptor.get("sha256")) or isinstance(descriptor.get("producer"), dict):
+        raise ViewerInputError(f"checks[{index}] execution plan already has a raw binding")
+    assertions = descriptor.get("assertions")
+    if not isinstance(assertions, list) or not assertions:
+        raise ViewerInputError(f"checks[{index}] execution needs explicit native assertions")
+    for assertion_index, assertion in enumerate(assertions):
+        if not isinstance(assertion, dict) or not isinstance(assertion.get("pointer"), str):
+            raise ViewerInputError(f"checks[{index}] assertion {assertion_index} needs a JSON pointer")
+        operators = [key for key in ("equals", "min_count", "min") if key in assertion]
+        if len(operators) != 1:
+            raise ViewerInputError(f"checks[{index}] assertion {assertion_index} needs one explicit comparator")
+    report_value = descriptor.get("path")
+    if not isinstance(report_value, str) or not report_value.strip():
+        raise ViewerInputError(f"checks[{index}] native report path is required")
+    report_path = _safe_path(
+        report_value,
+        root=cwd,
+        label=f"checks[{index}].native_report",
+        allow_absolute=True,
+        extra_root=evidence_dir,
+    )
+    if _is_alias(report_path) or report_path.exists():
+        raise ViewerInputError(f"checks[{index}] native report path already exists: {report_path}")
+    return cwd, descriptor, report_path
+
+
+def _preflight_execution(
+    plan: dict[str, Any], checks: list[dict[str, Any]], evidence_dir: Path
+) -> dict[int, dict[str, Any]]:
+    preconditions: dict[int, dict[str, Any]] = {}
+    report_paths: set[Path] = set()
+    for index, check in enumerate(checks):
+        selected, _ = _selection(check)
+        if not selected:
+            continue
+        cwd, descriptor, report_path = _validate_execution_check(check, index, evidence_dir)
+        measured = _execution_conditions(check, cwd)
+        expected = check["conditions"]
+        for key in ("revision", "diff"):
+            if expected["source"].get(key) != measured["source"][key]:
+                raise ViewerInputError(f"checks[{index}] pre-run source.{key} does not match current checkout")
+        if "status" in expected["source"] and expected["source"]["status"] != measured["source"]["status"]:
+            raise ViewerInputError(f"checks[{index}] pre-run source.status does not match current checkout")
+        for name in ("dependency", "fixture"):
+            expected_hashes = expected[name].get("file_hashes")
+            if expected_hashes is not None and expected_hashes != measured[name].get("file_hashes"):
+                raise ViewerInputError(f"checks[{index}] pre-run {name}.file_hashes are stale")
+        if report_path in report_paths:
+            raise ViewerInputError(f"checks[{index}] native report path is reused: {report_path}")
+        report_paths.add(report_path)
+        preconditions[index] = {"cwd": cwd, "conditions": measured, "report_path": report_path}
+    if not preconditions:
+        raise ViewerInputError("execution requires at least one selected check")
+    return preconditions
+
+
+def _write_json(path: Path, data: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists() or path.is_symlink():
+        raise ViewerInputError(f"execution output already exists: {path}")
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def _blocked_execution(message: str, *, plan_path: Path, run_check_path: Path | None = None) -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "read_only": False,
+        "test_commands_executed": 0,
+        "status": "BLOCKED",
+        "statuses": ["BLOCKED"],
+        "historical": {"status": "BLOCKED", "statuses": ["BLOCKED"], "counts": {"BLOCKED": 1}},
+        "current": {"status": "BLOCKED", "statuses": ["BLOCKED"], "counts": {"BLOCKED": 1}},
+        "items": [],
+        "remaining": [message],
+        "execution": {"mode": "execute", "plan": str(plan_path), "run_check": str(run_check_path) if run_check_path else None},
+    }
+
+
+def _blocked_bundle(message: str, *, bundle: Any = None) -> dict[str, Any]:
+    retained_bundle = str(bundle) if isinstance(bundle, Path) else bundle
+    return {
+        "schema_version": 1,
+        "read_only": True,
+        "test_commands_executed": 0,
+        "current_source_check": "fixed read-only Git commands; no submitted argv executed",
+        "status": "BLOCKED",
+        "statuses": ["BLOCKED"],
+        "historical": {"status": "BLOCKED", "statuses": ["BLOCKED"], "counts": {"BLOCKED": 1}},
+        "current": {"status": "BLOCKED", "statuses": ["BLOCKED"], "counts": {"BLOCKED": 1}},
+        "items": [],
+        "remaining": [message],
+        "bundle": retained_bundle,
+    }
+
+
+def _invalidate_current_result(result: dict[str, Any], reason: str) -> dict[str, Any]:
+    """Make a previously joined result fail closed after an identity change."""
+    for item in result.get("items", []):
+        if item.get("selected"):
+            item["current_reuse"] = "STALE"
+            item["current_status"] = "UNKNOWN"
+            item["reasons"] = sorted(set(item.get("reasons", [])) | {reason})
+    items = result.get("items", [])
+    current = _summary(items, "current_status", required_only=True)
+    result["current"] = current
+    result["status"] = current["status"]
+    result["statuses"] = current["statuses"]
+    result["remaining"] = sorted(
+        {reason for item in items for reason in item.get("reasons", []) if reason} | {reason}
+    )
+    return result
+
+
+def _path_hash(path: Path, label: str) -> str:
+    if _private_path(path):
+        raise ViewerInputError(f"{label} points to a private path")
+    _reject_alias_components(path, label)
+    if not path.is_file():
+        raise ViewerInputError(f"{label} is missing: {path}")
+    try:
+        return _sha256(path.read_bytes())
+    except OSError as error:
+        raise ViewerInputError(f"{label} is unreadable: {path}: {error}") from error
+
+
+def _bundle_file(value: Any, *, base: Path, label: str) -> Path:
+    if not isinstance(value, (str, Path)) or not str(value).strip():
+        raise ViewerInputError(f"{label} must name a file")
+    value_path = Path(value)
+    candidate = value_path if value_path.is_absolute() else base / value_path
+    if not candidate.is_absolute():
+        candidate = candidate.absolute()
+    return candidate if _path_hash(candidate, label) else candidate
+
+
+def _bundle_current_context(plan: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    current: dict[str, Any] = {"checks": {}}
+    findings: list[str] = []
+    for index, check in enumerate(_plan_checks(plan)):
+        selected, _ = _selection(check)
+        if not selected:
+            continue
+        key = f"{check['feature_id']}/{check['id']}"
+        command = check["conditions"]["command"]
+        cwd_value = command.get("cwd")
+        try:
+            if not isinstance(cwd_value, str):
+                raise ViewerInputError(f"checks[{index}].conditions.command.cwd is missing")
+            cwd = _safe_cwd(Path(cwd_value), f"checks[{index}].conditions.command")
+            current["checks"][key] = {"conditions": _execution_conditions(check, cwd)}
+            runtime = check["conditions"]["runtime"]
+            if not isinstance(runtime.get("executable"), str) or not runtime.get("executable_sha256"):
+                findings.append(f"runtime_identity_missing:{key}")
+        except (OSError, ValueError, TypeError, KeyError, subprocess.CalledProcessError) as error:
+            findings.append(f"current_conditions_unavailable:{key}:{error}")
+    return current, findings
+
+
+def _validate_bundle_report_paths(plan: dict[str, Any], evidence_dir: Path | None) -> None:
+    for index, check in enumerate(_plan_checks(plan)):
+        selected, _ = _selection(check)
+        if not selected:
+            continue
+        command = check["conditions"]["command"]
+        cwd_value = command.get("cwd")
+        if not isinstance(cwd_value, str):
+            raise ViewerInputError(f"checks[{index}].conditions.command.cwd is missing")
+        cwd = _safe_cwd(Path(cwd_value), f"checks[{index}].conditions.command")
+        for descriptor_index, descriptor in enumerate(check.get("raw_observations", [])):
+            report_value = descriptor.get("path") if isinstance(descriptor, dict) else None
+            if not isinstance(report_value, str) or not report_value.strip():
+                continue
+            _safe_path(
+                report_value,
+                root=cwd,
+                label=f"checks[{index}].raw_observations[{descriptor_index}].path",
+                allow_absolute=True,
+                extra_root=evidence_dir,
+            )
+            producer = descriptor.get("producer") if isinstance(descriptor, dict) else None
+            if isinstance(producer, dict) and isinstance(producer.get("json_report_path"), str):
+                _safe_path(
+                    producer["json_report_path"],
+                    root=cwd,
+                    label=f"checks[{index}].raw_observations[{descriptor_index}].producer.json_report_path",
+                    allow_absolute=True,
+                    extra_root=evidence_dir,
+                )
+
+
+def view_bundle(bundle: dict[str, Any] | str | Path) -> dict[str, Any]:
+    """Revalidate an execution bundle read-only against the current project state."""
+    bundle_value: Any = bundle
+    bundle_file: Path | None = None
+    base = Path.cwd().resolve()
+    try:
+        if isinstance(bundle, (str, Path)):
+            bundle_file = _bundle_file(bundle, base=base, label="bundle")
+            bundle_value, _ = _read_json(bundle_file)
+            base = bundle_file.parent
+        if not isinstance(bundle_value, dict):
+            raise ViewerInputError("bundle must be an object or JSON path")
+        if isinstance(bundle_value.get("execution"), dict) and isinstance(bundle_value["execution"].get("bundle"), dict):
+            bundle_value = bundle_value["execution"]["bundle"]
+        source_plan = _bundle_file(bundle_value.get("source_plan"), base=base, label="bundle.source_plan")
+        recorded_hash = bundle_value.get("source_plan_sha256")
+        if not isinstance(recorded_hash, str) or not recorded_hash:
+            raise ViewerInputError("bundle.source_plan_sha256 is required")
+        source_hash = _path_hash(source_plan, "bundle.source_plan")
+        bound_plan = _bundle_file(bundle_value.get("plan"), base=base, label="bundle.plan")
+        evidence_value = bundle_value.get("evidence_dir")
+        evidence_dir = None
+        if isinstance(evidence_value, str) and evidence_value.strip():
+            evidence_candidate = Path(evidence_value) if Path(evidence_value).is_absolute() else base / evidence_value
+            if not evidence_candidate.is_absolute():
+                evidence_candidate = evidence_candidate.absolute()
+            _reject_alias_components(evidence_candidate, "bundle.evidence_dir")
+            evidence_dir = evidence_candidate.resolve()
+        records = [_bundle_file(value, base=base, label="bundle.record") for value in bundle_value.get("records", [])]
+        assessments = [_bundle_file(value, base=base, label="bundle.assessment") for value in bundle_value.get("assessments", [])]
+        observations = [_bundle_file(value, base=base, label="bundle.observation") for value in bundle_value.get("observations", [])]
+        plan, _ = _read_json(bound_plan)
+        if not isinstance(plan, dict):
+            raise ViewerInputError("bundle.plan must contain a JSON object")
+        original, _ = _read_json(source_plan)
+        original_checks = _plan_checks(original, allow_unbound=True)
+        bound_checks = _plan_checks(plan)
+        if len(original_checks) != len(bound_checks):
+            raise ViewerInputError("bound plan changed selected checks")
+        for selected, bound in zip(original_checks, bound_checks):
+            for field in ("id", "feature_id", "expected", "criteria_revision", "required", "selection"):
+                if selected[field] != bound[field]:
+                    raise ViewerInputError(f"bound plan changed {field}")
+            if _missing_or_mismatched(selected["conditions"], bound["conditions"], "conditions"):
+                raise ViewerInputError("bound plan changed selected conditions")
+            # Missing raw evidence remains a failed check; present evidence cannot weaken its oracle.
+            if bound.get("raw_observations"):
+                selected_raw = selected.get("raw_observations", [])
+                if len(selected_raw) != len(bound["raw_observations"]):
+                    raise ViewerInputError("bound plan changed raw checks")
+                for before, after in zip(selected_raw, bound["raw_observations"]):
+                    if any(before.get(key) != after.get(key) for key in ("pointer", "assertions")):
+                        raise ViewerInputError("bound plan changed raw assertions")
+                    cwd = Path(selected["conditions"]["command"]["cwd"])
+                    if (cwd / before["path"]).resolve() != Path(after["path"]).resolve():
+                        raise ViewerInputError("bound plan changed raw path")
+        _validate_bundle_report_paths(plan, evidence_dir)
+        current, condition_findings = _bundle_current_context(plan)
+        result = view_results(
+            bound_plan,
+            record_paths=records,
+            assessment_paths=assessments,
+            observation_paths=observations,
+            current_context=current,
+        )
+        result["bundle"] = copy.deepcopy(bundle_value)
+        result["bundle_view"] = {"read_only": True, "source_plan": str(source_plan), "source_plan_sha256": source_hash}
+        result["test_commands_executed"] = 0
+        for finding in condition_findings:
+            result["remaining"] = sorted(set(result.get("remaining", [])) | {finding})
+            _invalidate_current_result(result, finding)
+        if source_hash.lower() != recorded_hash.lower():
+            _invalidate_current_result(result, "source_plan_hash_mismatch")
+        return result
+    except (OSError, ValueError, TypeError, KeyError, subprocess.CalledProcessError) as error:
+        return _blocked_bundle(str(error), bundle=bundle_value if isinstance(bundle_value, dict) else bundle)
+
+
+def execute_plan(
+    plan_path: str | Path,
+    *,
+    run_check_path: str | Path,
+    evidence_dir: str | Path,
+    timeout: float = 300,
+) -> dict[str, Any]:
+    """Execute selected plan commands once, bind their native facts, then use the viewer."""
+    plan_file = Path(plan_path).resolve()
+    run_check = Path(run_check_path).resolve()
+    if not run_check.is_file() or run_check.is_symlink():
+        return _blocked_execution("run_check path is missing or unsafe", plan_path=plan_file, run_check_path=run_check)
+    plan, plan_raw = _read_json(plan_file)
+    if not isinstance(plan, dict):
+        return _blocked_execution("Plan must be a JSON object", plan_path=plan_file, run_check_path=run_check)
+    output_dir = Path(evidence_dir).resolve()
+    try:
+        if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or not math.isfinite(float(timeout)) or timeout <= 0:
+            raise ViewerInputError("execution timeout must be finite and positive")
+        _reject_alias_components(Path(evidence_dir).absolute(), "evidence_dir")
+        output_dir.mkdir(parents=True, exist_ok=True)
+        _reject_alias_components(output_dir, "evidence_dir")
+    except (OSError, ValueError, TypeError) as error:
+        return _blocked_execution(str(error), plan_path=plan_file, run_check_path=run_check)
+    try:
+        checks = _plan_checks(plan, allow_unbound=True)
+        preconditions = _preflight_execution(plan, checks, output_dir)
+    except (OSError, ValueError, TypeError, KeyError) as error:
+        return _blocked_execution(str(error), plan_path=plan_file, run_check_path=run_check)
+
+    bound_plan_path = output_dir / "bound-plan.json"
+    current_path = output_dir / "current-context.json"
+    bundle_path = output_dir / "bundle.json"
+    if (
+        bound_plan_path.exists() or bound_plan_path.is_symlink()
+        or current_path.exists() or current_path.is_symlink()
+        or bundle_path.exists() or bundle_path.is_symlink()
+    ):
+        return _blocked_execution("execution evidence directory already contains a bound result", plan_path=plan_file, run_check_path=run_check)
+    for index, check in enumerate(checks):
+        selected, _ = _selection(check)
+        if selected:
+            slug = f"{index}-{check['feature_id']}-{check['id']}".replace("/", "_").replace("\\", "_")
+            capture_path = output_dir / f"{slug}-capture.json"
+            if capture_path.exists() or capture_path.is_symlink():
+                return _blocked_execution("execution capture path already exists", plan_path=plan_file, run_check_path=run_check)
+    bound_plan = copy.deepcopy(plan)
+    records: list[Path] = []
+    assessments: list[Path] = []
+    current_checks: dict[str, dict[str, Any]] = {}
+    artifacts: list[dict[str, Any]] = []
+    attempted = 0
+    plan_sha256 = _sha256(plan_raw)
+    plan_mutated = False
+    for index, check in enumerate(checks):
+        selected, _ = _selection(check)
+        if not selected:
+            bound_plan["checks"][index].pop("raw_observations", None)
+            continue
+        info = preconditions[index]
+        try:
+            if _path_hash(plan_file, "source plan") != plan_sha256:
+                plan_mutated = True
+        except ViewerInputError:
+            plan_mutated = True
+        if plan_mutated:
+            bound_plan["checks"][index].pop("raw_observations", None)
+            bound_plan["checks"][index].pop("run_id", None)
+            current_checks[f"{check['feature_id']}/{check['id']}"] = {
+                "conditions": {name: {"status": "unavailable", "reason": "source_plan_changed_during_execution"} for name in CONDITION_GROUPS}
+            }
+            artifacts.append({
+                "check": f"{check['feature_id']}/{check['id']}",
+                "status": "BLOCKED",
+                "reason": "source_plan_changed_during_execution",
+            })
+            continue
+        try:
+            current_before = _execution_conditions(check, info["cwd"])
+        except (OSError, ValueError, TypeError, KeyError, subprocess.CalledProcessError) as error:
+            current_before = None
+            precondition_reason = f"precondition_unavailable_before_execution:{error}"
+        else:
+            precondition_reason = None if current_before == info["conditions"] else "precondition_changed_before_execution"
+        if precondition_reason:
+            bound_plan["checks"][index].pop("raw_observations", None)
+            bound_plan["checks"][index].pop("run_id", None)
+            current_checks[f"{check['feature_id']}/{check['id']}"] = {
+                "conditions": current_before or {}
+            }
+            artifacts.append({
+                "check": f"{check['feature_id']}/{check['id']}",
+                "status": "BLOCKED",
+                "reason": precondition_reason,
+            })
+            continue
+        slug = f"{index}-{check['feature_id']}-{check['id']}".replace("/", "_").replace("\\", "_")
+        capture_path = output_dir / f"{slug}-capture.json"
+        report_path = info["report_path"]
+        bound_plan["checks"][index]["run_id"] = None
+        command = [
+            sys.executable,
+            str(run_check),
+            "--cwd",
+            str(info["cwd"]),
+            "--output",
+            str(capture_path),
+            "--feature",
+            str(check["feature_id"]),
+            "--check",
+            str(check["id"]),
+            "--json-report",
+            str(report_path),
+            "--timeout",
+            str(timeout),
+            "--",
+            *check["conditions"]["command"]["argv"],
+        ]
+        attempted += 1
+        process = subprocess.run(command, capture_output=True, text=True, check=False)
+        try:
+            if _path_hash(plan_file, "source plan") != plan_sha256:
+                plan_mutated = True
+        except ViewerInputError:
+            plan_mutated = True
+        record: dict[str, Any] | None = None
+        capture_safe = True
+        try:
+            _reject_alias_components(capture_path, "capture")
+        except ViewerInputError:
+            capture_safe = False
+        if capture_safe and capture_path.is_file() and not capture_path.is_symlink():
+            try:
+                record, _ = _read_json(capture_path)
+            except (OSError, ValueError):
+                record = None
+        if not isinstance(record, dict):
+            bound_plan["checks"][index].pop("raw_observations", None)
+            bound_plan["checks"][index].pop("run_id", None)
+            artifacts.append({"check": f"{check['feature_id']}/{check['id']}", "capture": str(capture_path), "run_check_exit": process.returncode})
+            continue
+        record["conditions"] = info["conditions"]
+        _write_capture = json.dumps(record, ensure_ascii=False, indent=2) + "\n"
+        capture_path.write_text(_write_capture, encoding="utf-8")
+        record_raw = capture_path.read_bytes()
+        record_hash = _sha256(record_raw)
+        records.append(capture_path)
+        run_id = record.get("run_id")
+        if isinstance(run_id, str) and run_id:
+            bound_plan["checks"][index]["run_id"] = run_id
+        else:
+            bound_plan["checks"][index].pop("run_id", None)
+        descriptor = bound_plan["checks"][index]["raw_observations"][0]
+        descriptor["path"] = str(report_path)
+        descriptor["producer"] = {
+            "run_id": run_id,
+            "capture_path": str(capture_path),
+            "capture_sha256": record_hash,
+            "argv": record.get("argv"),
+            "json_report_path": str(report_path),
+        }
+        report_ok = False
+        report_hash = None
+        try:
+            _reject_alias_components(report_path, "native report")
+            report_ok = report_path.is_file() and not report_path.is_symlink()
+        except ViewerInputError:
+            report_ok = False
+        if report_ok:
+            try:
+                report_raw = report_path.read_bytes()
+                report_hash = _sha256(report_raw)
+                json.loads(report_raw)
+            except (OSError, ValueError, json.JSONDecodeError):
+                report_ok = False
+        if report_hash is not None:
+            descriptor["sha256"] = report_hash
+            descriptor["producer"]["json_report_sha256"] = report_hash
+        if report_ok:
+            assessment_path = output_dir / f"{slug}-assessment.json"
+            check_descriptor = {
+                **descriptor,
+                "origin": str(plan_file),
+            }
+            raw, findings, _, _ = _validate_raw([check_descriptor], [report_path.parent, info["cwd"]])
+            matched = bool(raw) and not findings and all(
+                observation["matched"] for observation in raw[0]["observations"]
+            )
+            _write_json(
+                assessment_path,
+                {
+                    "status": "PASS" if matched and record.get("execution") == "exited" and record.get("exit_code") == 0 else "ISSUES",
+                    "feature": check["feature_id"],
+                    "check": check["id"],
+                    "run_id": run_id,
+                    "conditions": info["conditions"],
+                    "reason": "explicit native report assertions",
+                    "evidence": str(capture_path),
+                    "evidence_sha256": record_hash,
+                },
+            )
+            assessments.append(assessment_path)
+        else:
+            bound_plan["checks"][index].pop("raw_observations", None)
+        bound_plan["checks"][index]["conditions"] = info["conditions"]
+        try:
+            current_conditions = _execution_conditions(check, info["cwd"])
+        except (OSError, ValueError, TypeError, KeyError, subprocess.CalledProcessError) as error:
+            current_conditions = {name: {"status": "unavailable", "reason": str(error)} for name in CONDITION_GROUPS}
+        current_checks[f"{check['feature_id']}/{check['id']}"] = {"conditions": current_conditions}
+        artifacts.append({
+            "check": f"{check['feature_id']}/{check['id']}",
+            "capture": str(capture_path),
+            "report": str(report_path),
+            "assessment": str(assessments[-1]) if report_ok else None,
+            "run_check_exit": process.returncode,
+        })
+
+    _write_json(bound_plan_path, bound_plan)
+    _write_json(current_path, {"checks": current_checks})
+    bundle_descriptor = {
+        "schema_version": 1,
+        "plan": str(bound_plan_path),
+        "records": [str(path) for path in records],
+        "assessments": [str(path) for path in assessments],
+        "observations": [],
+        "current_context": str(current_path),
+        "source_plan": str(plan_file),
+        "source_plan_sha256": plan_sha256,
+        "evidence_dir": str(output_dir),
+    }
+    _write_json(bundle_path, bundle_descriptor)
+    result = view_bundle(bundle_descriptor)
+    result["execution"] = {
+        "mode": "execute",
+        "commands_attempted": attempted,
+        "captures_bound": len(records),
+        "plan": str(plan_file),
+        "plan_sha256": plan_sha256,
+        "source_plan_changed_during_execution": plan_mutated,
+        "run_check": str(run_check),
+        "bundle_path": str(bundle_path),
+        "bundle": {**bundle_descriptor, "path": str(bundle_path)},
+        "artifacts": artifacts,
+    }
+    result["test_commands_executed"] = attempted
+    if plan_mutated:
+        _invalidate_current_result(result, "source_plan_changed_during_execution")
+    return result
+
+
 def view_results(
     plan_path: str | Path,
     *,
@@ -786,6 +1514,7 @@ def view_results(
     assessment_paths: Iterable[str | Path] = (),
     observation_paths: Iterable[str | Path] = (),
     current_context_path: str | Path | None = None,
+    current_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Read and join records without executing or modifying any input."""
     plan_file = Path(plan_path).resolve()
@@ -796,10 +1525,16 @@ def view_results(
     assessments = _load_many(assessment_paths, "Assessment")
     observations = _load_many(observation_paths, "Observation")
     current: dict[str, Any] | None = None
+    if current_context_path is not None and current_context is not None:
+        raise ViewerInputError("Provide current_context_path or current_context, not both")
     if current_context_path is not None:
         current, _ = _read_json(Path(current_context_path).resolve())
         if not isinstance(current, dict):
             raise ViewerInputError("Current context must be a JSON object")
+    elif current_context is not None:
+        if not isinstance(current_context, dict):
+            raise ViewerInputError("Current context must be a JSON object")
+        current = copy.deepcopy(current_context)
     checks = _plan_checks(plan)
     items = [_item_result(check, plan_file, records, assessments, observations, current) for check in checks]
     historical = _summary(items, "historical_status")
@@ -821,17 +1556,47 @@ def view_results(
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--plan", required=True, type=Path)
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--plan", type=Path)
+    source.add_argument("--bundle", type=Path, help="Revalidate a retained execution bundle without running checks")
     parser.add_argument("--record", dest="records", action="append", default=[])
     parser.add_argument("--assessment", dest="assessments", action="append", default=[])
     parser.add_argument("--observation", dest="observations", action="append", default=[])
     parser.add_argument("--current-context", dest="current_context", type=Path)
+    parser.add_argument("--execute", action="store_true", help="Execute the selected plan checks once through an explicit run_check.py path")
+    parser.add_argument("--run-check", type=Path, help="Explicit path to the existing scripts/run_check.py capture CLI")
+    parser.add_argument("--evidence-dir", "--output-dir", dest="evidence_dir", type=Path, help="New directory for execution captures and bound results")
+    parser.add_argument("--timeout", type=float, default=300, help="Execution timeout passed to run_check.py")
     parser.add_argument("--pretty", action="store_true")
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    if args.bundle:
+        if args.execute or args.records or args.assessments or args.observations or args.current_context:
+            result = _blocked_bundle("--bundle cannot combine with execution or manual evidence arguments")
+        else:
+            result = view_bundle(args.bundle)
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2 if args.pretty else None))
+        return {"PASS": 0, "ISSUES": 1, "BLOCKED": 2}.get(result.get("status"), 2)
+    if args.execute:
+        if args.records or args.assessments or args.observations or args.current_context:
+            result = _blocked_execution("--execute cannot combine with lookup evidence arguments", plan_path=args.plan, run_check_path=args.run_check)
+        elif args.run_check is None or args.evidence_dir is None:
+            result = _blocked_execution("--execute requires --run-check and --evidence-dir", plan_path=args.plan, run_check_path=args.run_check)
+        else:
+            try:
+                result = execute_plan(
+                    args.plan,
+                    run_check_path=args.run_check,
+                    evidence_dir=args.evidence_dir,
+                    timeout=args.timeout,
+                )
+            except (OSError, ValueError, TypeError, KeyError) as error:
+                result = _blocked_execution(str(error), plan_path=args.plan, run_check_path=args.run_check)
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2 if args.pretty else None))
+        return {"PASS": 0, "ISSUES": 1, "BLOCKED": 2}.get(result.get("status"), 2)
     try:
         result = view_results(
             args.plan,

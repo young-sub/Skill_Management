@@ -13,6 +13,7 @@
   },
   "impact": {
     "rules": [
+      {"id": "workflow-obligations", "source_prefixes": ["authoring/scripts/project_workflow.py", "scripts/project_workflow.py", "authoring/references/workflow-obligations.md"], "tests": ["tests/distribution/test_project_workflow.py"], "feature": "workflow-obligations", "triggers": []},
       {"id": "verification-results", "source_prefixes": ["authoring/scripts/verification_results.py", "scripts/verification_results.py", "authoring/references/result-viewer.md"], "tests": ["tests/distribution/test_verification_results.py"], "feature": "verification-results", "triggers": []},
       {"id": "harness-core", "source_prefixes": ["authoring/scripts/core_harness.py"], "tests": ["tests/harness/test_core_first_schema.py", "tests/harness/test_core_first_setup.py", "tests/harness/test_core_first_design_execution.py", "tests/harness/test_core_first_amendment.py", "tests/harness/test_core_first_close_lifecycle.py", "tests/harness/test_core_first_cutover.py", "tests/harness/test_core_first_forward_workflows.py", "tests/harness/test_core_first_cli_maintain.py", "tests/harness/test_core_first_installed_cli_e2e.py"], "feature": "harness-core", "triggers": ["shared_runtime"]},
       {"id": "harness-schema", "source_prefixes": ["authoring/schemas/v3/"], "tests": ["tests/harness/test_core_first_schema.py", "tests/harness/test_core_first_design_execution.py", "tests/harness/test_core_first_amendment.py", "tests/harness/test_core_first_close_lifecycle.py", "tests/harness/test_core_first_cutover.py"], "feature": "harness-core", "triggers": ["schema"]},
@@ -31,7 +32,8 @@
       {"id": "repository-ignore", "source_prefixes": [".gitignore"], "tests": ["tests/harness/test_core_first_setup.py", "tests/harness/test_core_first_design_execution.py"], "feature": "harness-core", "triggers": []}
     ],
     "feature_selectors": {
-      "verification-results": ["python", "-m", "unittest", "tests.distribution.test_verification_results"],
+      "workflow-obligations": ["python", "-m", "unittest", "tests.distribution.test_project_workflow"],
+      "verification-results": ["python", "-m", "unittest", "tests.distribution.test_verification_results", "tests.distribution.test_verification_execution"],
       "workflow-distribution": ["python", "-m", "unittest", "tests.distribution.test_public_catalog", "tests.distribution.test_self_containment", "tests.distribution.test_sync_skill_resources"],
       "verification-capture": ["python", "-m", "unittest", "tests.distribution.test_check_capture", "tests.distribution.test_verify_product"],
       "impeccable-launcher": ["python", "-m", "unittest", "tests.distribution.test_impeccable_launcher"],
@@ -59,5 +61,27 @@
   "work": {"retention": {"completed_days": 30, "trash_days": 7}, "states": ["active", "completed", "trash", "deleted"], "legacy_state": "legacy-unclassified"},
   "git": {"capture_current_base": true, "protected_branches": ["main"], "branch_pattern": "wp-{work_id}-{slug}", "commit_per_item": true, "worktrees_for_independent_items": true},
   "baseline": {"findings": []},
-  "extensions": {}
+  "extensions": {"workflow": {
+    "roots": ["authoring/scripts", "authoring/skills", "scripts", "skills/impeccable", "skills/fixing-accessibility", "skills/vercel-react-best-practices", "skills/multi-agent-review", "skills/explore-idea", "skills/prototype", "skills/teach", "skills/zoom-out", "skills/finance-research", "skills/hwp-form-fill"],
+    "state": ".work/project-verification/state.json",
+    "features": [
+      {"id": "workflow-obligations", "partition": "workflow", "sources": ["authoring/scripts/project_workflow.py", "scripts/project_workflow.py"], "map": ["docs/feature-map.md"], "criteria": ["authoring/references/workflow-obligations.md"], "checks": ["workflow-obligations"]},
+      {"id": "verification-results", "partition": "verification", "sources": ["authoring/scripts/verification_results.py", "scripts/verification_results.py"], "map": ["docs/feature-map.md"], "criteria": ["authoring/references/result-viewer.md"], "checks": ["verification-results"]},
+      {"id": "native-verification", "partition": "verification", "sources": ["scripts/run_check.py", "scripts/verify_product.py"], "map": ["docs/feature-map.md"], "criteria": ["docs/testing.md"], "checks": ["verification-capture", "documentation"]},
+      {"id": "agent-workflow", "partition": "workflow", "sources": ["authoring/skills/agent-workflow/*", "authoring/skills/setup-project-verification/*", "authoring/skills/maintain-project-verification/*"], "map": ["docs/feature-map.md"], "criteria": ["authoring/references/project-verification.md"], "checks": ["workflow-distribution", "workflow-obligations"]},
+      {"id": "harness-setup", "partition": "harness", "sources": ["authoring/skills/setup-agent-harness/*", "authoring/scripts/core_harness.py"], "map": ["docs/feature-map.md"], "criteria": ["docs/agents/workflow.md"], "checks": ["harness-core"]},
+      {"id": "work-design", "partition": "harness", "sources": ["authoring/skills/design-goal/*", "authoring/scripts/core_harness.py"], "map": ["docs/feature-map.md"], "criteria": ["docs/agents/workflow.md"], "checks": ["harness-core"]},
+      {"id": "work-execution", "partition": "harness", "sources": ["authoring/skills/execute-codex-goal/*", "authoring/scripts/core_harness.py"], "map": ["docs/feature-map.md"], "criteria": ["docs/agents/workflow.md"], "checks": ["harness-core"]},
+      {"id": "work-close", "partition": "harness", "sources": ["authoring/skills/close-goal/*", "authoring/scripts/core_harness.py"], "map": ["docs/feature-map.md"], "criteria": ["docs/agents/workflow.md"], "checks": ["harness-core"]},
+      {"id": "work-retention", "partition": "harness", "sources": ["authoring/skills/maintain-agent-harness/*", "authoring/scripts/core_harness.py"], "map": ["docs/feature-map.md"], "criteria": ["docs/agents/workflow.md"], "checks": ["harness-core"]},
+      {"id": "feedback-repair", "partition": "harness", "sources": ["authoring/skills/diagnose/*", "authoring/scripts/core_harness.py"], "map": ["docs/feature-map.md"], "criteria": ["docs/agents/workflow.md"], "checks": ["workflow-obligations", "workflow-distribution"]},
+      {"id": "work-preservation", "partition": "harness", "sources": ["authoring/scripts/core_harness.py"], "map": ["docs/feature-map.md"], "criteria": ["docs/agents/workflow.md"], "checks": ["work-preservation"]},
+      {"id": "skill-install", "partition": "distribution", "sources": ["scripts/hash-utils.ps1", "scripts/sync-skill-resources.ps1", "scripts/test-install.ps1", "scripts/validate-distribution.ps1", "scripts/validate_self_containment.py", "scripts/evidence_provenance.py", "scripts/validate_evidence.py"], "map": ["docs/feature-map.md"], "criteria": ["docs/architecture/skill-inventory.md"], "checks": ["skill-install"]},
+      {"id": "design-engine-launch", "partition": "ui", "sources": ["skills/impeccable/scripts/*"], "map": ["docs/feature-map.md"], "criteria": ["docs/agents/workflow.md"], "checks": ["impeccable-launcher"]},
+      {"id": "ui-standards", "partition": "ui", "sources": ["skills/impeccable/*", "skills/fixing-accessibility/*", "skills/vercel-react-best-practices/*"], "map": ["docs/feature-map.md"], "criteria": ["authoring/references/repair-and-reuse.md"], "checks": ["workflow-distribution"]},
+      {"id": "independent-review", "partition": "review", "sources": ["skills/multi-agent-review/*"], "map": ["docs/feature-map.md"], "criteria": ["docs/agents/workflow.md"], "checks": ["workflow-distribution"]},
+      {"id": "exploration-learning", "partition": "specialists", "sources": ["skills/explore-idea/*", "skills/prototype/*", "skills/teach/*", "skills/zoom-out/*"], "map": ["docs/feature-map.md"], "criteria": ["docs/agents/workflow.md"], "checks": ["workflow-distribution"]},
+      {"id": "specialist-artifacts", "partition": "specialists", "sources": ["skills/finance-research/*", "skills/hwp-form-fill/*"], "map": ["docs/feature-map.md"], "criteria": ["docs/agents/workflow.md"], "checks": ["workflow-distribution"]}
+    ]
+  }}
 }

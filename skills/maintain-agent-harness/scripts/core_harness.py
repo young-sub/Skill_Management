@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/core_harness.py
-# Source-SHA256: 8c6a37f0cdc44b6f6b1868549edaa6dc2c2b64ee179c5060036df47fe9a6b457
+# Source-SHA256: c13fca35fb1423b49f9d4afb7f4020616b11a59d4ff546b60729b4105086ccf7
 
 #!/usr/bin/env python3
 """Deterministic Core-First Agent Harness contracts and compatibility checks."""
@@ -16,6 +16,7 @@ import json
 import os
 from pathlib import Path, PurePosixPath
 import re
+import runpy
 import secrets
 import shlex
 import shutil
@@ -2927,6 +2928,10 @@ def _close_work_locked(
         impact = reevaluated
     else:
         impact = {**impact, "status": "legacy_cohort"}
+    if project and project.get("extensions", {}).get("workflow") is not None:
+        workflow = inspect_project_workflow(root, project)
+        if workflow["status"] != "READY_FOR_REVIEW":
+            return {"status": "incomplete", "errors": ["project_workflow_incomplete"], "workflow": workflow}
     evaluation = evaluate_result(stored_contract, result, impact)
     if evaluation["status"] != "complete":
         return evaluation
@@ -3265,6 +3270,8 @@ REQUIRED_COHORT_RESOURCES = frozenset({
     "close-goal/schemas/contract.schema.json",
     "close-goal/schemas/work.schema.json",
     "close-goal/scripts/core_harness.py",
+    "close-goal/scripts/project_workflow.py",
+    "close-goal/scripts/verification_results.py",
     "design-goal/SKILL.md",
     "design-goal/schemas/contract.schema.json",
     "design-goal/scripts/core_harness.py",
@@ -3281,6 +3288,8 @@ REQUIRED_COHORT_RESOURCES = frozenset({
     "maintain-agent-harness/schemas/project.schema.json",
     "maintain-agent-harness/schemas/work.schema.json",
     "maintain-agent-harness/scripts/core_harness.py",
+    "maintain-agent-harness/scripts/project_workflow.py",
+    "maintain-agent-harness/scripts/verification_results.py",
     "setup-agent-harness/SKILL.md",
     "setup-agent-harness/references/documentation-policy.md",
     "setup-agent-harness/schemas/project.schema.json",
@@ -3477,6 +3486,14 @@ def install_harness_cohort(
     for skill in HARNESS_INSTALL_SKILLS:
         if not (source_root / skill / "SKILL.md").is_file():
             return {"status": "invalid_source", "errors": [f"missing_skill:{skill}"]}
+    if install_root.is_dir() and _installed_cohort_files(install_root) == set(files) | {COHORT_MANIFEST_RESOURCE}:
+        if inspect_installed_cohort(install_root, resource_manifest)["status"] == "complete":
+            if any(not (source_root / relative).is_file() or _path_is_alias(source_root / relative)
+                   or _manifest_file_hash(source_root / relative, resource_manifest.get("hash_mode")) != expected
+                   for relative, expected in files.items()):
+                return {"status": "invalid_source", "errors": ["source_cohort_drift"]}
+            return {"status": "installed", "install_root": str(install_root),
+                    "skills": list(HARNESS_INSTALL_SKILLS), "reused": True}
     install_root.parent.mkdir(parents=True, exist_ok=True)
     install_root.mkdir(parents=True, exist_ok=True)
     nonce = f"{os.getpid()}-{time.time_ns()}"
@@ -3514,11 +3531,13 @@ def install_harness_cohort(
         observed = inspect_installed_cohort(install_root, resource_manifest)
         if observed["status"] != "complete":
             raise RuntimeError("installed_cohort_verification_failed:" + ";".join(observed["blockers"]))
-        shutil.rmtree(backup)
+        preserved = str(backup) if any(backup.iterdir()) else None
+        if preserved is None:
+            backup.rmdir()
         shutil.rmtree(staging)
         return {
             "status": "installed", "install_root": str(install_root),
-            "skills": list(HARNESS_INSTALL_SKILLS),
+            "skills": list(HARNESS_INSTALL_SKILLS), "preserved_previous": preserved,
         }
     except (OSError, ValueError, RuntimeError) as error:
         restore_errors: list[str] = []
@@ -3535,14 +3554,23 @@ def install_harness_cohort(
                     os.replace(saved, target)
             except OSError as restore_error:
                 restore_errors.append(f"{skill}:{restore_error}")
-        if staging.exists():
+        if staging.exists() and not restore_errors:
             shutil.rmtree(staging, ignore_errors=True)
-        if backup.exists():
+        if backup.exists() and not restore_errors:
             shutil.rmtree(backup, ignore_errors=True)
         return {
             "status": "rollback_failed" if restore_errors else "rolled_back",
             "error": str(error), "restore_errors": restore_errors,
+            "recovery_paths": [str(backup), str(staging)] if restore_errors else [],
         }
+
+
+def inspect_project_workflow(root: Path, project: dict[str, Any]) -> dict[str, Any]:
+    try:
+        runtime = runpy.run_path(str(Path(__file__).with_name("project_workflow.py")))
+        return runtime["inspect_configured"](root, project)
+    except (OSError, ValueError, TypeError, KeyError, subprocess.CalledProcessError) as error:
+        return {"status": "BLOCKED", "findings": [str(error)]}
 
 
 def maintain_harness(
@@ -3568,6 +3596,12 @@ def maintain_harness(
     else:
         project = normalized_project["project"]
     checks["MAINT-PROJECT-CONFIG"] = normalized_project
+
+    if project.get("extensions", {}).get("workflow") is not None:
+        workflow = inspect_project_workflow(root, project)
+        checks["MAINT-WORKFLOW"] = workflow
+        if workflow["status"] != "READY_FOR_REVIEW":
+            add("MAINT-WORKFLOW", ".harness/project.yaml", "unresolved project workflow obligations")
 
     environment_exceptions = load_environment_exceptions(root)
     for error in environment_exceptions["errors"]:

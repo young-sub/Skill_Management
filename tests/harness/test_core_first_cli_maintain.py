@@ -873,6 +873,47 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
             self.assertFalse(any(install_root.parent.glob(".harness-cohort-stage-*")))
             self.assertFalse(any(install_root.parent.glob(".harness-cohort-backup-*")))
 
+    def test_cohort_refresh_preserves_user_bytes_and_repeated_install_is_noop(self) -> None:
+        core = load_core()
+        manifest = json.loads((ROOT / 'authoring/public-resource-manifest.json').read_text(encoding='utf-8'))
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / 'skills'
+            first = core.install_harness_cohort(ROOT / 'skills', target, manifest, approved_install_root=str(target))
+            self.assertEqual(first['status'], 'installed', first)
+            user_file = target / 'diagnose/SKILL.md'
+            user_file.write_bytes(b'user customization\r\n')
+            refreshed = core.install_harness_cohort(ROOT / 'skills', target, manifest, approved_install_root=str(target))
+            self.assertEqual(refreshed['status'], 'installed', refreshed)
+            self.assertTrue(refreshed.get('preserved_previous'), refreshed)
+            saved = Path(refreshed['preserved_previous']) / 'diagnose/SKILL.md'
+            self.assertEqual(saved.read_bytes(), b'user customization\r\n')
+            timestamp = user_file.stat().st_mtime_ns
+            repeated = core.install_harness_cohort(ROOT / 'skills', target, manifest, approved_install_root=str(target))
+            self.assertTrue(repeated.get('reused'), repeated)
+            self.assertEqual(user_file.stat().st_mtime_ns, timestamp)
+            self.assertEqual(saved.read_bytes(), b'user customization\r\n')
+
+    def test_failed_restore_keeps_original_backup_for_recovery(self) -> None:
+        core = load_core()
+        manifest = json.loads((ROOT / 'authoring/public-resource-manifest.json').read_text(encoding='utf-8'))
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / 'skills'
+            old = target / 'setup-agent-harness/SKILL.md'
+            old.parent.mkdir(parents=True)
+            old.write_bytes(b'owned previous bytes\r\n')
+            replace = os.replace
+            def fail_restore(source, destination):
+                if '.harness-cohort-backup-' in str(source):
+                    raise PermissionError('simulated restore denial')
+                return replace(source, destination)
+            with mock.patch.object(core.os, 'replace', side_effect=fail_restore):
+                outcome = core.install_harness_cohort(ROOT / 'skills', target, manifest,
+                    approved_install_root=str(target), fault_after=1)
+            self.assertEqual(outcome['status'], 'rollback_failed', outcome)
+            backups = list(Path(directory).glob('.harness-cohort-backup-*'))
+            self.assertEqual(len(backups), 1, outcome)
+            self.assertEqual((backups[0] / 'setup-agent-harness/SKILL.md').read_bytes(), b'owned previous bytes\r\n')
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,10 +1,10 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/result-viewer.md -->
-<!-- Source-SHA256: 8ddd2e750a7ef301b43d8a9052de35e163aedf9a33af45b10731808976a1d57e -->
+<!-- Source-SHA256: 880ebbf2513a788ff2fdd5094d3bf74c2906cd3e46d32102c74ccfb5992618c7 -->
 
 # Existing-result lookup
 
-Use the bundled `scripts/verification_results.py` for compatible project records. It reads files and runs fixed read-only Git identity queries; it never executes captured argv, tests or services, or writes inputs. Direct CLI/CI remains independent of Skills.
+Use the bundled `scripts/verification_results.py` for compatible project records. The default lookup path reads files and runs fixed read-only Git identity queries; it never executes captured argv, tests or services, or writes inputs. Direct CLI/CI remains independent of Skills.
 
 ```
 python <agent-workflow>/scripts/verification_results.py --plan plan.json --record capture.json --assessment assessment.json --observation observed.json --current-context current.json --pretty
@@ -28,3 +28,21 @@ Captures use the existing `run_check.py` format. Assessments bind `feature`, `ch
 `current.json` supplies independently checked current conditions under `conditions`, or per-check overrides under `checks: {"feature/check": {conditions: ...}}`. The viewer independently compares live Git HEAD/diff/status to the capture. It cannot independently attest an external runtime, dependencies, fixture, or the completeness of project criteria. Recheck those identities through the project guide; copied historical values are not current evidence. Without a current context, show historical observations and keep current reuse unavailable.
 
 The output preserves capture path/hash/argv/exit, raw paths/hashes/pointers/producer, assertion values, original judgments, current reuse reasons and conditions. A raw document's top-level `status`, when present, participates in judgment even without `--observation`; an ISSUES/BLOCKED report cannot be hidden by selecting only its successful sub-observations. Unknown status vocabulary remains UNKNOWN for project interpretation. A historical PASS can be STALE or UNKNOWN today. Native nonzero exit, timeout, cleanup failure, required skip/not-run, missing raw or changed conditions prevent current PASS. Read-only requests never backfill missing evidence by rerunning or changing source.
+
+## Explicit execution
+
+For a retained execution, `python <agent-workflow>/scripts/verification_results.py --bundle .work/verification/run-1/bundle.json` performs read-only lookup. It remeasures all current inputs, including those an earlier or later check might have changed. Bound requirements, selection, command, and raw assertions must still match the original plan; editable files are consistency evidence, not protected attestation.
+
+Execution is a separate, opt-in CLI path. The caller must provide a preselected plan, the exact existing capture script, and a new evidence directory:
+
+```
+python <agent-workflow>/scripts/verification_results.py --execute \
+  --plan plan.json --run-check <project>/scripts/run_check.py \
+  --evidence-dir .work/verification/run-1 --pretty
+```
+
+Before starting any child, the executor validates the selected check's exact `conditions.command.argv` and absolute `cwd`, current `conditions.source.revision`/`diff`, and each native `raw_observations` descriptor. A selected check must provide one new report path and explicit `equals`, `min_count`, or `min` assertions. Report paths and evidence captures cannot be reused. Excluded and `not_required` checks are not run.
+
+`conditions.dependency.file_refs` and `conditions.fixture.file_refs` may list project files (the `files` key is accepted as an alias). The executor measures their SHA-256 values before preflight and immediately before every child; a prior child changing a later check's inputs prevents that child from starting. It also records the selected command's resolved executable, executable SHA-256, and wrapper Python version when the executable is the wrapper itself; the same runtime identity is remeasured before each child and during bundle lookup. File references must be relative, inside the command project, non-private, and free of symlink/junction components. Native report paths must be new, non-private, non-aliased, and inside either the command project or the evidence directory. A changed or missing file makes reuse stale or unknown. The source plan is never rewritten; generated `bound-plan.json`, captures, assessments, `current-context.json`, and a persisted `bundle.json` are written under the supplied evidence directory.
+
+Each selected command is passed unchanged to the existing `run_check.py` with an explicit `--json-report` path. The executor reads the resulting capture and native report, creates the producer/assessment binding from the run ID and assertion observations, and then calls the same viewer. It derives `PASS` only when the native process exits successfully and every plan assertion matches. It does not infer a verdict from a report's `PASS` string, stdout, timestamps, zero counts, or a submitted result field. Missing reports, zero/skip assertion failures, wrong target/run bindings, stale conditions, and nonzero/timeout captures remain non-PASS. A mutation of the original plan during a child also invalidates the execution result. The JSON response includes an `execution.bundle` descriptor and `execution.bundle_path` for the persisted descriptor; `view_bundle(bundle_path)` or `view_bundle(descriptor)` remeasures source and declared file references, verifies the original-plan hash, and joins the same viewer without executing or writing. Passing that descriptor back to the ordinary lookup path remains read-only.
