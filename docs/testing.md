@@ -20,6 +20,8 @@ Windows Impeccable transport regressions run with `python -m unittest tests.dist
 
 ## Direct execution and verdict binding
 
+For existing multi-check evidence, `scripts/verification_results.py` joins the project plan, captures and raw observations without rerunning tests. The [input contract](../authoring/references/result-viewer.md) defines required checks, raw assertions, producer bindings and current-condition identity. Its current PASS is bounded by the project's selected criteria; it does not authenticate editable records or independently attest external runtime/fixture conditions. Run the `verification-results` selector for viewer regressions. The [implementation acceptance record](research/agent-workflow-implementation-results.md) separately records real task-local product and Agent observations.
+
 The [Feature Map](feature-map.md) is the single user-function map. `scripts/run_check.py` captures finite foreground argv without a Skill handoff. It creates output parents, reserves a new evidence path, records a unique run ID, optional Feature/check IDs, cwd, Git HEAD/tracked diff hash/status before and after, stdout/stderr, elapsed time, native exit or unavailable/timeout. Its `behavior_verdict` remains null even when exit is zero. Use trusted checks with bounded output; argv/stdout/stderr must contain no secrets. Do not start background services with it.
 
 ```powershell

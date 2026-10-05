@@ -1,6 +1,6 @@
 # 다음 세션: Agent Coding 업무 위임 체계 구현·실제 검증
 
-작성일: 2026-10-05. 상태: **요구사항 검토에 따른 문서 보완 완료·구현 미실행**. [현재 결론](agent-coding-system-direction.md)과 [R01–R16 검토·수용 과업](agent-coding-requirements-review.md)을 구현하는 프롬프트다. 기반 이식과 첫 Labeler 파일럿은 이미 완료되었으며 [결과](labeler-verification-pilot.md)와 [이전 프롬프트](archive/agent-coding-next-session.md)는 재사용할 근거다. 본 문서를 읽는 것만으로 구현이 승인되지 않으며, 다음 실행 요청에서 사용한다.
+작성일: 2026-10-05. 상태: **사용자의 명시적 실행 요청으로 구현·수용 검증 진행 중**. 현재 진행과 남은 범위는 [구현 결과](agent-workflow-implementation-results.md)에 연결한다. 아래는 [현재 결론](agent-coding-system-direction.md)과 [R01–R16 검토·수용 과업](agent-coding-requirements-review.md)을 구현하는 실행 기준이다. 기반 이식과 첫 Labeler 파일럿의 [결과](labeler-verification-pilot.md)와 [이전 프롬프트](archive/agent-coding-next-session.md)는 과거 근거이며 재실행 지시가 아니다.
 
 ## 다음 세션 실행 프롬프트
 

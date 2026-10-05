@@ -9,6 +9,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 class PublicCatalogTests(unittest.TestCase):
     def test_only_supported_and_professional_skills_are_public(self) -> None:
         expected = {
+            "agent-workflow",
+            "setup-project-verification",
+            "maintain-project-verification",
             "finance-research",
             "fixing-accessibility",
             "hwp-form-fill",

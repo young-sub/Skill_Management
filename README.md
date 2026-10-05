@@ -11,6 +11,8 @@
 
 공개 Harness Skill은 `setup-agent-harness`, `explore-idea`, `design-goal`, `execute-codex-goal`, `diagnose`, `close-goal`, `maintain-agent-harness`입니다. 기존 v2.0.0 배포 사실은 [`docs/releases/v2.0.0.md`](docs/releases/v2.0.0.md)에 역사적 릴리스 증거로 남아 있으며, 현재 workflow authority는 아닙니다.
 
+업무 조정에는 `agent-workflow`, 최초 제품 검증 연결에는 `setup-project-verification`, Feature·검증 가이드·UI 기준의 drift 수리에는 `maintain-project-verification`을 제공합니다. 프로젝트 로컬에 설치한 새 세션에서 “상품 저장 기능을 검증하고 무엇을 확인했는지 보여줘”, “개발 체계를 점검하고 필요한 부분을 개선해줘”처럼 업무를 요청합니다. 필요한 능력을 선택하고 기존 프로젝트 명령을 사용하며, “기존 결과만 보여줘”는 재실행하지 않습니다. 실제 사용 가능 범위는 프로젝트의 실행 환경과 검증 근거에 달려 있습니다.
+
 프론트엔드 작업에는 `impeccable`(화면 설계·UX), `vercel-react-best-practices`(React/Next.js 구현·성능), `fixing-accessibility`(키보드·포커스·폼 접근성) 중 필요한 역할만 선택합니다. 기존 기술 스택과 컴포넌트를 우선하며 실제 브라우저 검증은 별도로 수행합니다.
 
 한글 양식 작성·채움·검증 작업에는 독립 공개 Skill인 `hwp-form-fill`을 선택합니다.
