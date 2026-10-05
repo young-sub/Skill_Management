@@ -1063,7 +1063,7 @@ Installation reuses an already exact cohort without rewriting it. A replacement 
 
 | Unit | Implementation and actual acceptance evidence | Remaining scope |
 | --- | --- | --- |
-| U1 | Executable partitioned obligations; Git fixtures cover full API/CLI inventory, unconnected coverage, addition/deletion, shared criteria/command changes, stale/duplicate review and resume. Independent Labeler survey exported 319 safe tracked donor files, created 11 functional areas including roles/API/CLI/webhooks/recovery and retained the map in local fixture commit `c770500`. The subsequent installed audit records all 11 Features as reviewed/mapping-ready, while retaining translation quality and catalog completeness as product findings. | Historical local map readiness was observed, but the current semantic-map repair correctly reopens all 11 reviews after adding their missing shared-map dependencies. Complete semantic coverage of every completion-design section 3.2 field across the linked references remains unproven. The two product findings do not block map readiness and do not authorize provider/product work. File coverage (`unmapped=0`) alone is insufficient; runtime/provider/print acceptance is separate from this survey. |
+| U1 | Executable partitioned obligations; Git fixtures cover full API/CLI inventory, unconnected coverage, addition/deletion, shared criteria/command changes, stale/duplicate review and resume. Independent Labeler survey exported 319 safe tracked donor files, created 11 functional areas including roles/API/CLI/webhooks/recovery and retained the map in local fixture commit `c770500`. The subsequent installed audit records all 11 Features as reviewed/mapping-ready, while retaining translation quality and catalog completeness as product findings. | The shared-map dependency repair reopened all 11 reviews; the subsequent bounded section 3.2 review connected requirements, variants, shared flows and explicit execution gaps, and installed 0.1.32 now reports all 11 current mapping reviews valid. This establishes the isolated snapshot map within the observed survey boundary, not universal product completeness or host-protected semantic acceptance. The two product findings do not block map readiness and do not authorize provider/product work. File coverage (`unmapped=0`) alone is insufficient; runtime/provider/print acceptance is separate from this survey. |
 | U2 | Same-authority child probe actually changed a task-local policy and wrote forged success; `accept` still refused protected acceptance. Configured local close rejects unresolved obligations and submitted success. Normal edits and native runs remain available. | Protected policy, verifier identity, result authority and bypass-resistant acceptance are BLOCKED. The earlier model-startup block is resolved in the approved isolated native trial; successful login/task execution does not supply protected result authority. No unsupported security promise is made. |
 | U3 | Actual child runs produce current native facts, captures and bundles; zero/skip/missing/stale/changed-criterion cases reject reuse. Fresh installed v3 executed the price save/read/quote check once and then queried the bundle with zero test executions and 12 retained files unchanged. The authenticated 0.1.25 trial later queried without re-execution, resumed with zero commands and 14 files unchanged, then captured/bound the registered 41-case command after feedback. | External runtime attestation and independently authenticated semantic criteria are unavailable. Only explicitly selected facts are covered. |
 | U4 | Fresh collaboration context read installed diagnose/workflow resources, traced save and quote to the same faulty float converter, repaired that owner with Decimal in fixture commit `d2f1181`, and preserved the original requirement/check. RED observed `1.15 -> 114` and invalid overwrite; GREEN observed 115, valid zero/12.30 and unchanged saved bytes on rejection. Installed v3 bundle moved the actual feedback obligation from PARTIAL to READY_FOR_REVIEW. Authenticated 0.1.25 diagnosis repaired the same shared owner; a subsequent user-shaped maintenance complaint resolved default-command and binding gaps with 41 native cases and zero remaining local obligations. | Controlled repairs with an explicit follow-up needed in the native trial, not longitudinal prevention effectiveness. The environment checks registered prevention connections and changed evidence; semantic cause/coverage remains review work. |
@@ -1253,3 +1253,34 @@ checks passed 12 tests; both diffs passed `git diff --check`. The bounded
 independent crosswalk is retained at
 `.work/plugin-transition/u1-semantic-crosswalk-v032/crosswalk.md`; its remaining
 reference/flow review suggestions are not claimed implemented by this unit.
+
+
+## U1 semantic references and current review, 2026-10-06
+
+Fixture commit `463d80b` connects all eleven map entries to existing requirement
+sections, API/script variants, shared owners, persistence/external effects and
+related Features. It distinguishes method registration from fresh evidence and
+marks product execution unverified throughout this survey. No new command
+registry, runtime or generated resource was added. A bounded independent review
+checked relative links and representative routes/sections; main review corrected
+punctuation and an operator paid-guard overstatement against `entitlements.ts`.
+Operator identity/role guards are distinct from customer entitlement gating.
+
+The actual installed 0.1.32 CLI registered eleven explicit semantic reviews
+against the new input bases, then a read-only repeat returned the same result
+without changing state. `mapping_status=READY_FOR_REVIEW`, eleven current map
+reviews, no structural/unmapped/unlinked findings; overall status remains
+PARTIAL with the two preserved product findings. The inherited baseline predates
+separate `verification_bases`, so its conservative legacy fallback retains
+execution obligations; it was not reset or retroactively exempted to clear them.
+This is editable local review, not authenticated/protected acceptance. No product
+test, provider call or model call was made by the CLI operations.
+
+Evidence: `.work/plugin-transition/u1-semantic-completion-v032/` retains the
+before snapshot, explicit proposals, individual review records, actual CLI argv,
+final audit, independent-review resolutions and integrity comparison. All 319
+unrelated tracked fixture files and the prior review record remained unchanged.
+The map's whole-document dependency still reopens eleven semantic reviews for a
+one-row edit; no token or review-cost reduction is claimed. U1 mapping work for
+this observed snapshot is now reviewed; full U1-U7 task and protected acceptance
+remain incomplete, and the pending native UI trial was not granted new trust.
