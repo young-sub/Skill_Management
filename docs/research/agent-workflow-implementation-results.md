@@ -4,6 +4,60 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Native authority ACL refinement, 2026-10-06
+
+The isolated host configuration explicitly selects `windows.sandbox=unelevated`.
+The current [official Windows sandbox guide](https://learn.chatgpt.com/docs/windows/windows-sandbox)
+distinguishes its restricted current-user token from the elevated implementation's
+dedicated sandbox users and administrator setup. The following task-local change
+addresses the observed deletion counterexample without changing accounts,
+firewall, global configuration or the ordinary installation.
+
+The dedicated verifier trial directory now inherits an Everyone deny ACE for
+Delete and DeleteChild, alongside its existing YS/SYSTEM control and sandbox-user
+read access. `Set-Acl` first failed for a security privilege; its DACL was unchanged.
+The scoped `icacls` update succeeded. A native `codex sandbox -P :workspace` probe
+then wrote its normal workspace marker, failed to overwrite the protected canary,
+and failed to delete it: before/after hashes matched. Native `del` still returned
+zero, so the decision uses retained bytes rather than its exit. A harmless
+strengthening-only ACL attempt failed with access denied for both a file and a
+directory. A disposable sibling with the same DACL could not be renamed through
+its profile parent; its marker hash was preserved. The actual authority directory
+was not renamed. The unrestricted controller could still write a protected marker.
+
+The first command attempt incorrectly combined `-C` without a named permission
+profile; another had malformed nested cmd quotes. Both are retained as controller
+errors, not sandbox failures. The final fixed probes used the explicit native
+`:workspace` profile and checked normal writes and protected writes together.
+The former broad `Everyone:F` ACL-weakening probe was rejected by automatic review
+and was not executed; strengthening-only testing was the safer alternative.
+
+A further OpenProcess/CloseHandle-only probe targeted a dedicated idle controller
+child. Query and termination handles were obtainable; memory-write/operation,
+thread-creation and DACL-write handles were denied. No memory access, injection or
+termination was performed, and the child exited normally via stdin. This exposes
+an availability boundary: future verification must fail closed on interruption
+and must not reuse an earlier accepted record as a new result.
+
+An independent read-only review required frozen candidate inputs, a protected
+policy/verifier, task/run binding, alias-safe actual saved-byte observations, and
+host-owned canonical results. A concrete normal/float-defect price trial was
+prepared with those frozen files and a fixed driver. Its proposed controller
+execution was rejected by automatic approval review because the nested native
+candidate still derives from YS. **The end-to-end trial did not run.** No protected
+acceptance adapter or PASS was published. Storage-capability probes do not prove
+protected workflow acceptance, and `accept` remains BLOCKED.
+
+Raw commands, errors, actual markers, hashes and process-right results are retained
+under `.work/plugin-transition/shared-v033/` (`native-workspace-file-probe-fixed.json`,
+`native-acl-strengthening-probe.json`, `native-root-replacement-probe.json`,
+`native-process-rights.json`). The dedicated profile-level trial directories and
+original ACL backup are retained. Continuing with the stronger native sandbox
+requires a task-specific exception for its administrator-approved OS account,
+logon-policy and firewall setup; that exception was requested explicitly. Existing
+approval for the unelevated isolated home was not treated as approval for global
+OS security changes. Plugin source/install remains 0.1.33.
+
 ## Shared execution for native report consumers, 2026-10-06
 
 The browser/UI trial exposed a remaining U3/U6 duplication: the generic executor
