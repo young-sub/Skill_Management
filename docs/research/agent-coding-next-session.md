@@ -6,6 +6,8 @@
 
 아래 블록은 수행 범위의 기록으로 보존한다. 이후 사용자 합의의 전체 Feature init·매 고도화 갱신·환경 집행·위임 성과 기준과 U1–U7은 [완성 기준과 후속 구현](agent-workflow-completion-design.md)이 소유한다. 아래의 한 중요 흐름 연결만으로 최초 setup을 완료하는 범위는 새 전체-init 요구를 충족하지 않는다. 재개 시 현재 source/host와 새 단위의 인수 기준을 확인하며 과거 통제 결함을 일괄 재주입하지 않는다. 새 권한 없이 일반 설치·운영 적용으로 범위를 넓히지 않는다.
 
+새 구현을 시작할 때에는 [전체 지도·환경 의무의 활성 실행 프롬프트](agent-workflow-next-session.md)를 사용한다. 환경이 의무를 소유하고 Agent가 내용을 수정하는 책임 분리와 LLM 없는 정형 실행이 새 수용 범위다.
+
 ```text
 작업 저장소: C:\Users\YS\Desktop\python\Skill_Management
 현재 설계: docs/research/agent-coding-system-direction.md
