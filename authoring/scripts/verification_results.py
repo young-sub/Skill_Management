@@ -110,6 +110,8 @@ def _plan_checks(plan: dict[str, Any]) -> list[dict[str, Any]]:
         selection = check["selection"]
         if not isinstance(selection, dict) or selection.get("status") not in SELECTIONS:
             raise ViewerInputError(f"checks[{index}].selection.status must be selected, excluded or not_required")
+        if not _text(selection.get("reason")):
+            raise ViewerInputError(f"checks[{index}].selection.reason must be a nonempty string")
         conditions = check["conditions"]
         if not isinstance(conditions, dict):
             raise ViewerInputError(f"checks[{index}].conditions must be an object")

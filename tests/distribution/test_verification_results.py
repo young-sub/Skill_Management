@@ -470,6 +470,18 @@ class VerificationResultViewerTests(unittest.TestCase):
         result, payload = self.check()
         self.assertEqual(result.returncode, 2, payload)
 
+    def test_selection_requires_an_explanation_for_every_disposition(self) -> None:
+        for status in ('selected', 'excluded', 'not_required'):
+            for reason in (None, '', '  ', 42):
+                with self.subTest(status=status, reason=reason):
+                    self.make_raw()
+                    self.make_plan({'id': 'save-flow', 'expected': 'saved price',
+                                    'selection': {'status': status, 'reason': reason}}, raw_for=self.raw)
+                    self.make_capture(); self.make_assessment(); self.make_current()
+                    result, payload = self.check()
+                    self.assertEqual(result.returncode, 2, payload)
+                    self.assertIn('selection.reason', ' '.join(payload['remaining']))
+
 
 if __name__ == "__main__":
     unittest.main()

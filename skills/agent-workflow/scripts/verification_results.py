@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/verification_results.py
-# Source-SHA256: 834f26cb9b45cdc7af6e1334e63cccb75e5fbeeb32866ae37babaf4ed6892d3a
+# Source-SHA256: 41e1522350088bd9a4102f7f89fd87c8c8dade176599f5951adebcfa5fec498c
 
 """Read-only viewer for plan-bound verification captures and observations.
 
@@ -114,6 +114,8 @@ def _plan_checks(plan: dict[str, Any]) -> list[dict[str, Any]]:
         selection = check["selection"]
         if not isinstance(selection, dict) or selection.get("status") not in SELECTIONS:
             raise ViewerInputError(f"checks[{index}].selection.status must be selected, excluded or not_required")
+        if not _text(selection.get("reason")):
+            raise ViewerInputError(f"checks[{index}].selection.reason must be a nonempty string")
         conditions = check["conditions"]
         if not isinstance(conditions, dict):
             raise ViewerInputError(f"checks[{index}].conditions must be an object")

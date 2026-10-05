@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/result-viewer.md -->
-<!-- Source-SHA256: 430cf7966940ba0c8deec23fa6e559ba4d3205553c1fb49a95a5afd27f9db5aa -->
+<!-- Source-SHA256: 8ddd2e750a7ef301b43d8a9052de35e163aedf9a33af45b10731808976a1d57e -->
 
 # Existing-result lookup
 
@@ -16,7 +16,7 @@ Repeat record/assessment/observation arguments for multiple checks. Exit 0 means
 
 Create the plan while selecting checks, before execution. Add actual run/raw bindings after execution without rewriting criteria. Each check requires:
 
-- `id`, `feature_id`, `expected`, `criteria_revision`, `required` (boolean), and `selection: {status: selected|excluded|not_required, reason: ...}`. Each Feature/check pair is unique. `criteria_revision` must equal `conditions.criteria.revision`; inconsistent identities are blocked. Required exclusions prevent overall PASS. Optional exclusions need a reason and remain distinct from PASS.
+- `id`, `feature_id`, `expected`, `criteria_revision`, `required` (boolean), and `selection: {status: selected|excluded|not_required, reason: ...}`. Every disposition requires a nonblank string reason. Each Feature/check pair is unique. `criteria_revision` must equal `conditions.criteria.revision`; inconsistent identities are blocked. Required exclusions prevent overall PASS. Optional exclusions remain distinct from PASS.
 - `conditions` with nonempty `source`, `criteria`, `command`, `dependency`, `fixture`, `runtime` objects. Source uses `revision` and `diff` (HEAD and binary tracked-diff SHA-256); command uses exact `argv` and absolute `cwd`. Other identities are project-specific, observed values, not invented labels. Missing identity remains unknown; do not replace it with `not_applicable` to get PASS.
 - Optional `run_id` to disambiguate repeated runs. Ambiguous records are unavailable, never picked by timestamp.
 - `raw_observations` with `path`, `sha256`, `pointer`, `producer` and `assertions`. Producer requires the actual `run_id`, `capture_path` and exact `argv`, or matching `json_report_path`/`json_report_sha256` for a capture's embedded native report. Include `capture_sha256` when retaining the binding. Pointers use JSON Pointer or `$.checks[0]` notation.
