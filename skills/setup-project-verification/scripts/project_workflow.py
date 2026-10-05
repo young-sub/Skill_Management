@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: 821ef78478d8f94e3a33332290267c9c72ac08b93939b2be1b67573e9c10e781
+# Source-SHA256: 014003a591317dde7809cd0f901017d393e951d3dbbb51727c69191de36751d9
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -99,6 +99,7 @@ def begin(root, project, intent, targets=()):
             'targets': sorted(set(targets)), 'base': git(root, 'rev-parse', 'HEAD').decode().strip(),
             'dirty_baseline': git(root, 'status', '--porcelain').decode('utf-8'),
             'baseline': inventory(root, config['roots']), 'reviews': {},
+            'source_patterns': {f['id']: list(f['sources']) for f in config['features']},
             'input_bases': {item['id']: item['basis'] for item in inspect_project(root, project)['features']}}
 
 
@@ -122,6 +123,11 @@ def inspect_project(root, project, state=None):
     covered = set()
     old = state.get('baseline', {})
     changed = {name for name in files.keys() | old.keys() if files.get(name) != old.get(name)}
+    if state and 'source_patterns' not in state:
+        for name in sorted(changed):
+            if old.get(name) is not None and files.get(name) is None and not any(
+                    fnmatchcase(name, pattern) for f in config['features'] for pattern in f['sources']):
+                result['findings'].append(f'baseline_source_ownership_unavailable:{name}')
     for feature in config['features']:
         identity = feature['id']
         sources = {name: value for name, value in files.items()
@@ -144,7 +150,10 @@ def inspect_project(root, project, state=None):
         review = state.get('reviews', {}).get(identity, {})
         # A recorded analysis is a semantic-review input, never a success flag.
         reviewed = review.get('basis') == basis and not review.get('findings')
-        affected = sorted(changed & sources.keys())
+        # Preserve ownership across staged deletion and source-map reassignment.
+        patterns = feature['sources'] + state.get('source_patterns', {}).get(identity, [])
+        affected = sorted(name for name in changed
+                          if any(fnmatchcase(name, pattern) for pattern in patterns))
         requires = ['map_review']
         if affected and state:
             requires.append('verification')

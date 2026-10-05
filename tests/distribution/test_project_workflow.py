@@ -106,6 +106,33 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.write('docs/requirement.md', 'price = twenty\n')
         self.assertEqual(len(runtime.inspect_project(self.root, self.project, state)['obligations']), 2)
 
+    def test_staged_source_deletion_cannot_close_with_only_a_new_review(self):
+        runtime = self.runtime()
+        self.project['extensions']['workflow']['features'][0]['sources'] = ['src/*']
+        state = runtime.begin(self.root, self.project, 'change')
+        for feature in ('api', 'cli'):
+            state = self.review(runtime, state, feature)
+        subprocess.run(['git', 'rm', 'src/api.py'], cwd=self.root, check=True, capture_output=True)
+        # Updating the map to the remaining implementation must not erase ownership.
+        self.project['extensions']['workflow']['features'][0]['sources'] = ['src/cli.py']
+        current = runtime.inspect_project(self.root, self.project, state)
+        item = next(item for item in current['features'] if item['id'] == 'api')
+        state = runtime.record_review(self.root, self.project, state, {
+            'feature': 'api', 'basis': item['basis'],
+            'analysis': 'The removed API entrypoint is now provided by the remaining CLI.',
+            'references': ['docs/map.md', 'src/cli.py'], 'findings': []})
+        result = runtime.inspect_project(self.root, self.project, state)
+        self.assertEqual(result['status'], 'PARTIAL', result)
+        pending = next(o for o in result['obligations'] if o['target'] == 'api')
+        self.assertEqual(pending['changed'], ['src/api.py'])
+        self.assertIn('verification', pending['requires'])
+        self.assertEqual(result['partitions']['operator'], 'READY_FOR_REVIEW')
+        legacy = dict(state)
+        legacy.pop('source_patterns')
+        resumed = runtime.inspect_project(self.root, self.project, legacy)
+        self.assertEqual(resumed['status'], 'PARTIAL')
+        self.assertIn('baseline_source_ownership_unavailable:src/api.py', resumed['findings'])
+
     def test_non_harness_and_readonly_audit(self):
         runtime = self.runtime()
         self.assertEqual(runtime.inspect_project(self.root, {}, None)['status'], 'NOT_CONFIGURED')

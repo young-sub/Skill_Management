@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: 479dffbfd4dda407826693244d1335b8b6abe8045ed8de1f47dc53eb77d0b54d -->
+<!-- Source-SHA256: 345747fc7620a054fed27adf472f1bb61b776c1ee9e49c71d1ca859a6b332995 -->
 
 # Project workflow obligations
 
@@ -30,9 +30,17 @@ python <skill>/scripts/project_workflow.py review --root <project> --state .work
 
 `begin` preserves a matching existing record and its dirty baseline. `audit` writes nothing and launches no checks. A review contains `feature`, exact current `basis`, concrete `analysis`, existing `references`, and `findings`. Stale reviews are refused. Partitions remain PARTIAL until links and review inputs reconcile. Source, criteria, command, map and shared UI changes invalidate consumers; unrelated documents do not. Paths never select Full automatically.
 
-Feedback and UI intents require at least one explicit `--target`; an omitted target cannot silently turn either into a map-only request. UI targets need a connected standard and actual verification. Source edits during initial mapping also require verification. Removed features remain explicit `removal_review` obligations, including before their first review. Reconcile their reported basis through the same review command, explaining retirement or reassignment and referencing the updated map; deleting a configuration row does not erase the obligation.
+Feedback and UI intents require at least one explicit `--target`; an omitted target cannot silently turn either into a map-only request. UI targets need a connected standard and actual verification. Source edits during initial mapping also require verification. Deletions, including staged deletions absent from the current Git inventory, are matched against Feature source patterns using the retained baseline; a new semantic review alone cannot discharge their verification. Removed features remain explicit `removal_review` obligations, including before their first review. Reconcile their reported basis through the same review command, explaining retirement or reassignment and referencing the updated map; deleting a configuration row does not erase the obligation.
 
 `READY_FOR_REVIEW` means mapping links and submitted analysis are current, not product PASS or independently established semantic completeness. Initial map completion does not require all automatic checks. Behavior changes and feedback still require actual verification. Harness maintenance invokes this computation when configured; close refuses unresolved obligations even if the optional CLI was skipped. Nonconfigured projects retain their existing workflow.
+
+New records retain each Feature's initial source patterns as well as file hashes,
+so narrowing a source map after deletion does not erase its original consumer.
+For older records without those patterns, deletion still matches current owners.
+An unmatched deleted path reports `baseline_source_ownership_unavailable` rather
+than silently accepting the work. Recover its original Feature connections from
+the retained baseline before reconciling that legacy record; do not replace the
+baseline with current files to clear the finding.
 
 Begin/review writes use a unique task-local temporary file followed by replacement. Abrupt process exit leaves the previous valid state intact (or no initial state), and a fresh invocation can resume without deleting an orphan attempt. One writer owns a task record; concurrent writes to the same record are not supported. Interrupted attempt files remain subject to the existing `.work` retention policy.
 

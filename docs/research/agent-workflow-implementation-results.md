@@ -4,6 +4,30 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Deleted-source verification obligations, 2026-10-05
+
+A real staged-deletion regression showed that a surviving wildcard-mapped Feature
+could reach READY_FOR_REVIEW after only an updated semantic review, with no tests:
+the removed source had disappeared from the current Git inventory. The runtime
+now matches changed baseline paths as well as current sources. New work records
+retain initial Feature source patterns, so narrowing the current source map does
+not erase the deleted file's original consumer. Older records with unmatched
+deleted paths retain an explicit ownership finding instead of silently passing.
+Existing unrelated-document and unaffected-partition cases remain accepted.
+
+The corrected 0.1.5 package was installed through the guarded local updater in
+`host-002`. An independent retained project under
+`.work/plugin-transition/deletion-consumer-v015/` staged removal of a legacy price
+module and narrowed its Feature source map. Installed public begin/review/audit
+commands kept verification pending; the unchanged unittest then detected price
+9 instead of required 10. After repairing the remaining owner, the same assertion
+passed and the bound review reached READY_FOR_REVIEW. A fresh audit changed no
+evidence bytes and did not rerun either test invocation. `trial.json` retains
+commands and raw output; the suite ran exactly twice, for failure and repair.
+This proves installed CLI behavior, not autonomous Agent selection or protected
+acceptance. Cross-Feature execution deduplication and automatic task orchestration
+remain separate incomplete requirements.
+
 ## Guarded plugin update, 2026-10-05
 
 The distributed `scripts/update_plugin.py` now refuses ordinary user changes
