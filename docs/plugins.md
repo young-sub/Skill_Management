@@ -112,7 +112,7 @@ installation, and binds the native command to that inspected local marketplace.
 Interpreter bytecode beside a packaged Python source is permitted and preserved.
 It retains and verifies every previous plugin file before invoking `codex plugin
 add`, then checks its returned identity/path and installed bytes against the candidate. An identical installed
-version returns UNCHANGED without another native call; different bytes under the
+version with the same persistent source returns UNCHANGED without another native call; different bytes under the
 same version require a new version. Backups contain no whole-home, config or auth
 copy. Aliased and private paths are refused. Concurrent guard calls use an OS lock;
 direct native installers and concurrent editors do not participate in that lock.
@@ -134,8 +134,16 @@ same marketplace name, then pass that marketplace and a new backup directory to
 files plus `package-files.json`; interpreter caches remain preserved in the export
 but are not candidate package members. Validate the candidate before installing.
 The native host, rather than a direct cache copy, owns the active version change.
-The registered marketplace remains the original source; the override applies to
-this invocation, so a later ordinary update can return to the newer version.
+The guard persistently binds the marketplace to the inspected local source using
+native marketplace remove/add, preserving unrelated home settings. Existing non-local
+marketplace registrations are refused before any mutation. Temporary
+command overrides were insufficient: a fresh native session restored the old
+registered version. A same-version install with a stale binding returns REBOUND
+after snapshot and registration repair, without reinstalling package files.
+If removal succeeds but registration fails, the snapshot retains the former source;
+retry the guard with the same candidate and a new backup directory. No completion
+is claimed until the persistent binding and installed bytes are verified. Keep
+the registered local marketplace available for later host starts.
 The guard still refuses missing/corrupt active caches. In an isolated host with a
 wholly absent version directory, native `codex plugin add` against the verified
 local marketplace can recreate it; this was tested with all old bytes retained

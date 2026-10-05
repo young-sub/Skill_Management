@@ -12,6 +12,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import tomllib
 
 
 def checked_path(value):
@@ -134,11 +135,32 @@ def update(home, marketplace, backup, run=subprocess.run):
             if installed['version'] != version.name:
                 raise ValueError('Installed version directory mismatch')
         target = cache / identity['version']
+        same_version = False
         if target.exists():
             _, actual = package(target, allow_bytecode=True)
             if all(actual.get(key) == value for key, value in expected.items()):
-                return {'status': 'UNCHANGED', 'installed': str(target)}
-            raise ValueError('Same version has different bytes; build a new version')
+                same_version = True
+            else:
+                raise ValueError('Same version has different bytes; build a new version')
+        config_path = checked_path(home / 'config.toml')
+
+        def registration():
+            config = tomllib.loads(config_path.read_text(encoding='utf-8')) if config_path.exists() else {}
+            return config.get('marketplaces', {}).get(name)
+
+        registered = registration()
+        if registered is not None and registered.get('source_type') != 'local':
+            raise ValueError('Replacing a non-local marketplace is outside this local update scope')
+
+        def matches_source(value):
+            if value is None or value.get('source_type') != 'local':
+                return False
+            source = checked_path(value['source'])
+            return source.exists() and source.samefile(marketplace)
+
+        bound = matches_source(registered)
+        if same_version and bound:
+            return {'status': 'UNCHANGED', 'installed': str(target)}
         previous = files(cache)
         before = hashes(previous)
         backup.mkdir(parents=True, exist_ok=False)
@@ -146,17 +168,32 @@ def update(home, marketplace, backup, run=subprocess.run):
         if hashes(files(backup / 'previous')) != before or hashes(files(cache)) != before:
             raise ValueError('Cache changed during snapshot; native update not started')
         write_json(backup / 'snapshot.json', {'files': before, 'home': str(home),
-                   'marketplace': name, 'candidate': identity})
-        # No whole-home/config/auth backup; force the inspected local marketplace.
+                   'marketplace': name, 'candidate': identity,
+                   'previous_source': registered})
+        # Native commands preserve unrelated config; never copy home/auth/config.
         env = dict(os.environ, CODEX_HOME=str(home))
-        argv = ['codex', '-c', f'marketplaces.{name}.source_type="local"', '-c',
-                f'marketplaces.{name}.source={json.dumps(str(marketplace))}',
-                'plugin', 'add', f'agentic-coding@{name}', '--json']
+        def native(arguments):
+            argv = ['codex', 'plugin', *arguments, '--json']
+            result = run(argv, env=env, cwd=home, check=True, capture_output=True)
+            if result.returncode:
+                raise subprocess.CalledProcessError(result.returncode, argv)
+            return result
+
         if hashes(files(cache)) != before:
             raise ValueError('Cache changed before native update; snapshot retained')
-        result = run(argv, env=env, cwd=home, check=True, capture_output=True)
-        if result.returncode:
-            raise subprocess.CalledProcessError(result.returncode, argv)
+        if not bound:
+            if registered is not None:
+                native(['marketplace', 'remove', name])
+            native(['marketplace', 'add', str(marketplace)])
+            current = registration()
+            if not matches_source(current):
+                raise ValueError('Native marketplace registration mismatch; snapshot retained')
+        if same_version:
+            if hashes(files(cache)) != before:
+                raise ValueError('Cache changed during source binding; snapshot retained')
+            write_json(backup / 'completed.json', {'installed': str(target), 'source': str(marketplace)})
+            return {'status': 'REBOUND', 'installed': str(target), 'backup': str(backup)}
+        result = native(['add', f'agentic-coding@{name}'])
         receipt = json.loads(result.stdout)
         if (receipt.get('pluginId') != f'agentic-coding@{name}' or
                 receipt.get('version') != identity['version'] or

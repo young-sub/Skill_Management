@@ -7,6 +7,7 @@ import runpy
 import shutil
 import subprocess
 import tempfile
+import tomllib
 import unittest
 
 
@@ -23,6 +24,64 @@ def package(path, version):
 
 
 class PluginUpdateTests(unittest.TestCase):
+    def test_same_version_repairs_persistent_source_without_reinstall(self):
+        api = runpy.run_path(str(SCRIPT))
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            home, marketplace = root / 'home', root / 'marketplace'
+            installed = home / 'plugins/cache/local/agentic-coding/2.0'
+            package(installed, '2.0')
+            candidate = marketplace / 'plugins/agentic-coding'
+            shutil.copytree(installed, candidate)
+            descriptor = marketplace / '.agents/plugins/marketplace.json'
+            descriptor.parent.mkdir(parents=True)
+            descriptor.write_text(json.dumps({'name': 'local', 'plugins': [
+                {'name': 'agentic-coding', 'source': {'source': 'local', 'path': './plugins/agentic-coding'}}]}))
+            config = home / 'config.toml'
+            unrelated = '[windows]\nsandbox = "unelevated"\n'
+            config.write_text(unrelated + '[marketplaces.local]\nsource_type = "local"\nsource = "old"\n')
+            calls = []
+            fail_add = True
+
+            def native(argv, **kwargs):
+                calls.append(argv)
+                self.assertEqual(argv[:3], ['codex', 'plugin', 'marketplace'])
+                if argv[3] == 'remove':
+                    config.write_text(unrelated)
+                elif argv[3] == 'add':
+                    if fail_add:
+                        raise subprocess.CalledProcessError(17, argv)
+                    source = ('\\\\?\\' + argv[4]) if os.name == 'nt' else argv[4]
+                    config.write_text(unrelated + '[marketplaces.local]\nsource_type = "local"\nsource = ' +
+                                      json.dumps(source) + '\n')
+                else:
+                    self.fail('Unexpected native call')
+                return subprocess.CompletedProcess(argv, 0, b'{}', b'')
+
+            before = api['hashes'](api['files'](installed))
+            config.write_text(unrelated + '[marketplaces.local]\nsource_type = "git"\nsource = "remote"\n')
+            with self.assertRaisesRegex(ValueError, 'non-local'):
+                api['update'](home, marketplace, root / 'remote', native)
+            self.assertEqual(calls, [])
+            self.assertFalse((root / 'remote').exists())
+            self.assertIn('source_type = "git"', config.read_text())
+            config.write_text(unrelated + '[marketplaces.local]\nsource_type = "local"\nsource = "old"\n')
+            with self.assertRaises(subprocess.CalledProcessError):
+                api['update'](home, marketplace, root / 'interrupted', native)
+            self.assertEqual(config.read_text(), unrelated)
+            self.assertEqual(api['hashes'](api['files'](installed)), before)
+            self.assertFalse((root / 'interrupted/completed.json').exists())
+            self.assertEqual(json.loads((root / 'interrupted/snapshot.json').read_text())['previous_source']['source'], 'old')
+            fail_add = False
+            result = api['update'](home, marketplace, root / 'backup', native)
+            self.assertTrue(Path(tomllib.loads(config.read_text())['marketplaces']['local']['source']).samefile(marketplace))
+            self.assertEqual(result['status'], 'REBOUND')
+            self.assertEqual(api['hashes'](api['files'](installed)), before)
+            self.assertEqual(len(calls), 3)
+            self.assertEqual(api['update'](home, marketplace, root / 'unused', native)['status'], 'UNCHANGED')
+            self.assertEqual(len(calls), 3)
+            self.assertFalse((root / 'unused').exists())
+
     def test_refuses_overlapping_backup_and_directory_alias(self):
         api = runpy.run_path(str(SCRIPT))
         with tempfile.TemporaryDirectory() as temporary:
@@ -126,6 +185,10 @@ class PluginUpdateTests(unittest.TestCase):
                 calls.append(argv)
                 with self.assertRaises(OSError):
                     api['update'](home, marketplace, root / 'concurrent', native)
+                if argv[2] == 'marketplace':
+                    (home / 'config.toml').write_text('[marketplaces.local]\nsource_type = "local"\nsource = ' +
+                                                    json.dumps(str(marketplace)) + '\n')
+                    return subprocess.CompletedProcess(argv, 0, b'{}', b'')
                 shutil.rmtree(cache)
                 shutil.copytree(candidate, cache / '2.0')
                 receipt = {'pluginId': 'agentic-coding@local', 'version': '2.0',
@@ -136,7 +199,7 @@ class PluginUpdateTests(unittest.TestCase):
 
             self.assertEqual(api['update'](home, marketplace, root / 'backup', native)['status'], 'UPDATED')
             self.assertEqual(api['update'](home, marketplace, root / 'unused', native)['status'], 'UNCHANGED')
-            self.assertEqual(len(calls), 1)
+            self.assertEqual(len(calls), 2)
             self.assertFalse((root / 'unused').exists())
             self.assertFalse((root / 'concurrent').exists())
             (root / 'backup/previous/1.0/tool.py').write_text('broken')

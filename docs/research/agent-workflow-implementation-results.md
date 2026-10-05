@@ -4,6 +4,42 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Persistent native update binding, 2026-10-05
+
+User authorization completed fixture trust, read-only hook trust and the isolated
+unelevated Windows sandbox. The authenticated TUI delivered the automatic workflow
+hook and began a natural price-repair request, but selected installed 0.1.21 after
+the earlier 0.1.23 update. The controller interrupted before the first proposed
+product command. This is an installation defect, not product-task success or a
+sandbox failure: the updater only overrode its invocation, leaving the native
+marketplace registered to the old source. Earlier immediate install/list evidence
+below does not establish persistence across native session startup.
+
+The updater now snapshots the existing plugin and previous source, uses native
+marketplace remove/add to retain the inspected source, and verifies that binding.
+An identical package with stale registration is repaired without reinstalling;
+only matching version, bytes and source are a no-op. Interrupted registration
+retains a snapshot and can be retried with a new backup directory. Windows verbatim
+and ordinary paths are compared by file identity. Independent review also found
+that a same-name remote source must not be silently replaced: the final 0.1.25
+guard refuses non-local registrations before snapshot or native mutation. No home/auth/config backup is
+made, and native editing preserves unrelated config values.
+
+The focused regression first failed with the old persistent source. Five package
+and updater tests now pass, including interrupted rebind/resume, unchanged bytes,
+Windows path spelling, no-op, changed-file refusal and corrupt recovery. Actual
+isolated native update installed 0.1.24; unrelated config values were identical
+and repetition was UNCHANGED. A fresh app-server discovered all 19 Skills from
+0.1.24. Evidence: `.work/plugin-transition/host-006/update-v024-final.json` and
+`.work/plugin-transition/native-agent-control-v023/discovery-v024/`. Authenticated
+natural-task execution is evaluated separately. Final 0.1.25 native update also
+preserved unrelated config and returned UNCHANGED on repetition. The distribution
+suite ran 149 tests: 148 passed and one timeout-tree cleanup test failed because
+taskkill was restricted by the outer sandbox. The same focused test passed in
+1.964 seconds with the explicitly reviewed process-control permission. Resource
+drift, distribution validation and 12 documentation/cutover tests passed. Feature:
+`plugin-package`.
+
 ## Missing-cache recovery and authenticated-host preparation, 2026-10-05
 
 A fresh independent `missing-cache-host` installed 0.1.23 through the native CLI.
@@ -91,7 +127,9 @@ settings or ordinary installation was copied. Both native commands terminated
 with UPDATED receipts, and separate native `plugin list` calls identified the
 expected enabled version after each transition. All 244 candidate files matched
 at each installation. The marketplace override did not change the registered
-original source, which continues to offer the newer package.
+original source, which continues to offer the newer package. A later authenticated
+session exposed that this binding can undo the selected version on startup; see
+the persistent-binding correction above.
 
 The restored 0.1.16 viewer/capture actually ran a child check against an independent
 Git fixture and bound the observed sum 5 and readback `ok` to current PASS (1 test,
