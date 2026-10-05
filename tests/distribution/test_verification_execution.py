@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 
@@ -109,6 +110,7 @@ class VerificationExecutionTests(unittest.TestCase):
         *,
         timeout: str | None = None,
         evidence_dir: Path | None = None,
+        resume: bool = False,
     ) -> tuple[subprocess.CompletedProcess[str], dict]:
         command = [
             sys.executable,
@@ -123,6 +125,8 @@ class VerificationExecutionTests(unittest.TestCase):
         ]
         if timeout is not None:
             command.extend(["--timeout", timeout])
+        if resume:
+            command.append('--resume')
         result = subprocess.run(
             command,
             capture_output=True,
@@ -155,6 +159,136 @@ class VerificationExecutionTests(unittest.TestCase):
         self.assertTrue(runtime["executable"])
         self.assertEqual(len(runtime["executable_sha256"]), 64)
         self.assertTrue(runtime["python_version"])
+
+    def test_resume_keeps_completed_commands_and_refuses_unknown_launch(self, first_expected=5, first_required=True) -> None:
+        import copy
+        child = self.project / 'check.py'
+        child.write_text("import json,sys\nfrom pathlib import Path\np=Path('.work');p.mkdir(exist_ok=True)\n"
+                         "with (p/'calls').open('a') as f:f.write(sys.argv[1]+'\\n')\n"
+                         "Path(sys.argv[1]).write_text(json.dumps({'checks':[{'sum':5,'readback':'ok'}]}))\n")
+        (self.project / '.gitignore').write_text('.work/\n')
+        self._git('add', '.')
+        self._git('commit', '-qm', 'two independent checks')
+        plan = self._plan(report='.work/first.json')
+        value = json.loads(plan.read_text())
+        value['checks'][0]['raw_observations'][0]['assertions'][0]['equals'] = first_expected
+        value['checks'][0]['required'] = first_required
+        value['checks'][0]['conditions']['command']['argv'].append('.work/first.json')
+        second = copy.deepcopy(value['checks'][0])
+        second['id'] = 'second'
+        second['required'] = True
+        second['raw_observations'][0]['path'] = '.work/second.json'
+        second['conditions']['command']['argv'][-1] = '.work/second.json'
+        second['raw_observations'][0]['assertions'][0]['equals'] = 5
+        value['checks'].append(second)
+        plan.write_text(json.dumps(value))
+        module = self._viewer_module()
+        original_save = module._save_execution_bundle
+        def interrupted(*args, **kwargs):
+            result = original_save(*args, **kwargs)
+            if args[1] == 'checkpoint-0-':
+                raise KeyboardInterrupt('controller interrupted between commands')
+            return result
+        with patch.object(module, '_save_execution_bundle', interrupted):
+            with self.assertRaises(KeyboardInterrupt):
+                module.execute_plan(plan, run_check_path=RUN_CHECK, evidence_dir=self.evidence)
+        self.assertEqual((self.project / '.work/calls').read_text().splitlines(), ['.work/first.json'])
+        retained = {p: p.read_bytes() for p in self.evidence.rglob('*') if p.is_file()}
+        def refused():
+            result = module.execute_plan(plan, run_check_path=RUN_CHECK, evidence_dir=self.evidence, resume=True)
+            self.assertEqual(result['status'], 'BLOCKED', result)
+            self.assertEqual(result['test_commands_executed'], 0)
+            self.assertEqual((self.project / '.work/calls').read_text().splitlines(), ['.work/first.json'])
+        original_plan = plan.read_bytes()
+        plan.write_bytes(original_plan + b'\n')
+        refused()
+        plan.write_bytes(original_plan)
+        dependency = self.project / 'dependency.txt'
+        original_dependency = dependency.read_bytes()
+        dependency.write_text('changed dependency')
+        refused()
+        dependency.write_bytes(original_dependency)
+        raw = self.project / '.work/first.json'
+        original_raw = raw.read_bytes()
+        raw.unlink()
+        refused()
+        raw.write_bytes(original_raw)
+        checkpoint = self.evidence / 'checkpoint-0-bundle.json'
+        original_checkpoint = checkpoint.read_bytes()
+        checkpoint.write_text('{')
+        refused()
+        checkpoint.write_bytes(original_checkpoint)
+        marker = self.evidence / 'command-1-started.json'
+        marker.write_text('{}')  # Crash after durable launch intent, before a finished capture.
+        refused()
+        marker.unlink()  # Restore the controlled pre-launch fixture, not production recovery.
+        _, result = self._execute(plan, resume=True)
+        expected_status = 'PASS' if first_expected == 5 else 'ISSUES'
+        self.assertEqual(result['status'], expected_status, result)
+        self.assertEqual(result['items'][0]['required'], first_required)
+        self.assertEqual(result['test_commands_executed'], 1)
+        self.assertEqual((self.project / '.work/calls').read_text().splitlines(), ['.work/first.json', '.work/second.json'])
+        self.assertTrue(all(p.read_bytes() == raw for p, raw in retained.items()))
+        _, repeated = self._execute(plan, resume=True)
+        self.assertEqual(repeated['status'], expected_status, repeated)
+        self.assertEqual(repeated['test_commands_executed'], 0)
+
+    def test_resume_preserves_known_failure_and_runs_pending_check(self) -> None:
+        self.test_resume_keeps_completed_commands_and_refuses_unknown_launch(first_expected=6)
+
+    def test_resume_selected_optional_check_without_changing_policy(self) -> None:
+        self.test_resume_keeps_completed_commands_and_refuses_unknown_launch(first_required=False)
+
+    def test_resume_last_checkpoint_survives_partial_final_bundle(self, torn_descriptor=False, during_publish=False) -> None:
+        plan = self._plan()
+        module = self._viewer_module()
+        original_write = module._write_json
+        def interrupted(path, data):
+            if during_publish and path.name == 'bundle.pending.json':
+                path.write_text('{')
+                raise KeyboardInterrupt('descriptor interrupted before atomic publication')
+            original_write(path, data)
+            if not during_publish and path.name == 'bound-plan.json':
+                raise KeyboardInterrupt('final bundle write interrupted')
+        with patch.object(module, '_write_json', interrupted):
+            with self.assertRaises(KeyboardInterrupt):
+                module.execute_plan(plan, run_check_path=RUN_CHECK, evidence_dir=self.evidence)
+        if torn_descriptor:
+            (self.evidence / 'bundle.json').write_text('{')
+        retained = {p: p.read_bytes() for p in self.evidence.rglob('*') if p.is_file()}
+        result = module.execute_plan(plan, run_check_path=RUN_CHECK, evidence_dir=self.evidence, resume=True)
+        self.assertEqual(result['status'], 'PASS', result)
+        self.assertEqual(result['test_commands_executed'], 0)
+        self.assertEqual(module.view_bundle(self.evidence / 'bundle.json')['status'], 'PASS')
+        for path, data in retained.items():
+            if path.name == 'bundle.json':
+                backup = self.evidence / ('bundle.interrupted-' + _digest(data) + '.json')
+                self.assertEqual(backup.read_bytes(), data)
+            else:
+                self.assertEqual(path.read_bytes(), data)
+
+    def test_resume_complete_checkpoint_with_torn_final_descriptor(self) -> None:
+        self.test_resume_last_checkpoint_survives_partial_final_bundle(torn_descriptor=True)
+
+    def test_resume_checkpoint_before_atomic_final_publication(self) -> None:
+        self.test_resume_last_checkpoint_survives_partial_final_bundle(during_publish=True)
+
+    def test_resume_does_not_retry_a_durably_marked_launch(self) -> None:
+        plan = self._plan()
+        module = self._viewer_module()
+        original_run = module.subprocess.run
+        def interrupted(argv, *args, **kwargs):
+            if str(RUN_CHECK) in argv:
+                self.assertTrue((self.evidence / 'command-0-started.json').is_file())
+                raise KeyboardInterrupt('controller lost command outcome')
+            return original_run(argv, *args, **kwargs)
+        with patch.object(module.subprocess, 'run', interrupted):
+            with self.assertRaises(KeyboardInterrupt):
+                module.execute_plan(plan, run_check_path=RUN_CHECK, evidence_dir=self.evidence)
+        _, result = self._execute(plan, resume=True)
+        self.assertEqual(result['status'], 'BLOCKED', result)
+        self.assertEqual(result['test_commands_executed'], 0)
+        self.assertFalse((self.project / 'result.json').exists())
 
     def test_failed_explicit_assertion_is_not_pass(self) -> None:
         child = self.project / "bad.py"

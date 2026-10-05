@@ -48,3 +48,26 @@ Before starting any child, the executor validates the selected check's exact `co
 `conditions.dependency.file_refs` and `conditions.fixture.file_refs` may list project files (the `files` key is accepted as an alias). The executor measures their SHA-256 values before preflight and immediately before every child; a prior child changing a later check's inputs prevents that child from starting. It also records the selected command's resolved executable, executable SHA-256, and wrapper Python version when the executable is the wrapper itself; the same runtime identity is remeasured before each child and during bundle lookup. File references must be relative, inside the command project, non-private, and free of symlink/junction components. Native report paths must be new, non-private, non-aliased, and inside either the command project or the evidence directory. A changed or missing file makes reuse stale or unknown. The source plan is never rewritten; generated `bound-plan.json`, captures, assessments, `current-context.json`, and a persisted `bundle.json` are written under the supplied evidence directory.
 
 Each selected command is passed unchanged to the existing `run_check.py` with an explicit `--json-report` path. The executor reads the resulting capture and native report, creates the producer/assessment binding from the run ID and assertion observations, and then calls the same viewer. It derives `PASS` only when the native process exits successfully and every plan assertion matches. It does not infer a verdict from a report's `PASS` string, stdout, timestamps, zero counts, or a submitted result field. Missing reports, zero/skip assertion failures, wrong target/run bindings, stale conditions, and nonzero/timeout captures remain non-PASS. A mutation of the original plan during a child also invalidates the execution result. The JSON response includes an `execution.bundle` descriptor and `execution.bundle_path` for the persisted descriptor; `view_bundle(bundle_path)` or `view_bundle(descriptor)` remeasures source and declared file references, verifies the original-plan hash, and joins the same viewer without executing or writing. Passing that descriptor back to the ordinary lookup path remains read-only.
+
+
+## Resume interrupted execution
+
+Repeat the same `--execute --plan ... --evidence-dir ...` command with `--resume`.
+Each command has a durable launch marker, and each completed check has an
+immutable `checkpoint-N-bundle.json` readable by the normal `--bundle` lookup.
+Resume revalidates the original plan and current raw/conditions, keeps completed
+current checks (including intact known failures), and executes only never-started checks. A completed failed check stays ISSUES while pending checks continue. Selected
+optional checks retain their original optional policy. The completed final bundle
+is a read-only no-op on repeat. The last complete checkpoint also remains usable
+if writing the final bundle was interrupted. Resume repairs the canonical
+`bundle.json` used by workflow consumers and preserves a torn descriptor as
+`bundle.interrupted-<sha256>.json`. Raw/capture/checkpoint files remain unchanged.
+Use one controller per execution directory; external concurrent edits are unsupported.
+
+A start marker without a completed checkpoint means the outcome is unknown:
+resume refuses to replay that command, even if a raw report exists. Inspect and
+reconcile the actual operation before planning any retry; removing a marker is
+not evidence that retry is safe. Changed criteria/source/dependencies, missing
+raw and damaged checkpoints also block reuse. Preserve the old run and create a
+new plan/output path when a repair changes the conditions. These local files are
+not a protected acceptance boundary. No LLM call is needed to resume or look up.

@@ -4,6 +4,69 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Interrupted verification resume, 2026-10-05
+
+A read-only review confirmed a U3/U7 implementation gap: the viewer wrote the
+joined bundle only after all commands and rejected existing captures/reports on
+rerun. Completed work could not be resumed through the normal CLI. The repaired
+execution path writes an exclusive, flushed launch marker before each command
+and immutable normal-format bundles after completed checks. `--resume` validates
+the same source plan and current evidence, reuses completed checks with current evidence, and
+executes only never-started checks. It does not replay a launch whose outcome is
+unknown. Completed final results, and the last checkpoint when final persistence
+was interrupted, are readable without another command. This reuses the existing
+viewer/capture; no model or scheduler is added. Checkpoints contain cumulative
+snapshots, so storage is quadratic in check count; very large plans should use
+existing partitions. This is local consistency, not protected acceptance.
+
+RED observed absent interruption checkpoints. The execution assertions passed
+21 cases, followed by two more final-write/unknown-launch cases. Their fixture
+cleanup was deliberately retained in a diagnostic runner because the independent
+Windows `unlink` stall remains unresolved; these results do not claim ordinary
+suite cleanup passed. The unchanged viewer plus documentation suite passed
+21 cases with normal cleanup. Resource drift, distribution and whitespace checks
+passed. Independent review found two more interruptions: a truncated final descriptor
+hid a complete checkpoint, and a completed assertion failure prevented later
+checks. Both were reproduced RED and repaired. Bundle publication now uses a
+flushed pending file and an exclusive atomic hard link; an invalid final descriptor
+can only fall back to a fully completed, revalidated checkpoint. Known failure
+observations are retained as ISSUES while never-started checks continue. A final
+caller review also found that checkpoint fallback had not repaired the configured
+canonical bundle path. RED/GREEN now proves that resume repairs that path and
+normal workflow lookup reads it; torn descriptor bytes are retained separately.
+
+Fresh native installation of candidate 0.1.18 into independent `host-003` returned
+its actual plugin identity and cache path; all 244 package files match. The old
+hung `host-002` installer was not retried. Three installed-runtime regressions
+under `.work/plugin-transition/resume-installed-v018` exercised real child
+commands and public CLI resume. First/second report calls occur once each;
+resume executes only the second command and repeating the completed run executes
+zero. Original captures/checkpoints remain byte-identical. Changed plan/dependency,
+missing raw, truncated checkpoint and unknown-launch controls refuse execution.
+The final-write interruption also resumes with zero execution. Native capture
+IDs include `71071226-b893-493e-8f9e-eeb007b82289` and
+`e7bea76e-c8a1-4f26-a395-212f49739e8a`. `trial.json`, the actual command plans,
+reports, call ledger and captures are retained with the fixtures.
+
+Final candidate 0.1.20 was freshly installed into `host-005`; all 244 package
+files match. Seven installed resume regressions passed in 22.259 seconds under
+`.work/plugin-transition/resume-installed-v020`, including known failure,
+optional policy preservation and canonical consumer recovery. Final viewer/docs
+21 tests passed normally; resource drift/distribution passed. The wider execution
+attempt stopped at a symlink-negative child CLI and is not a passing suite. The
+selected follow-up eventually completed 26 assertions in 171.217 seconds, with
+that one unresolved case excluded. Its transient command wait was not terminal:
+the same handle later returned exit 0. The attempted cleanup correctly refused
+when its recorded parent had already exited. Earlier final-tail three assertions
+also passed independently with retained fixtures. Fixture retention
+avoids the separately reproduced Windows deletion stall; normal teardown is not
+claimed. No security configuration or failure assertion was weakened.
+
+The controller interruptions are fault injection in the installed runtime, not
+claims of an actual OS crash or authenticated Agent task. Hook trust/login,
+protected acceptance and old installer/process cleanup remain separate limits;
+whole U1-U7 acceptance is still incomplete.
+
 ## Prompt-hook handoff and actual host discovery, 2026-10-05
 
 The previous missing initial handoff prompted a fresh host check rather than

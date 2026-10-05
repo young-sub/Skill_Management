@@ -13,9 +13,11 @@ import copy
 import hashlib
 import json
 import math
+import os
 import shutil
 import subprocess
 import sys
+import uuid
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -1011,13 +1013,14 @@ def _validate_execution_check(
 
 
 def _preflight_execution(
-    plan: dict[str, Any], checks: list[dict[str, Any]], evidence_dir: Path
+    plan: dict[str, Any], checks: list[dict[str, Any]], evidence_dir: Path,
+    completed: set[int] | None = None,
 ) -> dict[int, dict[str, Any]]:
     preconditions: dict[int, dict[str, Any]] = {}
     report_paths: set[Path] = set()
     for index, check in enumerate(checks):
         selected, _ = _selection(check)
-        if not selected:
+        if not selected or index in (completed or set()):
             continue
         cwd, descriptor, report_path = _validate_execution_check(check, index, evidence_dir)
         measured = _execution_conditions(check, cwd)
@@ -1035,7 +1038,7 @@ def _preflight_execution(
             raise ViewerInputError(f"checks[{index}] native report path is reused: {report_path}")
         report_paths.add(report_path)
         preconditions[index] = {"cwd": cwd, "conditions": measured, "report_path": report_path}
-    if not preconditions:
+    if not preconditions and not completed:
         raise ViewerInputError("execution requires at least one selected check")
     return preconditions
 
@@ -1044,7 +1047,10 @@ def _write_json(path: Path, data: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists() or path.is_symlink():
         raise ViewerInputError(f"execution output already exists: {path}")
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    with path.open('x', encoding='utf-8') as stream:
+        stream.write(json.dumps(data, ensure_ascii=False, indent=2) + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
 
 
 def _blocked_execution(message: str, *, plan_path: Path, run_check_path: Path | None = None) -> dict[str, Any]:
@@ -1252,12 +1258,37 @@ def view_bundle(bundle: dict[str, Any] | str | Path) -> dict[str, Any]:
         return _blocked_bundle(str(error), bundle=bundle_value if isinstance(bundle_value, dict) else bundle)
 
 
+def _save_execution_bundle(output_dir, prefix, bound_plan, current_checks, records,
+                           assessments, plan_file, plan_sha256, completed):
+    # ponytail: full snapshots reuse the viewer; partition very large plans before
+    # cumulative O(n^2) checkpoint storage warrants a separate journal format.
+    plan_path = output_dir / (prefix + 'bound-plan.json')
+    context_path = output_dir / (prefix + 'current-context.json')
+    bundle_path = output_dir / (prefix + 'bundle.json')
+    _write_json(plan_path, bound_plan)
+    _write_json(context_path, {'checks': current_checks})
+    descriptor = {
+        'schema_version': 1, 'plan': str(plan_path), 'current_context': str(context_path),
+        'records': [str(path) for path in records],
+        'assessments': [str(path) for path in assessments], 'observations': [],
+        'source_plan': str(plan_file), 'source_plan_sha256': plan_sha256,
+        'evidence_dir': str(output_dir), 'completed_indices': sorted(completed),
+    }
+    # Publish complete bytes atomically without overwriting another writer.
+    pending = bundle_path.with_suffix('.pending.json')
+    _write_json(pending, descriptor)
+    os.link(pending, bundle_path)
+    pending.unlink()
+    return descriptor
+
+
 def execute_plan(
     plan_path: str | Path,
     *,
     run_check_path: str | Path,
     evidence_dir: str | Path,
     timeout: float = 300,
+    resume: bool = False,
 ) -> dict[str, Any]:
     """Execute selected plan commands once, bind their native facts, then use the viewer."""
     plan_file = Path(plan_path).resolve()
@@ -1276,9 +1307,92 @@ def execute_plan(
         _reject_alias_components(output_dir, "evidence_dir")
     except (OSError, ValueError, TypeError) as error:
         return _blocked_execution(str(error), plan_path=plan_file, run_check_path=run_check)
+    completed: set[int] = set()
+    prior = None
     try:
         checks = _plan_checks(plan, allow_unbound=True)
-        preconditions = _preflight_execution(plan, checks, output_dir)
+        if resume:
+            final = output_dir / 'bundle.json'
+            checkpoints = sorted(output_dir.glob('checkpoint-*-bundle.json'),
+                                 key=lambda path: int(path.name.split('-')[1]))
+            saved = final if final.exists() else checkpoints[-1] if checkpoints else None
+            interrupted_final = False
+            if saved is not None:
+                _reject_alias_components(saved, 'resume bundle')
+                try:
+                    prior, _ = _read_json(saved)
+                except ViewerInputError:
+                    if saved != final or not checkpoints:
+                        raise
+                    saved = checkpoints[-1]
+                    _reject_alias_components(saved, 'resume checkpoint')
+                    prior, _ = _read_json(saved)
+                    interrupted_final = True
+                if not isinstance(prior, dict):
+                    raise ViewerInputError('resume bundle must be an object')
+                if (prior.get('source_plan') != str(plan_file)
+                        or prior.get('source_plan_sha256') != _sha256(plan_raw)
+                        or prior.get('evidence_dir') != str(output_dir)):
+                    raise ViewerInputError('resume plan or evidence directory changed')
+                observed = view_bundle(saved)
+                if saved == final:
+                    return observed  # Completed runs are read-only, even when stale or failed.
+                indices = prior.get('completed_indices')
+                if (not isinstance(indices, list) or not indices
+                        or any(type(i) is not int or i < 0 or i >= len(checks) for i in indices)
+                        or len(indices) != len(set(indices))):
+                    raise ViewerInputError('invalid resume checkpoint indices')
+                completed = set(indices)
+                items = list(observed.get('items', []))
+                optional = [i for i in completed if not checks[i]['required']]
+                if optional:
+                    # Check execution identity without changing optional acceptance policy.
+                    bound, _ = _read_json(Path(prior['plan']))
+                    current, findings = _bundle_current_context(bound)
+                    if findings:
+                        raise ViewerInputError('checkpoint conditions unavailable')
+                    entries = [_load_many(prior[name], name)
+                               for name in ('records', 'assessments', 'observations')]
+                    items.extend(_item_result({**bound['checks'][i], 'required': True},
+                        Path(prior['plan']), *entries, current) for i in optional)
+                reusable = {(item['feature'], item['id']) for item in items
+                            if item['current_status'] == 'PASS' or (
+                                item['current_status'] == 'ISSUES'
+                                and item['historical_status'] == 'ISSUES' and item['selected']
+                                and item['capture']['execution'] == 'exited'
+                                and type(item['capture']['exit_code']) is int
+                                and all(reason in {'capture_native_failure', 'capture_exit_nonzero'}
+                                    or reason.startswith('raw_assertion_mismatch:')
+                                    for reason in item['reasons']))}
+                if any((checks[i]['feature_id'], checks[i]['id']) not in reusable for i in completed):
+                    raise ViewerInputError('completed checkpoint evidence is not currently reusable')
+                if completed == {i for i, check in enumerate(checks) if _selection(check)[0]}:
+                    # Repair the configured consumer path, preserving a torn descriptor.
+                    recovery = output_dir / f'resume-{uuid.uuid4()}.json'
+                    _write_json(recovery, prior)
+                    if interrupted_final:
+                        original = final.read_bytes()
+                        backup = output_dir / f'bundle.interrupted-{_sha256(original)}.json'
+                        if backup.exists():
+                            _reject_alias_components(backup, 'interrupted bundle backup')
+                            if backup.read_bytes() != original:
+                                raise ViewerInputError('interrupted bundle backup changed')
+                        else:
+                            os.link(final, backup)
+                        if final.read_bytes() != original:
+                            raise ViewerInputError('final bundle changed during recovery')
+                        os.replace(recovery, final)
+                    else:
+                        os.link(recovery, final)
+                        recovery.unlink()
+                    return view_bundle(final)
+                if interrupted_final:
+                    raise ViewerInputError('damaged final bundle has no complete checkpoint; replay refused')
+        for index, check in enumerate(checks):
+            if _selection(check)[0] and index not in completed:
+                if (output_dir / f'command-{index}-started.json').exists():
+                    raise ViewerInputError(f'command outcome unknown:{index}; automatic replay refused')
+        preconditions = _preflight_execution(plan, checks, output_dir, completed)
     except (OSError, ValueError, TypeError, KeyError) as error:
         return _blocked_execution(str(error), plan_path=plan_file, run_check_path=run_check)
 
@@ -1293,7 +1407,7 @@ def execute_plan(
         return _blocked_execution("execution evidence directory already contains a bound result", plan_path=plan_file, run_check_path=run_check)
     for index, check in enumerate(checks):
         selected, _ = _selection(check)
-        if selected:
+        if selected and index not in completed:
             slug = f"{index}-{check['feature_id']}-{check['id']}".replace("/", "_").replace("\\", "_")
             capture_path = output_dir / f"{slug}-capture.json"
             if capture_path.exists() or capture_path.is_symlink():
@@ -1303,6 +1417,15 @@ def execute_plan(
     assessments: list[Path] = []
     current_checks: dict[str, dict[str, Any]] = {}
     artifacts: list[dict[str, Any]] = []
+    if prior:
+        bound_plan, _ = _read_json(Path(prior['plan']))
+        records = [Path(path) for path in prior['records']]
+        assessments = [Path(path) for path in prior['assessments']]
+    for index, check in enumerate(checks):
+        if index not in completed:
+            bound_plan['checks'][index].pop('raw_observations', None)
+        if index in preconditions:
+            bound_plan['checks'][index]['conditions'] = preconditions[index]['conditions']
     attempted = 0
     plan_sha256 = _sha256(plan_raw)
     plan_mutated = False
@@ -1310,6 +1433,8 @@ def execute_plan(
         selected, _ = _selection(check)
         if not selected:
             bound_plan["checks"][index].pop("raw_observations", None)
+            continue
+        if index in completed:
             continue
         info = preconditions[index]
         try:
@@ -1351,6 +1476,7 @@ def execute_plan(
         slug = f"{index}-{check['feature_id']}-{check['id']}".replace("/", "_").replace("\\", "_")
         capture_path = output_dir / f"{slug}-capture.json"
         report_path = info["report_path"]
+        bound_plan["checks"][index]['raw_observations'] = copy.deepcopy(check['raw_observations'])
         bound_plan["checks"][index]["run_id"] = None
         command = [
             sys.executable,
@@ -1370,6 +1496,8 @@ def execute_plan(
             "--",
             *check["conditions"]["command"]["argv"],
         ]
+        _write_json(output_dir / f'command-{index}-started.json', {
+            'source_plan_sha256': plan_sha256, 'check_index': index, 'argv': command})
         attempted += 1
         process = subprocess.run(command, capture_output=True, text=True, check=False)
         try:
@@ -1469,21 +1597,12 @@ def execute_plan(
             "assessment": str(assessments[-1]) if report_ok else None,
             "run_check_exit": process.returncode,
         })
+        completed.add(index)
+        _save_execution_bundle(output_dir, f'checkpoint-{index}-', bound_plan,
+            current_checks, records, assessments, plan_file, plan_sha256, completed)
 
-    _write_json(bound_plan_path, bound_plan)
-    _write_json(current_path, {"checks": current_checks})
-    bundle_descriptor = {
-        "schema_version": 1,
-        "plan": str(bound_plan_path),
-        "records": [str(path) for path in records],
-        "assessments": [str(path) for path in assessments],
-        "observations": [],
-        "current_context": str(current_path),
-        "source_plan": str(plan_file),
-        "source_plan_sha256": plan_sha256,
-        "evidence_dir": str(output_dir),
-    }
-    _write_json(bundle_path, bundle_descriptor)
+    bundle_descriptor = _save_execution_bundle(output_dir, '', bound_plan,
+        current_checks, records, assessments, plan_file, plan_sha256, completed)
     result = view_bundle(bundle_descriptor)
     result["execution"] = {
         "mode": "execute",
@@ -1560,6 +1679,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--observation", dest="observations", action="append", default=[])
     parser.add_argument("--current-context", dest="current_context", type=Path)
     parser.add_argument("--execute", action="store_true", help="Execute selected plan checks through the capture CLI")
+    parser.add_argument('--resume', action='store_true', help='Resume the same plan/directory using current completed checkpoints; never replay an unknown launch')
     parser.add_argument("--run-check", type=Path, help="Capture CLI override; an installed agentic-coding plugin uses its bundled scripts/run_check.py")
     parser.add_argument("--evidence-dir", "--output-dir", dest="evidence_dir", type=Path, help="New directory for execution captures and bound results")
     parser.add_argument("--timeout", type=float, default=300, help="Execution timeout passed to run_check.py")
@@ -1569,6 +1689,8 @@ def _parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    if args.resume and not args.execute:
+        _parser().error('--resume requires --execute')
     if args.bundle:
         if args.execute or args.records or args.assessments or args.observations or args.current_context:
             result = _blocked_bundle("--bundle cannot combine with execution or manual evidence arguments")
@@ -1597,6 +1719,7 @@ def main(argv: list[str] | None = None) -> int:
                     run_check_path=args.run_check,
                     evidence_dir=args.evidence_dir,
                     timeout=args.timeout,
+                    resume=args.resume,
                 )
             except (OSError, ValueError, TypeError, KeyError) as error:
                 result = _blocked_execution(str(error), plan_path=args.plan, run_check_path=args.run_check)
