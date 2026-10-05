@@ -89,6 +89,15 @@ snapshot remain conservative. Audit exposes both `changed` and
 remain available. This local policy is not protected against an actor rewriting
 the project and manifest with equal authority.
 
+Start also snapshots each Feature's verification inputs separately from its map:
+criteria and UI reference hashes plus registered check definitions. Changing these
+inputs requires current execution even when source files are unchanged. A fresh
+semantic review alone cannot discharge that obligation. Map-only descriptive
+edits retain their review-only path. Audit exposes `verification_inputs_changed`
+alongside source impact. Older records lacking this baseline conservatively
+require verification when their original complete Feature basis changes; preserve
+that original baseline rather than restarting work to erase pending obligations.
+
 Begin/review writes use a unique task-local temporary file followed by replacement. Harness review attempts stage under `.work` outside the strictly validated active-work artifact directory, so an orphan cannot prevent Harness resume. Abrupt process exit leaves the previous valid state intact (or no initial state), and a fresh invocation can resume without deleting an orphan attempt. One writer owns a task record; concurrent writes to the same record are not supported. Interrupted attempt files remain subject to the existing `.work` retention policy.
 
 Inspection validates review analysis, findings and existing references as well as

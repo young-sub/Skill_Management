@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: 746d5bd8016062cf1e18809c2ee2b294b49a1521757a9ebd1d42cd1908467bd6 -->
+<!-- Source-SHA256: 6bdbc36d96bfe71ef8a1b84fd7caaa6d72720e5c91b537877ba8fb8603320df7 -->
 
 # Project workflow obligations
 
@@ -92,6 +92,15 @@ snapshot remain conservative. Audit exposes both `changed` and
 `verification_changed` so selection is inspectable. Existing document/link checks
 remain available. This local policy is not protected against an actor rewriting
 the project and manifest with equal authority.
+
+Start also snapshots each Feature's verification inputs separately from its map:
+criteria and UI reference hashes plus registered check definitions. Changing these
+inputs requires current execution even when source files are unchanged. A fresh
+semantic review alone cannot discharge that obligation. Map-only descriptive
+edits retain their review-only path. Audit exposes `verification_inputs_changed`
+alongside source impact. Older records lacking this baseline conservatively
+require verification when their original complete Feature basis changes; preserve
+that original baseline rather than restarting work to erase pending obligations.
 
 Begin/review writes use a unique task-local temporary file followed by replacement. Harness review attempts stage under `.work` outside the strictly validated active-work artifact directory, so an orphan cannot prevent Harness resume. Abrupt process exit leaves the previous valid state intact (or no initial state), and a fresh invocation can resume without deleting an orphan attempt. One writer owns a task record; concurrent writes to the same record are not supported. Interrupted attempt files remain subject to the existing `.work` retention policy.
 

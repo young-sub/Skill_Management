@@ -105,13 +105,15 @@ def begin(root, project, intent, targets=()):
         raise ValueError('workflow_not_configured')
     if set(targets) - {f['id'] for f in config['features']}:
         raise ValueError('unknown_target')
+    features = inspect_project(root, project)['features']
     return {'schema_version': 1, 'root': str(root.resolve()), 'intent': intent,
             'targets': sorted(set(targets)), 'base': git(root, 'rev-parse', 'HEAD').decode().strip(),
             'dirty_baseline': git(root, 'status', '--porcelain').decode('utf-8'),
             'baseline': inventory(root, config['roots']), 'reviews': {},
             'source_patterns': {f['id']: list(f['sources']) for f in config['features']},
             'documentation_only': {f['id']: dict(f.get('documentation_only', {})) for f in config['features']},
-            'input_bases': {item['id']: item['basis'] for item in inspect_project(root, project)['features']}}
+            'input_bases': {item['id']: item['basis'] for item in features},
+            'verification_bases': {item['id']: item['verification_basis'] for item in features}}
 
 
 def begin_work(root, project):
@@ -170,7 +172,7 @@ def inspect_project(root, project, state=None):
     if state is not None and not isinstance(state.get('baseline'), dict):
         raise ValueError('workflow_baseline_required')
     state = state or {}
-    for field in ('reviews', 'retired_reviews', 'baseline', 'input_bases', 'source_patterns', 'documentation_only'):
+    for field in ('reviews', 'retired_reviews', 'baseline', 'input_bases', 'verification_bases', 'source_patterns', 'documentation_only'):
         if not isinstance(state.get(field, {}), dict):
             raise ValueError(f'workflow_state_requires_object:{field}')
     if state.get('intent') in {'feedback', 'ui'} and not state.get('targets'):
@@ -206,6 +208,10 @@ def inspect_project(root, project, state=None):
                 findings.append(f'inactive_prevention:{identity}:{prevention.get("check")}')
         basis = digest({'feature': feature, 'sources': sources, 'references': refs,
                         'commands': {name: commands.get(name) for name in feature['checks']}})
+        verification_basis = digest({
+            'references': {field: {name: refs[name] for name in feature.get(field, [])}
+                           for field in ('criteria', 'ui')},
+            'commands': {name: commands.get(name) for name in feature['checks']}})
         review = state.get('reviews', {}).get(identity, {})
         # A recorded analysis is a semantic-review input, never a success flag.
         reviewed = current_review(root, review, basis)
@@ -225,7 +231,13 @@ def inspect_project(root, project, state=None):
             name in documents and name in original_documents
             and old.get(name) is not None and files.get(name) is not None)]
         requires = ['map_review']
-        if verification_changed and state:
+        # Legacy records cannot distinguish reference changes from map-only edits.
+        # Preserve their obligations conservatively; new baselines keep that distinction.
+        verification_inputs_changed = (
+            state['verification_bases'].get(identity) != verification_basis
+            if 'verification_bases' in state else
+            state.get('input_bases', {}).get(identity) != basis)
+        if state and (verification_changed or verification_inputs_changed):
             requires.append('verification')
         if state.get('intent') == 'feedback' and identity in state.get('targets', []):
             requires.extend(['repair', 'regression', 'normal_case'])
@@ -253,8 +265,10 @@ def inspect_project(root, project, state=None):
             result['obligations'].append({'id': f'feature:{identity}:{basis}', 'target': identity,
                 'basis': basis, 'reason': 'initial_or_changed_inputs', 'changed': affected,
                 'verification_changed': verification_changed,
+                'verification_inputs_changed': bool(state and verification_inputs_changed),
                 'requires': requires, 'references': sorted(refs)})
         result['features'].append({'id': identity, 'basis': basis, 'partition': feature['partition'],
+                                   'verification_basis': verification_basis,
                                    'verification_status': ('NOT_REQUIRED' if not needs_behavior else
                                        'PASS' if behavior and behavior['status'] == 'PASS' else 'REQUIRED'),
                                    'reviewed': reviewed, 'mapping_ready': bool(mapping_ready), 'source_count': len(sources)})

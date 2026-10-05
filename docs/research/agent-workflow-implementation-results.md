@@ -4,6 +4,33 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Verification obligations for changed criteria and standards, 2026-10-05
+
+RED reproduced a false completion path: changing a registered check definition
+without source edits, then refreshing semantic review, removed all obligations.
+Criteria and UI-reference changes had the same source-only selection gap. Start
+now records a separate verification-input basis (criteria/UI hashes and registered
+check definitions). Audit retains execution obligations when that basis changes,
+even after a current semantic review. Descriptive map-only edits keep their
+review-only path. Legacy records without this separate basis conservatively
+reopen execution for changes to their original complete basis; they must not be
+reset to current inputs merely to clear an obligation. The existing workflow
+owner, native execution and result viewer implement this without model calls.
+
+Workflow/hook tests passed 24 cases. Close/maintenance assertions passed 51 cases
+in a combined invocation that also had one erroneous, nonexistent test-module
+name; that invocation is not reported as passing. The corrected native-adapter
+plus docs/cutover invocation passed 26 cases. Native guarded update installed
+0.1.22 into `host-006`; all 244 package files matched. Four focused tests against
+its actual workflow/viewer/capture passed in 5.501 seconds, covering changed
+commands, criteria, UI, legacy records and the map-only counterexample. The
+criteria-only positive case executed a real child that read unchanged price 10,
+bound current evidence and cleared the obligation; corrupting its raw result
+reopened it. Run ID: `cf19df29-dad4-4d28-a9e4-3bd4af25f21e`. Retained fixtures and
+commands are under `.work/plugin-transition/criteria-installed-v022/trial.json`.
+This establishes local deterministic behavior, not authenticated Agent judgment
+or protected acceptance. Features: `workflow-obligations`, `verification-results`.
+
 ## Native active-version rollback and return, 2026-10-05
 
 The intact isolated `host-006` completed a native 0.1.21 → 0.1.16 → 0.1.21 round

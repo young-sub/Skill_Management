@@ -164,10 +164,30 @@ class ProjectWorkflowTests(unittest.TestCase):
         for feature in ('api', 'cli'):
             state = self.review(runtime, state, feature)
         self.project['commands']['check']['argv'].append('specific')
+        state = self.review(runtime, state, 'api')
         result = runtime.inspect_project(self.root, self.project, state)
         self.assertEqual([o['target'] for o in result['obligations']], ['api'])
+        self.assertIn('verification', result['obligations'][0]['requires'])
         self.write('docs/requirement.md', 'price = twenty\n')
+        for feature in ('api', 'cli'):
+            state = self.review(runtime, state, feature)
         self.assertEqual(len(runtime.inspect_project(self.root, self.project, state)['obligations']), 2)
+
+    def test_ui_standard_change_and_legacy_reference_drift_keep_verification(self):
+        runtime = self.runtime()
+        self.write('docs/ui.md', 'Use the shared spacing tokens.')
+        self.project['extensions']['workflow']['features'][0]['ui'] = ['docs/ui.md']
+        state = runtime.begin(self.root, self.project, 'change')
+        for feature in ('api', 'cli'):
+            state = self.review(runtime, state, feature)
+        self.assertEqual(runtime.inspect_project(self.root, self.project, state)['obligations'], [])
+        self.write('docs/ui.md', 'Use shared spacing tokens and visible keyboard focus.')
+        state = self.review(runtime, state, 'api')
+        pending = runtime.inspect_project(self.root, self.project, state)['obligations']
+        self.assertEqual([item['target'] for item in pending], ['api'])
+        self.assertIn('verification', pending[0]['requires'])
+        del state['verification_bases']  # Previously persisted work must not lose the obligation.
+        self.assertIn('verification', runtime.inspect_project(self.root, self.project, state)['obligations'][0]['requires'])
 
     def test_staged_source_deletion_cannot_close_with_only_a_new_review(self):
         runtime = self.runtime()
@@ -343,16 +363,21 @@ class ProjectWorkflowTests(unittest.TestCase):
             self.assertIn('project_workflow_incomplete', result.get('errors', []))
             self.assertTrue(active.is_dir())
 
-    def test_changed_work_requires_bound_real_execution_and_rejects_stale_raw(self):
+    def test_changed_work_requires_bound_real_execution_and_rejects_stale_raw(self, criteria_only=False):
         runtime = self.runtime()
         import runpy
-        viewer = runpy.run_path(str(ROOT / 'authoring/scripts/verification_results.py'))
+        viewer = runpy.run_path(str(SCRIPT.with_name('verification_results.py')))
+        command = [sys.executable, '-c', "import json,runpy; from pathlib import Path; Path('.work/raw.json').write_text(json.dumps({'cases':[runpy.run_path('src/api.py')['price']], 'skipped':0}))"]
+        self.project['commands']['check']['argv'] = command
+        if criteria_only:
+            self.project['extensions']['workflow']['features'][1]['criteria'] = ['docs/map.md']
         state = runtime.begin(self.root, self.project, 'change')
         for feature in ('api', 'cli'):
             state = self.review(runtime, state, feature)
-        self.write('src/api.py', 'price = 11\n')
-        command = [sys.executable, '-c', "import json,runpy; from pathlib import Path; Path('.work/raw.json').write_text(json.dumps({'cases':[runpy.run_path('src/api.py')['price']], 'skipped':0}))"]
-        self.project['commands']['check']['argv'] = command
+        if criteria_only:
+            self.write('docs/requirement.md', 'Read back exactly ten with no skipped cases.\n')
+        else:
+            self.write('src/api.py', 'price = 11\n')
         state = self.review(runtime, state, 'api')
         self.assertTrue(runtime.inspect_project(self.root, self.project, state)['obligations'])
         plan = {'schema_version': 1, 'plan_id': 'actual-price', 'checks': [{
@@ -366,7 +391,7 @@ class ProjectWorkflowTests(unittest.TestCase):
                            'fixture': {'file_refs': ['src/api.py']},
                            'runtime': {'python': sys.version}},
             'raw_observations': [{'path': '.work/raw.json', 'pointer': '$', 'assertions': [
-                {'pointer': '/cases', 'min_count': 1}, {'pointer': '/cases/0', 'equals': 11},
+                {'pointer': '/cases', 'min_count': 1}, {'pointer': '/cases/0', 'equals': 10 if criteria_only else 11},
                 {'pointer': '/skipped', 'equals': 0}]}]}]}
         path = self.write('.work/plan.json', json.dumps(plan))
         outcome = viewer['execute_plan'](path, run_check_path=ROOT / 'scripts/run_check.py', evidence_dir=self.root / '.work/run')
@@ -376,6 +401,9 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertEqual(runtime.inspect_project(self.root, self.project, state)['status'], 'READY_FOR_REVIEW')
         self.write('.work/raw.json', '{"cases": [999], "skipped": 0}')
         self.assertEqual(runtime.inspect_project(self.root, self.project, state)['status'], 'PARTIAL')
+
+    def test_criteria_only_change_requires_and_accepts_actual_current_execution(self):
+        self.test_changed_work_requires_bound_real_execution_and_rejects_stale_raw(criteria_only=True)
 
 
     def test_ui_request_cannot_omit_standards_or_behavior_evidence(self):
