@@ -1,6 +1,8 @@
 # Labeler 실제 검증 파일럿과 최소 개선
 
-실행일: 2026-10-04~05 KST. [실행 프롬프트](agent-coding-next-session.md)를 수행한 결과다. 고정 소스의 실제 사용자 흐름, 통제 결함, Agent 위임을 확인하고 공통 캡처와 복제 프로젝트의 검증 연결을 구현했다. 원본 제품에 반영하거나 공개 배포한 결과는 아니다.
+실행일: 2026-10-04~05 KST. [당시 실행 프롬프트](archive/agent-coding-next-session.md)를 수행한 결과다. 고정 소스의 실제 사용자 흐름, 통제 결함, Agent 위임을 확인하고 공통 캡처와 복제 프로젝트의 검증 연결을 구현했다. 원본 제품에 반영하거나 공개 배포한 결과는 아니다.
+
+2026-10-05 이후 논의의 현재 결정은 [업무 위임 체계](agent-coding-system-direction.md), 신규 구현은 [다음 세션 프롬프트](agent-coding-next-session.md)에 있다. 아래 Router·후보 Skill·Plugin 판단은 파일럿 당시 범위의 권고다. 단일 업무 진입점과 축소 setup/product maintain 도입에 관한 후속 합의가 이를 대체하며, 그 신규 체계의 효과까지 이 파일럿이 입증한 것은 아니다.
 
 ## 기준과 보존 범위
 
@@ -85,7 +87,7 @@ UI mutant와 Agent RED/GREEN은 동일한 frozen driver SHA-256 `eb1571346306e48
 
 관리 `native-verification` Feature의 RED는 새 report 옵션이 없는 기존 CLI의 실제 실패였다. 수정 후 capture/adapter 21 tests, 정책의 distribution 전체 68 tests 통과; 21은 68의 부분집합이다. 문서 변경의 repository-docs/cutover 12 tests도 통과했다. `sync-skill-resources.ps1 -Check`, `validate-distribution.ps1`, `git diff --check`도 통과했다. mapped authoring/skills는 바꾸지 않아 생성본 변경이 없다. 이 검사들은 캡처/배포의 증거이며 Labeler 제품 품질이나 모델 행동의 증거와 합산하지 않는다.
 
-## 책임 배치와 후보 재평가
+## 파일럿 당시 책임 배치와 후보 재평가
 
 | 구성요소 | 결정 / 소유할 책임 | 제외하거나 아직 주장하지 않는 것 |
 | --- | --- | --- |
@@ -125,7 +127,7 @@ Codex 0.160.0에서 task-local marketplace 등록 → 실제 plugin 설치 → f
 
 빈 manifest `{}`는 CLI install exit 0이지만 Skill discovery가 없었다. 이를 설치/로딩 완료로 세지 않았다. 지원되지 않는 marketplace root와 UTF-8 BOM도 거절됐다. Wrangler stderr의 사용자 AppData log EPERM은 native assertions가 실제 통과한 것과 구분해 기록했다. 모델 호출·Skill 선택/지침 이행·hook 실행·원격 Git marketplace update·유료 provider는 검증하지 않았다. host discovery가 곧 모델 행동 증거라는 주장은 하지 않는다.
 
-채택할 첫 공통 Plugin 범위는 **단일 canonical capture CLI + 선택적인 기존 multi-agent-review와 그 리소스의 생성 패키징**이다. 프로젝트 adapter/Feature Map/UI 기준은 프로젝트에 남기고 `--root`/`--capture`를 명시한다. 직접 CLI/CI를 계속 지원한다. 현재 임시 package는 연결 가능성을 확인한 것이며 public catalog나 일반 설치본 전환을 완료한 것은 아니다. 공개 전환 시 기존 resource-map/distribution을 사용하는 생성 경로와 설치/업데이트 회귀를 갖추어 수작업 helper 사본을 늘리지 않아야 한다. 실제 모델 session의 발견·선택 행동은 별도 수용 기준이다.
+파일럿 당시 권고한 첫 공통 Plugin 범위는 **단일 canonical capture CLI + 선택적인 기존 multi-agent-review와 그 리소스의 생성 패키징**이다. 프로젝트 adapter/Feature Map/UI 기준은 프로젝트에 남기고 `--root`/`--capture`를 명시한다. 직접 CLI/CI를 계속 지원한다. 현재 임시 package는 연결 가능성을 확인한 것이며 public catalog나 일반 설치본 전환을 완료한 것은 아니다. 공개 전환 시 기존 resource-map/distribution을 사용하는 생성 경로와 설치/업데이트 회귀를 갖추어 수작업 helper 사본을 늘리지 않아야 한다. 실제 모델 session의 발견·선택 행동은 별도 수용 기준이다.
 
 새 MCP/중앙 DB/dashboard/router/자동 full-run/Stop-loop hook는 포함하지 않는다. Hook은 [공식 trust 경계](https://developers.openai.com/codex/hooks)를 따르고 미지원/미신뢰/오류/timeout/중복을 성공으로 세지 않아야 한다. 이번 package에는 hook가 없고 직접 명령을 사용했다.
 

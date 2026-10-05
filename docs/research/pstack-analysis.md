@@ -6,7 +6,7 @@ pstack의 스킬, 작업 절차, 서브에이전트, 자동화 팩과 실행 도
 
 이 문서는 외부 플러그인의 조사 기록이다. 이 저장소의 실행 지침은 [Agent workflow](../agents/workflow.md)와 기존 Harness 문서가 정한다.
 
-2026-10-04의 수정된 채택·제외 기준과 배포본 비교는 [Agent Coding 체계 방향](agent-coding-system-direction.md)에, 후속 작업은 [다음 세션 실행 프롬프트](agent-coding-next-session.md)에 정리했다. 이 문서는 2026-10-03에 고정한 외부 소스의 조사 기록이며, 원래 후보 브랜치의 구현·품질 효과나 현재 플러그인 호스트 지원을 보증하지 않는다.
+2026-10-05 논의의 현재 채택·제외 기준은 [Agent Coding 체계 방향](agent-coding-system-direction.md), 후속 구현은 [다음 세션 실행 프롬프트](agent-coding-next-session.md)에 정리했다. 이전 배포 비교·Router 보류 판단은 [아카이브](archive/index.md)에 보존한다. 이 문서는 2026-10-03에 고정한 외부 소스의 조사 기록이며, 후보 전체의 품질 효과나 현재 플러그인 호스트 지원을 보증하지 않는다.
 
 ## 조사 범위와 근거
 

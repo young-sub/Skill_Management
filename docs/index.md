@@ -12,9 +12,10 @@ Load ignored repository-local `.harness/environment-exceptions.json` once per ta
 - [Tracker integration](agents/issue-tracker.md) — optional local/GitHub tracker channel policy.
 - [Triage labels](agents/triage-labels.md) — current issue vocabulary.
 - [Skill inventory](architecture/skill-inventory.md) — public distribution inventory.
-- [Agent Coding direction](research/agent-coding-system-direction.md) — revised design, deployed baseline comparison, Feature Map, product verification, UI consistency, and plugin boundaries; planned capabilities are distinguished from implemented behavior.
-- [Next-session Labeler pilot](research/agent-coding-next-session.md) — completed foundation state, isolated product and Agent verification, reassessment of October 3–4 Skills/PStack, and evidence-based system/plugin improvements.
+- [Agent Coding direction](research/agent-coding-system-direction.md) — October 5 decisions and discussion history: one workflow entry, full-stack verification, feedback guardrails, Feature/UI maintenance, and evidence-based pruning; agreed capabilities are distinguished from implemented behavior.
+- [Next-session implementation prompt](research/agent-coding-next-session.md) — implement the agreed workflow and Skills, test actual delegated tasks in isolated Labeler, and connect each enabled user capability to implementation and raw evidence; not yet executed.
 - [Labeler pilot results](research/labeler-verification-pilot.md) — actual browser/API/D1/print evidence, defect controls, delegated repair, minimal improvements, Skill responsibility and temporary Plugin host checks.
 - [pstack research](research/pstack-analysis.md) — pinned upstream inventory and critical analysis; research evidence rather than repository execution policy.
+- [Agent Coding archive](research/archive/index.md) — superseded October 4 design and completed foundation/Labeler prompt; historical evidence, not active execution instructions.
 - [v2.0.0 release record](releases/v2.0.0.md) — durable historical release evidence; not current workflow authority.
 - [v2 pilot evidence](pilots/harness-v2-pilots.md) — durable evidence owned by the v2.0.0 release record; not the current Review contract.
