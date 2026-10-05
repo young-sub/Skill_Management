@@ -4,6 +4,32 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Native active-version rollback and return, 2026-10-05
+
+The intact isolated `host-006` completed a native 0.1.21 → 0.1.16 → 0.1.21 round
+trip through the existing guarded update. The historical candidate came from
+the verified export of the real interrupted `host-002/guard-backup-0117` snapshot.
+Only inventoried package files entered a separate recovery marketplace; no auth,
+settings or ordinary installation was copied. Both native commands terminated
+with UPDATED receipts, and separate native `plugin list` calls identified the
+expected enabled version after each transition. All 244 candidate files matched
+at each installation. The marketplace override did not change the registered
+original source, which continues to offer the newer package.
+
+The restored 0.1.16 viewer/capture actually ran a child check against an independent
+Git fixture and bound the observed sum 5 and readback `ok` to current PASS (1 test,
+1.315 seconds). Capture ID: `bebbf843-81a4-4c72-9dcc-33d4909331ba`. Before-rollback
+and before-return snapshots retain 244 and 245 files respectively; the additional
+file is interpreter bytecode generated during that runtime check. Both snapshots
+match their recorded hashes. A final repeated update returned UNCHANGED without
+creating another backup. Raw receipts, version queries, fixture and hashes are
+retained under `.work/plugin-transition/host-006/active-rollback-trial.json`.
+
+This closes bounded native active-version rollback for an intact cache using
+existing tools; it does not prove repair of a missing/corrupt active cache, restore
+old hook trust, or resume an authenticated Agent task. No new rollback framework,
+runtime or generated change was needed. Feature acceptance: `plugin-package`.
+
 ## Recovery export boundary repair, 2026-10-05
 
 Inspection found that `recover` promised an unchanged active installation but

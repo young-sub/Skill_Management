@@ -119,7 +119,18 @@ refused before copying, including a missing active cache after failed installati
 It does not automatically roll back the installed version or replay an
 interrupted native command. If copying a backup/export itself is interrupted,
 retain it and retry using a new destination; no completed snapshot is claimed.
-Active-host rollback and authenticated Agent task resumption remain U7 work.
+An intact active package can be rolled back using the same guarded native update:
+place a verified historical package in a separate local marketplace with the
+same marketplace name, then pass that marketplace and a new backup directory to
+`update`. For an exported snapshot, select one version and copy only its inventoried
+files plus `package-files.json`; interpreter caches remain preserved in the export
+but are not candidate package members. Validate the candidate before installing.
+The native host, rather than a direct cache copy, owns the active version change.
+The registered marketplace remains the original source; the override applies to
+this invocation, so a later ordinary update can return to the newer version.
+This does not restore missing/corrupt active caches through the guard: its existing
+preflight still refuses those states. Authenticated Agent resumption and recovery
+of such damaged active installations remain U7 work.
 Inventory hashes detect ordinary drift, not maliciously rewritten inventories.
 
 ## Verification
@@ -139,5 +150,9 @@ crash evidence. Separate isolated native 0.1.2 to 0.1.3 and final 0.1.3 to 0.1.4
 trials confirmed guarded update, user-note refusal before invocation, native
 identity/path matching, duplicate no-op and recovery export. Path-overlap and
 real Windows junction rejection are also exercised by the unit suite.
+An isolated native 0.1.21 to exported 0.1.16 to 0.1.21 round trip additionally
+confirmed active version discovery, real child-command verification through the
+restored viewer, byte-exact snapshots and a duplicate UNCHANGED result. It does
+not establish restoration of hook trust, credentials or an interrupted model task.
 Full CI runs these tests with the existing
 distribution suite and builds the package after resource checks.
