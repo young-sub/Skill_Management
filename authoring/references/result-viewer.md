@@ -29,7 +29,13 @@ The output preserves capture path/hash/argv/exit, raw paths/hashes/pointers/prod
 
 For a retained execution, `python <agent-workflow>/scripts/verification_results.py --bundle .work/verification/run-1/bundle.json` performs read-only lookup. It remeasures all current inputs, including those an earlier or later check might have changed. Bound requirements, selection, command, and raw assertions must still match the original plan; editable files are consistency evidence, not protected attestation.
 
-Execution is a separate, opt-in CLI path. The caller must provide a preselected plan, the exact existing capture script, and a new evidence directory:
+Execution is a separate, opt-in CLI path. The caller provides a preselected plan
+and a new evidence directory. In an installed agentic-coding plugin the CLI uses
+that package's `scripts/run_check.py` automatically; no project copy or tool-path
+search is needed. A standalone Skill requires `--run-check`; an explicit path
+also overrides the plugin default. Discovery checks only the enclosing package
+identity and fixed local path, never PATH or unrelated installations. This is
+local tool selection, not package authentication or protected acceptance.
 
 ```
 python <agent-workflow>/scripts/verification_results.py --execute \

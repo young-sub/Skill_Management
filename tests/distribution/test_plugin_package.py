@@ -1,5 +1,6 @@
 """Exercise the distributable tree, including its installed command consumer."""
 import json
+import hashlib
 from pathlib import Path
 import subprocess
 import sys
@@ -39,6 +40,45 @@ class PluginPackageTests(unittest.TestCase):
                     sys.executable, str(package / 'skills/agent-workflow/scripts' / script),
                     '--help'], cwd=root, capture_output=True)
                 self.assertEqual(help_result.returncode, 0, help_result.stderr)
+            # A plugin consumer needs no checkout-specific capture path.
+            consumer = root / 'consumer'
+            consumer.mkdir()
+            (consumer / '.gitignore').write_text('.work/\n')
+            (consumer / 'probe.py').write_text(
+                'import json,sys\nfrom pathlib import Path\n'
+                'p=Path(".work/count");p.parent.mkdir(exist_ok=True)\n'
+                'p.write_text(str(int(p.read_text())+1) if p.exists() else "1")\n'
+                'Path(sys.argv[1]).write_text(json.dumps({"count":1,"cents":115}))\n')
+            for argv in (['git', 'init', '-q'], ['git', 'add', '.'],
+                         ['git', '-c', 'user.name=Fixture', '-c', 'user.email=f@invalid', 'commit', '-qm', 'base']):
+                subprocess.run(argv, cwd=consumer, check=True, capture_output=True)
+            revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=consumer, text=True).strip()
+            viewer = package / 'skills/agent-workflow/scripts/verification_results.py'
+            def execute(label, *extra):
+                raw = '.work/' + label + '.json'
+                plan = root / (label + '-plan.json')
+                plan.write_text(json.dumps({'schema_version': 1, 'plan_id': label, 'checks': [{
+                    'id': 'price', 'feature_id': 'price', 'expected': '115 cents', 'criteria_revision': '1',
+                    'required': True, 'selection': {'status': 'selected', 'reason': 'package execution'},
+                    'conditions': {'source': {'revision': revision, 'diff': hashlib.sha256(b'').hexdigest()},
+                        'criteria': {'revision': '1'}, 'command': {'argv': [sys.executable, 'probe.py', raw],
+                            'cwd': str(consumer)}, 'dependency': {'file_refs': ['probe.py']},
+                        'fixture': {'file_refs': ['probe.py']}, 'runtime': {'kind': 'python'}},
+                    'raw_observations': [{'path': raw, 'pointer': '$', 'assertions': [
+                        {'pointer': '/count', 'equals': 1}, {'pointer': '/cents', 'equals': 115}]}]}]}))
+                return subprocess.run([sys.executable, str(viewer), '--execute', '--plan', str(plan),
+                    '--evidence-dir', str(consumer / '.work' / label), *extra], cwd=root, capture_output=True, text=True)
+            implicit = execute('implicit')
+            self.assertEqual(implicit.returncode, 0, implicit.stdout + implicit.stderr)
+            self.assertEqual((consumer / '.work/count').read_text(), '1')
+            (package / 'plugin.json').rename(package / 'plugin-hidden.json')
+            missing = execute('no-manifest')
+            self.assertEqual(missing.returncode, 2, missing.stdout + missing.stderr)
+            self.assertEqual((consumer / '.work/count').read_text(), '1')
+            explicit = execute('explicit', '--run-check', str(package / 'scripts/run_check.py'))
+            self.assertEqual(explicit.returncode, 0, explicit.stdout + explicit.stderr)
+            self.assertEqual((consumer / '.work/count').read_text(), '2')
+            (package / 'plugin-hidden.json').rename(package / 'plugin.json')
             user_file = package / 'user-note.txt'
             user_file.write_text('preserve me')
             again = subprocess.run(command, capture_output=True)

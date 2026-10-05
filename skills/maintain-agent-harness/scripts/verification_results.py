@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/verification_results.py
-# Source-SHA256: 84a50eec7822aa6f33d6e42dd8c99dfb071b2d85163339b41c3cbd7729d7e5a3
+# Source-SHA256: 97d4acec12334ff5a02ee6e1be0ba3b93860f3e96fb4dc10bb9c2949b43b8c16
 
 """Read-only viewer for plan-bound verification captures and observations.
 
@@ -1563,8 +1563,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--assessment", dest="assessments", action="append", default=[])
     parser.add_argument("--observation", dest="observations", action="append", default=[])
     parser.add_argument("--current-context", dest="current_context", type=Path)
-    parser.add_argument("--execute", action="store_true", help="Execute the selected plan checks once through an explicit run_check.py path")
-    parser.add_argument("--run-check", type=Path, help="Explicit path to the existing scripts/run_check.py capture CLI")
+    parser.add_argument("--execute", action="store_true", help="Execute selected plan checks through the capture CLI")
+    parser.add_argument("--run-check", type=Path, help="Capture CLI override; an installed agentic-coding plugin uses its bundled scripts/run_check.py")
     parser.add_argument("--evidence-dir", "--output-dir", dest="evidence_dir", type=Path, help="New directory for execution captures and bound results")
     parser.add_argument("--timeout", type=float, default=300, help="Execution timeout passed to run_check.py")
     parser.add_argument("--pretty", action="store_true")
@@ -1581,6 +1581,15 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2 if args.pretty else None))
         return {"PASS": 0, "ISSUES": 1, "BLOCKED": 2}.get(result.get("status"), 2)
     if args.execute:
+        if args.run_check is None and len(Path(__file__).resolve().parents) > 3:
+            plugin = Path(__file__).resolve().parents[3]
+            try:
+                identity = json.loads((plugin / "plugin.json").read_text(encoding="utf-8"))
+                capture = plugin / "scripts/run_check.py"
+                if isinstance(identity, dict) and identity.get("name") == "agentic-coding" and capture.is_file():
+                    args.run_check = capture
+            except (OSError, ValueError):
+                pass  # Standalone Skills still require their project's explicit capture tool.
         if args.records or args.assessments or args.observations or args.current_context:
             result = _blocked_execution("--execute cannot combine with lookup evidence arguments", plan_path=args.plan, run_check_path=args.run_check)
         elif args.run_check is None or args.evidence_dir is None:

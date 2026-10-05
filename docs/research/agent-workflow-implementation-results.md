@@ -4,6 +4,64 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Follow-up feedback and plugin capture discovery, 2026-10-05
+
+A fresh collaboration Agent received a user-shaped bulk-price repair request in
+`feedback-followup-v013`, an independent copy of the earlier repaired price
+fixture with a controlled new bulk-save fault. Only its project instructions
+pointed to installed 0.1.13 capabilities; no Skill name, patch or required command
+sequence was supplied in the request. The original fixture remained untouched.
+The Agent read installed diagnosis guidance, reused the existing `pricing.cents`
+owner, validated every bulk value before writing, extended the existing native
+check and updated the map in fixture commit `7eb170f`. Original single-save,
+quote, zero and unmentioned records remained supported. A separate fixed oracle
+outside the Agent's allowed project observed six failures across four tests
+before repair and passed all four afterward without changing its bytes. Invalid
+later values preserved the original file bytes and did not create a new file.
+
+Product success did not complete the configured workflow: the first post-Agent
+audit still required semantic review and bound execution. The trial controller
+had created the feedback task record but had not forwarded its computed
+obligations with the initial request. One supervisory follow-up forwarded that
+actual result. The Agent recorded semantic review without rerunning checks, but
+could not discover the capture CLI outside the installed Skills directory and
+correctly refused to fabricate a capture for earlier direct execution. This is
+observed intervention and discovery overhead, not an unattended success.
+
+The plugin's result CLI now resolves its own packaged capture tool for explicit
+`--execute` calls. It checks the enclosing package identity and fixed script path;
+it does not search PATH or unrelated installations. Standalone Skills still need
+an explicit capture path, and `--run-check` remains an override. No model call is
+used for this tool selection. The package integration regression first failed
+because `--run-check` was required, then exercised implicit execution, refusal
+without the package identity, and explicit-path compatibility. Related package,
+execution and lookup tests passed 39 tests in 43.498 seconds; documentation,
+generated-resource and distribution checks passed. Package 0.1.14 was guardedly
+installed in isolated host-002 for continuation of the same task.
+
+After the installation-update follow-up, the same Agent completed the connection
+with one additional native execution because the earlier direct run had no
+capture provenance. The installed CLI selected the package capture tool without
+`--run-check`; its capture records the actual 19-case native run. The Agent bound
+the current semantic review and retained prior RED/GREEN evidence. Fixture commit
+`84f58f2` updates installed discovery and the new registered report path without
+changing product code. Main independently re-read the bundle and audited the
+task: current PASS, zero test executions during lookup, READY_FOR_REVIEW with no
+obligations, and all 29 inspected tracked/evidence files unchanged. Raw commands,
+fixed-oracle hash, before/after results and the two supervisory follow-ups are
+retained in `feedback-followup-control/trial.json`. This demonstrates reuse of
+the earlier repair owner and completion after explicit environmental handoff;
+it does not erase the first incomplete report or establish automatic host
+handoff. Source delivery includes the capture-discovery fix, its regression,
+updated guidance and generated consumers as one functional unit.
+
+The collaboration context and explicit project discovery bridge are distinct
+from an authenticated isolated CLI host. A current `codex login status` for that
+home still returned `Not logged in`. This trial does not establish protected
+acceptance, disk-failure/concurrent-write atomicity, or general cost/speed gains.
+U1-U7 overall remains incomplete; no ordinary installation or original Labeler
+was changed.
+
 ## Retain unresolved product findings through retirement, 2026-10-05
 
 Removing a Feature previously hid its product findings, and even an explicit

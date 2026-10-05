@@ -8,7 +8,7 @@ The package identity and version are owned by `distribution/plugin.json`.
 ## Build
 
 ```powershell
-python scripts/build_plugin.py --output .work/plugins/agentic-coding-0.1.13
+python scripts/build_plugin.py --output .work/plugins/agentic-coding-0.1.14
 ```
 
 The builder first runs the existing generated-resource check. It selects tracked
@@ -19,6 +19,8 @@ to overwrite any existing destination. Use a new build directory for each update
 The installed capture CLI is `<plugin-root>/scripts/run_check.py`, with its shared
 native unittest evidence reader beside it; workflow and
 result tools remain in the installed `skills/agent-workflow/scripts/` directory.
+The installed result CLI's `--execute` selects the package's capture script
+automatically. Use `--run-check` only to override it or with a standalone Skill.
 The repository-specific unittest adapter remains in this repository, not in the
 common plugin. Project native runners and business assertions retain ownership
 of product judgments.
