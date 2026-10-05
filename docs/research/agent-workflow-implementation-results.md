@@ -4,6 +4,55 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Automatic configured-work obligations, 2026-10-05
+
+Harness `start` now captures the configured workflow baseline in its existing
+atomic work manifest before implementation. Resume preserves it; `--work-id`
+audit/review uses that baseline without a separate manual `begin`. Current
+project semantic reviews are reused, while changed inputs invalidate them.
+Responses expose a compact reference rather than the entire source inventory.
+`close` automatically checks the task's unresolved obligations, including when
+the caller omits the optional project argument. Removing workflow configuration
+does not silently discharge a baseline captured at start.
+
+Two additional RED/GREEN cases repaired real omissions: an actual child-process
+exit during review staging previously poisoned resume with an unexpected pending
+file; staging outside the strict active directory now preserves resumability.
+A minimal hand-written review containing only a matching basis and empty findings
+previously counted as reviewed; audit now validates analysis and live references
+too. These are consistency checks, not semantic authentication or tamper-proof
+policy. A rewritten task baseline is rejected on resume.
+
+Full: `python -m unittest discover -s tests -p "test_*.py"` passed 292 tests in
+298.274 seconds. Package 0.1.6 was installed through the guarded native update
+into the existing isolated host-002 home. Its public installed design/start,
+workflow audit/review, and close CLIs were exercised in
+`.work/plugin-transition/start-consumer-v016-02`. The original start baseline
+survived resume; read-only audit created no review file; a submitted success claim
+without native evidence was rejected. The native unittest then observed price 9
+instead of the required 10, and close still rejected completion. Repairing the
+implementation to `5 + 5` passed the unchanged assertion; close then completed
+and retained the workflow record. Exactly two suite runs occurred, with no test
+rerun on lookup. Commands/stdout/stderr, native captures and the final lifecycle
+result are retained in that fixture's `.work/` directory.
+
+The preceding `start-consumer-v016` attempt used an unsupported custom command
+field in the trial configuration and was rejected before start. The corrected
+trial uses the supported Feature selector; the failed attempt remains retained.
+These are actual installed CLI effects and product-fixture observations, not
+autonomous Agent selection. Ordinary non-Harness requests, protected acceptance,
+authenticated host tasks and the remaining U1-U7 requirements are not completed
+by this unit.
+
+Independent U1 follow-up corrected only two map rows in the Labeler fixture,
+commit `38296e5`: translation now references its requirements and catalog points
+to its retained progress snapshot. Language-quality acceptance and live catalog
+completeness remain unverified product claims. They must not be turned into a
+requirement to call providers or improve the product merely to finish the map.
+The current local audit still conflates these product gaps with map-review
+findings; separating those outcomes remains implementation work. Original
+Labeler and prior evidence were preserved.
+
 ## Deleted-source verification obligations, 2026-10-05
 
 A real staged-deletion regression showed that a surviving wildcard-mapped Feature

@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: 014003a591317dde7809cd0f901017d393e951d3dbbb51727c69191de36751d9
+# Source-SHA256: 96442b043b40d4c0ce34c2a427cd70e31d944b6d43fe6174a93a5f74659e04bf
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -15,6 +15,7 @@ from fnmatch import fnmatchcase
 import hashlib
 import json
 from pathlib import Path
+import re
 import runpy
 import subprocess
 import sys
@@ -59,17 +60,23 @@ def inventory(root, roots):
 
 
 def configuration(project):
+    if not isinstance(project, dict):
+        raise ValueError('project_must_be_object')
     config = project.get('extensions', {}).get('workflow')
     if config is None:
         return None
     if not isinstance(config, dict) or not config.get('roots') or not config.get('features'):
         raise ValueError('workflow_requires_roots_and_features')
+    if not isinstance(config['roots'], list) or not isinstance(config['features'], list):
+        raise ValueError('workflow_roots_and_features_must_be_lists')
     for prefix in config['roots']:
         if (not isinstance(prefix, str) or not prefix or Path(prefix).is_absolute()
                 or any(part in {'.', '..', '.git', '.work'} for part in Path(prefix).parts)):
             raise ValueError('invalid_inventory_root')
     ids = []
     for feature in config['features']:
+        if not isinstance(feature, dict):
+            raise ValueError('feature_must_be_object')
         for field in ('id', 'partition'):
             if not isinstance(feature.get(field), str) or not feature[field].strip():
                 raise ValueError(f'feature_requires:{field}')
@@ -103,6 +110,46 @@ def begin(root, project, intent, targets=()):
             'input_bases': {item['id']: item['basis'] for item in inspect_project(root, project)['features']}}
 
 
+def begin_work(root, project):
+    """Called by Harness start before mutation; reuse current semantic reviews."""
+    state = begin(root, project, 'change')
+    configured = configuration(project).get('state')
+    if configured:
+        path = local_path(root, configured)
+        if not path.resolve().is_relative_to(root.resolve() / '.work'):
+            raise ValueError('state_must_be_task_local_under_work')
+        if path.is_file():
+            previous = json.loads(path.read_text(encoding='utf-8'))
+            current = inspect_project(root, project, previous)
+            reusable = {item['id'] for item in current['features'] if item['reviewed']}
+            state['reviews'] = {key: deepcopy(value) for key, value in previous.get('reviews', {}).items()
+                                if key in reusable}
+    return state
+
+
+def work_record(root, work_id):
+    """Use start's immutable baseline, even before an optional review file exists."""
+    if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,127}', work_id):
+        raise ValueError('invalid_work_id')
+    directory = local_path(root, f'.work/goals/active/{work_id}')
+    manifest = json.loads(local_path(root, f'.work/goals/active/{work_id}/work.json').read_text(encoding='utf-8'))
+    if manifest.get('work_id') != work_id or manifest.get('state') != 'active':
+        raise ValueError('work_target_mismatch')
+    baseline = manifest.get('workflow_baseline')
+    if (not isinstance(baseline, dict) or baseline.get('schema_version') != 1
+            or baseline.get('root') != str(root.resolve()) or baseline.get('base') != manifest.get('source_commit')
+            or not isinstance(baseline.get('baseline'), dict) or not isinstance(baseline.get('input_bases'), dict)):
+        raise ValueError('work_workflow_baseline_unavailable')
+    path = local_path(root, f'.work/goals/active/{work_id}/workflow.json')
+    state = json.loads(path.read_text(encoding='utf-8')) if path.is_file() else deepcopy(baseline)
+    if not isinstance(state, dict):
+        raise ValueError('invalid_work_workflow_record')
+    for key, value in baseline.items():
+        if key not in {'reviews', 'retired_reviews'} and state.get(key) != value:
+            raise ValueError(f'work_workflow_baseline_changed:{key}')
+    return state, directory / 'workflow.json'
+
+
 def inspect_project(root, project, state=None):
     root = root.resolve()
     config = configuration(project)
@@ -112,9 +159,14 @@ def inspect_project(root, project, state=None):
               'unlinked': [], 'findings': [], 'retired': []}
     if config is None:
         return result
+    if state is not None and not isinstance(state, dict):
+        raise ValueError('workflow_state_must_be_object')
     if state and (state.get('schema_version') != 1 or state.get('root') != str(root)):
         raise ValueError('work_target_mismatch')
     state = state or {}
+    for field in ('reviews', 'retired_reviews', 'baseline', 'input_bases', 'source_patterns'):
+        if not isinstance(state.get(field, {}), dict):
+            raise ValueError(f'workflow_state_requires_object:{field}')
     if state.get('intent') in {'feedback', 'ui'} and not state.get('targets'):
         raise ValueError('target_required')
     files = inventory(root, config['roots'])
@@ -149,7 +201,7 @@ def inspect_project(root, project, state=None):
                         'commands': {name: commands.get(name) for name in feature['checks']}})
         review = state.get('reviews', {}).get(identity, {})
         # A recorded analysis is a semantic-review input, never a success flag.
-        reviewed = review.get('basis') == basis and not review.get('findings')
+        reviewed = current_review(root, review, basis)
         # Preserve ownership across staged deletion and source-map reassignment.
         patterns = feature['sources'] + state.get('source_patterns', {}).get(identity, [])
         affected = sorted(name for name in changed
@@ -194,7 +246,7 @@ def inspect_project(root, project, state=None):
                         'features': config['features'], 'files': files})
         result['retired'].append({'id': name, 'basis': basis})
         review = state.get('retired_reviews', {}).get(name, {})
-        if review.get('basis') != basis or review.get('findings'):
+        if not current_review(root, review, basis):
             result['findings'].append(f'removed_feature_needs_reconciliation:{name}')
             result['obligations'].append({'id': f'removed:{name}:{basis}', 'target': name,
                 'basis': basis, 'reason': 'removed_feature', 'changed': [],
@@ -277,18 +329,35 @@ def inspect_configured(root, project):
     return inspect_project(root, project, state)
 
 
+def validate_review(root, review):
+    if not isinstance(review, dict):
+        raise ValueError('review_must_be_object')
+    if not isinstance(review.get('analysis'), str) or not review['analysis'].strip():
+        raise ValueError('review_analysis_required')
+    if (not isinstance(review.get('findings'), list) or not isinstance(review.get('references'), list)
+            or not review['references']):
+        raise ValueError('review_findings_and_references_required')
+    for name in review['references']:
+        if not isinstance(name, str) or not name or file_hash(root, name) is None:
+            raise ValueError(f'review_reference_missing:{name}')
+
+
+def current_review(root, review, basis):
+    if not isinstance(review, dict) or review.get('basis') != basis:
+        return False
+    try:
+        validate_review(root, review)
+    except (OSError, ValueError, TypeError):
+        return False
+    return not review['findings']
+
+
 def record_review(root, project, state, review):
+    validate_review(root, review)
     result = inspect_project(root, project, state)
     feature = next((item for item in result['features'] + result['retired'] if item['id'] == review.get('feature')), None)
     if feature is None or feature['basis'] != review.get('basis'):
         raise ValueError('stale_or_unknown_review')
-    if not isinstance(review.get('analysis'), str) or not review['analysis'].strip():
-        raise ValueError('review_analysis_required')
-    if not isinstance(review.get('findings'), list) or not review.get('references'):
-        raise ValueError('review_findings_and_references_required')
-    for name in review['references']:
-        if file_hash(root, name) is None:
-            raise ValueError(f'review_reference_missing:{name}')
     updated = deepcopy(state)
     key = 'retired_reviews' if feature in result['retired'] else 'reviews'
     updated.setdefault(key, {})[review['feature']] = deepcopy(review)
@@ -300,7 +369,9 @@ def main(argv=None):
     parser.add_argument('action', choices=['begin', 'audit', 'review', 'accept'])
     parser.add_argument('--root', type=Path, required=True)
     parser.add_argument('--project', default='.harness/project.yaml')
-    parser.add_argument('--state', help='Task-owned record under .work; audit without it is read-only')
+    state_selection = parser.add_mutually_exclusive_group()
+    state_selection.add_argument('--state', help='Task-owned record under .work; audit without it is read-only')
+    state_selection.add_argument('--work-id', help='Use the workflow baseline captured by Harness start')
     parser.add_argument('--intent', choices=['init', 'change', 'feedback', 'ui', 'maintain'], default='init')
     parser.add_argument('--target', action='append', default=[])
     parser.add_argument('--review', type=Path)
@@ -312,6 +383,10 @@ def main(argv=None):
         if state_path and not state_path.resolve().is_relative_to(root / '.work'):
             raise ValueError('state_must_be_task_local_under_work')
         state = json.loads(state_path.read_text(encoding='utf-8')) if state_path and state_path.exists() else None
+        if args.work_id:
+            if args.action == 'begin':
+                raise ValueError('Harness start owns this baseline; use audit or review with --work-id')
+            state, state_path = work_record(root, args.work_id)
         if args.action in {'begin', 'review'}:
             if not state_path:
                 raise ValueError('state_required')
@@ -330,7 +405,8 @@ def main(argv=None):
                 write_state = True
             if write_state:
                 # An interrupted attempt must not block the next write or expose partial JSON.
-                with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=state_path.parent,
+                staging = root / '.work' if args.work_id else state_path.parent
+                with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=staging,
                                                  prefix=state_path.name + '.', suffix='.pending', delete=False) as output:
                     json.dump(state, output, indent=2)
                     temporary = Path(output.name)

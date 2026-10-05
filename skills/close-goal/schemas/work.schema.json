@@ -42,6 +42,7 @@
       },
       "additionalProperties": false
     },
+    "workflow_baseline": {"type": "object"},
     "integrity_digest": {"type": "string"},
     "owned_paths": {"type": "array", "items": {"type": "string"}}
   },

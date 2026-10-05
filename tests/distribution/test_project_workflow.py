@@ -140,6 +140,14 @@ class ProjectWorkflowTests(unittest.TestCase):
         runtime.inspect_project(self.root, self.project, None)
         self.assertEqual(before, sorted(p.relative_to(self.root).as_posix() for p in self.root.rglob('*')))
 
+    def test_minimal_forged_review_does_not_discharge_semantic_obligations(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'init')
+        current = runtime.inspect_project(self.root, self.project, state)
+        state['reviews'] = {item['id']: {'basis': item['basis'], 'findings': []}
+                            for item in current['features']}
+        self.assertEqual(runtime.inspect_project(self.root, self.project, state)['status'], 'PARTIAL')
+
     def test_feedback_ui_survive_resume_and_cannot_close_with_pass_flag(self):
         runtime = self.runtime()
         feature = self.project['extensions']['workflow']['features'][0]
@@ -162,6 +170,88 @@ class ProjectWorkflowTests(unittest.TestCase):
         result = load_core().maintain_harness(self.root, project)
         self.assertIn('MAINT-WORKFLOW', result['checks'])
         self.assertTrue(any(f['rule_id'] == 'MAINT-WORKFLOW' for f in result['findings']))
+
+    def test_harness_start_owns_baseline_and_close_cannot_skip_task_obligations(self):
+        from tests.harness.test_core_first_design_execution import (
+            load_core, authorized_contract, project_policy, write_design_only)
+        from tests.harness.test_core_first_close_lifecycle import result_payload
+        core = load_core()
+        project = project_policy(protected=())
+        project['extensions'] = self.project['extensions']
+        self.write('.harness/project.yaml', json.dumps(project))
+        source = authorized_contract(core, 'W-workflow-auto')
+        active, _, _ = write_design_only(self.root, core, source)
+        started = core.start_work(self.root, source['work_id'], 'auto', source, project=project)
+        self.assertEqual(started['status'], 'started', started)
+        self.assertNotIn('workflow_baseline', started['manifest'], 'Do not dump all source hashes into Agent context')
+        self.assertEqual(started['workflow']['work_id'], source['work_id'])
+        self.assertIn('workflow_baseline', json.loads((active / 'work.json').read_text()))
+        original = (active / 'work.json').read_bytes()
+        self.write('src/api.py', 'price = 11\n')
+        resumed = core.start_work(self.root, source['work_id'], 'auto', source, project=project)
+        self.assertEqual(resumed['status'], 'already_started', resumed)
+        self.assertEqual(original, (active / 'work.json').read_bytes())
+        runtime = self.runtime()
+        state, state_path = runtime.work_record(self.root, source['work_id'])
+        self.assertEqual(state_path, active / 'workflow.json')
+        self.assertNotEqual(state['baseline']['src/api.py'], runtime.file_hash(self.root, 'src/api.py'))
+        viewed = subprocess.run([sys.executable, str(SCRIPT), 'audit', '--root', str(self.root),
+                                 '--work-id', source['work_id']], capture_output=True, text=True)
+        self.assertEqual(viewed.returncode, 2, viewed.stderr)
+        self.assertFalse(state_path.exists(), 'Audit must not create a review record')
+        basis = runtime.inspect_project(self.root, project, state)['features'][0]['basis']
+        review = self.write('.work/start-review.json', json.dumps({'feature': 'api', 'basis': basis,
+            'analysis': 'Reviewing the changed price owner.', 'references': ['src/api.py'], 'findings': []}))
+        child = self.write('.work/interrupt-work-review.py',
+            "import runpy,json,os,sys\n"
+            "runtime=runpy.run_path(sys.argv[1])\n"
+            "def interrupt(value, stream, **kwargs):\n"
+            " stream.write('{');stream.flush();os._exit(23)\n"
+            "json.dump=interrupt\n"
+            "runtime['main'](sys.argv[2:])\n")
+        interrupted = subprocess.run([sys.executable, str(child), str(SCRIPT), 'review',
+            '--root', str(self.root), '--work-id', source['work_id'], '--review', str(review)], capture_output=True)
+        self.assertEqual(interrupted.returncode, 23, interrupted.stderr)
+        self.assertFalse(state_path.exists())
+        self.assertEqual(original, (active / 'work.json').read_bytes())
+        resumed = core.start_work(self.root, source['work_id'], 'auto', source, project=project)
+        self.assertEqual(resumed['status'], 'already_started', resumed)
+        for feature in ('api', 'cli'):
+            state = self.review(runtime, state, feature)
+        state_path.write_text(json.dumps(state))
+        paths = [entry['path'] for entry in core.collect_git_baseline(self.root)['entries']]
+        impact = core.select_impacted_checks(paths, project, logic_impact={
+            'changed_logic': ['api.price'], 'affected_behaviors': ['price output'],
+            'scope': 'local', 'reason': 'One API value changed.', 'tests': ['tests/test_price.py']})
+        result = result_payload()
+        result['full']['rule'] = impact['not_required_rule_ids'][0]
+        closed = core.close_work(self.root, source['work_id'], contract=source,
+            result=result, impact=impact, completed_at='2026-10-05T00:00:00+00:00',
+            completed_days=30, trash_days=7)
+        self.assertEqual(closed['status'], 'incomplete', closed)
+        self.assertIn('project_workflow_incomplete', closed['errors'])
+        self.assertIn('verification', closed['workflow']['obligations'][0]['requires'])
+        self.assertTrue(active.is_dir())
+        state['baseline']['src/api.py'] = runtime.file_hash(self.root, 'src/api.py')
+        state_path.write_text(json.dumps(state))
+        with self.assertRaisesRegex(ValueError, 'baseline_changed'):
+            runtime.work_record(self.root, source['work_id'])
+        resumed = core.start_work(self.root, source['work_id'], 'auto', source, project=project)
+        self.assertEqual(resumed['status'], 'conflict', resumed)
+
+    def test_harness_begin_reuses_only_current_configured_semantic_reviews(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'init')
+        for feature in ('api', 'cli'):
+            state = self.review(runtime, state, feature)
+        self.project['extensions']['workflow']['state'] = '.work/map-review.json'
+        self.write('.work/map-review.json', json.dumps(state))
+        fresh = runtime.begin_work(self.root, self.project)
+        self.assertEqual(set(fresh['reviews']), {'api', 'cli'})
+        self.assertEqual(runtime.inspect_project(self.root, self.project, fresh)['obligations'], [])
+        self.write('src/api.py', 'price = 11\n')
+        fresh = runtime.begin_work(self.root, self.project)
+        self.assertEqual(set(fresh['reviews']), {'cli'})
 
     def test_private_and_outside_paths_rejected_before_read(self):
         runtime = self.runtime()

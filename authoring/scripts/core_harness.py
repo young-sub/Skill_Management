@@ -1911,7 +1911,7 @@ DESIGN_ONLY_FILES = {"contract.json"}
 LEGACY_DESIGN_ONLY_FILES = {"contract.json", "review/design.html"}
 STARTED_WORK_FILES = {
     "contract.json", "work.json", "review/design.html", "review/result.html",
-    "result.json", "evidence.jsonl", "agent/evidence.jsonl",
+    "result.json", "evidence.jsonl", "agent/evidence.jsonl", "workflow.json",
 }
 STARTED_WORK_DIRECTORIES = {"review", "agent"}
 
@@ -2058,11 +2058,16 @@ def _validate_active_manifest(
                     break
     if not baseline_valid:
         errors.append("work_manifest_invalid:dirty_baseline")
+    if "workflow_baseline" in manifest:
+        workflow = manifest["workflow_baseline"]
+        if (not isinstance(workflow, dict) or workflow.get("schema_version") != 1
+                or workflow.get("base") != manifest.get("source_commit")):
+            errors.append("work_manifest_invalid:workflow_baseline")
     allowed_fields = {
         "schema_version", "work_id", "state", "created_at", "source_commit",
         "base_branch", "feature_branch", "worktree", "completed_at", "retain_until",
         "delete_after", "contract_version", "integrity_digest", "owned_paths",
-        "dirty_baseline",
+        "dirty_baseline", "workflow_baseline",
     }
     for field in sorted(set(manifest) - allowed_fields):
         errors.append(f"work_manifest_unknown_field:{field}")
@@ -2131,6 +2136,12 @@ def _classify_start_root(
     errors.extend(manifest_errors)
     if stored is not None and manifest is not None:
         errors.extend(_validate_active_manifest(manifest, work_id, stored))
+        if "workflow_baseline" in manifest:
+            try:
+                runtime = runpy.run_path(str(Path(__file__).with_name("project_workflow.py")))
+                runtime["work_record"](root, work_id)
+            except (OSError, ValueError, TypeError, KeyError) as error:
+                errors.append(f"work_workflow_invalid:{error}")
     return {
         "classification": "valid_already_started" if not errors else "conflict_or_corrupt",
         "work_root": work_root, "errors": sorted(set(errors)), "manifest": manifest,
@@ -2174,6 +2185,15 @@ def _rollback_start_files(work_root: Path, *, created_root: bool) -> list[str]:
     except OSError as error:
         errors.append(f"start_file_rollback_failed:{error}")
     return errors
+
+
+def _start_response(status: str, classification: str, manifest: dict[str, Any]) -> dict[str, Any]:
+    result = {"status": status, "classification": classification, "manifest": dict(manifest)}
+    if "workflow_baseline" in result["manifest"]:
+        result["manifest"].pop("workflow_baseline")
+        result["workflow"] = {"work_id": manifest["work_id"],
+                              "state": f"{manifest['owned_paths'][0]}/workflow.json"}
+    return result
 
 
 def start_work(
@@ -2223,10 +2243,7 @@ def start_work(
             "errors": classified["errors"],
         }
     if classification == "valid_already_started":
-        return {
-            "status": "already_started", "classification": classification,
-            "manifest": classified["manifest"],
-        }
+        return _start_response("already_started", classification, classified["manifest"])
     lock_name = "transaction"
     lock_path, lock_payload, lock_error = _acquire_operation_lock(root, lock_name)
     if lock_error:
@@ -2248,10 +2265,7 @@ def start_work(
                 "errors": classified["errors"],
             }
         if classification == "valid_already_started":
-            return {
-                "status": "already_started", "classification": classification,
-                "manifest": classified["manifest"],
-            }
+            return _start_response("already_started", classification, classified["manifest"])
         work_root = classified["work_root"]
         assert isinstance(work_root, Path)
         manifest_path = work_root / "work.json"
@@ -2268,6 +2282,13 @@ def start_work(
             baseline = collect_git_baseline(root)
         except ValueError as error:
             return {"status": "git_error", "errors": [str(error)]}
+        workflow_baseline = None
+        if project.get("extensions", {}).get("workflow") is not None:
+            try:
+                runtime = runpy.run_path(str(Path(__file__).with_name("project_workflow.py")))
+                workflow_baseline = runtime["begin_work"](root, project)
+            except (OSError, ValueError, TypeError, KeyError, subprocess.CalledProcessError) as error:
+                return {"status": "precondition_failed", "errors": [f"workflow_baseline_unavailable:{error}"]}
         base_branch_name = base_branch.stdout.strip()
         git_policy = project["git"]
         protected_branches = set(git_policy["protected_branches"])
@@ -2295,6 +2316,8 @@ def start_work(
             "integrity_digest": canonical_digest(_contract_payload(contract)),
             "owned_paths": [f".work/goals/active/{work_id}"],
         }
+        if workflow_baseline is not None:
+            manifest["workflow_baseline"] = workflow_baseline
         created_work_root = False
         try:
             if classification == "missing":
@@ -2313,7 +2336,7 @@ def start_work(
                 "status": "precondition_failed", "classification": classification,
                 "errors": [str(error), *rollback_errors],
             }
-        return {"status": "started", "classification": classification, "manifest": manifest}
+        return _start_response("started", classification, manifest)
     finally:
         _release_operation_lock(lock_path, lock_payload)
 
@@ -2924,8 +2947,15 @@ def _close_work_locked(
         impact = reevaluated
     else:
         impact = {**impact, "status": "legacy_cohort"}
+    if project is None and (root / ".harness/project.yaml").exists():
+        try:
+            project = json.loads((root / ".harness/project.yaml").read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            return {"status": "incomplete", "errors": ["project_configuration_unavailable"]}
+    if "workflow_baseline" in manifest and not (project or {}).get("extensions", {}).get("workflow"):
+        return {"status": "incomplete", "errors": ["workflow_configuration_missing"]}
     if project and project.get("extensions", {}).get("workflow") is not None:
-        workflow = inspect_project_workflow(root, project)
+        workflow = inspect_project_workflow(root, project, work_id=work_id if "workflow_baseline" in manifest else None)
         if workflow["status"] != "READY_FOR_REVIEW":
             return {"status": "incomplete", "errors": ["project_workflow_incomplete"], "workflow": workflow}
     evaluation = evaluate_result(stored_contract, result, impact)
@@ -3280,6 +3310,9 @@ REQUIRED_COHORT_RESOURCES = frozenset({
     "execute-codex-goal/schemas/contract.schema.json",
     "execute-codex-goal/schemas/work.schema.json",
     "execute-codex-goal/scripts/core_harness.py",
+    "execute-codex-goal/scripts/project_workflow.py",
+    "execute-codex-goal/scripts/unittest_evidence.py",
+    "execute-codex-goal/scripts/verification_results.py",
     "maintain-agent-harness/SKILL.md",
     "maintain-agent-harness/references/testing-policy.md",
     "maintain-agent-harness/schemas/project.schema.json",
@@ -3563,9 +3596,12 @@ def install_harness_cohort(
         }
 
 
-def inspect_project_workflow(root: Path, project: dict[str, Any]) -> dict[str, Any]:
+def inspect_project_workflow(root: Path, project: dict[str, Any], *, work_id: str | None = None) -> dict[str, Any]:
     try:
         runtime = runpy.run_path(str(Path(__file__).with_name("project_workflow.py")))
+        if work_id is not None:
+            state, _ = runtime["work_record"](root, work_id)
+            return runtime["inspect_project"](root, project, state)
         return runtime["inspect_configured"](root, project)
     except (OSError, ValueError, TypeError, KeyError, subprocess.CalledProcessError) as error:
         return {"status": "BLOCKED", "findings": [str(error)]}

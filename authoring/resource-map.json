@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "resources": [
-    {"source": "scripts/unittest_evidence.py", "targets": ["agent-workflow/scripts/unittest_evidence.py", "setup-project-verification/scripts/unittest_evidence.py", "maintain-project-verification/scripts/unittest_evidence.py", "close-goal/scripts/unittest_evidence.py", "maintain-agent-harness/scripts/unittest_evidence.py"]},
-    {"source": "scripts/project_workflow.py", "targets": ["agent-workflow/scripts/project_workflow.py", "setup-project-verification/scripts/project_workflow.py", "maintain-project-verification/scripts/project_workflow.py", "close-goal/scripts/project_workflow.py", "maintain-agent-harness/scripts/project_workflow.py"]},
+    {"source": "scripts/unittest_evidence.py", "targets": ["agent-workflow/scripts/unittest_evidence.py", "setup-project-verification/scripts/unittest_evidence.py", "maintain-project-verification/scripts/unittest_evidence.py", "close-goal/scripts/unittest_evidence.py", "maintain-agent-harness/scripts/unittest_evidence.py", "execute-codex-goal/scripts/unittest_evidence.py"]},
+    {"source": "scripts/project_workflow.py", "targets": ["agent-workflow/scripts/project_workflow.py", "setup-project-verification/scripts/project_workflow.py", "maintain-project-verification/scripts/project_workflow.py", "close-goal/scripts/project_workflow.py", "maintain-agent-harness/scripts/project_workflow.py", "execute-codex-goal/scripts/project_workflow.py"]},
     {"source": "references/workflow-obligations.md", "targets": ["agent-workflow/references/workflow-obligations.md", "setup-project-verification/references/workflow-obligations.md", "maintain-project-verification/references/workflow-obligations.md"]},
     {"source": "skills/agent-workflow/SKILL.md", "targets": ["agent-workflow/SKILL.md"]},
-    {"source": "scripts/verification_results.py", "targets": ["agent-workflow/scripts/verification_results.py", "setup-project-verification/scripts/verification_results.py", "maintain-project-verification/scripts/verification_results.py", "close-goal/scripts/verification_results.py", "maintain-agent-harness/scripts/verification_results.py"]},
+    {"source": "scripts/verification_results.py", "targets": ["agent-workflow/scripts/verification_results.py", "setup-project-verification/scripts/verification_results.py", "maintain-project-verification/scripts/verification_results.py", "close-goal/scripts/verification_results.py", "maintain-agent-harness/scripts/verification_results.py", "execute-codex-goal/scripts/verification_results.py"]},
     {"source": "references/result-viewer.md", "targets": ["agent-workflow/references/result-viewer.md"]},
     {"source": "skills/setup-project-verification/SKILL.md", "targets": ["setup-project-verification/SKILL.md"]},
     {"source": "skills/maintain-project-verification/SKILL.md", "targets": ["maintain-project-verification/SKILL.md"]},

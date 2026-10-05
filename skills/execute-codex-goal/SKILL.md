@@ -4,7 +4,7 @@ description: Execute an existing authorized Harness Item contract, verify affect
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/execute-codex-goal/SKILL.md -->
-<!-- Source-SHA256: 30dab3d00e79848e497e1b4a22406739a98b29b55bb25cca1ac6cfe2e373d600 -->
+<!-- Source-SHA256: 908c76032e511b33ab84be31132d0c24549061c24cd010609c91c0bef0aec442 -->
 
 
 # Execute Codex Goal
@@ -12,7 +12,7 @@ description: Execute an existing authorized Harness Item contract, verify affect
 Use [the runtime](scripts/core_harness.py) with the existing contract; a host Goal is optional tracking state. Read [testing policy](references/testing-policy.md) for impact selection, [execution policy](references/goal-execution-policy.md) for amendments/commits, and the [contract](schemas/contract.schema.json) or [work](schemas/work.schema.json) schema only when constructing or diagnosing those records.
 
 1. Verify contract authorization and reuse existing user permission within scope. Veto, drift, unresolved decisions, unknown legacy declarations, and incomplete transactions block dependent work. Retained legacy HTML must match its stored digest; do not rewrite it to pass validation.
-2. Use `start` to capture the actual branch, source commit, and dirty baseline; resume existing work without resetting that baseline. Create a feature branch only when policy or the work requires it.
+2. Use `start` to capture the actual branch, source commit, and dirty baseline; resume existing work without resetting that baseline. Configured project workflow baselines are captured by start itself. Its compact workflow reference can be inspected with `python scripts/project_workflow.py audit --root <project> --work-id <id>`; submit semantic reviews with the same work ID. Close checks this task record even without a separate workflow begin. Create a feature branch only when policy or the work requires it.
 3. Select the first dependency-ready core Item; optional work cannot displace incomplete core behavior.
 4. For a behavior change, choose the smallest check that distinguishes the intended outcome. Observe RED before the fix when that is cheap and useful, then GREEN; reuse baseline or equivalent evidence for behavior-preserving moves. An Item with no product behavior may have no tests when its Done evidence is sufficient. Test observable outcomes, not trivial wording or implementation shape.
 5. Inspect changed logic and direct callers with existing diff/symbol searches. Record `changed_logic`, `affected_behaviors`, `scope`, and `reason`; `scope=none` is valid only when executable or configuration behavior is unaffected, and uses empty logic and behavior lists. Tooling changes that alter behavior still need relevant checks. Select exact relevant checks. Path mappings, Feature commands, and Full triggers are candidates. Unknown impact requires investigation, not automatic Full. Full runs for cross-cutting logic impact or an explicit request. Stop expanding checks after required checks pass unless new evidence changes scope.

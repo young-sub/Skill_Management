@@ -26,6 +26,22 @@ python <skill>/scripts/project_workflow.py review --root <project> --state .work
 
 `begin` preserves a matching existing record and its dirty baseline. `audit` writes nothing and launches no checks. A review contains `feature`, exact current `basis`, concrete `analysis`, existing `references`, and `findings`. Stale reviews are refused. Partitions remain PARTIAL until links and review inputs reconcile. Source, criteria, command, map and shared UI changes invalidate consumers; unrelated documents do not. Paths never select Full automatically.
 
+For configured Harness work, normal `start` captures the workflow baseline inside
+its existing atomic `work.json` write; a separate workflow begin is unnecessary.
+Use `audit` or `review --root <project> --work-id <id>` to consume that baseline.
+Review progress is stored in the work directory's `workflow.json`; audit does not
+create it. Resume never replaces the baseline, and a conflicting review record is
+rejected. Close checks this per-work state directly, even when the optional CLI
+was not called, and refuses a missing workflow configuration for such work.
+Existing legacy work without this baseline retains its configured-state check.
+
+At start, current semantic reviews from the project's configured state can be
+reused; changed inputs still require review and changed behavior requires actual
+execution. Prior behavior PASS is not a shortcut for new changes. Source hashes
+remain in the retained manifest; the start response returns only a compact work
+ID/state reference. This integrates existing Harness work, not every host's
+natural-language request lifecycle. Projects without this extension stay direct.
+
 Feedback and UI intents require at least one explicit `--target`; an omitted target cannot silently turn either into a map-only request. UI targets need a connected standard and actual verification. Source edits during initial mapping also require verification. Deletions, including staged deletions absent from the current Git inventory, are matched against Feature source patterns using the retained baseline; a new semantic review alone cannot discharge their verification. Removed features remain explicit `removal_review` obligations, including before their first review. Reconcile their reported basis through the same review command, explaining retirement or reassignment and referencing the updated map; deleting a configuration row does not erase the obligation.
 
 `READY_FOR_REVIEW` means mapping links and submitted analysis are current, not product PASS or independently established semantic completeness. Initial map completion does not require all automatic checks. Behavior changes and feedback still require actual verification. Harness maintenance invokes this computation when configured; close refuses unresolved obligations even if the optional CLI was skipped. Nonconfigured projects retain their existing workflow.
@@ -38,7 +54,12 @@ than silently accepting the work. Recover its original Feature connections from
 the retained baseline before reconciling that legacy record; do not replace the
 baseline with current files to clear the finding.
 
-Begin/review writes use a unique task-local temporary file followed by replacement. Abrupt process exit leaves the previous valid state intact (or no initial state), and a fresh invocation can resume without deleting an orphan attempt. One writer owns a task record; concurrent writes to the same record are not supported. Interrupted attempt files remain subject to the existing `.work` retention policy.
+Begin/review writes use a unique task-local temporary file followed by replacement. Harness review attempts stage under `.work` outside the strictly validated active-work artifact directory, so an orphan cannot prevent Harness resume. Abrupt process exit leaves the previous valid state intact (or no initial state), and a fresh invocation can resume without deleting an orphan attempt. One writer owns a task record; concurrent writes to the same record are not supported. Interrupted attempt files remain subject to the existing `.work` retention policy.
+
+Inspection validates review analysis, findings and existing references as well as
+the current basis. Writing a minimal success-shaped record directly cannot omit
+those fields. This checks record completeness, not whether its semantic analysis
+is correct; editable manifests, policy and reviews are not authenticated evidence.
 
 A changed-behavior review can reference a task-local `bundle` JSON produced by the result viewer's explicit execution path. Audit reopens its plan/captures/raw/current inputs through read-only bundle inspection, then checks Feature/check IDs and exact registered argv/cwd. Missing, stale or mismatched evidence cannot discharge the obligation. Feedback also needs an observed repair relative to the original basis; a new analysis or PASS flag alone is insufficient. Map/UI meaning and whether a regression covers the reported cause remain review responsibilities, distinct from those mechanical checks.
 
