@@ -4,6 +4,36 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Retain unresolved product findings through retirement, 2026-10-05
+
+Removing a Feature previously hid its product findings, and even an explicit
+removal review carrying unresolved product findings could reach READY_FOR_REVIEW.
+The shared workflow owner now retains earlier findings until a current removal
+review explicitly reconciles them. Omission preserves them; a current review
+with remaining findings completes map reconciliation but keeps the task PARTIAL.
+Stale reconciliation restores earlier and retirement findings. Invalid retired
+review shapes are rejected rather than causing an uncaught exception.
+
+The new regression reproduced missing findings before the fix, then covered
+removal, current unresolved review, field omission, explicit semantic resolution,
+state serialization/resume, stale reconciliation and malformed review shapes.
+Final focused workflow, close lifecycle, maintenance and documentation checks
+passed 75 tests in 38.035 seconds. Verification scope is the retirement branch
+and its existing completion/maintenance callers, not a new whole-system claim.
+
+Actual installed package 0.1.13 was guardedly updated in isolated host-002.
+`retirement-consumer-v013` uses its public CLI in separate processes against a
+real Git fixture: remove the CLI source and mapping row, preserve its unresolved
+caller finding, reject omission as resolution, resume without state mutation,
+accept current explicit reconciliation, then change source and reopen the stale
+review. A malformed retained review returns BLOCKED. Commands, stdout, stderr
+and actual state remain in the fixture's `.work/`. The preceding 0.1.12 trial
+also remains; it exposed the malformed-review exception corrected in 0.1.13.
+This proves local obligation retention, not autonomous Agent diagnosis or actual
+caller migration. An explicit empty product-findings list remains semantic
+review input, not proof of product repair. U4 and the overall U1-U7 goal remain
+incomplete; original Labeler and ordinary/global installations were untouched.
+
 ## Execute outstanding task verification, 2026-10-05
 
 The existing project adapter now supports `--work-id <id>` or

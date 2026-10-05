@@ -418,6 +418,47 @@ class ProjectWorkflowTests(unittest.TestCase):
             'references': ['docs/map.md', 'docs/requirement.md'], 'findings': []})
         self.assertEqual(runtime.inspect_project(self.root, self.project, state)['status'], 'READY_FOR_REVIEW')
 
+    def test_retirement_keeps_product_findings_until_current_reconciliation(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'init')
+        state = self.review(runtime, state, 'cli')
+        gap = 'Existing CLI callers still depend on the removed price endpoint.'
+        state = runtime.record_review(self.root, self.project, state,
+            dict(state['reviews']['cli'], product_findings=[gap]))
+        self.project['extensions']['workflow']['features'].pop()
+        subprocess.run(['git', 'rm', 'src/cli.py'], cwd=self.root, check=True, capture_output=True)
+        state = self.review(runtime, state, 'api')
+        audit = runtime.inspect_project(self.root, self.project, state)
+        self.assertIn({'feature': 'cli', 'finding': gap}, audit['product_findings'])
+        retired = next(item for item in audit['retired'] if item['id'] == 'cli')
+        review = {'feature': 'cli', 'basis': retired['basis'],
+            'analysis': 'Removal mapped, but the remaining caller migration is unresolved.',
+            'references': ['docs/map.md'], 'findings': [], 'product_findings': [gap]}
+        state = runtime.record_review(self.root, self.project, state, review)
+        state = json.loads(json.dumps(state))
+        audit = runtime.inspect_project(self.root, self.project, state)
+        self.assertEqual(audit['mapping_status'], 'READY_FOR_REVIEW', audit)
+        self.assertEqual(audit['status'], 'PARTIAL', audit)
+        self.assertIn('product_resolution', audit['obligations'][0]['requires'])
+        self.assertIn({'feature': 'cli', 'finding': gap}, audit['product_findings'])
+        omitted = dict(review)
+        omitted.pop('product_findings')
+        omission = runtime.record_review(self.root, self.project, state, omitted)
+        self.assertEqual(runtime.inspect_project(self.root, self.project, omission)['status'], 'PARTIAL')
+        resolved = runtime.record_review(self.root, self.project, state,
+            dict(review, analysis='Confirmed callers use the retained API.', product_findings=[]))
+        self.assertEqual(runtime.inspect_project(self.root, self.project, resolved)['status'], 'READY_FOR_REVIEW')
+        for malformed in (None, {'product_findings': {'wrong': 'shape'}}):
+            invalid = json.loads(json.dumps(resolved))
+            invalid['retired_reviews']['cli'] = malformed
+            with self.assertRaises(ValueError):
+                runtime.inspect_project(self.root, self.project, invalid)
+        # A stale reconciliation cannot erase the original unresolved finding.
+        self.write('src/api.py', 'price = 11\n')
+        audit = runtime.inspect_project(self.root, self.project, resolved)
+        self.assertIn({'feature': 'cli', 'finding': gap}, audit['product_findings'])
+        self.assertEqual(audit['status'], 'PARTIAL')
+
     def test_process_exit_during_review_preserves_state_and_next_review_resumes(self):
         runtime = self.runtime()
         state = runtime.begin(self.root, self.project, 'init')

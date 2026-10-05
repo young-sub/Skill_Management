@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: 15ed9e5a4f837b1266127c31ec4d734ab0a274c0c07e15ddf72bae51e81d7fe8
+# Source-SHA256: 443c566b100828bc5b41d32e25960f4d5be66d65995270a42109d2a6a0d01dac
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -275,12 +275,28 @@ def inspect_project(root, project, state=None):
                         'features': config['features'], 'files': files})
         result['retired'].append({'id': name, 'basis': basis})
         review = state.get('retired_reviews', {}).get(name, {})
-        if not current_review(root, review, basis):
+        reviewed = current_review(root, review, basis)
+        prior_review = state.get('reviews', {}).get(name, {})
+        for candidate in (prior_review, review):
+            if not isinstance(candidate, dict):
+                raise ValueError('workflow_review_must_be_object')
+            gaps = candidate.get('product_findings', [])
+            if not isinstance(gaps, list) or any(not isinstance(gap, str) or not gap.strip() for gap in gaps):
+                raise ValueError('review_product_findings_must_be_nonempty_strings')
+        previous = prior_review.get('product_findings', [])
+        product_findings = review.get('product_findings', previous) if reviewed else (
+            previous + review.get('product_findings', []))
+        result['product_findings'].extend({'feature': name, 'finding': finding}
+            for finding in dict.fromkeys(product_findings))
+        if not reviewed:
             mapping_pending = True
             result['findings'].append(f'removed_feature_needs_reconciliation:{name}')
+        if not reviewed or product_findings:
             result['obligations'].append({'id': f'removed:{name}:{basis}', 'target': name,
                 'basis': basis, 'reason': 'removed_feature', 'changed': [],
-                'requires': ['removal_review'], 'references': sorted({p for f in config['features'] for p in f['map']})})
+                'requires': (['removal_review'] if not reviewed else []) +
+                            (['product_resolution'] if product_findings else []),
+                'references': sorted({p for f in config['features'] for p in f['map']})})
     result['mapping_status'] = 'PARTIAL' if mapping_pending or result['unmapped'] else 'READY_FOR_REVIEW'
     result['status'] = 'PARTIAL' if result['obligations'] or result['unmapped'] or result['findings'] else 'READY_FOR_REVIEW'
     return result

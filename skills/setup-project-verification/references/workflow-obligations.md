@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: de7bf79bce967a016ec76a2acfe7f81a2a384a672c0e9f9646cc2ab0e3820767 -->
+<!-- Source-SHA256: 746d5bd8016062cf1e18809c2ee2b294b49a1521757a9ebd1d42cd1908467bd6 -->
 
 # Project workflow obligations
 
@@ -61,6 +61,12 @@ still block mapping and are never automatically reclassified. The Agent must
 justify any reclassification against the actual requirements and mapped sources.
 Native verification failures or missing execution remain task obligations even
 when `mapping_status` is READY_FOR_REVIEW. Neither readiness field is product PASS.
+Retirement does not hide product findings: prior findings remain visible until a
+current removal review explicitly reconciles `product_findings`. Omitting that
+field preserves earlier findings; an explicit empty list records semantic
+resolution, not execution proof. A stale removal review reopens reconciliation
+and retains both earlier and retirement findings. Current removal reviews may
+complete mapping while product resolution still blocks the task.
 
 New records retain each Feature's initial source patterns as well as file hashes,
 so narrowing a source map after deletion does not erase its original consumer.

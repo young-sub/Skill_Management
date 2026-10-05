@@ -57,6 +57,12 @@ still block mapping and are never automatically reclassified. The Agent must
 justify any reclassification against the actual requirements and mapped sources.
 Native verification failures or missing execution remain task obligations even
 when `mapping_status` is READY_FOR_REVIEW. Neither readiness field is product PASS.
+Retirement does not hide product findings: prior findings remain visible until a
+current removal review explicitly reconciles `product_findings`. Omitting that
+field preserves earlier findings; an explicit empty list records semantic
+resolution, not execution proof. A stale removal review reopens reconciliation
+and retains both earlier and retirement findings. Current removal reviews may
+complete mapping while product resolution still blocks the task.
 
 New records retain each Feature's initial source patterns as well as file hashes,
 so narrowing a source map after deletion does not erase its original consumer.
