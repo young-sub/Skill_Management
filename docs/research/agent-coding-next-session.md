@@ -1,10 +1,10 @@
 # 다음 세션: Agent Coding 업무 위임 체계 구현·실제 검증
 
-작성일: 2026-10-05. 상태: **사용자의 명시적 실행 요청으로 구현·수용 검증 진행 중**. 현재 진행과 남은 범위는 [구현 결과](agent-workflow-implementation-results.md)에 연결한다. 아래는 [현재 결론](agent-coding-system-direction.md)과 [R01–R16 검토·수용 과업](agent-coding-requirements-review.md)을 구현하는 실행 기준이다. 기반 이식과 첫 Labeler 파일럿의 [결과](labeler-verification-pilot.md)와 [이전 프롬프트](archive/agent-coding-next-session.md)는 과거 근거이며 재실행 지시가 아니다.
+작성일: 2026-10-05. 상태: **명시적 실행 요청에 따라 source/generated 구현과 독립 제품·Agent 수용 검증을 수행한 실행 기준**. 실제 결과와 남은 BLOCKED 범위는 [구현 결과](agent-workflow-implementation-results.md)에 연결한다. 아래는 [현재 결론](agent-coding-system-direction.md)과 [R01–R16 검토·수용 과업](agent-coding-requirements-review.md)을 구현하기 위해 사용한 프롬프트다. 기반 이식과 첫 Labeler 파일럿의 [결과](labeler-verification-pilot.md)와 [이전 프롬프트](archive/agent-coding-next-session.md)는 과거 근거이며 재실행 지시가 아니다.
 
-## 다음 세션 실행 프롬프트
+## 실행에 사용한 프롬프트
 
-아래 블록을 다음 세션에 전달한다. 설계 재제안에서 멈추지 말고 허용된 범위의 구현·실제 검증·결과 보고까지 수행한다.
+아래 블록은 수행 범위의 기록으로 보존한다. 재개 시 구현 결과의 미검증 범위와 현재 source/host를 먼저 확인하고 필요한 과업만 이어간다. 이미 완료한 최초 연결이나 통제 결함 주입을 전체 재실행하지 않는다. 새 권한 없이 일반 설치·운영 적용으로 범위를 넓히지 않는다.
 
 ```text
 작업 저장소: C:\Users\YS\Desktop\python\Skill_Management

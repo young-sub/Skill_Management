@@ -1,6 +1,6 @@
 # Agent Coding 업무 위임·검증·지속 개선 체계
 
-결정일: 2026-10-05. PStack 조사, 10/3~4 후보 Skill, 독립 Labeler 파일럿 및 이후 사용자 논의의 **현재 설계 결론**이다. 새 업무 진입점과 유지보수 능력의 구현 완료를 뜻하지 않는다. 현재 실행·권한·Git 정책은 [Agent workflow](../agents/workflow.md), 구현된 검증 도구는 [Testing](../testing.md)을 따른다. 다음 구현은 [실행 프롬프트](agent-coding-next-session.md)로 시작한다.
+결정일: 2026-10-05. PStack 조사, 10/3~4 후보 Skill, 독립 Labeler 파일럿 및 이후 사용자 논의의 **현재 설계 결론**이다. 구현과 실제 업무 수용 상태는 아래 연결한 결과 문서에서 구분한다. 현재 실행·권한·Git 정책은 [Agent workflow](../agents/workflow.md), 구현된 검증 도구는 [Testing](../testing.md)을 따른다. [실행 프롬프트](agent-coding-next-session.md)는 이번 구현의 범위 기록이다.
 
 2026-10-05 실행 요청에 따라 공통 업무/검증 책임의 source/generated 구현과 임시 설치를 진행했다. 실제 T1–T6 수용 상태, CLI 모델 시작 제한과 협업 host 평가의 차이는 [구현 결과](agent-workflow-implementation-results.md)를 기준으로 한다. 아래 합의와 과거 상태는 실제 실행 완료의 증명이 아니다.
 
@@ -183,11 +183,11 @@ Plugin은 검증된 공통 Router·Playbook·Skill·capture 등의 **생성 패�
 - 외부 조사·고정 source: [PStack](pstack-analysis.md).
 - 이전 설계·배포 비교·완료 프롬프트: [아카이브](archive/index.md).
 - 현재 명령·소유권: [docs index](../index.md), [Feature Map](../feature-map.md), [Testing](../testing.md), [resource map](../../authoring/resource-map.json).
-- 이번 작업은 결론·프롬프트·문서 정리만 구현한다. 원본 Labeler, 일반 설치, 실행 Skill·도구·전역 지침은 변경하지 않는다. 다음 세션 실행 요청은 관리 source·독립 시험의 구현·검증으로 해석하며 기존 승인·보안 경계를 보존한다.
+- 2026-10-05 사용자가 관리 source·독립 시험의 구현·실제 검증·로컬 커밋을 명시적으로 승인했다. 이전 문서 정리만 수행한다는 제한은 이번 범위에 적용하지 않는다. 원본 Labeler, 일반 설치, 전역 지침, 원격·운영·보호 브랜치는 변경하지 않는다.
 
 ## 11. 요구사항 검토로 구체화한 실행 연결
 
-2026-10-05 [R01–R16 검토](agent-coding-requirements-review.md)는 수정 전 `53865b0`을 기준으로 한다. 다음 보완은 설계 결정이며 **미구현·효과 미입증**이다. 검토 문서의 T1–T6은 아래 책임의 수용 과업이고, 구현 프롬프트는 이를 실행한다. §3의 세 책임과 여섯 절차는 유지하되 파일 수나 역할 이름으로 완료를 판정하지 않는다.
+2026-10-05 [R01–R16 검토](agent-coding-requirements-review.md)는 수정 전 `53865b0`의 설계 검토다. 아래 책임은 `c7c064a`에서 source/generated·직접 조회 CLI로 구현했고 후속 수정과 독립 시험에서 T1–T6을 수행했다. 실제 충족 상태와 환경 BLOCKED는 [구현 결과](agent-workflow-implementation-results.md)가 소유한다. 파일 수나 역할 이름으로 완료를 판정하지 않으며 일반적 효율·장기 안정성은 입증하지 않았다.
 
 ### 발견, 조합, 실패 처리
 
