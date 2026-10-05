@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/result-viewer.md -->
-<!-- Source-SHA256: d4471dbf9bc71b8e7b59dbca5be4c9c619dbcc5d6a3fd54c7891bb532eef065b -->
+<!-- Source-SHA256: b3b4921eaedc1c0d13236a24ab3c977a1838f01239a623860505fe4e525a13a7 -->
 
 # Existing-result lookup
 
@@ -17,7 +17,7 @@ Repeat record/assessment/observation arguments for multiple checks. Exit 0 means
 Create the plan while selecting checks, before execution. Add actual run/raw bindings after execution without rewriting criteria. Each check requires:
 
 - `id`, `feature_id`, `expected`, `criteria_revision`, `required` (boolean), and `selection: {status: selected|excluded|not_required, reason: ...}`. Every disposition requires a nonblank string reason. Each Feature/check pair is unique. `criteria_revision` must equal `conditions.criteria.revision`; inconsistent identities are blocked. Required exclusions prevent overall PASS. Optional exclusions remain distinct from PASS.
-- `conditions` with nonempty `source`, `criteria`, `command`, `dependency`, `fixture`, `runtime` objects. Source uses `revision` and `diff` (HEAD and binary tracked-diff SHA-256); command uses exact `argv` and absolute `cwd`. Other identities are project-specific, observed values, not invented labels. Missing identity remains unknown; do not replace it with `not_applicable` to get PASS.
+- `conditions` with nonempty `source`, `criteria`, `command`, `dependency`, `fixture`, `runtime` objects. Source uses `revision` and `diff` (HEAD and binary tracked-diff SHA-256); new execution bindings also retain an aggregate hash of Git-visible untracked file bytes. Private or aliased untracked paths are refused without reading their contents. Ignored scratch files remain outside source identity; command uses exact `argv` and absolute `cwd`. Other identities are project-specific, observed values, not invented labels. Missing identity remains unknown; do not replace it with `not_applicable` to get PASS.
 - Optional `run_id` to disambiguate repeated runs. Ambiguous records are unavailable, never picked by timestamp.
 - `raw_observations` with `path`, `sha256`, `pointer`, `producer` and `assertions`. Producer requires the actual `run_id`, `capture_path` and exact `argv`, or matching `json_report_path`/`json_report_sha256` for a capture's embedded native report. Include `capture_sha256` when retaining the binding. Pointers use JSON Pointer or `$.checks[0]` notation.
 
@@ -28,6 +28,38 @@ Captures use the existing `run_check.py` format. Assessments bind `feature`, `ch
 `current.json` supplies independently checked current conditions under `conditions`, or per-check overrides under `checks: {"feature/check": {conditions: ...}}`. The viewer independently compares live Git HEAD/diff/status to the capture. It cannot independently attest an external runtime, dependencies, fixture, or the completeness of project criteria. Recheck those identities through the project guide; copied historical values are not current evidence. Without a current context, show historical observations and keep current reuse unavailable.
 
 The output preserves capture path/hash/argv/exit, raw paths/hashes/pointers/producer, assertion values, original judgments, current reuse reasons and conditions. A raw document's top-level `status`, when present, participates in judgment even without `--observation`; an ISSUES/BLOCKED report cannot be hidden by selecting only its successful sub-observations. Unknown status vocabulary remains UNKNOWN for project interpretation. A historical PASS can be STALE or UNKNOWN today. Native nonzero exit, timeout, cleanup failure, required skip/not-run, missing raw or changed conditions prevent current PASS. Read-only requests never backfill missing evidence by rerunning or changing source.
+
+## Prepare a registered execution plan
+
+For a configured project, the same CLI can assemble deterministic plan metadata:
+
+```text
+python <agent-workflow>/scripts/verification_results.py --prepare .work/assertions.json --root <project> --plan-output .work/plan.json
+```
+
+The input is `{"schema_version":1,"checks":[...]}`. Each check has exactly
+`id`, `feature_id`, `expected`, `required`, `selection`, `raw_observations`,
+`dependency`, and `fixture`. Selection and native assertions use the formats above;
+the last two fields are explicit nonempty project condition objects, for example
+`{"file_refs":["requirements.lock"]}` or the project's identified dependency kind.
+The Agent still chooses meaningful observations and explains selection; preparation
+does not infer a business oracle or decide which checks can be omitted.
+
+Preparation resolves the Feature/check pair through `.harness/project.yaml`, copies
+the registered argv/cwd, measures Git and executable identity, hashes connected
+criteria for their revision, and binds project configuration, criteria/map/UI references plus declared
+fixture/dependency files. It reuses execution preflight without starting a check,
+reading a native result or asking a model. A report must be new and at least one
+check selected. Unknown Feature/check pairs, supplied command/source overrides,
+unsafe paths and existing output are refused. The plan output must be Git-ignored
+so writing it does not invalidate its own source snapshot. No task state is changed.
+
+Run the resulting plan with `--execute` as below. Source or dependency changes
+between preparation and execution still block; prepare a new plan after reviewing
+the change. Existing report files are retained, not silently removed. File references
+retain the executor's command-directory containment rules; a connected reference
+outside that directory is reported as unsupported rather than omitted. Preparation
+is not execution, a semantic review, or protected completion acceptance.
 
 ## Explicit execution
 

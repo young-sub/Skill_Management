@@ -4,6 +4,51 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Deterministic registered-plan preparation, 2026-10-05
+
+The authenticated maintenance trial had to write a project adapter to collect
+Git/config/criteria/executable metadata. The existing viewer now exposes
+`--prepare <spec> --root <project> --plan-output <new-ignored-path>`. Project-selected
+expectations, selection reasons, raw JSON assertions and explicit dependency/
+fixture conditions remain semantic inputs. Code resolves registered Feature/check
+pairs and exact commands, measures current identities, and writes a new plan using
+existing preflight and exclusive-output handling. It never runs project commands,
+changes task state, guesses an oracle or calls a model. Execution/lookup/resume
+continue through the same existing producer and viewer.
+
+Independent review found an untracked-config hole: changing registered argv could
+leave Git identity unchanged and wrongly run the old command. RED reproduced that
+execution; binding the project config now blocks it before launch. A second RED
+reproduced an untracked imported module changing without Git status changing. New
+execution bindings now measure untracked source bytes as well as tracked diff;
+prepared execution and later bundle lookup detect this drift. Private/aliased
+untracked paths are rejected before their bytes are read. Plan/report path
+collision also failed RED and is now refused. Ignored scratch files remain a
+passing counterexample, so incidental notes do not invalidate the result.
+
+Final source workflow/viewer/execution checks passed 70 tests in 114.465 seconds;
+the extended preparation test plus docs/cutover passed 13 in 8.663 seconds.
+Package/update/catalog/self-containment/resource checks passed 41 tests; subsequent
+resource drift, distribution validation and formatting checks passed. All mapped
+runtime copies and references were regenerated. Native guarded installation of
+0.1.28 completed in the authorized isolated home. The actual installed prepare,
+viewer and capture passed the retained scenario: preparation executed no check,
+invalid registration/paths and changed command/dependency/untracked source were
+refused without producing a native result, then a fresh plan ran the real child
+and observed sum 5 and readback `ok`. Ignored-note lookup stayed PASS; subsequent
+untracked-source mutation made it non-PASS without rerunning the child. Evidence:
+`.work/plugin-transition/preparation-installed-v028/trial.json` and its retained
+fixture, native report and captures. Earlier 0.1.26/0.1.27 trials are development
+iterations, not the final acceptance scope.
+
+This removes deterministic adapter authoring for the supported preparation path;
+a new authenticated Agent comparison has not measured model-token savings yet.
+Connected config/criteria/map/UI refs still obey the executor's command-directory
+containment rule. A command in a subdirectory whose references live above it is
+currently refused, not silently stripped of bindings. Supporting that common
+full-stack layout remains open. Protected acceptance and whole U1-U7 completion
+remain unresolved. Feature: `verification-results`.
+
 ## Authenticated native repair, lookup and resume, 2026-10-05
 
 Login, fixture trust, read-only hook trust and the isolated unelevated sandbox

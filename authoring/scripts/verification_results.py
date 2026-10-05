@@ -14,6 +14,7 @@ import hashlib
 import json
 import math
 import os
+import runpy
 import shutil
 import subprocess
 import sys
@@ -788,10 +789,15 @@ def _git_snapshot(cwd: Path) -> dict[str, str]:
     def git(*tokens: str) -> bytes:
         return subprocess.check_output(["git", "-C", str(cwd), *tokens], stderr=subprocess.DEVNULL)
 
+    root = Path(git('rev-parse', '--show-toplevel').decode().strip())
+    names = git('ls-files', '--others', '--exclude-standard', '--full-name', '-z').decode('utf-8').split('\0')
+    untracked = {name: _path_hash(_safe_path(name, root=root, label='untracked source'), 'untracked source')
+                 for name in sorted(names) if name}
     return {
         "revision": git("rev-parse", "HEAD").decode().strip(),
         "diff": _sha256(git("diff", "HEAD", "--binary")),
         "status": git("status", "--porcelain").decode("utf-8", errors="replace"),
+        "untracked": _sha256(json.dumps(untracked, sort_keys=True).encode('utf-8')),
     }
 
 
@@ -957,6 +963,7 @@ def _execution_conditions(check: dict[str, Any], cwd: Path) -> dict[str, Any]:
     source = conditions["source"]
     source["revision"] = snapshot["revision"]
     source["diff"] = snapshot["diff"]
+    source['untracked'] = snapshot['untracked']
     if "status" in source:
         source["status"] = snapshot["status"]
     conditions["runtime"].update(_runtime_identity(check))
@@ -1030,6 +1037,8 @@ def _preflight_execution(
                 raise ViewerInputError(f"checks[{index}] pre-run source.{key} does not match current checkout")
         if "status" in expected["source"] and expected["source"]["status"] != measured["source"]["status"]:
             raise ViewerInputError(f"checks[{index}] pre-run source.status does not match current checkout")
+        if 'untracked' in expected['source'] and expected['source']['untracked'] != measured['source']['untracked']:
+            raise ViewerInputError(f'checks[{index}] pre-run untracked source bytes changed')
         for name in ("dependency", "fixture"):
             expected_hashes = expected[name].get("file_hashes")
             if expected_hashes is not None and expected_hashes != measured[name].get("file_hashes"):
@@ -1669,11 +1678,75 @@ def view_results(
     }
 
 
+def prepare_plan(root: Path, spec_path: Path, output: Path) -> dict[str, Any]:
+    """Bind project-selected assertions to registered commands; never execute them."""
+    root = _safe_cwd(Path(root).absolute(), 'project')
+    spec_file = _safe_path(str(spec_path), root=root, label='spec', allow_absolute=True)
+    output = _safe_path(str(output), root=root, label='output', allow_absolute=True)
+    if output.exists():
+        raise ViewerInputError('Prepared plan output already exists')
+    ignored = subprocess.run(['git', '-C', str(root), 'check-ignore', '-q', '--', str(output)], capture_output=True)
+    if ignored.returncode:
+        raise ViewerInputError('Prepared plan output must be Git-ignored to preserve the measured source')
+    spec, _ = _read_json(spec_file)
+    if not isinstance(spec, dict) or spec.get('schema_version') != 1 or not isinstance(spec.get('checks'), list) or not spec['checks']:
+        raise ViewerInputError('Preparation requires schema_version 1 and explicit checks')
+    workflow = runpy.run_path(str(Path(__file__).with_name('project_workflow.py')))
+    project, _ = _read_json(_safe_path('.harness/project.yaml', root=root, label='project'))
+    config = workflow['configuration'](project)
+    if config is None:
+        raise ViewerInputError('Preparation requires configured workflow features')
+    features = {feature['id']: feature for feature in config['features']}
+    commands = dict(project.get('commands', {}))
+    commands.update(project.get('impact', {}).get('feature_selectors', {}))
+    checks = []
+    for item in spec['checks']:
+        allowed = {'id', 'feature_id', 'expected', 'required', 'selection', 'raw_observations', 'dependency', 'fixture'}
+        if not isinstance(item, dict) or set(item) != allowed:
+            raise ViewerInputError('Preparation checks require only semantic selection, raw assertions, dependency and fixture inputs')
+        feature = features.get(item['feature_id'])
+        if feature is None or item['id'] not in feature['checks'] or item['id'] not in commands:
+            raise ViewerInputError('Preparation check is not registered to the selected Feature')
+        descriptor = commands[item['id']]
+        command = descriptor if isinstance(descriptor, dict) else {'argv': descriptor}
+        cwd = _safe_cwd(_safe_path(command.get('working_directory', '.'), root=root, label='command'), 'command')
+        criterion_files = {name: _path_hash(_safe_path(name, root=root, label='criteria'), 'criteria')
+                           for name in feature['criteria']}
+        revision = workflow['digest'](criterion_files)
+        check = copy.deepcopy({key: value for key, value in item.items() if key not in {'dependency', 'fixture'}})
+        check['criteria_revision'] = revision
+        check['conditions'] = {'source': _git_snapshot(cwd), 'criteria': {'revision': revision},
+                               'command': {'argv': command.get('argv'), 'cwd': str(cwd)},
+                               'dependency': copy.deepcopy(item['dependency']), 'fixture': copy.deepcopy(item['fixture']),
+                               'runtime': {}}
+        for group in ('dependency', 'fixture'):
+            if not isinstance(check['conditions'][group], dict) or not check['conditions'][group]:
+                raise ViewerInputError(f'Preparation requires explicit {group} conditions')
+        fixtures = check['conditions']['fixture']
+        refs = _file_refs(fixtures, 'fixture')
+        refs += [os.path.relpath(root / name, cwd) for name in
+                 dict.fromkeys(['.harness/project.yaml'] + feature['criteria'] + feature['map'] + feature.get('ui', []))]
+        fixtures.pop('files', None)
+        fixtures['file_refs'] = list(dict.fromkeys(refs))
+        check['conditions'] = _execution_conditions(check, cwd)
+        checks.append(check)
+    plan = {'schema_version': 1, 'checks': checks}
+    _plan_checks(plan, allow_unbound=True)
+    prepared = _preflight_execution(plan, checks, output.parent)
+    if any(item['report_path'] == output for item in prepared.values()):
+        raise ViewerInputError('Prepared plan output must differ from native report paths')
+    _write_json(output, plan)
+    return {'status': 'PREPARED', 'plan': str(output), 'checks': len(checks), 'test_commands_executed': 0}
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--plan", type=Path)
     source.add_argument("--bundle", type=Path, help="Revalidate a retained execution bundle without running checks")
+    source.add_argument('--prepare', type=Path, help='Prepare a plan from project-selected native assertions without executing checks')
+    parser.add_argument('--root', type=Path, help='Configured project for --prepare')
+    parser.add_argument('--plan-output', type=Path, help='New Git-ignored plan path for --prepare')
     parser.add_argument("--record", dest="records", action="append", default=[])
     parser.add_argument("--assessment", dest="assessments", action="append", default=[])
     parser.add_argument("--observation", dest="observations", action="append", default=[])
@@ -1689,6 +1762,17 @@ def _parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    if args.prepare:
+        if not args.root or not args.plan_output or args.execute or args.resume or args.records or args.assessments or args.observations or args.current_context:
+            _parser().error('--prepare requires --root and --plan-output, without execution or lookup inputs')
+        try:
+            result = prepare_plan(args.root, args.prepare, args.plan_output)
+        except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
+            result = {'status': 'BLOCKED', 'reason': str(error), 'test_commands_executed': 0}
+        print(json.dumps(result, ensure_ascii=False, indent=2 if args.pretty else None))
+        return 0 if result['status'] == 'PREPARED' else 2
+    if args.root or args.plan_output:
+        _parser().error('--root and --plan-output require --prepare')
     if args.resume and not args.execute:
         _parser().error('--resume requires --execute')
     if args.bundle:

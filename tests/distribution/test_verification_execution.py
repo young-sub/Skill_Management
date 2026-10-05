@@ -21,6 +21,81 @@ def _digest(data: bytes) -> str:
 
 
 class VerificationExecutionTests(unittest.TestCase):
+    def test_prepare_registered_plan_without_running_and_reject_stale_inputs(self):
+        import runpy
+        api = runpy.run_path(str(VIEWER))
+        original = json.loads(self._plan().read_text())['checks'][0]
+        (self.project / '.harness').mkdir()
+        (self.project / '.gitignore').write_text('result.json\n.work/\n__pycache__/\n')
+        (self.project / 'offset.py').write_text('value = 0\n')
+        child = self.project / 'check.py'
+        child.write_text(child.read_text().replace("fixture['a'] + fixture['b']", "fixture['a'] + fixture['b'] + __import__('offset').value"))
+        config = {'commands': {'arithmetic-readback': original['conditions']['command']['argv']},
+                  'extensions': {'workflow': {'roots': ['check.py'], 'features': [{
+                      'id': 'fixture-product', 'partition': 'domain', 'sources': ['check.py'],
+                      'map': ['fixture.json'], 'criteria': ['fixture.json'], 'checks': ['arithmetic-readback']}]}}}
+        (self.project / '.harness/project.yaml').write_text(json.dumps(config))
+        spec = {'schema_version': 1, 'checks': [{key: original[key] for key in
+                ('id', 'feature_id', 'expected', 'required', 'selection', 'raw_observations')}]}
+        spec['checks'][0]['dependency'] = {'file_refs': ['dependency.txt']}
+        spec['checks'][0]['fixture'] = {'file_refs': ['fixture.json']}
+        source = self.project / '.work/spec.json'
+        source.parent.mkdir()
+        source.write_text(json.dumps(spec))
+        output = self.project / '.work/plan.json'
+        result = api['prepare_plan'](self.project, source, output)
+        self.assertEqual(result['test_commands_executed'], 0)
+        self.assertFalse((self.project / 'result.json').exists())
+        plan = json.loads(output.read_text())
+        self.assertEqual(plan['checks'][0]['conditions']['command'], original['conditions']['command'])
+        self.assertEqual(plan['checks'][0]['raw_observations'], original['raw_observations'])
+        with self.assertRaises(ValueError):
+            api['prepare_plan'](self.project, source, output)
+        for field, value in [('id', 'unregistered'), ('conditions', {'command': {'argv': ['wrong']}}),
+                             ('raw_observations', [{'path': '../outside.json', 'pointer': '',
+                                                   'assertions': [{'pointer': '/x', 'equals': True}]}]),
+                             ('raw_observations', [{'path': '.work/refused.json', 'pointer': '',
+                                                   'assertions': [{'pointer': '/x', 'equals': True}]}])]:
+            invalid = json.loads(json.dumps(spec))
+            invalid['checks'][0][field] = value
+            source.write_text(json.dumps(invalid))
+            with self.assertRaises(ValueError):
+                api['prepare_plan'](self.project, source, self.project / '.work/refused.json')
+            self.assertFalse((self.project / '.work/refused.json').exists())
+            self.assertFalse((self.project / 'result.json').exists())
+        source.write_text(json.dumps(spec))
+        original_config = (self.project / '.harness/project.yaml').read_bytes()
+        config['commands']['arithmetic-readback'] = [sys.executable, '-c', 'raise SystemExit(99)']
+        (self.project / '.harness/project.yaml').write_text(json.dumps(config))
+        changed_command = api['execute_plan'](output, run_check_path=RUN_CHECK,
+                                               evidence_dir=self.root / 'changed-command')
+        self.assertEqual(changed_command['status'], 'BLOCKED', changed_command)
+        self.assertFalse((self.project / 'result.json').exists())
+        (self.project / '.harness/project.yaml').write_bytes(original_config)
+        (self.project / 'offset.py').write_text('value = 1\n')
+        changed_source = api['execute_plan'](output, run_check_path=RUN_CHECK,
+                                             evidence_dir=self.root / 'changed-source')
+        self.assertEqual(changed_source['status'], 'BLOCKED', changed_source)
+        self.assertFalse((self.project / 'result.json').exists())
+        (self.project / 'offset.py').write_text('value = 0\n')
+        (self.project / 'dependency.txt').write_text('changed')
+        blocked = api['execute_plan'](output, run_check_path=RUN_CHECK, evidence_dir=self.evidence)
+        self.assertEqual(blocked['status'], 'BLOCKED')
+        self.assertFalse((self.project / 'result.json').exists())
+        current = self.project / '.work/current.json'
+        prepared = subprocess.run([sys.executable, str(VIEWER), '--prepare', str(source),
+                                   '--root', str(self.project), '--plan-output', str(current)],
+                                  capture_output=True, text=True)
+        self.assertEqual(prepared.returncode, 0, prepared.stderr + prepared.stdout)
+        observed = api['execute_plan'](current, run_check_path=RUN_CHECK, evidence_dir=self.root / 'current-evidence')
+        self.assertEqual(observed['status'], 'PASS', observed)
+        self.assertEqual(json.loads((self.project / 'result.json').read_text())['checks'][0]['sum'], 5)
+        (self.project / '.work/unrelated-note.txt').write_text('scratch work is not source')
+        bundle = observed['execution']['bundle_path']
+        self.assertEqual(api['view_bundle'](bundle)['status'], 'PASS')
+        (self.project / 'offset.py').write_text('value = 2\n')
+        self.assertNotEqual(api['view_bundle'](bundle)['status'], 'PASS')
+
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
