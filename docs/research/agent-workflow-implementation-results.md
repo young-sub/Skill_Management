@@ -4,6 +4,30 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Native guarded-update process interruption, 2026-10-06
+
+U7 now has a real process-interruption observation between native commands. A new
+credential-free, isolated home installed the existing 0.1.31 local package. The
+current guard snapshotted its 246 files, used native remove/add to bind 0.1.32, and
+was terminated with `os._exit(73)` immediately after successful native marketplace
+registration, before plugin installation. The prior cache remained byte-identical,
+the candidate cache was absent, and the completed marker was absent. The process
+exit released its OS lock. A fresh guard process with the same candidate and a new
+backup installed 0.1.32 successfully; exact repeat returned UNCHANGED and created
+no new backup. Recovery exported the interrupted run's snapshot byte-for-byte.
+The unrelated home note and approval setting remained unchanged. The resumed
+installed viewer then remeasured the real price-maintenance bundle and returned
+current PASS through read-only lookup, without a model or test execution.
+
+Commands, exits, crash boundary, before hashes, native stdout/stderr, snapshots,
+recovery and actual runtime output are retained under
+`.work/plugin-transition/update-crash-v032/` (`trial.json`, `resumed-runtime.json`).
+The process completed normally after all assertions; no ordinary installation,
+credential copy, UI trial home or original Labeler was changed. This tests guard
+termination between native operations, not a crash inside the native installer's
+file copy or partial-cache repair. Protected acceptance and the pending native UI
+trial remain separate. Feature: `plugin-package`.
+
 ## Invalid Harness configuration does not invent drift, 2026-10-06
 
 The authenticated maintenance task sent a standalone workflow configuration to
@@ -1043,7 +1067,7 @@ Installation reuses an already exact cohort without rewriting it. A replacement 
 | U4 | Fresh collaboration context read installed diagnose/workflow resources, traced save and quote to the same faulty float converter, repaired that owner with Decimal in fixture commit `d2f1181`, and preserved the original requirement/check. RED observed `1.15 -> 114` and invalid overwrite; GREEN observed 115, valid zero/12.30 and unchanged saved bytes on rejection. Installed v3 bundle moved the actual feedback obligation from PARTIAL to READY_FOR_REVIEW. Authenticated 0.1.25 diagnosis repaired the same shared owner; a subsequent user-shaped maintenance complaint resolved default-command and binding gaps with 41 native cases and zero remaining local obligations. | Controlled repairs with an explicit follow-up needed in the native trial, not longitudinal prevention effectiveness. The environment checks registered prevention connections and changed evidence; semantic cause/coverage remains review work. |
 | U5 | A fresh Agent created a small inventory UI without an existing standard, shared CSS/guide and actual desktop/mobile/browser state checks. Loading/error/retry, zero stock, search/filter and restock interaction were exercised. Main inspected screenshots and removed duplicated token values from the guide. A separate fresh-context follow-up reuses these standards for the related request screen. | UI review and its explicit intervention are distinct from numeric/browser assertions. Whole-product accessibility and authenticated host behavior are not established. Follow-up evidence is recorded below. |
 | U6 | Product feedback/map connection and Harness cohort drift were repaired. Read-only/non-Harness counterexamples remain covered. A controlled duplicate check list was reduced from two to one invocation per normal/float-defect state, preserving identical raw observations and exits. Removing the unique negative-write assertion produced a demonstrated false green and was rejected. Scanner false positive was fixed without removing real docstring checks. Authenticated native maintenance also repaired the fixture runner and connected its real execution. The subsequent 0.1.30 maintenance task consolidated ten duplicate calls; independently replayed normal/six-defect comparisons preserved detection and old raw, with current installed lookup and workflow binding. | The duplicate experiment is a scoped fixture comparison, not evidence of general suite speed/cost improvement. No useful product test was deleted. |
-| U7 | Real cached local Skills CLI installed/refreshed 19 Skill trees for temporary Codex/Claude targets; full tree comparison passed. Fresh v3 installed Harness CLI ran seven end-to-end cases successfully. Exact-repeat/no-op, user-byte preservation, rollback and failed-restore retention have executable regression coverage. Task records and bundle lookup support restart without replaying completed commands. The 0.1.25 updater persistently rebinds the native local marketplace and preserves unrelated config; authenticated TUI repair, lookup and native session resume now have actual tool/context evidence. | Remote update is unverified/unsupported for the local source. Full install-crash recovery and autonomous whole-system acceptance remain incomplete. A native repair needed follow-up for runner/evidence integration; protected acceptance stays BLOCKED. Outer-sandbox taskkill failed while the focused process-control-authorized check passed. General installations and operational environments were not changed. |
+| U7 | Real cached local Skills CLI installed/refreshed 19 Skill trees for temporary Codex/Claude targets; full tree comparison passed. Fresh v3 installed Harness CLI ran seven end-to-end cases successfully. Exact-repeat/no-op, user-byte preservation, rollback and failed-restore retention have executable regression coverage. Task records and bundle lookup support restart without replaying completed commands. The 0.1.25 updater persistently rebinds the native local marketplace and preserves unrelated config; authenticated TUI repair, lookup and native session resume now have actual tool/context evidence. | Remote update is unverified/unsupported for the local source. Actual guard termination between native registration and installation now resumes with byte-preserved recovery; interruption inside native file copy, partial-cache repair and autonomous whole-system acceptance remain unverified. A native repair needed follow-up for runner/evidence integration; protected acceptance stays BLOCKED. Outer-sandbox taskkill failed while the focused process-control-authorized check passed. General installations and operational environments were not changed. |
 
 ### Retained observations and limits
 

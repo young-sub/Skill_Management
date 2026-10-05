@@ -175,5 +175,13 @@ An isolated native 0.1.21 to exported 0.1.16 to 0.1.21 round trip additionally
 confirmed active version discovery, real child-command verification through the
 restored viewer, byte-exact snapshots and a duplicate UNCHANGED result. It does
 not establish restoration of hook trust, credentials or an interrupted model task.
+A separate native 0.1.31 to 0.1.32 trial terminated the guard process immediately
+after the native marketplace registration completed, before plugin installation.
+The OS lock was released on process exit; rerunning with the same candidate and a
+new backup installed successfully, then returned UNCHANGED on repeat. Both the
+old 246-file snapshot and unrelated home settings/files survived; export recovery
+matched that snapshot and the resumed installed viewer read real retained evidence.
+This establishes restart between native commands, not interruption inside a native
+file-copy operation or repair of a partially corrupted cache.
 Full CI runs these tests with the existing
 distribution suite and builds the package after resource checks.
