@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: 96442b043b40d4c0ce34c2a427cd70e31d944b6d43fe6174a93a5f74659e04bf
+# Source-SHA256: 71d606aac1c381ba1634ba7b91426adb60c87ce256480720d2c038a499b67e53
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -153,10 +153,10 @@ def work_record(root, work_id):
 def inspect_project(root, project, state=None):
     root = root.resolve()
     config = configuration(project)
-    result = {'status': 'NOT_CONFIGURED', 'enforcement': 'BLOCKED',
+    result = {'status': 'NOT_CONFIGURED', 'mapping_status': 'NOT_CONFIGURED', 'enforcement': 'BLOCKED',
               'trust': 'editable local consistency; host-protected acceptance unavailable',
               'obligations': [], 'features': [], 'partitions': {}, 'unmapped': [],
-              'unlinked': [], 'findings': [], 'retired': []}
+              'unlinked': [], 'findings': [], 'product_findings': [], 'retired': []}
     if config is None:
         return result
     if state is not None and not isinstance(state, dict):
@@ -180,6 +180,7 @@ def inspect_project(root, project, state=None):
             if old.get(name) is not None and files.get(name) is None and not any(
                     fnmatchcase(name, pattern) for f in config['features'] for pattern in f['sources']):
                 result['findings'].append(f'baseline_source_ownership_unavailable:{name}')
+    mapping_pending = bool(result['findings'])
     for feature in config['features']:
         identity = feature['id']
         sources = {name: value for name, value in files.items()
@@ -202,6 +203,10 @@ def inspect_project(root, project, state=None):
         review = state.get('reviews', {}).get(identity, {})
         # A recorded analysis is a semantic-review input, never a success flag.
         reviewed = current_review(root, review, basis)
+        product_findings = review.get('product_findings', []) if isinstance(review, dict) else []
+        if isinstance(product_findings, list):
+            result['product_findings'].extend({'feature': identity, 'finding': finding}
+                for finding in product_findings if isinstance(finding, str) and finding.strip())
         # Preserve ownership across staged deletion and source-map reassignment.
         patterns = feature['sources'] + state.get('source_patterns', {}).get(identity, [])
         affected = sorted(name for name in changed
@@ -218,6 +223,10 @@ def inspect_project(root, project, state=None):
                 findings.append(f'missing_ui_standard:{identity}')
         if feature.get('ui') or ui_requested:
             requires.append('ui_review')
+        mapping_ready = reviewed and not findings
+        mapping_pending = mapping_pending or not mapping_ready
+        if product_findings:
+            requires.append('product_resolution')
         needs_behavior = any(requirement in requires for requirement in ('verification', 'repair', 'regression'))
         behavior = None
         if needs_behavior and reviewed and review.get('bundle'):
@@ -226,13 +235,13 @@ def inspect_project(root, project, state=None):
                 findings.extend(behavior['findings'])
         if state.get('intent') == 'feedback' and identity in state.get('targets', []) and state.get('input_bases', {}).get(identity) == basis:
             findings.append(f'repair_not_observed:{identity}')
-        pending = not reviewed or findings or (needs_behavior and (not behavior or behavior['status'] != 'PASS'))
+        pending = not reviewed or findings or product_findings or (needs_behavior and (not behavior or behavior['status'] != 'PASS'))
         if pending:
             result['obligations'].append({'id': f'feature:{identity}:{basis}', 'target': identity,
                 'basis': basis, 'reason': 'initial_or_changed_inputs', 'changed': affected,
                 'requires': requires, 'references': sorted(refs)})
         result['features'].append({'id': identity, 'basis': basis, 'partition': feature['partition'],
-                                   'reviewed': reviewed, 'source_count': len(sources)})
+                                   'reviewed': reviewed, 'mapping_ready': bool(mapping_ready), 'source_count': len(sources)})
         partition = feature['partition']
         prior = result['partitions'].get(partition, 'READY_FOR_REVIEW')
         result['partitions'][partition] = 'PARTIAL' if pending else prior
@@ -247,10 +256,12 @@ def inspect_project(root, project, state=None):
         result['retired'].append({'id': name, 'basis': basis})
         review = state.get('retired_reviews', {}).get(name, {})
         if not current_review(root, review, basis):
+            mapping_pending = True
             result['findings'].append(f'removed_feature_needs_reconciliation:{name}')
             result['obligations'].append({'id': f'removed:{name}:{basis}', 'target': name,
                 'basis': basis, 'reason': 'removed_feature', 'changed': [],
                 'requires': ['removal_review'], 'references': sorted({p for f in config['features'] for p in f['map']})})
+    result['mapping_status'] = 'PARTIAL' if mapping_pending or result['unmapped'] else 'READY_FOR_REVIEW'
     result['status'] = 'PARTIAL' if result['obligations'] or result['unmapped'] or result['findings'] else 'READY_FOR_REVIEW'
     return result
 
@@ -334,6 +345,10 @@ def validate_review(root, review):
         raise ValueError('review_must_be_object')
     if not isinstance(review.get('analysis'), str) or not review['analysis'].strip():
         raise ValueError('review_analysis_required')
+    product_findings = review.get('product_findings', [])
+    if not isinstance(product_findings, list) or any(
+            not isinstance(finding, str) or not finding.strip() for finding in product_findings):
+        raise ValueError('review_product_findings_must_be_nonempty_strings')
     if (not isinstance(review.get('findings'), list) or not isinstance(review.get('references'), list)
             or not review['references']):
         raise ValueError('review_findings_and_references_required')

@@ -46,6 +46,18 @@ Feedback and UI intents require at least one explicit `--target`; an omitted tar
 
 `READY_FOR_REVIEW` means mapping links and submitted analysis are current, not product PASS or independently established semantic completeness. Initial map completion does not require all automatic checks. Behavior changes and feedback still require actual verification. Harness maintenance invokes this computation when configured; close refuses unresolved obligations even if the optional CLI was skipped. Nonconfigured projects retain their existing workflow.
 
+`mapping_status` reports map readiness separately from the overall task `status`.
+Missing owners/references/commands, stale or incomplete semantic reviews and
+unreconciled retirements keep mapping PARTIAL. A complete map may explicitly
+describe unverified product quality or incomplete data: record these as optional
+`product_findings` (nonempty strings) in the review. They remain visible in audit,
+including on stale reviews, and keep overall task completion PARTIAL; they do not
+require product repair merely to establish mapping readiness. Existing `findings`
+still block mapping and are never automatically reclassified. The Agent must
+justify any reclassification against the actual requirements and mapped sources.
+Native verification failures or missing execution remain task obligations even
+when `mapping_status` is READY_FOR_REVIEW. Neither readiness field is product PASS.
+
 New records retain each Feature's initial source patterns as well as file hashes,
 so narrowing a source map after deletion does not erase its original consumer.
 For older records without those patterns, deletion still matches current owners.

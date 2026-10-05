@@ -79,6 +79,33 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertIn('verification', result['obligations'][0]['requires'])
         self.assertEqual(result['partitions']['operator'], 'READY_FOR_REVIEW')
 
+    def test_map_readiness_is_separate_from_retained_product_gaps(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'init')
+        for feature in ('api', 'cli'):
+            state = self.review(runtime, state, feature)
+        review = dict(state['reviews']['api'], product_findings=['Representative output quality is unverified.'])
+        state = runtime.record_review(self.root, self.project, state, review)
+        result = runtime.inspect_project(self.root, self.project, state)
+        self.assertEqual(result.get('mapping_status'), 'READY_FOR_REVIEW', result)
+        self.assertEqual(result['status'], 'PARTIAL', 'Product gap must remain visible to close')
+        self.assertEqual(result['product_findings'], [
+            {'feature': 'api', 'finding': 'Representative output quality is unverified.'}])
+        # A source repair can complete the map review without discharging execution.
+        self.write('src/api.py', 'price = 11\n')
+        state = self.review(runtime, state, 'api')
+        result = runtime.inspect_project(self.root, self.project, state)
+        self.assertEqual(result['mapping_status'], 'READY_FOR_REVIEW')
+        self.assertEqual(result['status'], 'PARTIAL')
+        self.assertIn('verification', result['obligations'][0]['requires'])
+        # Legacy findings continue to block mapping; no automatic reclassification.
+        state['reviews']['api']['findings'] = ['An entrypoint is not mapped.']
+        self.assertEqual(runtime.inspect_project(self.root, self.project, state)['mapping_status'], 'PARTIAL')
+        for malformed in ('hidden', [None], ['']):
+            with self.assertRaisesRegex(ValueError, 'product_findings'):
+                runtime.record_review(self.root, self.project, state,
+                    dict(state['reviews']['api'], product_findings=malformed))
+
     def test_new_deleted_duplicate_and_stale_review_cannot_disappear(self):
         runtime = self.runtime()
         state = runtime.begin(self.root, self.project, 'init')

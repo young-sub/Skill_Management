@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: 929f3c470ca8abbd2d09dda8439050029ceb6bf2f1486a5387e2c2e682a128c7 -->
+<!-- Source-SHA256: 6e1793a9e02c3bbc161d6bbccb509ac06c1050ddecdf17af01fa9b6bf0c0f68d -->
 
 # Project workflow obligations
 
@@ -49,6 +49,18 @@ natural-language request lifecycle. Projects without this extension stay direct.
 Feedback and UI intents require at least one explicit `--target`; an omitted target cannot silently turn either into a map-only request. UI targets need a connected standard and actual verification. Source edits during initial mapping also require verification. Deletions, including staged deletions absent from the current Git inventory, are matched against Feature source patterns using the retained baseline; a new semantic review alone cannot discharge their verification. Removed features remain explicit `removal_review` obligations, including before their first review. Reconcile their reported basis through the same review command, explaining retirement or reassignment and referencing the updated map; deleting a configuration row does not erase the obligation.
 
 `READY_FOR_REVIEW` means mapping links and submitted analysis are current, not product PASS or independently established semantic completeness. Initial map completion does not require all automatic checks. Behavior changes and feedback still require actual verification. Harness maintenance invokes this computation when configured; close refuses unresolved obligations even if the optional CLI was skipped. Nonconfigured projects retain their existing workflow.
+
+`mapping_status` reports map readiness separately from the overall task `status`.
+Missing owners/references/commands, stale or incomplete semantic reviews and
+unreconciled retirements keep mapping PARTIAL. A complete map may explicitly
+describe unverified product quality or incomplete data: record these as optional
+`product_findings` (nonempty strings) in the review. They remain visible in audit,
+including on stale reviews, and keep overall task completion PARTIAL; they do not
+require product repair merely to establish mapping readiness. Existing `findings`
+still block mapping and are never automatically reclassified. The Agent must
+justify any reclassification against the actual requirements and mapped sources.
+Native verification failures or missing execution remain task obligations even
+when `mapping_status` is READY_FOR_REVIEW. Neither readiness field is product PASS.
 
 New records retain each Feature's initial source patterns as well as file hashes,
 so narrowing a source map after deletion does not erase its original consumer.

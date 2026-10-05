@@ -4,6 +4,44 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Mapping readiness and product gaps, 2026-10-05
+
+The workflow now reports `mapping_status` independently from overall task
+`status`. Review authors can explicitly separate `product_findings` from map
+`findings`: known language-quality or data-completeness gaps stay visible without
+being mistaken for missing feature mapping. Legacy findings remain blocking;
+there is no automatic relabeling. Missing owners/references/commands, stale
+reviews and unreconciled removals still block map readiness. Product findings
+and missing/failed native execution continue to block overall task completion,
+even when the map is ready. Neither readiness field is a product PASS.
+
+RED reproduced the absent distinction and silent omission of a product finding;
+the new regression verifies retained gaps, unchanged verification requirements
+after a source edit, legacy map findings and malformed product-finding rejection.
+Package 0.1.7 was guardedly installed into isolated host-002. The installed setup
+CLI audited a copy of the retained Labeler review state at
+`.work/agent-workflow-foundation-20261005/labeler/.work/u1-map-status-v017-02`.
+The two product gaps were reclassified with their original text preserved after
+reviewing the requirement links and snapshot references from fixture commit
+`38296e5`. The repository-runtime mapping review was refreshed against its
+two-row map-only diff. Actual CLI output was mapping READY_FOR_REVIEW, task
+PARTIAL, two retained product findings, and a still-pending runtime verification
+obligation. Prior evidence hashes were unchanged; no product tests or provider
+calls were launched. This establishes local map-state separation for the retained
+survey, not an independent proof of full semantic completeness or product quality.
+
+Validation: Full `python -m unittest discover -s tests -p "test_*.py"` passed
+293 tests in 256.485 seconds. Documentation tests (3), resource drift check,
+distribution validation and diff formatting also passed.
+
+The first installed audit failed because the elevated install process ran Git
+as YS against a CodexSandboxOffline-owned fixture. Direct stderr established
+Git's dubious-ownership rejection. Running audit under the original sandbox
+account succeeded; no global safe.directory exception or permission change was
+made. Failed output remains in `.work/u1-map-status-v017`. The broad fixture
+repository-runtime source mapping still selects verification for a map-only
+documentation edit; reducing that false positive remains separate work.
+
 ## Automatic configured-work obligations, 2026-10-05
 
 Harness `start` now captures the configured workflow baseline in its existing
