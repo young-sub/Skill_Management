@@ -47,6 +47,9 @@ class PluginPackageTests(unittest.TestCase):
             inventory = json.loads((package / 'package-files.json').read_text())
             self.assertNotIn('user-note.txt', inventory['files'])
             self.assertFalse(any('.work' in p or '.env' in p for p in inventory['files']))
+            updater = subprocess.run([sys.executable, str(package / 'scripts/update_plugin.py'),
+                                      '--help'], cwd=root, capture_output=True)
+            self.assertEqual(updater.returncode, 0, updater.stderr)
 
 
 if __name__ == '__main__':

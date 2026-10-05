@@ -1,14 +1,14 @@
 # Agentic Coding plugin
 
 The local plugin packages the public catalog from the existing canonical/generated
-Skill distribution, plus `scripts/run_check.py`. It does not copy a project's
+Skill distribution, plus native capture and guarded-update scripts. It does not copy a project's
 Feature Map, business criteria, UI tokens, credentials, or repository state.
 The package identity and version are owned by `distribution/plugin.json`.
 
 ## Build
 
 ```powershell
-python scripts/build_plugin.py --output .work/plugins/agentic-coding-0.1.2
+python scripts/build_plugin.py --output .work/plugins/agentic-coding-0.1.4
 ```
 
 The builder first runs the existing generated-resource check. It selects tracked
@@ -60,20 +60,56 @@ installed cache path and plugin ID. The isolated home establishes installation
 and discovery without credentials; it does not inherit an authenticated model
 session. Current measured outcomes are in the [implementation results](research/agent-workflow-implementation-results.md).
 
-The isolated 0.1.0 to 0.1.1 update showed that the host deletes its old plugin cache,
-including local changes there. Treat the cache as replaceable output. A native
-`plugin add` update is not a user-change-preserving installer; guarded backup and
-recovery remain required before this transition can claim that acceptance scope.
+## Guarded local update and file recovery
+
+The isolated 0.1.0 to 0.1.1 update showed that the native host deletes its old plugin
+cache, including local changes. Use the distributed `scripts/update_plugin.py`
+for subsequent local updates. Run it from the new package or repository, outside
+the cache being replaced, and stop other plugin installers first:
+
+```powershell
+python scripts/update_plugin.py update --home <explicit-task-home> --marketplace <local-marketplace> --backup <new-backup-directory>
+python scripts/update_plugin.py recover --backup <backup-directory> --output <new-recovery-directory>
+```
+
+The marketplace must contain one local `plugins/agentic-coding` entry. The guard
+checks both packages, refuses changed/missing/extra installed files before native
+installation, and binds the native command to that inspected local marketplace.
+Interpreter bytecode beside a packaged Python source is permitted and preserved.
+It retains and verifies every previous plugin file before invoking `codex plugin
+add`, then checks its returned identity/path and installed bytes against the candidate. An identical installed
+version returns UNCHANGED without another native call; different bytes under the
+same version require a new version. Backups contain no whole-home, config or auth
+copy. Aliased and private paths are refused. Concurrent guard calls use an OS lock;
+direct native installers and concurrent editors do not participate in that lock.
+Concurrent external cache changes remain unsupported; this guard cannot prevent
+the host from deleting files written by another process during its native update.
+
+If the native operation fails or the wrapper is interrupted after snapshot
+creation, the backup remains. `recover` verifies it and exports the previous
+version directories into a new destination without overwriting active or user
+files. It does not automatically roll back the installed version or replay an
+interrupted native command. If copying a backup/export itself is interrupted,
+retain it and retry using a new destination; no completed snapshot is claimed.
+Active-host rollback and authenticated Agent task resumption remain U7 work.
+Inventory hashes detect ordinary drift, not maliciously rewritten inventories.
 
 ## Verification
 
 ```powershell
-python -m unittest tests.distribution.test_plugin_package
+python -m unittest tests.distribution.test_plugin_package tests.distribution.test_plugin_update
 ```
 
 This builds outside the checkout, runs the packaged capture CLI against a real
 foreground command, starts the packaged workflow/result CLI entrypoints, checks
 catalog parity, and proves that a second build preserves existing user files by
 refusing overwrite. It does not prove model selection, task completion, hook
-enforcement, or live provider behavior. Full CI runs this test with the existing
+enforcement, or live provider behavior. Guard tests also cover changed/extra files,
+destructive native failure, backup corruption, concurrency and byte-for-byte
+recovery. The destructive command stand-in is fault injection, not native-host
+crash evidence. Separate isolated native 0.1.2 to 0.1.3 and final 0.1.3 to 0.1.4
+trials confirmed guarded update, user-note refusal before invocation, native
+identity/path matching, duplicate no-op and recovery export. Path-overlap and
+real Windows junction rejection are also exercised by the unit suite.
+Full CI runs these tests with the existing
 distribution suite and builds the package after resource checks.
