@@ -4,6 +4,55 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Authenticated maintenance and shared plan contract, 2026-10-06
+
+A fresh native session used installed 0.1.30 `maintain-project-verification` for a
+request to consolidate duplicate checks while retaining unique defect detection,
+update verification connections and preserve prior raw. It removed one duplicate
+negative save and nine repeated invalid quote calls, retained existing/missing save
+and catalog cases, and updated the map, guide, registered output and evidence binding.
+The product implementation and requirements stayed byte-identical. It caught and
+repaired its own stale-count KeyError; the failed capture remains retained. Normal
+native execution then reported 49 rows/zero skips (previously 41 because quote
+observations were combined with save rows). Row counts are not the savings metric.
+Main-agent runtime tracing measured save calls 35 -> 34, quote 25 -> 16, catalog 15 -> 15.
+An independent reviewer ran the exact saved before/after checks against normal input
+and six fixed defects: precision loss, invalid-save writes, partial catalog writes,
+lost unmentioned records, changed zero behavior and empty-update writes. Both
+versions passed normally and detected all six, with matching affected raw facts.
+All 11 historical report/bundle files matched the prior manifest. The candidate
+retains rejection/preservation assertions but combines those diagnostic flags in
+per-case `passed`; this does not prove exhaustive defect coverage.
+
+The native session ended normally. Its corrected request took 11 command executions;
+an earlier controller encoding error required resending the same request in English
+and caused one extra read. Hook payloads were 549 characters per turn. The first
+outer-sandbox launch failed account routing before the task; the authorized outer
+execution worked with the child still using workspace-write/unelevated isolation.
+The TUI reported 44,482 tokens plus 364,672 cached input tokens. These observations
+are not an A/B cost comparison. The Harness audit also returned schema/impact/index
+findings for this workflow-only fixture; those are not proof that full Harness setup
+is required. Protected acceptance remains BLOCKED.
+
+The trial exposed a distribution gap: setup/maintenance shipped the viewer but not
+its detailed contract. The shared verification reference now routes all three
+entrypoints to the existing preparation CLI and locally bundled contract, replacing
+the coordinator-only paragraph. The existing containment scanner first reported
+both missing contract files; adding the canonical resource targets resolved them.
+Source/catalog/self-containment/package/resource checks passed 37 tests. Guarded
+native installation of 0.1.31 retained 19 Skills and added the two contract copies.
+Its installed lookup revalidated the real maintenance bundle as PASS without a new
+test; independent workflow audit had zero obligations and READY_FOR_REVIEW, with
+protected enforcement still BLOCKED. No new Agent task on 0.1.31 establishes reduced
+metadata-authoring effort: the 0.1.30 task reused the old project preparation helper.
+
+Evidence: `.work/plugin-transition/maintenance-native-v030/` holds request/before/after,
+`observed.json`, `call-count/results.json`, `independent/{baseline-v030,after-v030}`,
+`raw-preservation.json`, installed lookup and independent workflow audit. Native
+thread: `01a10c9b-dea9-7ef1-9a0f-b77aa9b4a48b`. This advances U6/U7 bounded acceptance;
+whole U1-U7 completion, UI/all-feature acceptance and protected host acceptance remain
+incomplete. Features: `workflow-distribution`, `verification-results`.
+
 ## Shared repository inputs for subdirectory checks, 2026-10-06
 
 Feature: `verification-results`. A backend command previously failed preparation
@@ -965,7 +1014,7 @@ Installation reuses an already exact cohort without rewriting it. A replacement 
 | U3 | Actual child runs produce current native facts, captures and bundles; zero/skip/missing/stale/changed-criterion cases reject reuse. Fresh installed v3 executed the price save/read/quote check once and then queried the bundle with zero test executions and 12 retained files unchanged. The authenticated 0.1.25 trial later queried without re-execution, resumed with zero commands and 14 files unchanged, then captured/bound the registered 41-case command after feedback. | External runtime attestation and independently authenticated semantic criteria are unavailable. Only explicitly selected facts are covered. |
 | U4 | Fresh collaboration context read installed diagnose/workflow resources, traced save and quote to the same faulty float converter, repaired that owner with Decimal in fixture commit `d2f1181`, and preserved the original requirement/check. RED observed `1.15 -> 114` and invalid overwrite; GREEN observed 115, valid zero/12.30 and unchanged saved bytes on rejection. Installed v3 bundle moved the actual feedback obligation from PARTIAL to READY_FOR_REVIEW. Authenticated 0.1.25 diagnosis repaired the same shared owner; a subsequent user-shaped maintenance complaint resolved default-command and binding gaps with 41 native cases and zero remaining local obligations. | Controlled repairs with an explicit follow-up needed in the native trial, not longitudinal prevention effectiveness. The environment checks registered prevention connections and changed evidence; semantic cause/coverage remains review work. |
 | U5 | A fresh Agent created a small inventory UI without an existing standard, shared CSS/guide and actual desktop/mobile/browser state checks. Loading/error/retry, zero stock, search/filter and restock interaction were exercised. Main inspected screenshots and removed duplicated token values from the guide. A separate fresh-context follow-up reuses these standards for the related request screen. | UI review and its explicit intervention are distinct from numeric/browser assertions. Whole-product accessibility and authenticated host behavior are not established. Follow-up evidence is recorded below. |
-| U6 | Product feedback/map connection and Harness cohort drift were repaired. Read-only/non-Harness counterexamples remain covered. A controlled duplicate check list was reduced from two to one invocation per normal/float-defect state, preserving identical raw observations and exits. Removing the unique negative-write assertion produced a demonstrated false green and was rejected. Scanner false positive was fixed without removing real docstring checks. Authenticated native maintenance also repaired the fixture runner, retained existing assertions and connected its real execution through the installed runtime. | The duplicate experiment is a scoped fixture comparison, not evidence of general suite speed/cost improvement. No useful product test was deleted. |
+| U6 | Product feedback/map connection and Harness cohort drift were repaired. Read-only/non-Harness counterexamples remain covered. A controlled duplicate check list was reduced from two to one invocation per normal/float-defect state, preserving identical raw observations and exits. Removing the unique negative-write assertion produced a demonstrated false green and was rejected. Scanner false positive was fixed without removing real docstring checks. Authenticated native maintenance also repaired the fixture runner and connected its real execution. The subsequent 0.1.30 maintenance task consolidated ten duplicate calls; independently replayed normal/six-defect comparisons preserved detection and old raw, with current installed lookup and workflow binding. | The duplicate experiment is a scoped fixture comparison, not evidence of general suite speed/cost improvement. No useful product test was deleted. |
 | U7 | Real cached local Skills CLI installed/refreshed 19 Skill trees for temporary Codex/Claude targets; full tree comparison passed. Fresh v3 installed Harness CLI ran seven end-to-end cases successfully. Exact-repeat/no-op, user-byte preservation, rollback and failed-restore retention have executable regression coverage. Task records and bundle lookup support restart without replaying completed commands. The 0.1.25 updater persistently rebinds the native local marketplace and preserves unrelated config; authenticated TUI repair, lookup and native session resume now have actual tool/context evidence. | Remote update is unverified/unsupported for the local source. Full install-crash recovery and autonomous whole-system acceptance remain incomplete. A native repair needed follow-up for runner/evidence integration; protected acceptance stays BLOCKED. Outer-sandbox taskkill failed while the focused process-control-authorized check passed. General installations and operational environments were not changed. |
 
 ### Retained observations and limits

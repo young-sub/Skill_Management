@@ -6,7 +6,7 @@
     {"source": "references/workflow-obligations.md", "targets": ["agent-workflow/references/workflow-obligations.md", "setup-project-verification/references/workflow-obligations.md", "maintain-project-verification/references/workflow-obligations.md"]},
     {"source": "skills/agent-workflow/SKILL.md", "targets": ["agent-workflow/SKILL.md"]},
     {"source": "scripts/verification_results.py", "targets": ["agent-workflow/scripts/verification_results.py", "setup-project-verification/scripts/verification_results.py", "maintain-project-verification/scripts/verification_results.py", "close-goal/scripts/verification_results.py", "maintain-agent-harness/scripts/verification_results.py", "execute-codex-goal/scripts/verification_results.py"]},
-    {"source": "references/result-viewer.md", "targets": ["agent-workflow/references/result-viewer.md"]},
+    {"source": "references/result-viewer.md", "targets": ["agent-workflow/references/result-viewer.md", "setup-project-verification/references/result-viewer.md", "maintain-project-verification/references/result-viewer.md"]},
     {"source": "skills/setup-project-verification/SKILL.md", "targets": ["setup-project-verification/SKILL.md"]},
     {"source": "skills/maintain-project-verification/SKILL.md", "targets": ["maintain-project-verification/SKILL.md"]},
     {"source": "references/project-verification.md", "targets": ["agent-workflow/references/project-verification.md", "setup-project-verification/references/project-verification.md", "maintain-project-verification/references/project-verification.md"]},

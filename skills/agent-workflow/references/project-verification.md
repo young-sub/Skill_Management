@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/project-verification.md -->
-<!-- Source-SHA256: 5d4070368bf6113e37c7f08c35a29035236532c4b4ccc00e56828de63168b727 -->
+<!-- Source-SHA256: edea47102d7868ce82c6eddf6fb90082e32129653b774337a1b4bb5a113ea4bb -->
 
 # Project verification responsibilities
 
@@ -23,6 +23,8 @@ Trace actual callers and data: external input → parsing/validation → typed d
 ## One plan, one raw execution
 
 Before running, select Feature/check, expected result, criterion revision, required/excluded status and reason. Bind each actual run to command/cwd, source commit/diff, dependencies, fixture and served runtime identity. Preserve native exit/case/skip/error and raw assertion/observation location. A DB observation also needs its producing command, target, run and observed identifiers; matching values alone do not establish provenance.
+
+For registered native JSON checks, the bundled viewer can prepare measured command/source/criteria/runtime bindings with `--prepare <assertions.json> --root <project> --plan-output <new-ignored-path>`. Supply the semantic selection, raw assertions and explicit dependency/fixture inputs; reuse this code path instead of authoring metadata collectors. Preparation runs no tests. See the [input, execution and reuse contract](result-viewer.md) for the exact specification and execution/lookup commands.
 
 Reuse project adapters and direct CLI/CI. `run_check.py` captures a finite foreground process and an optional **new** native JSON report; never launch a detached service through it. Preserve native exit through shell wrappers. A unittest parser cannot interpret Vitest/browser reports. Do not fabricate runner-looking success output. Use project-owned native interpretation and retain any uncertainty.
 
