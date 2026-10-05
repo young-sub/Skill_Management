@@ -4,6 +4,49 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Installed Agent resume acceptance, 2026-10-05
+
+After implementation commit `5b2cf55`, a fresh collaboration Agent received a
+user-shaped request to finish interrupted price verification without repeating
+completed checks or losing evidence. The independent fixture at
+`.work/plugin-transition/resume-agent-v020` points to the actual native-installed
+0.1.20 resources in `host-005`. No Skill name, resume flag, solution patch or
+follow-up hint was supplied in the request. Existing project testing instructions
+identify the original command and evidence locations. The Agent independently
+selected the installed viewer's `--execute --plan ... --evidence-dir ... --resume`
+path and completed the remaining persisted-price readback.
+
+The controller had interrupted execution immediately after the first committed
+checkpoint: 19 business cases were complete, while readback had not started.
+Independent inspection found the command ledger exactly `rules`, `readback`,
+each once; persisted price was 1230 cents, with one assertion and none skipped.
+Of 19 initial files, only the append-only command ledger changed. Product,
+criteria, plan, raw captures and initial checkpoints retained their bytes, and
+fixture Git HEAD remained `1d5af482f55df8aa88afff7201b1c89d3655970d`, clean.
+The parent then invoked the installed viewer against the canonical bundle:
+exit 0, both required checks PASS, zero test commands, all 29 files unchanged.
+Native run IDs are `2de24625-62fc-4d61-b3f4-89cc7c3a1ea0` and
+`febee700-7fdf-484e-b415-7d252537dc4f`. Before/after hashes, request, actual argv,
+captures and independent lookup are linked by
+`.work/plugin-transition/resume-agent-control-v020/trial.json`.
+
+This establishes bounded installed Agent resume behavior with zero interventions
+after delegation. The interruption was controlled injection, not an OS crash;
+the Agent was a fresh collaboration Agent, not an authenticated isolated native
+CLI session. It does not establish protected completion acceptance or whole
+U1-U7 completion. Feature impact is acceptance evidence for `verification-results`;
+no runtime, generated resource or Feature Map contract changed in this follow-up.
+
+Environment status was refreshed after old handles 71160, 88633 and 11677 returned
+terminal exit 1 and installer PID 46292 was absent. Those earlier operations
+remain unsuccessful. With that state change, the previously excluded
+`test_symlink_file_reference_and_native_report_are_blocked_before_child` passed
+normally (1 test, 0.799 seconds), and `tests.distribution.test_plugin_package`
+passed normally (1 test, 5.836 seconds). This closes these specific outstanding
+checks, including normal package fixture cleanup; it neither identifies the
+earlier Windows stall's root cause nor retroactively turns interrupted suites
+into passes. Hook trust, isolated login and protected acceptance remain separate.
+
 ## Interrupted verification resume, 2026-10-05
 
 A read-only review confirmed a U3/U7 implementation gap: the viewer wrote the
