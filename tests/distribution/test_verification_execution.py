@@ -21,6 +21,82 @@ def _digest(data: bytes) -> str:
 
 
 class VerificationExecutionTests(unittest.TestCase):
+    def test_shared_feature_command_runs_once_and_keeps_independent_assertions(self, second_sum=5):
+        import copy
+        child = self.project / 'check.py'
+        child.write_text(child.read_text() + "\nwith open('calls.txt','a') as stream: stream.write('run\\n')\n")
+        (self.project / '.gitignore').write_text('result.json\ncalls.txt\n')
+        plan_path = self._plan()
+        plan = json.loads(plan_path.read_text())
+        other = copy.deepcopy(plan['checks'][0])
+        other['feature_id'] = 'second-feature'
+        other['raw_observations'][0]['assertions'][0]['equals'] = second_sum
+        plan['checks'].append(other)
+        plan_path.write_text(json.dumps(plan))
+        process, result = self._execute(plan_path)
+        self.assertEqual(result['status'], 'PASS' if second_sum == 5 else 'ISSUES', result)
+        self.assertEqual(result['test_commands_executed'], 1)
+        self.assertEqual((self.project / 'calls.txt').read_text(), 'run\n')
+        self.assertEqual([item['current_status'] for item in result['items']],
+                         ['PASS', 'PASS' if second_sum == 5 else 'ISSUES'])
+        self.assertEqual(len(result['execution']['bundle']['records']), 1)
+        record = json.loads(Path(result['execution']['bundle']['records'][0]).read_text())
+        self.assertEqual(record['shared_features'], ['fixture-product', 'second-feature'])
+        checkpoint = json.loads((self.evidence / 'checkpoint-0-bundle.json').read_text())
+        self.assertEqual(checkpoint['completed_indices'], [0, 1])
+        _, resumed = self._execute(plan_path, resume=True)
+        self.assertEqual(resumed['test_commands_executed'], 0)
+        self.assertEqual((self.project / 'calls.txt').read_text(), 'run\n')
+
+    def test_shared_feature_assertion_failure_does_not_inherit_other_pass(self):
+        self.test_shared_feature_command_runs_once_and_keeps_independent_assertions(second_sum=6)
+
+    def test_shared_producer_rejects_different_conditions_before_launch(self):
+        import copy
+        path = self._plan()
+        plan = json.loads(path.read_text())
+        other = copy.deepcopy(plan['checks'][0])
+        other['feature_id'] = 'second-feature'
+        other['conditions']['runtime']['id'] = 'different-runtime'
+        plan['checks'].append(other)
+        path.write_text(json.dumps(plan))
+        _, result = self._execute(path)
+        self.assertEqual(result['status'], 'BLOCKED')
+        self.assertEqual(result['test_commands_executed'], 0)
+        self.assertFalse((self.project / 'result.json').exists())
+
+    def test_shared_producer_checkpoint_resumes_atomically(self, before_checkpoint=False):
+        import copy
+        api = self._viewer_module()
+        child = self.project / 'check.py'
+        child.write_text(child.read_text() + "\nwith open('calls.txt','a') as stream: stream.write('run\\n')\n")
+        (self.project / '.gitignore').write_text('result.json\ncalls.txt\n')
+        path = self._plan()
+        plan = json.loads(path.read_text())
+        other = copy.deepcopy(plan['checks'][0])
+        other['feature_id'] = 'second-feature'
+        plan['checks'].append(other)
+        path.write_text(json.dumps(plan))
+        save = api._save_execution_bundle
+
+        def interrupt(*args, **kwargs):
+            if before_checkpoint or args[1] == '':
+                raise RuntimeError('controlled controller interruption')
+            return save(*args, **kwargs)
+
+        with patch.object(api, '_save_execution_bundle', side_effect=interrupt):
+            with self.assertRaisesRegex(RuntimeError, 'controlled controller'):
+                api.execute_plan(path, run_check_path=RUN_CHECK, evidence_dir=self.evidence)
+        _, resumed = self._execute(path, resume=True)
+        self.assertEqual(resumed['status'], 'BLOCKED' if before_checkpoint else 'PASS', resumed)
+        self.assertEqual(resumed['test_commands_executed'], 0)
+        self.assertEqual((self.project / 'calls.txt').read_text(), 'run\n')
+        if not before_checkpoint:
+            self.assertEqual(api.view_bundle(self.evidence / 'bundle.json')['status'], 'PASS')
+
+    def test_shared_producer_unknown_launch_is_not_replayed(self):
+        self.test_shared_producer_checkpoint_resumes_atomically(before_checkpoint=True)
+
     def test_prepare_subdirectory_command_binds_shared_repository_inputs(self):
         import runpy
         api = runpy.run_path(str(VIEWER))

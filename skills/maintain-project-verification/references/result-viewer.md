@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/result-viewer.md -->
-<!-- Source-SHA256: 94783b99997aa3a054c700800f0dca3eaaf8a12bf922c88c2ec50d08c5fa1e59 -->
+<!-- Source-SHA256: c4642c66af1a9b8c2842fa63ab61311b7542d22e21a2cc551d4f161fa7cff811 -->
 
 # Existing-result lookup
 
@@ -83,6 +83,19 @@ python <agent-workflow>/scripts/verification_results.py --execute \
 Before starting any child, the executor validates the selected check's exact `conditions.command.argv` and absolute `cwd`, current `conditions.source.revision`/`diff`, and each native `raw_observations` descriptor. A selected check must provide one new report path and explicit `equals`, `min_count`, or `min` assertions. Report paths and evidence captures cannot be reused. Excluded and `not_required` checks are not run.
 
 `conditions.dependency.file_refs` and `conditions.fixture.file_refs` may list project files (the `files` key is accepted as an alias). The executor measures their SHA-256 values before preflight and immediately before every child; a prior child changing a later check's inputs prevents that child from starting. It also records the selected command's resolved executable, executable SHA-256, and wrapper Python version when the executable is the wrapper itself; the same runtime identity is remeasured before each child and during bundle lookup. File references must be relative, non-private, and free of symlink/junction components. `file_refs` stay inside the command directory; `repository_file_refs` use the independently observed Git root and cannot escape it. Both are hashed before execution and during lookup; `.git` metadata references are refused. Source identity includes untracked files across that repository, including siblings of the command directory. Native report paths must be new, non-private, non-aliased, and inside either the command project or the evidence directory. A changed or missing file makes reuse stale or unknown. The source plan is never rewritten; generated `bound-plan.json`, captures, assessments, `current-context.json`, and a persisted `bundle.json` are written under the supplied evidence directory.
+
+Selected Feature/check pairs may share one native report only when their check
+ID and complete measured execution conditions are identical (including command,
+cwd, source, criteria, dependencies, fixture and runtime). The executor uses the
+capture tool's existing `--also-feature` consumers, runs that producer once, and
+assesses each Feature's own expected values independently. A failure for one
+consumer never inherits another consumer's PASS. Different conditions sharing a
+report are refused before launch. Different report paths are separate executions.
+
+A shared producer publishes one checkpoint containing all consumer assessments.
+An interrupted launch without that checkpoint remains unknown and is not replayed;
+a completed group resumes without running its command again. This is local
+condition/evidence reuse, not protected result authority.
 
 Each selected command is passed unchanged to the existing `run_check.py` with an explicit `--json-report` path. The executor reads the resulting capture and native report, creates the producer/assessment binding from the run ID and assertion observations, and then calls the same viewer. It derives `PASS` only when the native process exits successfully and every plan assertion matches. It does not infer a verdict from a report's `PASS` string, stdout, timestamps, zero counts, or a submitted result field. Missing reports, zero/skip assertion failures, wrong target/run bindings, stale conditions, and nonzero/timeout captures remain non-PASS. A mutation of the original plan during a child also invalidates the execution result. The JSON response includes an `execution.bundle` descriptor and `execution.bundle_path` for the persisted descriptor; `view_bundle(bundle_path)` or `view_bundle(descriptor)` remeasures source and declared file references, verifies the original-plan hash, and joins the same viewer without executing or writing. Passing that descriptor back to the ordinary lookup path remains read-only.
 

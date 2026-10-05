@@ -414,13 +414,22 @@ def _validate_raw_producers(
     return findings
 
 
+def _capture_has_feature(record: dict[str, Any], feature: str) -> bool:
+    consumers = record.get('shared_features', [record.get('feature')])
+    return (isinstance(consumers, list) and all(_text(value) for value in consumers)
+            and record.get('feature') in consumers and feature in consumers)
+
+
 def _find_entry(
-    entries: list[dict[str, Any]], feature: str, check: str, run_id: str | None
+    entries: list[dict[str, Any]], feature: str, check: str, run_id: str | None,
+    *, shared_capture: bool = False,
 ) -> dict[str, Any] | None:
     matches = [
         entry
         for entry in entries
-        if entry["data"].get("feature") == feature and entry["data"].get("check") == check
+        if (entry["data"].get("feature") == feature or
+            shared_capture and _capture_has_feature(entry['data'], feature))
+        and entry["data"].get("check") == check
     ]
     if run_id is not None:
         matches = [entry for entry in matches if entry["data"].get("run_id") == run_id]
@@ -428,7 +437,7 @@ def _find_entry(
 
 
 def _has_target(entries: list[dict[str, Any]], feature: str, check: str) -> bool:
-    return any(entry["data"].get("feature") == feature and entry["data"].get("check") == check for entry in entries)
+    return any(_capture_has_feature(entry['data'], feature) and entry['data'].get('check') == check for entry in entries)
 
 
 def _entry_data(entry: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -530,7 +539,7 @@ def _item_result(
     selected, selection_reason = _selection(check)
     required = check["required"]
     requested_run = _text(check.get("run_id"))
-    record_entry = _find_entry(records, feature, check_id, requested_run)
+    record_entry = _find_entry(records, feature, check_id, requested_run, shared_capture=True)
     record = _entry_data(record_entry)
     run_id = _text(record.get("run_id")) if record else requested_run
     plan_descriptors = _raw_descriptors(check, plan_path)
@@ -591,7 +600,7 @@ def _item_result(
             reasons.append('capture_invalid_completion')
         if not record.get('before') or record.get('before') != record.get('after'):
             reasons.append('capture_source_changed_during_run')
-        if record.get("feature") != feature:
+        if not _capture_has_feature(record, feature):
             reasons.append("capture_feature_mismatch")
         if record.get("check") != check_id:
             reasons.append("capture_check_mismatch")
@@ -989,7 +998,7 @@ def _execution_conditions(check: dict[str, Any], cwd: Path) -> dict[str, Any]:
 
 
 def _validate_execution_check(
-    check: dict[str, Any], index: int, evidence_dir: Path
+    check: dict[str, Any], index: int, evidence_dir: Path, *, completed: bool = False,
 ) -> tuple[Path, dict[str, Any], Path]:
     if _text(check.get("run_id")):
         raise ViewerInputError(f"checks[{index}] execution plan already has a run binding")
@@ -1027,7 +1036,7 @@ def _validate_execution_check(
         allow_absolute=True,
         extra_root=evidence_dir,
     )
-    if _is_alias(report_path) or report_path.exists():
+    if _is_alias(report_path) or report_path.exists() and not completed:
         raise ViewerInputError(f"checks[{index}] native report path already exists: {report_path}")
     return cwd, descriptor, report_path
 
@@ -1037,12 +1046,13 @@ def _preflight_execution(
     completed: set[int] | None = None,
 ) -> dict[int, dict[str, Any]]:
     preconditions: dict[int, dict[str, Any]] = {}
-    report_paths: set[Path] = set()
+    report_paths: dict[Path, int] = {}
     for index, check in enumerate(checks):
         selected, _ = _selection(check)
-        if not selected or index in (completed or set()):
+        if not selected:
             continue
-        cwd, descriptor, report_path = _validate_execution_check(check, index, evidence_dir)
+        cwd, descriptor, report_path = _validate_execution_check(
+            check, index, evidence_dir, completed=index in (completed or set()))
         measured = _execution_conditions(check, cwd)
         expected = check["conditions"]
         for key in ("revision", "diff"):
@@ -1057,9 +1067,19 @@ def _preflight_execution(
             if expected_hashes is not None and expected_hashes != measured[name].get("file_hashes"):
                 raise ViewerInputError(f"checks[{index}] pre-run {name}.file_hashes are stale")
         if report_path in report_paths:
-            raise ViewerInputError(f"checks[{index}] native report path is reused: {report_path}")
-        report_paths.add(report_path)
-        preconditions[index] = {"cwd": cwd, "conditions": measured, "report_path": report_path}
+            leader = report_paths[report_path]
+            if checks[leader]['id'] != check['id'] or preconditions[leader]['conditions'] != measured:
+                raise ViewerInputError(f"checks[{index}] shared native report has different check or execution conditions")
+            preconditions[leader]['members'].append(index)
+        else:
+            leader = index
+            report_paths[report_path] = index
+        preconditions[index] = {'cwd': cwd, 'conditions': measured, 'report_path': report_path,
+                                'leader': leader, 'members': [index]}
+    for info in preconditions.values():
+        members = set(preconditions[info['leader']]['members'])
+        if members & (completed or set()) and not members <= (completed or set()):
+            raise ViewerInputError('shared producer checkpoint is incomplete; replay refused')
     if not preconditions and not completed:
         raise ViewerInputError("execution requires at least one selected check")
     return preconditions
@@ -1456,9 +1476,11 @@ def execute_plan(
         if not selected:
             bound_plan["checks"][index].pop("raw_observations", None)
             continue
-        if index in completed:
+        if index in completed or preconditions[index]['leader'] != index:
             continue
         info = preconditions[index]
+        members = info['members']
+        leader_index = index
         try:
             if _path_hash(plan_file, "source plan") != plan_sha256:
                 plan_mutated = True
@@ -1498,8 +1520,6 @@ def execute_plan(
         slug = f"{index}-{check['feature_id']}-{check['id']}".replace("/", "_").replace("\\", "_")
         capture_path = output_dir / f"{slug}-capture.json"
         report_path = info["report_path"]
-        bound_plan["checks"][index]['raw_observations'] = copy.deepcopy(check['raw_observations'])
-        bound_plan["checks"][index]["run_id"] = None
         command = [
             sys.executable,
             str(run_check),
@@ -1511,6 +1531,8 @@ def execute_plan(
             str(check["feature_id"]),
             "--check",
             str(check["id"]),
+            *[token for member in members[1:]
+              for token in ('--also-feature', checks[member]['feature_id'])],
             "--json-report",
             str(report_path),
             "--timeout",
@@ -1519,7 +1541,7 @@ def execute_plan(
             *check["conditions"]["command"]["argv"],
         ]
         _write_json(output_dir / f'command-{index}-started.json', {
-            'source_plan_sha256': plan_sha256, 'check_index': index, 'argv': command})
+            'source_plan_sha256': plan_sha256, 'check_index': index, 'consumer_indices': members, 'argv': command})
         attempted += 1
         process = subprocess.run(command, capture_output=True, text=True, check=False)
         try:
@@ -1549,78 +1571,83 @@ def execute_plan(
         record_raw = capture_path.read_bytes()
         record_hash = _sha256(record_raw)
         records.append(capture_path)
-        run_id = record.get("run_id")
-        if isinstance(run_id, str) and run_id:
-            bound_plan["checks"][index]["run_id"] = run_id
-        else:
-            bound_plan["checks"][index].pop("run_id", None)
-        descriptor = bound_plan["checks"][index]["raw_observations"][0]
-        descriptor["path"] = str(report_path)
-        descriptor["producer"] = {
-            "run_id": run_id,
-            "capture_path": str(capture_path),
-            "capture_sha256": record_hash,
-            "argv": record.get("argv"),
-            "json_report_path": str(report_path),
-        }
-        report_ok = False
-        report_hash = None
-        try:
-            _reject_alias_components(report_path, "native report")
-            report_ok = report_path.is_file() and not report_path.is_symlink()
-        except ViewerInputError:
-            report_ok = False
-        if report_ok:
-            try:
-                report_raw = report_path.read_bytes()
-                report_hash = _sha256(report_raw)
-                json.loads(report_raw)
-            except (OSError, ValueError, json.JSONDecodeError):
-                report_ok = False
-        if report_hash is not None:
-            descriptor["sha256"] = report_hash
-            descriptor["producer"]["json_report_sha256"] = report_hash
-        if report_ok:
-            assessment_path = output_dir / f"{slug}-assessment.json"
-            check_descriptor = {
-                **descriptor,
-                "origin": str(plan_file),
+        for index in members:
+            check = checks[index]
+            info = preconditions[index]
+            slug = f"{index}-{check['feature_id']}-{check['id']}".replace("/", "_").replace(chr(92), "_")
+            bound_plan['checks'][index]['raw_observations'] = copy.deepcopy(check['raw_observations'])
+            run_id = record.get("run_id")
+            if isinstance(run_id, str) and run_id:
+                bound_plan["checks"][index]["run_id"] = run_id
+            else:
+                bound_plan["checks"][index].pop("run_id", None)
+            descriptor = bound_plan["checks"][index]["raw_observations"][0]
+            descriptor["path"] = str(report_path)
+            descriptor["producer"] = {
+                "run_id": run_id,
+                "capture_path": str(capture_path),
+                "capture_sha256": record_hash,
+                "argv": record.get("argv"),
+                "json_report_path": str(report_path),
             }
-            raw, findings, _, _ = _validate_raw([check_descriptor], [report_path.parent, info["cwd"]])
-            matched = bool(raw) and not findings and all(
-                observation["matched"] for observation in raw[0]["observations"]
-            )
-            _write_json(
-                assessment_path,
-                {
-                    "status": "PASS" if matched and record.get("execution") == "exited" and record.get("exit_code") == 0 else "ISSUES",
-                    "feature": check["feature_id"],
-                    "check": check["id"],
-                    "run_id": run_id,
-                    "conditions": info["conditions"],
-                    "reason": "explicit native report assertions",
-                    "evidence": str(capture_path),
-                    "evidence_sha256": record_hash,
-                },
-            )
-            assessments.append(assessment_path)
-        else:
-            bound_plan["checks"][index].pop("raw_observations", None)
-        bound_plan["checks"][index]["conditions"] = info["conditions"]
-        try:
-            current_conditions = _execution_conditions(check, info["cwd"])
-        except (OSError, ValueError, TypeError, KeyError, subprocess.CalledProcessError) as error:
-            current_conditions = {name: {"status": "unavailable", "reason": str(error)} for name in CONDITION_GROUPS}
-        current_checks[f"{check['feature_id']}/{check['id']}"] = {"conditions": current_conditions}
-        artifacts.append({
-            "check": f"{check['feature_id']}/{check['id']}",
-            "capture": str(capture_path),
-            "report": str(report_path),
-            "assessment": str(assessments[-1]) if report_ok else None,
-            "run_check_exit": process.returncode,
-        })
-        completed.add(index)
-        _save_execution_bundle(output_dir, f'checkpoint-{index}-', bound_plan,
+            report_ok = False
+            report_hash = None
+            try:
+                _reject_alias_components(report_path, "native report")
+                report_ok = report_path.is_file() and not report_path.is_symlink()
+            except ViewerInputError:
+                report_ok = False
+            if report_ok:
+                try:
+                    report_raw = report_path.read_bytes()
+                    report_hash = _sha256(report_raw)
+                    json.loads(report_raw)
+                except (OSError, ValueError, json.JSONDecodeError):
+                    report_ok = False
+            if report_hash is not None:
+                descriptor["sha256"] = report_hash
+                descriptor["producer"]["json_report_sha256"] = report_hash
+            if report_ok:
+                assessment_path = output_dir / f"{slug}-assessment.json"
+                check_descriptor = {
+                    **descriptor,
+                    "origin": str(plan_file),
+                }
+                raw, findings, _, _ = _validate_raw([check_descriptor], [report_path.parent, info["cwd"]])
+                matched = bool(raw) and not findings and all(
+                    observation["matched"] for observation in raw[0]["observations"]
+                )
+                _write_json(
+                    assessment_path,
+                    {
+                        "status": "PASS" if matched and record.get("execution") == "exited" and record.get("exit_code") == 0 else "ISSUES",
+                        "feature": check["feature_id"],
+                        "check": check["id"],
+                        "run_id": run_id,
+                        "conditions": info["conditions"],
+                        "reason": "explicit native report assertions",
+                        "evidence": str(capture_path),
+                        "evidence_sha256": record_hash,
+                    },
+                )
+                assessments.append(assessment_path)
+            else:
+                bound_plan["checks"][index].pop("raw_observations", None)
+            bound_plan["checks"][index]["conditions"] = info["conditions"]
+            try:
+                current_conditions = _execution_conditions(check, info["cwd"])
+            except (OSError, ValueError, TypeError, KeyError, subprocess.CalledProcessError) as error:
+                current_conditions = {name: {"status": "unavailable", "reason": str(error)} for name in CONDITION_GROUPS}
+            current_checks[f"{check['feature_id']}/{check['id']}"] = {"conditions": current_conditions}
+            artifacts.append({
+                "check": f"{check['feature_id']}/{check['id']}",
+                "capture": str(capture_path),
+                "report": str(report_path),
+                "assessment": str(assessments[-1]) if report_ok else None,
+                "run_check_exit": process.returncode,
+            })
+            completed.add(index)
+        _save_execution_bundle(output_dir, f'checkpoint-{leader_index}-', bound_plan,
             current_checks, records, assessments, plan_file, plan_sha256, completed)
 
     bundle_descriptor = _save_execution_bundle(output_dir, '', bound_plan,

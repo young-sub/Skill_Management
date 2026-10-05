@@ -4,6 +4,107 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Shared execution for native report consumers, 2026-10-06
+
+The browser/UI trial exposed a remaining U3/U6 duplication: the generic executor
+rejected two selected Features pointing to the same native report, although the
+capture tool already supported explicit shared consumers. Version 0.1.33 reuses
+that capability. It runs one producer only when check ID, canonical report path
+and all measured conditions match, then assesses each Feature's own assertions.
+Different conditions are refused before launch. A shared group checkpoints all
+consumers together; resume reuses that checkpoint without replay. A launch with
+no completed checkpoint remains unknown and is not repeated.
+
+RED reproduced the rejected shared-report path. The affected viewer/execution
+modules passed 53 tests, including an independently failing consumer, mismatched
+conditions, checkpoint interruption and unknown launch. Package/catalog/resource/
+self-containment/documentation/cutover checks passed 33 tests. Independent review
+found no blocker and ran ten relevant regressions. Generated copies, distribution
+validation and formatting were checked. This changes deterministic CLI execution,
+not semantic selection, result authority or a new model-call workflow.
+
+The 246-file candidate was built and actually updated into the approved isolated
+host-006 native cache as 0.1.33, preserving a guarded backup of 0.1.31. Package,
+update receipt and backup are under `.work/plugin-transition/shared-v033/`.
+No ordinary installation, global settings or original Labeler was changed.
+The live UI producer/consumer results are recorded with the native UI trial below;
+unit tests and package installation alone do not establish that UI behavior.
+
+## Native UI standards and shared verification, 2026-10-06
+
+The user approved the nested UI repository trust and task-local sandbox/security
+work. Two fresh native sessions then completed ordinary UI requests using the
+actual installed 0.1.31 impeccable/workflow resources. The first created an
+inventory visual guide and shared CSS; the second read that guide and reused the
+shared implementation for a compact order review, quantity alignment, empty
+recovery and clear action. Requirements, sample data and the original browser
+oracle remained byte-identical. Both native sessions honestly reported Chrome
+`spawn EPERM`; their supplementary state checks are not native browser success.
+Their source snapshots and transcripts are retained under
+`.work/plugin-transition/ui-native-v031/` and the isolated host's session store.
+
+Main/controller interventions were explicit: inspect the first desktop/mobile
+screenshots, remove duplicated numeric style values from the guide, and extend
+the new local/order checks to emit their actual observed facts. The local check's
+unique successful-retry visibility assertion was retained. No product behavior
+or frozen browser assertion was changed by those adapter edits. The final fixture
+is locally committed as `247a293`; it uses local JSON/sessionStorage, with no BE or
+remote-service claim.
+
+Actual installed 0.1.33 `--prepare` selected five Feature/check pairs. Its default
+workspace-write controller execution ran three commands, with one shared browser
+run and one shared VM-state run serving both Features, plus one order review.
+Chrome actually ran at 1280 and 390 pixels: 16 original flow observations, two
+richer order viewport observations, and seven VM state observations. Captures
+contain three distinct run IDs and exit zero; separate consumer assertions all
+passed. Resume returned PASS with zero commands. Explicit semantic/visual reviews
+and the actual bundle discharged both local workflow obligations before commit.
+Main inspected inventory, error/retry, saved keyboard focus, empty recovery and
+long-name desktop/mobile screenshots; names and quantities did not overlap, and
+focus/recovery remained visible. This is bounded UI review, not whole-product
+accessibility or autonomous end-to-end native completion.
+
+The elevated execution request was rejected by automatic approval review because
+executing candidate-controlled checks as YS could collapse the verifier boundary.
+It was not retried or bypassed: the normal restricted controller was the working
+alternative. Its browser success does not retroactively change the two inner
+native sandbox failures. The evidence directory is named `ui-result.json` because
+`--output` aliases the CLI evidence-directory option; it contains the real bundle,
+three captures and per-consumer assessments. Evidence, resume and workflow audits
+are under `.work/plugin-transition/shared-v033/`. The fixture commit changes Git
+identity, so this retained bundle describes the verified pre-commit snapshot;
+no post-commit current-PASS or extra browser replay is claimed.
+
+Native sessions used nine and ten command-execution events. Their injected hook
+texts were 1,433 and 1,506 characters; reported token totals were 37,202 and 45,403
+with 301,824 and 404,096 cached input tokens respectively. Trust approval and
+controller/adapter/visual interventions are counted as limitations. There is no
+A/B speed, cost or fully autonomous quality claim. U5 now has actual installed
+native guide creation/reuse evidence, with browser completion supplied separately.
+
+## Protected storage counterexample, 2026-10-06
+
+Task-local ACL probes separated the default tool runner (`CodexSandboxOffline`)
+from the YS controller. The default runner could write its workspace marker but
+could neither overwrite nor delete restored policy/result files in the dedicated
+profile-level verifier directory; a Python child was also denied. Before/after
+hashes remained identical. A directory under a parent granting candidate deletion
+rights would not provide that protection, so the trial used a new dedicated
+profile child without changing global/account/firewall settings.
+
+This is still not a viable native-host acceptance boundary. A nested native
+sandbox launched from the elevated YS context retained the YS identity and actually
+deleted a protected policy file in an earlier probe. That failed probe is retained,
+the policy was restored, and the default-runner preservation test was repeated
+against existing bytes. File existence and hashes, not `del` exit zero, determine
+the result. Raw counterexample and corrected preservation evidence are retained
+under `.work/plugin-transition/shared-v033/`. Candidate-owned check output cannot
+be promoted to trusted evidence by putting its report in a protected directory.
+U2 remains BLOCKED for native candidate/verifier/result separation; `accept` has
+not been changed to accept an unsupported authority. Further work requires an
+actual native host identity/capability boundary, not another instruction to the
+Agent or a blanket full-access sandbox setting.
+
 ## Native guarded-update process interruption, 2026-10-06
 
 U7 now has a real process-interruption observation between native commands. A new
@@ -1067,7 +1168,7 @@ Installation reuses an already exact cohort without rewriting it. A replacement 
 | U2 | Same-authority child probe actually changed a task-local policy and wrote forged success; `accept` still refused protected acceptance. Configured local close rejects unresolved obligations and submitted success. Normal edits and native runs remain available. | Protected policy, verifier identity, result authority and bypass-resistant acceptance are BLOCKED. The earlier model-startup block is resolved in the approved isolated native trial; successful login/task execution does not supply protected result authority. No unsupported security promise is made. |
 | U3 | Actual child runs produce current native facts, captures and bundles; zero/skip/missing/stale/changed-criterion cases reject reuse. Fresh installed v3 executed the price save/read/quote check once and then queried the bundle with zero test executions and 12 retained files unchanged. The authenticated 0.1.25 trial later queried without re-execution, resumed with zero commands and 14 files unchanged, then captured/bound the registered 41-case command after feedback. | External runtime attestation and independently authenticated semantic criteria are unavailable. Only explicitly selected facts are covered. |
 | U4 | Fresh collaboration context read installed diagnose/workflow resources, traced save and quote to the same faulty float converter, repaired that owner with Decimal in fixture commit `d2f1181`, and preserved the original requirement/check. RED observed `1.15 -> 114` and invalid overwrite; GREEN observed 115, valid zero/12.30 and unchanged saved bytes on rejection. Installed v3 bundle moved the actual feedback obligation from PARTIAL to READY_FOR_REVIEW. Authenticated 0.1.25 diagnosis repaired the same shared owner; a subsequent user-shaped maintenance complaint resolved default-command and binding gaps with 41 native cases and zero remaining local obligations. | Controlled repairs with an explicit follow-up needed in the native trial, not longitudinal prevention effectiveness. The environment checks registered prevention connections and changed evidence; semantic cause/coverage remains review work. |
-| U5 | A fresh Agent created a small inventory UI without an existing standard, shared CSS/guide and actual desktop/mobile/browser state checks. Loading/error/retry, zero stock, search/filter and restock interaction were exercised. Main inspected screenshots and removed duplicated token values from the guide. A separate fresh-context follow-up reuses these standards for the related request screen. | UI review and its explicit intervention are distinct from numeric/browser assertions. Whole-product accessibility and authenticated host behavior are not established. Follow-up evidence is recorded below. |
+| U5 | A fresh Agent created a small inventory UI without an existing standard, shared CSS/guide and actual desktop/mobile/browser state checks. Loading/error/retry, zero stock, search/filter and restock interaction were exercised. Main inspected screenshots and removed duplicated token values from the guide. A separate fresh-context follow-up reuses these standards for the related request screen. | UI review and its explicit intervention are distinct from numeric/browser assertions. Two authenticated native sessions now establish guide creation and fresh-context reuse; both inner Chrome launches failed, while the default restricted controller completed the real browser checks. Whole-product accessibility and fully autonomous host completion are not established. Explicit interventions and follow-up evidence are recorded above and below. |
 | U6 | Product feedback/map connection and Harness cohort drift were repaired. Read-only/non-Harness counterexamples remain covered. A controlled duplicate check list was reduced from two to one invocation per normal/float-defect state, preserving identical raw observations and exits. Removing the unique negative-write assertion produced a demonstrated false green and was rejected. Scanner false positive was fixed without removing real docstring checks. Authenticated native maintenance also repaired the fixture runner and connected its real execution. The subsequent 0.1.30 maintenance task consolidated ten duplicate calls; independently replayed normal/six-defect comparisons preserved detection and old raw, with current installed lookup and workflow binding. | The duplicate experiment is a scoped fixture comparison, not evidence of general suite speed/cost improvement. No useful product test was deleted. |
 | U7 | Real cached local Skills CLI installed/refreshed 19 Skill trees for temporary Codex/Claude targets; full tree comparison passed. Fresh v3 installed Harness CLI ran seven end-to-end cases successfully. Exact-repeat/no-op, user-byte preservation, rollback and failed-restore retention have executable regression coverage. Task records and bundle lookup support restart without replaying completed commands. The 0.1.25 updater persistently rebinds the native local marketplace and preserves unrelated config; authenticated TUI repair, lookup and native session resume now have actual tool/context evidence. | Remote update is unverified/unsupported for the local source. Actual guard termination between native registration and installation now resumes with byte-preserved recovery; interruption inside native file copy, partial-cache repair and autonomous whole-system acceptance remain unverified. A native repair needed follow-up for runner/evidence integration; protected acceptance stays BLOCKED. Outer-sandbox taskkill failed while the focused process-control-authorized check passed. General installations and operational environments were not changed. |
 
