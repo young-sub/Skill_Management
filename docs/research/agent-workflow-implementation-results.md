@@ -4,6 +4,51 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Fixed protected-oracle trial and approved host setup, 2026-10-06
+
+The user subsequently approved administrator sandbox setup and related actions
+for this session. No repeated authorization was requested. The main tool context
+now runs as YS without its prior outer filesystem restriction; candidate code
+still runs through the native restricted workspace sandbox.
+
+The stronger native sandbox setup was attempted in the existing isolated
+host-006 home with a fixed `whoami /user` command. The first controller used a
+120-second timeout and terminated before UAC completion; that controller mistake
+was acknowledged. After both its native/consent processes were confirmed gone,
+a new retained process waited without that short deadline. Windows ultimately
+returned `orchestrator_helper_launch_canceled` / ShellExecuteExW error 1223.
+The second process and UAC process are now terminal. No successful dedicated-user
+setup or identity transition is claimed. The helper and raw outcome are retained
+at `.work/plugin-transition/elevated-authority/setup.py` and `setup-result.json`.
+This is now an OS setup-completion dependency, not missing user authorization.
+
+Independent of that account transition, the previously prepared fixed price
+oracle was actually exercised under the approved restricted-token trial. The
+trusted controller loaded its protected policy and frozen normal/defect snapshots;
+all candidate imports and execution occurred inside native `:workspace` sandbox
+children using isolated Python startup. The controller compared actual saved
+bytes and native exits with protected expectations, rather than executing or
+accepting the candidate's check script. It wrote a unique protected result bound
+to run ID, policy/verifier/driver hashes and snapshot hashes.
+
+The normal snapshot satisfied all five cases: 1.15 saved 115 cents, zero saved
+zero, 12.30 saved 1230, and negative/overprecision inputs raised errors while
+preserving the prior saved bytes. The deliberately faulty float snapshot saved
+114 for 1.15, overwrote the prior value with -100 for -1 and with zero for 0.001.
+Those three failures were rejected; its two valid neighboring cases still matched.
+The faulty app also actually wrote five local `{"status":"PASS"}` records; none
+changed the controller's rejected verdict. Its check script only printed PASS and
+was never used as the oracle.
+
+The protected result is `price-trial/result-8d6dd521-5407-4e85-81b8-f9a6fcd11773.json`
+under the existing dedicated profile-level trial root. Launch/raw/readback records
+are under `.work/plugin-transition/elevated-authority/`. This is a bounded real
+oracle experiment, not a distributed acceptance adapter, an adversarial race or
+process-cleanup proof, or evidence of the stronger dedicated-user boundary. The
+prototype is retained under temporary work policy. Public `accept` remains
+BLOCKED; plugin source/install remains 0.1.33. Whole-system completion still needs
+the verified host boundary and its actual protected acceptance integration.
+
 ## Native authority ACL refinement, 2026-10-06
 
 The isolated host configuration explicitly selects `windows.sandbox=unelevated`.
