@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 import runpy
 import subprocess
+import tempfile
 
 
 def digest(value):
@@ -264,21 +265,25 @@ def main(argv=None):
         if args.action in {'begin', 'review'}:
             if not state_path:
                 raise ValueError('state_required')
+            write_state = False
             if args.action == 'begin':
                 if state is None:
                     state = begin(root, project, args.intent, args.target)
                     state_path.parent.mkdir(parents=True, exist_ok=True)
-                    with state_path.open('x', encoding='utf-8') as output:
-                        json.dump(state, output, indent=2)
+                    write_state = True
                 elif state.get('intent') != args.intent or state.get('targets') != sorted(set(args.target)):
                     raise ValueError('resume_request_mismatch')
             else:
                 if state is None or args.review is None:
                     raise ValueError('existing_state_and_review_required')
                 state = record_review(root, project, state, json.loads(args.review.read_text(encoding='utf-8')))
-                temporary = state_path.with_suffix('.pending')
-                with temporary.open('x', encoding='utf-8') as output:
+                write_state = True
+            if write_state:
+                # An interrupted attempt must not block the next write or expose partial JSON.
+                with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=state_path.parent,
+                                                 prefix=state_path.name + '.', suffix='.pending', delete=False) as output:
                     json.dump(state, output, indent=2)
+                    temporary = Path(output.name)
                 temporary.replace(state_path)
         result = inspect_project(root, project, state)
         if args.action == 'accept':

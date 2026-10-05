@@ -238,6 +238,38 @@ class ProjectWorkflowTests(unittest.TestCase):
             'references': ['docs/map.md', 'docs/requirement.md'], 'findings': []})
         self.assertEqual(runtime.inspect_project(self.root, self.project, state)['status'], 'READY_FOR_REVIEW')
 
+    def test_process_exit_during_review_preserves_state_and_next_review_resumes(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'init')
+        project = self.write('.harness/project.yaml', json.dumps(self.project))
+        state_file = self.write('.work/state.json', json.dumps(state))
+        basis = runtime.inspect_project(self.root, self.project, state)['features'][0]['basis']
+        review = self.write('.work/review.json', json.dumps({'feature': 'api', 'basis': basis,
+            'analysis': 'Reviewed unchanged API and its criteria.', 'references': ['docs/map.md'], 'findings': []}))
+        args = ['review', '--root', str(self.root), '--state', '.work/state.json', '--review', str(review)]
+        child = self.write('.work/interrupt.py',
+            "import runpy,json,os,sys\n"
+            "runtime=runpy.run_path(sys.argv[1])\n"
+            "def interrupt(value, stream, **kwargs):\n"
+            " stream.write('{');stream.flush();os._exit(23)\n"
+            "json.dump=interrupt\n"
+            "runtime['main'](sys.argv[2:])\n")
+        before = state_file.read_bytes()
+        interrupted = subprocess.run([sys.executable, str(child), str(SCRIPT), *args], capture_output=True)
+        self.assertEqual(interrupted.returncode, 23, interrupted.stderr)
+        self.assertEqual(state_file.read_bytes(), before)
+        resumed = subprocess.run([sys.executable, str(SCRIPT), *args], capture_output=True, text=True)
+        outcome = json.loads(resumed.stdout)
+        self.assertIn('api', json.loads(state_file.read_text())['reviews'], outcome)
+        self.assertEqual(json.loads(state_file.read_text())['baseline'], state['baseline'])
+        begin_args = ['begin', '--root', str(self.root), '--state', '.work/new.json']
+        interrupted = subprocess.run([sys.executable, str(child), str(SCRIPT), *begin_args], capture_output=True)
+        self.assertEqual(interrupted.returncode, 23)
+        self.assertFalse((self.root / '.work/new.json').exists())
+        resumed = subprocess.run([sys.executable, str(SCRIPT), *begin_args], capture_output=True, text=True)
+        self.assertEqual(json.loads(resumed.stdout)['status'], 'PARTIAL')
+        self.assertEqual(json.loads((self.root / '.work/new.json').read_text())['baseline'], state['baseline'])
+
 
 if __name__ == '__main__':
     unittest.main()
