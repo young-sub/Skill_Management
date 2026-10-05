@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/verification_results.py
-# Source-SHA256: 238bd3b3351da680ccf5f08aefc1c7921f8d78a77187c62adc56b1258b3e0254
+# Source-SHA256: 834f26cb9b45cdc7af6e1334e63cccb75e5fbeeb32866ae37babaf4ed6892d3a
 
 """Read-only viewer for plan-bound verification captures and observations.
 
@@ -92,6 +92,7 @@ def _plan_checks(plan: dict[str, Any]) -> list[dict[str, Any]]:
     checks = plan.get("checks")
     if not isinstance(checks, list) or not checks:
         raise ViewerInputError("Plan must contain a nonempty checks list")
+    identities: set[tuple[str, str]] = set()
     for index, check in enumerate(checks):
         if not isinstance(check, dict):
             raise ViewerInputError(f"checks[{index}] must be an object")
@@ -100,6 +101,10 @@ def _plan_checks(plan: dict[str, Any]) -> list[dict[str, Any]]:
                 raise ViewerInputError(f"checks[{index}].{field} is required")
         if not _text(check["id"]) or not _text(check["feature_id"]):
             raise ViewerInputError(f"checks[{index}] id and feature_id must be nonempty strings")
+        identity = (check["feature_id"], check["id"])
+        if identity in identities:
+            raise ViewerInputError(f"Duplicate logical check: {identity[0]}/{identity[1]}")
+        identities.add(identity)
         if not isinstance(check["expected"], str) or not check["expected"].strip():
             raise ViewerInputError(f"checks[{index}].expected must be a nonempty string")
         if not _text(check["criteria_revision"]):
@@ -117,6 +122,8 @@ def _plan_checks(plan: dict[str, Any]) -> list[dict[str, Any]]:
                 raise ViewerInputError(f"checks[{index}].conditions.{group} is required")
             if not isinstance(conditions[group], dict):
                 raise ViewerInputError(f"checks[{index}].conditions.{group} must be an object")
+        if conditions["criteria"].get("revision") != check["criteria_revision"]:
+            raise ViewerInputError(f"checks[{index}].criteria_revision must match conditions.criteria.revision")
         if "run_id" in check and not _text(check["run_id"]):
             raise ViewerInputError(f"checks[{index}].run_id must be a nonempty string when supplied")
         _validate_raw_plan(check, index)
@@ -332,6 +339,7 @@ def _validate_raw(
             "producer": descriptor.get("producer"),
             "origin": descriptor["origin"],
             "observations": observations,
+            "original_status": data.get("status") if isinstance(data, dict) else None,
         })
     if findings and outcome == "REUSABLE":
         outcome = "UNKNOWN"
@@ -461,12 +469,16 @@ def _historical(
     record: dict[str, Any] | None,
     assessment: dict[str, Any] | None,
     observation: dict[str, Any] | None,
+    raw: list[dict[str, Any]],
 ) -> tuple[str, str, list[str]]:
     sources: list[tuple[str, str]] = []
     if assessment is not None:
         sources.append(("assessment", _status(assessment.get("status"))))
     if observation is not None:
         sources.append(("observation", _status(observation.get("status"))))
+    for item in raw:
+        if item["original_status"] is not None:
+            sources.append((f"raw:{item['path']}", _status(item["original_status"])))
     if sources:
         statuses = [status for _, status in sources]
         if "BLOCKED" in statuses:
@@ -552,7 +564,8 @@ def _item_result(
     if not selected:
         historical, historical_source, historical_statuses = "NOT_REQUIRED", "plan.selection", ["NOT_REQUIRED"]
     else:
-        historical, historical_source, historical_statuses = _historical(record, assessment, observation)
+        judgment_raw = [item for item in raw if not observation_entry or item["path"] != str(observation_entry["path"])]
+        historical, historical_source, historical_statuses = _historical(record, assessment, observation, judgment_raw)
         if not record:
             reasons.append("capture_missing")
             if requested_run and _has_target(records, feature, check_id):
@@ -691,6 +704,7 @@ def _item_result(
             "producer": item["producer"],
             "origin": item["origin"],
             "observations": item["observations"],
+            "original_status": item["original_status"],
         }
         for item in raw
     ]

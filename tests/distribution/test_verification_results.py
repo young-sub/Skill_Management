@@ -448,6 +448,28 @@ class VerificationResultViewerTests(unittest.TestCase):
         result, payload = self.check()
         self.assertEqual(result.returncode, 2, payload)
 
+    def test_raw_issues_cannot_be_hidden_by_omitting_observation_argument(self) -> None:
+        self.write(self.raw, {'status': 'ISSUES', 'checks': [{'actual': 3500}]})
+        self.make_plan({'id': 'save-flow', 'expected': 'saved price'}, raw_for=self.raw)
+        self.make_capture(); self.make_assessment(); self.make_current()
+        result, payload = self.check()
+        self.assertEqual(result.returncode, 1, payload)
+        self.assertIn('ISSUES', payload['current']['statuses'])
+
+    def test_changed_criterion_identity_cannot_reuse_old_conditions(self) -> None:
+        self.make_raw()
+        self.make_plan({'id': 'save-flow', 'expected': 'saved price', 'criteria_revision': 'criteria-2'}, raw_for=self.raw)
+        self.make_capture(); self.make_assessment(); self.make_current()
+        result, payload = self.check()
+        self.assertEqual(result.returncode, 2, payload)
+
+    def test_duplicate_logical_checks_cannot_count_the_same_result_twice(self) -> None:
+        self.make_raw()
+        self.make_plan({'id': 'save-flow', 'expected': 'saved price'}, {'id': 'save-flow', 'expected': 'saved price again'}, raw_for=self.raw)
+        self.make_capture(); self.make_assessment(); self.make_current()
+        result, payload = self.check()
+        self.assertEqual(result.returncode, 2, payload)
+
 
 if __name__ == "__main__":
     unittest.main()
