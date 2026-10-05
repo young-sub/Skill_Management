@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/core_harness.py
-# Source-SHA256: f5aecbfb4b60440f094595a88ee0fcb513251e0245ea739dcc8b5bb3cdc134ae
+# Source-SHA256: ea1184023b2959c54018f06eaa633fcf7cb4754ca00c509b3d5db7a4d64bc52c
 
 #!/usr/bin/env python3
 """Deterministic Core-First Agent Harness contracts and compatibility checks."""
@@ -3655,60 +3655,65 @@ def maintain_harness(
         add("MAINT-INSTRUCTION-DRIFT", "AGENTS.md|CLAUDE.md", "instruction mirrors differ")
     checks["MAINT-INSTRUCTION-DRIFT"] = "checked"
 
-    entrypoint = str(project.get("paths", {}).get("documentation_entrypoint", "docs/index.md"))
-    try:
-        index = _safe_repo_path(root, entrypoint)
-    except ValueError:
-        index = root / "__invalid_documentation_entrypoint__"
-    if not index.is_file():
-        add("MAINT-DOC-REACHABILITY", entrypoint, "documentation entrypoint is missing")
+    if normalized_project["status"] == "invalid":
+        for rule in ("MAINT-DOC-REACHABILITY", "MAINT-IMPACT-UNMAPPED",
+                     "MAINT-IMPACT-SELECTOR", "MAINT-BASELINE"):
+            checks[rule] = {"status": "not_checked", "reason": "invalid_project_configuration"}
     else:
+        entrypoint = str(project.get("paths", {}).get("documentation_entrypoint", "docs/index.md"))
         try:
-            content = index.read_text(encoding="utf-8")
-            links = re.findall(r"\[[^\]]*\]\(([^)#]+)(?:#[^)]+)?\)", content)
-            for link in links:
-                if re.match(r"^[a-z][a-z0-9+.-]*:", link, re.IGNORECASE):
-                    continue
-                target = (index.parent / link).resolve()
-                try:
-                    target.relative_to(root)
-                except ValueError:
-                    add("MAINT-DOC-REACHABILITY", link, "document link escapes repository")
-                    continue
-                if not target.exists():
-                    add("MAINT-DOC-REACHABILITY", link, "document link target is missing")
-        except (OSError, UnicodeError) as error:
-            add("MAINT-DOC-REACHABILITY", entrypoint, f"documentation entrypoint unreadable:{type(error).__name__}")
-    checks["MAINT-DOC-REACHABILITY"] = "checked"
+            index = _safe_repo_path(root, entrypoint)
+        except ValueError:
+            index = root / "__invalid_documentation_entrypoint__"
+        if not index.is_file():
+            add("MAINT-DOC-REACHABILITY", entrypoint, "documentation entrypoint is missing")
+        else:
+            try:
+                content = index.read_text(encoding="utf-8")
+                links = re.findall(r"\[[^\]]*\]\(([^)#]+)(?:#[^)]+)?\)", content)
+                for link in links:
+                    if re.match(r"^[a-z][a-z0-9+.-]*:", link, re.IGNORECASE):
+                        continue
+                    target = (index.parent / link).resolve()
+                    try:
+                        target.relative_to(root)
+                    except ValueError:
+                        add("MAINT-DOC-REACHABILITY", link, "document link escapes repository")
+                        continue
+                    if not target.exists():
+                        add("MAINT-DOC-REACHABILITY", link, "document link target is missing")
+            except (OSError, UnicodeError) as error:
+                add("MAINT-DOC-REACHABILITY", entrypoint, f"documentation entrypoint unreadable:{type(error).__name__}")
+        checks["MAINT-DOC-REACHABILITY"] = "checked"
 
-    impact = project.get("impact", {})
-    rules = impact.get("rules", [])
-    selectors = impact.get("feature_selectors", {})
-    mapped_prefixes = [
-        str(prefix).replace("\\", "/")
-        for rule in rules for prefix in rule.get("source_prefixes", [])
-    ]
-    for path in enumerate_repository_files(root):
-        normalized = path.relative_to(root).as_posix()
-        if normalized in {entrypoint, "AGENTS.md", "CLAUDE.md"} or normalized.startswith("docs/"):
-            continue
-        if not any(normalized.startswith(prefix) for prefix in mapped_prefixes):
-            add("MAINT-IMPACT-UNMAPPED", normalized, "tracked surface has no impact rule", "high")
-    for rule in rules:
-        feature = rule.get("feature")
-        if feature not in selectors:
-            add("MAINT-IMPACT-SELECTOR", str(rule.get("id", "unnamed")), "feature selector is missing", "high")
-    checks["MAINT-IMPACT-UNMAPPED"] = "checked"
-    checks["MAINT-IMPACT-SELECTOR"] = "checked"
+        impact = project.get("impact", {})
+        rules = impact.get("rules", [])
+        selectors = impact.get("feature_selectors", {})
+        mapped_prefixes = [
+            str(prefix).replace("\\", "/")
+            for rule in rules for prefix in rule.get("source_prefixes", [])
+        ]
+        for path in enumerate_repository_files(root):
+            normalized = path.relative_to(root).as_posix()
+            if normalized in {entrypoint, "AGENTS.md", "CLAUDE.md"} or normalized.startswith("docs/"):
+                continue
+            if not any(normalized.startswith(prefix) for prefix in mapped_prefixes):
+                add("MAINT-IMPACT-UNMAPPED", normalized, "tracked surface has no impact rule", "high")
+        for rule in rules:
+            feature = rule.get("feature")
+            if feature not in selectors:
+                add("MAINT-IMPACT-SELECTOR", str(rule.get("id", "unnamed")), "feature selector is missing", "high")
+        checks["MAINT-IMPACT-UNMAPPED"] = "checked"
+        checks["MAINT-IMPACT-SELECTOR"] = "checked"
 
-    current_day = date.fromisoformat(today) if today else date.today()
-    for baseline in project.get("baseline", {}).get("findings", []):
-        try:
-            if date.fromisoformat(str(baseline["review_until"])) < current_day:
-                add("MAINT-BASELINE-EXPIRED", str(baseline.get("location", "")), "baseline review date expired")
-        except (KeyError, ValueError):
-            add("MAINT-BASELINE-INVALID", str(baseline.get("location", "")), "baseline identity or date is invalid")
-    checks["MAINT-BASELINE"] = "checked"
+        current_day = date.fromisoformat(today) if today else date.today()
+        for baseline in project.get("baseline", {}).get("findings", []):
+            try:
+                if date.fromisoformat(str(baseline["review_until"])) < current_day:
+                    add("MAINT-BASELINE-EXPIRED", str(baseline.get("location", "")), "baseline review date expired")
+            except (KeyError, ValueError):
+                add("MAINT-BASELINE-INVALID", str(baseline.get("location", "")), "baseline identity or date is invalid")
+        checks["MAINT-BASELINE"] = "checked"
 
     lifecycle = audit_work_lifecycle(root)
     for finding in lifecycle["findings"]:

@@ -4,6 +4,34 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Invalid Harness configuration does not invent drift, 2026-10-06
+
+The authenticated maintenance task sent a standalone workflow configuration to
+full Harness maintenance. The runtime reported the schema error, replaced the
+configuration with `{}`, and then incorrectly inferred missing `docs/index.md`
+and impact mappings. RED reproduced those secondary findings for both a
+workflow-only configuration and malformed v3 input. The shared maintenance path
+now marks document, impact and baseline checks `not_checked` when normalization
+fails. The original configuration finding remains; environment, instruction,
+lifecycle, transaction, Git and requested installed-cohort audits continue.
+A valid-config counterexample still detects real missing document links and
+unmapped sources. Its old test fixture lacked a schema and accidentally relied
+on the fallback; it now validates the configuration before asserting the same
+missing-document/unmapped outcomes. Independent review found no blocker.
+
+The selected Harness regression set passed 142 tests (47.127 seconds), and
+package/resource/document checks passed 30 (17.387 seconds). A fresh authorized
+six-Skill cohort was actually installed under
+`.work/plugin-transition/maintenance-invalid-v032/installed`. Its maintenance CLI
+read the original native price fixture and returned only the real unsupported
+configuration finding instead of the prior nine findings. All eight inspected
+source/state/raw files stayed byte-identical. `trial.json`, `report.json` and
+`install.json` retain that execution. The 0.1.32 plugin was built and its runtime
+bytes match the tested installed copy. The authenticated UI host stays on 0.1.31
+while its new-repository trust approval is pending; this unit is not a new model
+trial or a claim that workflow-only projects require full Harness setup.
+Feature: `work-retention` / `harness-core`. Overall U1-U7 remains incomplete.
+
 ## Authenticated maintenance and shared plan contract, 2026-10-06
 
 A fresh native session used installed 0.1.30 `maintain-project-verification` for a

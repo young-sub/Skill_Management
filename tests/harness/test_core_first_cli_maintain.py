@@ -154,6 +154,30 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
             and "project_config:unknown_field:unexpected" in finding["message"]
             for finding in report["findings"]
         ))
+
+    def test_invalid_config_does_not_invent_drift_but_keeps_independent_audits(self) -> None:
+        core = load_core()
+        for project in ({'commands': {}, 'extensions': {'workflow': {}}},
+                        {'schema_version': 3, 'unexpected': True}):
+            with self.subTest(project=project), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / 'app.py').write_text('print(1)\n')
+                transaction = root / '.work/transactions/unfinished'
+                transaction.mkdir(parents=True)
+                before = {p.relative_to(root): p.read_bytes() for p in root.rglob('*') if p.is_file()}
+                report = core.maintain_harness(root, project)
+                rules = {finding['rule_id'] for finding in report['findings']}
+                self.assertEqual(report['status'], 'findings')
+                self.assertIn('MAINT-PROJECT-CONFIG', rules)
+                self.assertIn('MAINT-TRANSACTION', rules)
+                for rule in ('MAINT-DOC-REACHABILITY', 'MAINT-IMPACT-UNMAPPED',
+                             'MAINT-IMPACT-SELECTOR', 'MAINT-BASELINE'):
+                    self.assertNotIn(rule, rules)
+                    self.assertEqual(report['checks'][rule], {
+                        'status': 'not_checked', 'reason': 'invalid_project_configuration'})
+                self.assertIn('MAINT-GIT-WORKTREE', report['checks'])
+                self.assertEqual(before, {p.relative_to(root): p.read_bytes() for p in root.rglob('*') if p.is_file()})
+
     def test_public_cli_exposes_complete_skill_lifecycle(self) -> None:
         core = load_core()
         commands = set(core._cli_parser()._subparsers._group_actions[0].choices)
@@ -528,11 +552,11 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
             subprocess.run(["git", "init", "-q"], cwd=root, check=True)
             subprocess.run(["git", "add", "."], cwd=root, check=True)
             before = {path.relative_to(root).as_posix(): path.read_bytes() for path in root.rglob("*") if path.is_file() and ".git" not in path.parts}
-            project = {
-                "paths": {"documentation_entrypoint": "docs/index.md"},
-                "impact": {"rules": [], "feature_selectors": {}, "full_triggers": []},
-                "baseline": {"findings": []},
-            }
+            project = project_config()
+            project["paths"]["documentation_entrypoint"] = "docs/index.md"
+            project["impact"] = {"rules": [], "feature_selectors": {}, "full_triggers": []}
+            project["baseline"] = {"findings": []}
+            self.assertNotEqual(core.normalize_project_config(project)["status"], "invalid")
             report = core.maintain_harness(root, project)
             rule_ids = {finding["rule_id"] for finding in report["findings"]}
             self.assertIn("MAINT-DOC-REACHABILITY", rule_ids)
