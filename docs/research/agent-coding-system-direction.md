@@ -1,12 +1,12 @@
 # Agent Coding 업무 위임·검증·지속 개선 체계
 
-결정일: 2026-10-05. PStack 조사, 10/3~4 후보 Skill, 독립 Labeler 파일럿 및 이후 사용자 논의의 **현재 설계 결론**이다. 구현과 실제 업무 수용 상태는 아래 연결한 결과 문서에서 구분한다. 현재 실행·권한·Git 정책은 [Agent workflow](../agents/workflow.md), 구현된 검증 도구는 [Testing](../testing.md)을 따른다. [실행 프롬프트](agent-coding-next-session.md)는 이번 구현의 범위 기록이다.
+결정일: 2026-10-05. PStack 조사, 10/3~4 후보 Skill, 독립 Labeler 파일럿 및 이후 사용자 논의의 **현재 설계 결론**이다. 후속 합의의 전체 Feature init·환경 집행·성과 기준·구현 단위는 [완성 기준과 후속 구현](agent-workflow-completion-design.md)이 구체화한다. 구현과 실제 업무 수용 상태는 아래 결과 문서에서 구분한다. 현재 실행·권한·Git 정책은 [Agent workflow](../agents/workflow.md), 구현된 검증 도구는 [Testing](../testing.md)을 따른다. [기존 실행 프롬프트](agent-coding-next-session.md)는 수행 범위의 기록이다.
 
 2026-10-05 실행 요청에 따라 공통 업무/검증 책임의 source/generated 구현과 임시 설치를 진행했다. 실제 T1–T6 수용 상태, CLI 모델 시작 제한과 협업 host 평가의 차이는 [구현 결과](agent-workflow-implementation-results.md)를 기준으로 한다. 아래 합의와 과거 상태는 실제 실행 완료의 증명이 아니다.
 
 ## 1. 목표와 논의 과정
 
-목표는 Agent에게 많은 업무를 위임하면서 **무엇을 검증했고, 어떤 결과를 신뢰할 수 있으며, 발견한 불편이 어떻게 재발 방지로 이어졌는지** 확인하는 것이다. `Confidence / Verification Cost`는 실제 결함 검출력과 실행·유지 비용을 함께 판단하는 기준이다. 테스트 수·coverage·Skill 수를 목표로 삼지 않는다.
+목표는 Agent에게 많은 업무를 위임하면서 **무엇을 검증했고, 어떤 결과를 신뢰할 수 있으며, 발견한 불편이 어떻게 재발 방지로 이어졌는지** 확인하는 것이다. 최상위 판단은 실제 업무의 효율·효과·정확성과 사용자 개입/재작업 감소다. `Confidence / Verification Cost`는 실제 결함 검출력과 실행·유지 비용을 함께 판단하는 기준이다. 테스트 수·coverage·Skill 수·차단 횟수를 목표로 삼지 않는다. 새 제약의 결함 검출 이득과 정상 과업 오탐·비용을 비교해 이득 없는 제약은 축소/제거하되 기존 권한 경계를 완화하지 않는다.
 
 | 논의 단계 | 확인·판단 | 현재 결론에 미친 영향 |
 | --- | --- | --- |
@@ -15,6 +15,7 @@
 | 기반 구현·Labeler 파일럿 | 실제 앱·API·D1·PDF 검증과 통제 결함 대조가 가능했다. BE 검사는 놓친 FE 가격 전달 오류를 브라우저가 검출했다 | 사용자 기능과 계층을 연결한 검증, 실행 근거와 판정 분리가 필요 |
 | 초기 최소화 판단 | 직접 명령을 우선하고 새 Router·독립 Skill 도입을 보류했다 | 실제 실행 토대는 유지한다. 당시 파일럿 범위의 결정이다 |
 | 이후 사용자 요구 | 관련 Skill을 한 번에 조합하고 검증 조회·피드백·UI 기준·검증 유지보수를 하나의 업무로 수행해야 한다 | 얇은 `agent-workflow`와 두 공통 검증 Skill을 도입한다. 이전 Router 전면 보류 결론을 대체한다 |
+| 구현 이후 전체 init·환경 집행 논의 | Labeler는 시험 환경이며, 전체 기능의 최초 지도와 매 고도화 갱신, Agent 판단과 우회 불가 환경 통제, 제약의 실익이 필요하다 | 한 흐름 setup 완료를 전체 init으로 확대한다. 분할·재개·통합과 보호된 수락을 별도 인수하며 기존 파일럿 PASS를 소급 확대하지 않는다 |
 
 우선 기능은 (1) 위임 업무의 검증 가시성, (2) 비즈니스 모델·아키텍처 및 FE/BE/Domain 검증, (3) 피드백과 자가 개선, (4) UI/UX 기준 고도화, (5) 검증 기준 고도화, (6) 원인 추적·실질적 가드레일·불필요한 검증 제거다.
 
@@ -29,10 +30,11 @@
 | 구현됨 | `scripts/verify_product.py`, 관리 저장소 Feature Map·selector | 이 저장소의 unittest 전용. 다른 프로젝트의 Vitest·브라우저용 범용 parser가 아님 |
 | 파일럿 확인 | 독립 Labeler의 browser/API/D1/인쇄, 통제 결함·Agent 수리·독립 검증 | 고정 소스와 로컬 합성 fixture에 한정. [결과와 제한](labeler-verification-pilot.md) 참조 |
 | 파일럿 확인 | 임시 Plugin 설치·fresh host discovery·cache 명령 실행·버전 변경 | 일반 설치 전환, 모델의 Skill 선택·이행, hook 품질은 미검증 |
-| 합의됨·미구현 | `agent-workflow`, 축소된 `setup-project-verification`, `maintain-project-verification` | 다음 세션 구현 대상 |
-| 합의됨·미구현 | 프로젝트 `verify-product`·`ui-system` 진입점, 조건부 verifier 역할, 업무별 결과 조회 | 실제 프로젝트의 기준·명령·evidence에 연결해 행동 검증 필요 |
+| 구현·범위 한정 확인 | `agent-workflow`, `setup-project-verification`, `maintain-project-verification` | `c7c064a`와 후속 수정, 임시 설치·협업 Agent T1–T6. 전체 init·host 일반 동작의 완료는 아님 |
+| 구현·범위 한정 확인 | 프로젝트 guide 진입점, 조건부 독립 검증, `verification_results.py` 조회 | 실제 browser/API/DB 및 조회 반례 확인. 실제 현재 PASS의 조건 생산·CLI 모델 실행·설치 갱신/정리 한계는 결과 문서 참조 |
+| 합의됨·후속 구현 | 전체 Feature init/필수 갱신, 보호된 실행·수락, 성과 비교와 최종 패키지 인수 | [U1–U7](agent-workflow-completion-design.md)의 새 완료 기준. 이번 설계 문서 변경으로 구현한 것은 아님 |
 
-문서 정리 시작 기준은 `wp-20261004-agent-coding-foundation`의 `c1e4b9e6ea22605c3458f2c859cf1fac49dde4c5`, dirty 없음이다. 다음 세션은 실제 checkout을 다시 확인하며 원격 main이나 과거 donor로 덮어쓰지 않는다.
+최초 문서 정리의 과거 기준은 `c1e4b9e6ea22605c3458f2c859cf1fac49dde4c5`다. 이번 후속 검토는 `wp-20261004-agent-coding-foundation` / `ea21282`, dirty 없음에서 시작했다. 후속 구현은 실제 checkout을 다시 확인하며 원격 main이나 과거 donor로 덮어쓰지 않는다.
 
 ## 3. 하나의 업무 진입점과 선택적 Playbook
 
@@ -41,7 +43,7 @@
 | 구성요소 | 소유할 책임 | 경계 |
 | --- | --- | --- |
 | `agent-workflow` | 의도 → 업무 절차 → 능력·영향 검증 선택, 결과 취합 | 제품 정답·명령 parser·모든 작업의 강제 lifecycle을 소유하지 않음 |
-| `setup-project-verification` | 기존 기능·요구·환경·테스트·UI 조사, 첫 실행 가능한 검증 경로와 기준 마련 | 기존 map/guide부터 갱신. Harness 설치 강제 금지 |
+| `setup-project-verification` | 전체 기능·요구·환경·테스트·UI 조사와 Feature Map 완성, 실행 연결과 공백 표시 | 큰 프로젝트는 최초 setup 안에서 분할/재개/통합. 첫 실제 flow는 실행 확인이며 전체 지도 대체 불가. Harness 설치 강제 금지 |
 | `maintain-project-verification` | Feature·검증·UI 기준의 의미 있는 drift, 누락·중복 점검과 범위 내 수리 | Harness 배포·retention·cohort 무결성과 구분 |
 | 프로젝트 `verify-product` | root, Feature 기준, 명령·adapter·근거·정리 경로 안내 | 다른 runner에 unittest parser를 억지 적용하지 않음 |
 | 프로젝트 `ui-system` | 기존 UI guide, token, component, 대표 화면·상태 검증 연결 | token 값·규칙의 수동 이중 기록 금지 |
@@ -51,7 +53,7 @@
 
 | 업무 | 요청 예 | 수행 순서·기존 능력 |
 | --- | --- | --- |
-| 초기 연결 | “이 프로젝트의 검증 체계를 마련해줘” | 조사 → setup → 첫 실제 flow → 기준·명령 연결 |
+| 초기 연결 | “이 프로젝트의 검증 체계를 마련해줘” | 전체 범위 조사 → 필요한 영역 분할 → 전체 지도 통합 → 실행 연결과 첫 실제 flow → 미검증 범위 표시 |
 | 구현 | “이 기능 구현해줘” | 기대 결과 → 영향 Feature → 구현 → 검증 → 기준 갱신. 기존 실행 흐름 활용 |
 | 검증·조회 | “무엇을 검증했는지 보여줘” | 계획/결과 → 근거·유효 범위 확인. 조회만으로 재실행하지 않음 |
 | 통합 유지보수 | “개발 체계를 점검·개선해줘” | 제품 maintain + 관련 Harness maintain + 관련 UI 검토 → 발견 통합 → 범위 내 수리·재검증 |
@@ -78,6 +80,8 @@
 ## 5. Feature Map·검증 실행·결과 조회
 
 프로젝트 Feature Map의 최소 정보는 `ID/이름, 사용자 행동, 기대 결과, business invariant, FE, BE/API, Domain, 데이터 side effect, 실제 검증 방법`이다. 기존 구조를 재사용하고 assertion·특정 실행의 PASS를 영구 지도에 복제하지 않는다. 관련 없는 층에는 해당 없음과 이유를 둔다.
+
+최초 init은 모든 기능을 대상으로 한다. 요구/화면/API/CLI/job/역할/flag/데이터/기존 테스트를 교차 조사하고, 모든 Feature에 요구 출처·책임·흐름·검증 연결 또는 미연결 상태를 둔다. 큰 지도는 업무 영역별 작성 뒤 영역 간 의존/흐름을 통합하며 전체 조사와 최소 의미가 완성되기 전에는 PARTIAL이다. 지도 완성과 전 기능 테스트 실행 PASS는 구분한다. [전체 init·분할·완료 기준](agent-workflow-completion-design.md)을 따른다.
 
 map/guide는 기준과 방법, 프로젝트 설정은 argv와 실행 연결, `.work/`는 특정 실행 근거를 소유한다. 기존 `.harness/project.yaml`의 명령·영향 선택과 필요한 `extensions`를 우선 검토하되 비-Harness 프로젝트에 설치를 강제하지 않는다. Markdown·JSON·YAML을 사람이 중복 관리하지 않는다.
 
@@ -114,14 +118,16 @@ PASS는 선택한 필수 기준을 실제 확인한 범위에 한정한다. ISSU
 
 가드레일은 원래 실패를 검출하고 가까운 정상 사용을 허용해야 한다. 동작 보존은 baseline/equivalent GREEN을 쓸 수 있다. 기대값·skip·visual baseline을 완화해 결함을 숨기지 않는다. 지침이 이미 있었다면 같은 문장 추가보다 적용되지 않은 원인을 고친다.
 
+의미 판단은 Agent, 명확한 규칙은 결정적 code/CLI/runtime, 우회 불가가 필요한 효과는 Agent가 임의로 바꾸지 못하는 권한·수락 경계가 맡는다. 선택적 로컬 hook/wrapper나 수정 가능한 PASS 파일은 강제 통제가 아니다. 허용/거절·정책 변경 권한·우회 시도·정상 반례를 확인한 범위에서만 환경 보장을 주장한다. 구체적 책임과 효과 검증은 [환경 집행·피드백 설계](agent-workflow-completion-design.md)에 둔다.
+
 자가 개선은 관찰된 회귀·실패·drift·피드백에서 시작한다. 범위 안의 가역적 개선은 진행하고 제품 결정 변경·전역 변경·외부 비용 등의 경계는 기존 권한을 따른다. 자동 회고·규칙 축적·무한 재시도는 만들지 않는다.
 
 ## 7. 지속 갱신의 책임
 
 | 책임자·계기 | 수행할 일 |
 | --- | --- |
-| setup / 최초 연결 | 기존 map/guide/UI 조사, 핵심 flow·정상/실패 기준·명령 연결 |
-| 기능 변경 수행자 / 추가·수정·삭제 | 영향 Feature·계약·검증 방법을 같은 변경에서 갱신 |
+| setup / 최초 연결 | 모든 기능의 map/guide/UI 조사, 필요 시 분할·재개·통합, 실행 연결과 미검증 범위 구분 |
+| 고도화 수행자 / 기능·코드·UI·검증 추가·수정·삭제 | 영향 Feature·계약·구현/검증 연결을 같은 변경에서 반드시 갱신. 공통 변경은 소비 Feature까지 대조 |
 | 검증자 / 완료 검토 | 요구·동작·근거와 지도 누락·기준 유효성 대조 |
 | product maintain / 요청된 점검·회귀·drift | 누락 기능·죽은 명령·계층 공백·중복 검사 조사, 실제 실행·수리 |
 | UI 작업자 / 관련 변경·반복 불일치 | 디자인 의도·대표 화면·상태 검토, 필요한 token/component·guide 개선 |
@@ -130,6 +136,8 @@ PASS는 선택한 필수 기준을 실제 확인한 범위에 한정한다. ISSU
 UI 기준은 design principles, color/typography/spacing/radius/elevation, layout/component conventions, loading/empty/error, responsive·accessibility, Do/Don't·reference·visual 검증을 필요한 깊이로 연결한다. 의도는 guide, 실제 값·동작은 코드가 소유한다. 한 화면의 의도된 예외를 전역 규칙으로 승격하지 않는다. 관련 desktop/mobile·interaction을 실제 확인한다.
 
 제품 버그·오래된 guide·실행 도구 오류를 구분한다. 제품 위반을 guide 변경으로 숨기지 않는다. 영구 문서는 현재 사용법과 lasting 결정, 상세 로그·fixture·screenshot은 기존 `.work` 보존 정책에 둔다.
+
+행동 보존 리팩터링도 영향 Feature의 구현/검증 참조·검토 기준을 갱신한다. 단순 timestamp나 자유 문구 `영향 없음`으로 기능 고도화의 의무를 대체하지 않는다. 제품 영향 없는 오탈자/작업 기록은 근거에 따라 내용 불변을 허용하며 매번 전수 조사/Full을 요구하지 않는다.
 
 ## 8. 검증을 유지·통합·제거하는 기준
 
@@ -153,7 +161,7 @@ PStack 기준은 `23e4138daa01c42d4969f7a5465f82704e64f798`이다. [고정 조�
 | behavior·domain·boundary·구조적 교훈 | 기존 원칙과 코드·type·lint·component·runtime에 반영. 원칙별 Skill 증식 제외 |
 | 고정 평가·독립 검토 | 효과를 주장할 과업에서 정상·결함·반례 대조. 항상 전체 fan-out 제외 |
 | orch·기록 | revision 연결 참고. 문자열 저장을 실행·독립성 증명으로 취급하지 않음 |
-| setup-project-verification 후보 | 환경·첫 검증 연결로 축소 재도입. 과거 helper 사본·전체 파일 복원 금지 |
+| setup-project-verification 후보 | 첫 구현은 환경·첫 검증 연결로 축소 재도입했으며 후속 U1에서 전체 지도 init으로 확대. 과거 helper 사본·전체 파일 복원 금지 |
 | ui-refine 후보 | UI Playbook·기존 UI 능력·프로젝트 ui-system에 흡수 |
 | improve-workflow 후보 | 원인 분류·피드백·maintain에 흡수 |
 | resume-work 후보 | 기존 재개에 상태·권한·evidence 유효성 확인 흡수 |
@@ -167,11 +175,7 @@ Plugin은 검증된 공통 Router·Playbook·Skill·capture 등의 **생성 패�
 
 ## 10. 다음 구현의 완료 단위와 보고
 
-1. 업무 선택·조회: 한 요청에서 절차를 선택하고 Feature별 계획·실제 결과·미검증 범위를 조회한다. 조회만 요청한 경우 재실행·수정하지 않는 반례 확인.
-2. 프로젝트 연결: 독립 Labeler의 지도·native/browser·UI 기준을 새 진입점에서 재사용하고 요구·대상을 연결.
-3. 피드백·가드레일: 의미 있는 실패를 재현하고 최소 수정·재발 방지를 같은 실패·정상 반례로 재검증.
-4. 통합 유지보수·UI: 근거 있는 map/guide·UI drift를 수리하고 실제 기능·화면 확인. 조합해도 중복 실행·판정 은폐 방지.
-5. 가치 평가·배포: 중복 검증 축소 또는 보존 판단, source/generated·임시 설치·실제 Agent 업무 수행을 구분해 검증.
+기존 다섯 단위는 T1–T6의 파일럿 범위로 수행했다. 후속 구현은 [U1–U7의 기능별 완료 기준](agent-workflow-completion-design.md)을 따른다: 전체 init/필수 갱신 → 환경 집행/수락 → 실제 검증/조회 → 피드백/예방 → UI 생성/재사용 → 유지보수/가치 → 최종 패키지 인수. 지원 host의 가능성을 먼저 확인하며 독립 가능한 source 구현은 계속한다. Labeler는 이 능력의 시험 환경이며 제품 고도화 대상이 아니다.
 
 문서·파일·schema·설치 메타데이터만으로 완료하지 않는다. 사용자 형태의 요청으로 선택·실행·취합·기준 개선이 이어지는지 확인한다. Agent 평가가 환경 때문에 막히면 native 검증은 계속하되 통합 위임 효과는 BLOCKED다. 소수 관찰로 안정적 품질·속도 우월성을 주장하지 않는다.
 
@@ -187,7 +191,7 @@ Plugin은 검증된 공통 Router·Playbook·Skill·capture 등의 **생성 패�
 
 ## 11. 요구사항 검토로 구체화한 실행 연결
 
-2026-10-05 [R01–R16 검토](agent-coding-requirements-review.md)는 수정 전 `53865b0`의 설계 검토다. 아래 책임은 `c7c064a`에서 source/generated·직접 조회 CLI로 구현했고 후속 수정과 독립 시험에서 T1–T6을 수행했다. 실제 충족 상태와 환경 BLOCKED는 [구현 결과](agent-workflow-implementation-results.md)가 소유한다. 파일 수나 역할 이름으로 완료를 판정하지 않으며 일반적 효율·장기 안정성은 입증하지 않았다.
+2026-10-05 [R01–R16 검토](agent-coding-requirements-review.md)는 수정 전 `53865b0`의 설계 검토다. 당시 책임은 `c7c064a`에서 source/generated·직접 조회 CLI로 구현했고 후속 수정과 독립 시험에서 T1–T6을 수행했다. 아래 setup/갱신 책임은 후속 전체-init 합의에 맞춰 확대했으며 확대 범위는 미구현이다. 실제 충족 상태와 환경 BLOCKED는 [구현 결과](agent-workflow-implementation-results.md), 새 인수 기준은 [완성 설계](agent-workflow-completion-design.md)가 소유한다. 일반적 효율·장기 안정성은 입증하지 않았다.
 
 ### 발견, 조합, 실패 처리
 
@@ -196,7 +200,7 @@ Plugin은 검증된 공통 Router·Playbook·Skill·capture 등의 **생성 패�
 | 책임 | 입력 → 행동 → 다음 소비자 | 중단·실패 경계 |
 | --- | --- | --- |
 | 주 Agent / 업무 선택 | 자연어 요청·현재 대상·기존 기준 → 필요한 절차/책임/영향 검사 선택 → 하나의 작업 요약과 결과 조회 | 의도 불명확·권한 부족은 의존 작업만 보류. 조회에서는 기존 근거를 읽고 재실행/수리하지 않음 |
-| setup / 최초 검증 연결 | 기존 map/guide/명령/UI와 미연결 범위 → 핵심 flow의 Launch/Doctor/Drive/Evidence/Cleanup 연결·실행 → 변경자·검증자가 재사용 | 요구 불명확·필수 관찰 불가를 기록. 일부 flow 연결을 전체 프로젝트 완성으로 표시하지 않음 |
+| setup / 최초 검증 연결 | 전체 기능과 기존 map/guide/명령/UI → 필요 시 영역 분할 → 전체 지도 통합과 실행 연결/공백 표시 → 변경자·검증자가 재사용 | 미조사 영역·미분류 후보·중요한 요구 충돌은 init PARTIAL/BLOCKED. 첫 flow와 전체 지도 완료를 구분 |
 | product maintain / 요청·회귀·drift | 영향 diff·요구·현재 map/guide·실패 근거 → 누락/오래된 연결/검사 가치 조사 → 해당 소유자 수리·재검증 | 제품 결함은 diagnose/제품 소유자에게, 실행 도구 오류는 adapter/capture 소유자에게. audit-only는 발견 보고로 종료 |
 | Harness maintain / 실제 mapping·cohort·retention 영향 | 기존 프로젝트 설정·관련 무결성 근거 → 기존 runtime의 해당 점검 → 별도 영역 판정 | 미설치 프로젝트는 해당 없음. 설치나 retention 삭제를 제품 유지보수의 부수 작업으로 수행하지 않음 |
 | UI 작업자 / 화면 변경·반복 불일치 | 기존 의도·reference·token/component·영향 상태 → 기존 UI 능력으로 수정·실제 관찰 → 공유 구현과 관련 guide 갱신 | 의도된 예외를 보존. 정상 animation/관찰 오류는 도구를 고치며 UI 기준을 완화하지 않음 |
@@ -209,8 +213,8 @@ Plugin은 검증된 공통 Router·Playbook·Skill·capture 등의 **생성 패�
 
 | 변경·계기 | 선정할 관찰과 기준 갱신 시점 |
 | --- | --- |
-| Feature 최초 연결 | setup이 사용자 요구/기존 제품 문서와 실제 진입점으로 지도 초안을 만들고 첫 실제 flow로 실행 방법 확인. 다루지 않은 기능은 미연결 범위로 남김 |
-| Feature 추가·수정·삭제 | 변경자가 구현 전 기대 결과/invariant·영향을 확정하고, 같은 기능 단위 diff/commit에서 map·guide·활성 selector를 갱신. 삭제는 실제 호출/사용 여부를 확인하고 활성 연결만 제거하며 과거 결과는 보존 |
+| Feature 최초 연결 | setup이 전체 기능을 요구/제품 문서/실제 진입점으로 조사하고 최소 의미를 채운 지도를 완성. 분할 작업은 통합 전 PARTIAL. 검사 미연결 기능도 지도에 포함하며 첫 flow로 실행 경로 확인 |
+| 모든 고도화·Feature 추가·수정·삭제 | 변경자가 구현 전 기대 결과/invariant·영향을 확정하고, 같은 기능 단위 diff/commit에서 영향 map·guide·활성 selector를 반드시 갱신. 의미 불변도 구현/검증 참조를 갱신. 삭제는 실제 호출/사용 여부를 확인하고 활성 연결만 제거하며 과거 결과는 보존 |
 | FE 입력·직렬화·저장·재표시 또는 계층 간 계약 변경 | 관련 UI → API → domain/persistence → 새 조회를 실행. 층별 PASS만으로 대체하지 않음. DB 직접 관찰은 readback으로 확인 못 하는 원자성/중복/이력 규칙에 선택 |
 | Domain 계산·상태 전이 변경 | 요구 기반 정상·경계·실패의 결정적 검사. 외부 표현/호출 계약도 바뀌면 해당 adapter와 사용자 flow를 추가 |
 | 권한·transaction·외부 실패 변경 | 허용/거절 응답, 실패 뒤 데이터 보존·rollback/readback과 관련 사용자 상태. 실제 계정/외부 서비스 권한이 없으면 그 범위는 BLOCKED |
@@ -232,4 +236,4 @@ Plugin은 검증된 공통 Router·Playbook·Skill·capture 등의 **생성 패�
 
 Mode/Router는 의도 선택, Playbook은 조건부 순서, Skill은 재사용 판단, Principle은 기존 기준과 구조적 예방, 실행 도구는 명령·raw 캡처, 프로젝트 설정은 root/argv/selector/예외/보존을 소유한다. PStack Automation은 외부 이벤트·주기 실행을 붙이는 별도 계기다. 이번에는 사용자 요청·변경·실패가 충분하므로 Benny/cron/Slack/webhook를 채택하지 않는다. 반복 수요와 권한·비용 근거가 생기면 기존 절차의 입력으로 연결하며 다른 제품 정답을 만들지 않는다. Plugin은 이 능력의 생성 패키징·설치만 맡는다.
 
-세 공통 Skill의 경계는 업무 조정, 최초 검증 경로, 기존 경로 유지로 유지할 수 있다. 기존 Harness 유지보수는 제품 의미를 소유하지 않아 대체재가 아니며, diagnose는 초기 지도/지속 drift 점검의 대체재가 아니다. 다만 setup/maintain이 공유하는 조사·결과 규칙은 한 참조로 유지하고, 공통 조정은 기존 AGENTS/Skill 발견 경로와 함께 검증한다. 프로젝트 `verify-product`/`ui-system`은 기존 진입점으로 발견·실행이 충분하면 그 경로를 재사용한다. 추가 Skill 채택 여부는 T1/T4/T5의 실제 소비로 판단하며 Skill 개수에 맞춰 늘리거나 줄이지 않는다.
+세 공통 Skill의 경계는 업무 조정, 전체 최초 지도와 검증 연결, 기존 경로 유지로 유지한다. 기존 Harness 유지보수는 제품 의미를 소유하지 않아 대체재가 아니며, diagnose는 초기 지도/지속 drift 점검의 대체재가 아니다. setup/maintain이 공유하는 조사·결과 규칙은 한 참조로 유지하고 공통 조정은 기존 AGENTS/Skill 발견 경로와 함께 검증한다. 프로젝트 `verify-product`/`ui-system`은 기존 진입점으로 발견·실행이 충분하면 재사용한다. 추가 Skill 채택은 실제 부족한 책임으로 판단하며 개수에 맞춰 늘리거나 줄이지 않는다.

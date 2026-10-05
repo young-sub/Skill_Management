@@ -2,6 +2,8 @@
 
 Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876fb9f8922e0cade072469ddc9a51267df`, with a clean worktree. This implements the [execution prompt](agent-coding-next-session.md); the prior review-only restriction does not apply to this authorized implementation. Source/distribution `c7c064a`, viewer soundness repairs `7e9eb8d`, and UI reuse/selection-reason follow-up `95eed81` are committed. T1–T6 were performed within the independent pilot. The whole delegation system remains PARTIAL/BLOCKED for the host and evidence limits below.
 
+Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. These are follow-up acceptance criteria, not new results in this record. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
+
 ## Implementation and responsibility
 
 - `authoring/skills/agent-workflow/SKILL.md` coordinates intent, selected procedures, relevant capabilities, evidence and unresolved work.
