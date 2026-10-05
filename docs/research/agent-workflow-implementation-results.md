@@ -4,6 +4,32 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Missing-cache recovery and authenticated-host preparation, 2026-10-05
+
+A fresh independent `missing-cache-host` installed 0.1.23 through the native CLI.
+Its known owned version directory was moved intact to a new retained location
+within that fixture, simulating a missing cache without deleting previous bytes.
+Repeating native `plugin add` recreated all 244 package files; both the restored
+tree and retained original matched the initial hashes. The restored viewer and
+capture then executed a real child check (sum 5 and readback `ok`) and produced
+current PASS, with the existing runtime test passing in 1.277 seconds. Commands,
+hashes and retained fixture are under
+`.work/plugin-transition/missing-cache-host/trial.json`. This proves recovery from
+an absent cache in that controlled topology, not an actual interrupted install
+or safe overwrite of partial/user-modified cache contents. The guarded updater
+continues to refuse those ambiguous states.
+
+After explicit user authorization, device login in isolated `host-006/home`
+completed successfully. Authentication is no longer the observed blocker for
+that home; credentials were neither copied nor included in evidence. Interactive
+CLI startup exposed a different host issue: its background Unix-domain socket
+path exceeded SUN_LEN. The CLI-recommended `--no-daemon` reached the native trust
+screen without moving the home or weakening the workspace sandbox. Automatic
+approval review rejected trusting the entire independent fixture because prior
+approval covered login/hook review, not folder trust. A separate narrowly scoped
+folder-trust approval was requested; no trust bypass was used. Authenticated model
+task execution remains unproven at this point. Feature: `plugin-package`.
+
 ## Active-work obligation handoff, 2026-10-05
 
 RED confirmed the prompt hook only delivered the configured project-wide record;

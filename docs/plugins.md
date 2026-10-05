@@ -136,9 +136,12 @@ but are not candidate package members. Validate the candidate before installing.
 The native host, rather than a direct cache copy, owns the active version change.
 The registered marketplace remains the original source; the override applies to
 this invocation, so a later ordinary update can return to the newer version.
-This does not restore missing/corrupt active caches through the guard: its existing
-preflight still refuses those states. Authenticated Agent resumption and recovery
-of such damaged active installations remain U7 work.
+The guard still refuses missing/corrupt active caches. In an isolated host with a
+wholly absent version directory, native `codex plugin add` against the verified
+local marketplace can recreate it; this was tested with all old bytes retained
+outside the cache. Do not apply that operation over partial or user-modified
+contents, because native installation can delete them. Preserve and inspect such
+contents first. Repair of a partially damaged active cache remains unverified.
 Inventory hashes detect ordinary drift, not maliciously rewritten inventories.
 
 ## Verification
