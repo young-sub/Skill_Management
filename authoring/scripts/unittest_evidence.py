@@ -56,7 +56,12 @@ def assess(path, run_id, feature, check, argv, cwd):
         raise ValueError('Evidence must be a capture record')
     binding = {'run_id': run_id, 'feature': feature, 'check': check,
                'argv': argv, 'cwd': str(cwd)}
-    if any(record.get(key) != value for key, value in binding.items()):
+    consumers = record.get('shared_features', [record.get('feature')])
+    if (not isinstance(consumers, list) or not consumers
+            or any(not isinstance(name, str) or not name.strip() for name in consumers)
+            or len(consumers) != len(set(consumers)) or record.get('feature') not in consumers):
+        raise ValueError('Invalid preselected Feature consumers')
+    if feature not in consumers or any(record.get(key) != value for key, value in binding.items() if key != 'feature'):
         raise ValueError('Evidence does not match the selected run, Feature, command or cwd')
     current = git_identity(cwd)
     if current is None or record.get('before') != current or record.get('after') != current:

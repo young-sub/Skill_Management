@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/unittest_evidence.py
-# Source-SHA256: 9984eed8697315eb361f57b7a7b5eac7166663cd2e1836a3ae830aad1b021d67
+# Source-SHA256: 7e150bb3c066d06a83f581f7eea7421300d50522972f3c1352504f21c4a5d23e
 
 """Reassess native unittest captures; no test execution or stored-verdict trust.
 
@@ -60,7 +60,12 @@ def assess(path, run_id, feature, check, argv, cwd):
         raise ValueError('Evidence must be a capture record')
     binding = {'run_id': run_id, 'feature': feature, 'check': check,
                'argv': argv, 'cwd': str(cwd)}
-    if any(record.get(key) != value for key, value in binding.items()):
+    consumers = record.get('shared_features', [record.get('feature')])
+    if (not isinstance(consumers, list) or not consumers
+            or any(not isinstance(name, str) or not name.strip() for name in consumers)
+            or len(consumers) != len(set(consumers)) or record.get('feature') not in consumers):
+        raise ValueError('Invalid preselected Feature consumers')
+    if feature not in consumers or any(record.get(key) != value for key, value in binding.items() if key != 'feature'):
         raise ValueError('Evidence does not match the selected run, Feature, command or cwd')
     current = git_identity(cwd)
     if current is None or record.get('before') != current or record.get('after') != current:

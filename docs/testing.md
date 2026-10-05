@@ -63,3 +63,10 @@ Lookup performs no test execution and writes no evidence. The adapter is scoped
 to native unittest assertions and does not establish UI, Agent behavior, ignored
 data, dependency or runtime identity. Native JSON observations retain their
 existing richer condition binding in the result viewer.
+
+For a preselected group of Features using the same native unittest checks, run
+`python scripts/verify_product.py --features <id> <id> --all-checks --output <new-directory>`.
+Equal check IDs/effective argv/cwd run once in the batch; separate IDs do not merge.
+Each Feature bundle binds the same raw run only when it was named before execution.
+Lookup rechecks current identity without rerunning. This is declared unittest coverage,
+not automatic selection of affected Features or sharing of unrelated browser/DB criteria.

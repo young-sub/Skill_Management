@@ -4,6 +4,49 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Shared native checks across selected Features, 2026-10-05
+
+The existing project-owned unittest adapter now accepts
+`--features <id> <id> --all-checks --output <new-directory>`. It resolves all
+selected mappings before execution, then shares equal check ID/effective argv/cwd
+within that batch. Different check IDs remain separate even with identical argv.
+Capture records the preselected consumers before launching the command; each
+Feature bundle references that same raw run. The distributed native reader
+requires consumer membership, exact command/target, native outcome and current
+Git identity. A relabeled bundle cannot claim an unselected Feature. Legacy
+single-Feature captures and CLI arguments retain their behavior. This does not
+authenticate editable captures or infer coverage from matching command text.
+
+RED reproduced the missing multi-Feature execution path. Regression coverage
+checks shared execution count, distinct IDs with identical commands, read-only
+lookup, unselected-consumer refusal, stale results and shared failure propagation.
+An independent read-only review found no material correctness/trust regression.
+The earlier focused run passed the shared-check cases but failed the existing
+Windows descendant-cleanup test under the default sandbox (`taskkill` exit 1).
+A scoped elevated rerun passed that specific test; read-only process inspection
+found no remaining matching child. That initial run is not reported as passing.
+
+Package 0.1.9 was installed through the guard into isolated host-002. In
+`.work/plugin-transition/shared-consumer-v019`, a project-owned adapter used
+byte-identical copies of the installed capture and reader, while audit/review
+called the installed workflow CLI directly. The native suite separately asserted
+the price value and the quote function consuming it. Wrong value 9 caused both
+assertions to fail in one suite invocation and both obligations remained PARTIAL.
+Repair to 10 passed both assertions in one new invocation; both Feature bundles
+reference the same run and reached READY_FOR_REVIEW. Total suite invocations were
+two across failure and repair; lookup launched zero. Commands, captures/raw,
+bindings and the count are retained in that fixture's `.work/`.
+
+Validation: Full `python -m unittest discover -s tests -p "test_*.py"` passed
+295 tests in 280.220 seconds. Documentation tests (3), distribution validation,
+generated-resource drift and formatting checks also passed.
+
+This is an observed two-consumer native unittest batch, not autonomous Agent
+behavior, automatic affected-Feature selection, cross-batch caching or generic
+browser/API/DB evidence sharing. The adapter remains project-owned; the common
+plugin distributes capture and evidence consumption. Those remaining U3/host
+boundaries and the rest of U1-U7 stay open.
+
 ## Descriptive-document impact selection, 2026-10-05
 
 Broad source inventories previously required product execution even when only a

@@ -20,6 +20,7 @@ def main():
     parser.add_argument('--cwd', required=True, type=Path)
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--feature', help='Optional project-owned Feature ID')
+    parser.add_argument('--also-feature', action='append', default=[], help='Additional preselected consumer of this same check')
     parser.add_argument('--check', help='Optional project-owned command ID')
     parser.add_argument('--json-report', type=Path, help='New native JSON report path (relative to cwd); embed after execution, without assigning a verdict. Must contain no secrets.')
     parser.add_argument('--timeout', type=float, default=300, help='Seconds before stopping the owned process tree (default: 300)')
@@ -28,6 +29,8 @@ def main():
     argv = args.command[1:] if args.command[:1] == ['--'] else args.command
     if not argv or not args.cwd.is_dir() or not math.isfinite(args.timeout) or args.timeout <= 0:
         parser.error('A command and existing working directory are required')
+    if args.also_feature and (not args.feature or not args.check or any(not name.strip() for name in args.also_feature)):
+        parser.error('Shared capture requires nonempty Feature and check IDs')
     cwd = args.cwd.resolve()
     report = (cwd / args.json_report).absolute() if args.json_report else None
     if report:
@@ -40,6 +43,8 @@ def main():
         record = {'run_id': str(uuid.uuid4()), 'feature': args.feature, 'check': args.check,
                   'argv': argv, 'cwd': str(cwd), 'started_at': datetime.now(timezone.utc).isoformat(),
                   'before': git_identity(cwd), 'behavior_verdict': None}
+        if args.also_feature:
+            record['shared_features'] = list(dict.fromkeys([args.feature, *args.also_feature]))
         start = time.monotonic()
         try:
             process = subprocess.Popen(argv, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace', start_new_session=os.name != 'nt')

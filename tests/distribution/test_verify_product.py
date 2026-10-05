@@ -134,6 +134,47 @@ class VerifyProductTests(unittest.TestCase):
                 self.assertNotEqual(code, 0)
                 self.assertEqual(verdict['status'], expected, verdict)
 
+    def test_shared_native_check_runs_once_for_selected_features(self):
+        project_path = self.root / '.harness/project.yaml'
+        project = json.loads(project_path.read_text())
+        project['commands']['separate'] = dict(project['commands']['fixture'], id='separate')
+        project_path.write_text(json.dumps(project))
+        mapping = self.root / 'docs/feature-map.md'
+        mapping.write_text(mapping.read_text() +
+            '| second | Check | Run | Same shared assertion | tests | evidence | fixture, separate |\n')
+        self.suite.write_text('import unittest\nfrom pathlib import Path\n'
+            'p=Path("evidence/count"); p.parent.mkdir(exist_ok=True)\n'
+            'p.write_text(str(int(p.read_text())+1) if p.exists() else "1")\n'
+            'class T(unittest.TestCase):\n def test_value(self): self.assertEqual(2 + 2, 4)\n')
+        argv = [sys.executable, str(VERIFIER), '--root', str(self.root), '--features',
+                'native-verification', 'second', '--all-checks', '--output', str(self.root / 'evidence/shared')]
+        ran = subprocess.run(argv, capture_output=True, text=True)
+        self.assertEqual(ran.returncode, 0, ran.stderr + ran.stdout)
+        outcome = json.loads(ran.stdout)
+        self.assertEqual((self.root / 'evidence/count').read_text(), '2')
+        bundles = {key: json.loads(Path(path).read_text()) for key, path in outcome['bundles'].items()}
+        self.assertEqual(bundles['native-verification']['records'][0], bundles['second']['records'][0])
+        runtime = runpy.run_path(str(ROOT / 'authoring/scripts/project_workflow.py'))
+        for feature, checks in [('native-verification', ['fixture']), ('second', ['fixture', 'separate'])]:
+            observed = runtime['inspect_evidence'](self.root, {'id': feature, 'checks': checks},
+                project['commands'], Path(outcome['bundles'][feature]).relative_to(self.root).as_posix())
+            self.assertEqual(observed['status'], 'PASS', observed)
+        self.assertEqual((self.root / 'evidence/count').read_text(), '2', 'Lookup cannot rerun shared checks')
+        # A bundle cannot relabel this execution as an unselected consumer.
+        forged = dict(bundles['native-verification'], feature='unselected')
+        path = self.root / 'evidence/forged.json'
+        path.write_text(json.dumps(forged))
+        self.assertEqual(runtime['inspect_evidence'](self.root, {'id': 'unselected', 'checks': ['fixture']},
+            project['commands'], 'evidence/forged.json')['status'], 'BLOCKED')
+        self.suite.write_text(self.suite.read_text().replace('2 + 2, 4', '2 + 2, 400'))
+        for feature in outcome['bundles']:
+            self.assertEqual(runtime['inspect_evidence'](self.root, {'id': feature, 'checks': ['fixture']},
+                project['commands'], Path(outcome['bundles'][feature]).relative_to(self.root).as_posix())['status'], 'BLOCKED')
+        argv[-1] = str(self.root / 'evidence/shared-failure')
+        failed = subprocess.run(argv, capture_output=True, text=True)
+        self.assertEqual(failed.returncode, 1, failed.stderr + failed.stdout)
+        self.assertEqual(json.loads(failed.stdout)['status'], 'ISSUES')
+
     def test_stale_source_and_wrong_binding_are_blocked(self):
         record = self.run_check()
         code, verdict = self.verify('--evidence', str(self.output), '--run-id', 'another-run')

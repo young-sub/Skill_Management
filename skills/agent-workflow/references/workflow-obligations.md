@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: f31e9e3893d89b2e8ab91a653cc69695847207c9f88e1b7362c226cbf255d186 -->
+<!-- Source-SHA256: 1943ef0ec95aaa5e29e839ebe8c99e25ebc84b859ae0fc869eb6807a2cc20037 -->
 
 # Project workflow obligations
 
@@ -103,6 +103,16 @@ Projects using the existing unittest adapter can bind captures with
 `verify_product.py --feature <id> --check <id> --output <new-capture> --bundle-output <new-bundle>`.
 For every check registered to one Feature, use `--all-checks --output <new-directory>`;
 the resulting `bundle.json` binds each selected check to its actual native run.
+For multiple selected Features use
+`--features <id> <id> --all-checks --output <new-directory>`. The adapter resolves
+all selections before execution and shares only equal registered check IDs,
+effective argv and cwd within that batch. Distinct check IDs remain separate
+even with identical commands. Captures record their preselected consumers;
+each Feature receives its own bundle referencing the same shared run. A bundle
+cannot relabel that capture as an unselected consumer. The final source identity,
+native exit and counts are reassessed for every consumer. Coverage is the
+project's declared check-to-Feature mapping, not inferred from matching command
+text. Different raw-JSON criteria/fixtures and cross-batch caching are not merged.
 Attach that project-relative bundle path to the semantic review's `bundle` field.
 Workflow audit uses the same native unittest assessor to reread stdout, exit,
 counts, skips, exact target and current Git identity. It never runs the suite or

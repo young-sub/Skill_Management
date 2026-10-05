@@ -1,10 +1,9 @@
-"""Run or assess one repository-owned unittest check from the Feature Map.
+"""Run or assess repository-owned unittest checks from the Feature Map.
 
 This adapter understands unittest summaries only. It does not authenticate
-editable evidence, attest untracked contents, or verify external products.
+editable evidence, attest ignored runtime inputs, or verify external products.
 """
 import argparse
-import hashlib
 import json
 import math
 from pathlib import Path
@@ -15,10 +14,11 @@ import sys
 from unittest_evidence import assess
 
 
-def capture_check(argv, cwd, output, feature, check, timeout):
+def capture_check(argv, cwd, output, feature, check, timeout, also_features=()):
     result = subprocess.run([sys.executable, str(Path(__file__).with_name('run_check.py')),
                              '--cwd', str(cwd), '--output', str(output),
                              '--feature', feature, '--check', check,
+                             *[token for name in also_features for token in ('--also-feature', name)],
                              '--timeout', str(timeout), '--', *argv],
                             capture_output=True, text=True, encoding='utf-8', errors='replace')
     if not result.stdout.strip():
@@ -27,35 +27,54 @@ def capture_check(argv, cwd, output, feature, check, timeout):
 
 
 def execute_feature(root, feature, output, timeout):
-    """Run each registered check once, then recheck all captures at the final state."""
+    outcome = execute_features(root, [feature], output, timeout)
+    return {'status': outcome['status'], 'feature': feature,
+            'bundle': outcome['bundles'][feature], 'results': outcome['results'][feature]}
+
+
+def execute_features(root, features, output, timeout):
+    """Share only the same registered check/argv/cwd within this execution batch."""
     project = json.loads((root / '.harness/project.yaml').read_text(encoding='utf-8'))
     commands = dict(project['commands'])
     commands.update(project.get('impact', {}).get('feature_selectors', {}))
-    checks = feature_checks(root, commands).get(feature)
-    if not checks:
+    mapping = feature_checks(root, commands)
+    features = list(dict.fromkeys(features))
+    if not features or any(not mapping.get(feature) for feature in features):
         raise ValueError('Feature has no connected checks')
-    selected = [(check, *check_target(root, feature, check)) for check in dict.fromkeys(checks)]
+    selected = {}
+    for feature in features:
+        for check in dict.fromkeys(mapping[feature]):
+            argv, cwd = check_target(root, feature, check)
+            selected.setdefault((check, tuple(argv), cwd), []).append(feature)
     output = output.resolve()
     if not output.is_relative_to(root):
         raise ValueError('Workflow evidence must be inside the project')
     output.mkdir(parents=True, exist_ok=False)
-    records = []
-    for index, (check, argv, cwd) in enumerate(selected):
+    records = {feature: [] for feature in features}
+    executed = []
+    for index, ((check, argv, cwd), consumers) in enumerate(selected.items()):
         path = output / f'{index}.json'
-        run_id = capture_check(argv, cwd, path, feature, check, timeout)
-        records.append({'check': check, 'run_id': run_id, 'path': path.relative_to(root).as_posix()})
-    bundle = output / 'bundle.json'
-    bundle.write_text(json.dumps({'format': 'unittest-captures-v1', 'feature': feature,
-                                 'records': records}), encoding='utf-8')
-    results = []
-    for record, (check, argv, cwd) in zip(records, selected):
-        try:
-            results.append(assess(root / record['path'], record['run_id'], feature, check, argv, cwd))
-        except (OSError, ValueError, KeyError, TypeError) as error:
-            results.append({'check': check, 'status': 'BLOCKED', 'reason': str(error)})
-    statuses = {item['status'] for item in results}
+        run_id = capture_check(argv, cwd, path, consumers[0], check, timeout, consumers[1:])
+        record = {'check': check, 'run_id': run_id, 'path': path.relative_to(root).as_posix()}
+        for feature in consumers:
+            records[feature].append(record)
+        executed.append((record, list(argv), cwd, consumers))
+    bundles = {}
+    for feature in features:
+        bundle = output / ('bundle.json' if len(features) == 1 else feature + '.bundle.json')
+        bundle.write_text(json.dumps({'format': 'unittest-captures-v1', 'feature': feature,
+                                     'records': records[feature]}), encoding='utf-8')
+        bundles[feature] = str(bundle)
+    results = {feature: [] for feature in features}
+    for record, argv, cwd, consumers in executed:
+        for feature in consumers:
+            try:
+                results[feature].append(assess(root / record['path'], record['run_id'], feature, record['check'], argv, cwd))
+            except (OSError, ValueError, KeyError, TypeError) as error:
+                results[feature].append({'check': record['check'], 'status': 'BLOCKED', 'reason': str(error)})
+    statuses = {item['status'] for values in results.values() for item in values}
     return {'status': 'BLOCKED' if 'BLOCKED' in statuses else 'ISSUES' if 'ISSUES' in statuses else 'PASS',
-            'feature': feature, 'bundle': str(bundle), 'results': results}
+            'bundles': bundles, 'results': results, 'executed_checks': len(executed)}
 
 
 def feature_checks(root, commands):
@@ -105,7 +124,9 @@ def check_target(root, feature, check):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[1])
-    parser.add_argument('--feature', required=True)
+    features = parser.add_mutually_exclusive_group(required=True)
+    features.add_argument('--feature')
+    features.add_argument('--features', nargs='+', help='Share registered checks across these preselected Features')
     selection = parser.add_mutually_exclusive_group(required=True)
     selection.add_argument('--check')
     selection.add_argument('--all-checks', action='store_true', help='Run all checks registered for this Feature into a new output directory')
@@ -120,10 +141,13 @@ def main():
         if not math.isfinite(args.timeout) or args.timeout <= 0:
             raise ValueError('Timeout must be finite and positive')
         root = args.root.resolve()
+        if args.features and not args.all_checks:
+            raise ValueError('--features requires --all-checks')
         if args.all_checks:
             if not args.output or args.bundle_output or args.run_id:
                 raise ValueError('--all-checks requires a new --output directory only')
-            verdict = execute_feature(root, args.feature, args.output, args.timeout)
+            verdict = (execute_features(root, args.features, args.output, args.timeout) if args.features else
+                       execute_feature(root, args.feature, args.output, args.timeout))
             print(json.dumps(verdict, ensure_ascii=False))
             return {'PASS': 0, 'ISSUES': 1, 'BLOCKED': 2}[verdict['status']]
         if args.bundle_output and args.bundle_output.exists():
