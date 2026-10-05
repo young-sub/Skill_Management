@@ -4,6 +4,55 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Execute outstanding task verification, 2026-10-05
+
+The existing project adapter now supports `--work-id <id>` or
+`--pending-state .work/<record>.json` with `--all-checks --output <new-directory>`.
+It invokes the sibling workflow CLI to recompute required execution from the
+actual baseline, changed inputs and current native evidence. Only REQUIRED
+Features are selected; unaffected or already verified Features are omitted.
+The existing batch path handles shared checks. Workflow and Feature Map check
+lists must agree before any command runs. Native PASS does not discharge a
+separate product/semantic finding. If no execution is outstanding, the result is
+NOT_REQUIRED with zero commands and no output directory, while selection-time
+workflow status and remaining obligations stay visible. Bundles still require
+semantic review/binding before current completion is reevaluated.
+
+RED reproduced absent pending selection; an additional negative control showed
+an empty supplied state being treated as no-impact work. The common audit now
+rejects that invalid baseline. Regression covers selected execution, an untouched
+Feature whose command must never run, reuse despite a separate product finding,
+state preservation, missing/empty state rejection and no output on no-op.
+Independent review then identified a supplied JSON `null` taking the intentionally
+state-less audit path. A second RED reproduced the false NOT_REQUIRED result;
+the CLI now rejects supplied null state. Final package 0.1.11 was installed and
+its actual runtime returned BLOCKED for that record, with no test or output
+directory (`pending-consumer-v0110/.work/null-check-v0111/process.json`).
+
+Package 0.1.10 was guardedly installed in isolated host-002. The retained trial
+`.work/plugin-transition/pending-consumer-v0110` used installed design/start,
+workflow and close CLIs plus the project-owned adapter with byte-identical
+installed capture/workflow/reader dependencies. Normal start captured the baseline
+without manual workflow begin. Pending execution selected the changed price
+Feature without a handwritten Feature list; native price 9 versus expected 10
+failed, and close refused completion. Repair to `5 + 5` passed the unchanged
+assertion and current review. A second pending-execution request returned
+NOT_REQUIRED without a new directory or suite run. Close then completed and
+retained the work state. Exactly two suites ran across failure and repair; raw
+commands, captures and no-op result are retained in that fixture's `.work/`.
+
+This connects configured native unittest work to deterministic execution; it is
+not authenticated Agent task selection or a universal adapter for browser/API/DB
+commands. Those require their existing native runners and criteria. The rest of
+U1-U7 remains open, and no original Labeler or ordinary installation was changed.
+The isolated host login was rechecked during this unit and remains `Not logged
+in`; authenticated installed-Agent evaluation still awaits that isolated login.
+
+Final-source validation passed: Full `python -m unittest discover -s tests -p
+'test_*.py'` ran 296 tests in 268.315 seconds; focused adapter/workflow tests
+passed 34 tests, documentation checks passed 3 tests, and resource drift,
+distribution and Git whitespace checks passed.
+
 ## Shared native checks across selected Features, 2026-10-05
 
 The existing project-owned unittest adapter now accepts

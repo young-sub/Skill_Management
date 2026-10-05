@@ -97,6 +97,35 @@ def feature_checks(root, commands):
     return features
 
 
+def execute_pending(root, state, work_id, output, timeout):
+    """Ask the existing runtime to recompute obligations, never trust a saved verdict."""
+    if state:
+        path = (root / state).resolve()
+        if not path.is_relative_to(root / '.work') or not path.is_file():
+            raise ValueError('Pending selection requires an existing task-local state')
+    selection = ['--state', state] if state else ['--work-id', work_id]
+    completed = subprocess.run([sys.executable, str(Path(__file__).with_name('project_workflow.py')),
+        'audit', '--root', str(root), *selection], capture_output=True, text=True, encoding='utf-8')
+    audit = json.loads(completed.stdout)
+    if completed.returncode not in (0, 2) or audit.get('status') not in {'PARTIAL', 'READY_FOR_REVIEW'}:
+        raise ValueError(f'Workflow selection unavailable: {audit.get("findings", [])}')
+    selected = [feature['id'] for feature in audit['features'] if feature.get('verification_status') == 'REQUIRED']
+    if any(feature.get('verification_status') not in {'PASS', 'REQUIRED', 'NOT_REQUIRED'} for feature in audit['features']):
+        raise ValueError('Workflow runtime does not expose current verification requirements')
+    context = {'selected_features': selected, 'workflow_status': audit['status'],
+               'remaining_obligations': audit['obligations'], 'product_findings': audit['product_findings']}
+    if not selected:
+        return {'status': 'NOT_REQUIRED', 'executed_checks': 0, **context}
+    project = json.loads((root / '.harness/project.yaml').read_text(encoding='utf-8'))
+    commands = dict(project['commands'])
+    commands.update(project.get('impact', {}).get('feature_selectors', {}))
+    mapping = feature_checks(root, commands)
+    configured = {f['id']: f['checks'] for f in project['extensions']['workflow']['features']}
+    if any(set(mapping.get(feature, [])) != set(configured[feature]) for feature in selected):
+        raise ValueError('Feature Map and workflow check selection disagree')
+    return {**execute_features(root, selected, output, timeout), **context}
+
+
 def check_target(root, feature, check):
     project = json.loads((root / '.harness/project.yaml').read_text(encoding='utf-8'))
     commands = dict(project['commands'])
@@ -127,6 +156,8 @@ def main():
     features = parser.add_mutually_exclusive_group(required=True)
     features.add_argument('--feature')
     features.add_argument('--features', nargs='+', help='Share registered checks across these preselected Features')
+    features.add_argument('--pending-state', help='Select outstanding verification from an existing .work record')
+    features.add_argument('--work-id', help='Select outstanding verification from Harness start state')
     selection = parser.add_mutually_exclusive_group(required=True)
     selection.add_argument('--check')
     selection.add_argument('--all-checks', action='store_true', help='Run all checks registered for this Feature into a new output directory')
@@ -141,15 +172,18 @@ def main():
         if not math.isfinite(args.timeout) or args.timeout <= 0:
             raise ValueError('Timeout must be finite and positive')
         root = args.root.resolve()
-        if args.features and not args.all_checks:
-            raise ValueError('--features requires --all-checks')
+        if (args.features or args.pending_state or args.work_id) and not args.all_checks:
+            raise ValueError('Batch or pending selection requires --all-checks')
         if args.all_checks:
             if not args.output or args.bundle_output or args.run_id:
                 raise ValueError('--all-checks requires a new --output directory only')
-            verdict = (execute_features(root, args.features, args.output, args.timeout) if args.features else
-                       execute_feature(root, args.feature, args.output, args.timeout))
+            if args.pending_state or args.work_id:
+                verdict = execute_pending(root, args.pending_state, args.work_id, args.output, args.timeout)
+            else:
+                verdict = (execute_features(root, args.features, args.output, args.timeout) if args.features else
+                           execute_feature(root, args.feature, args.output, args.timeout))
             print(json.dumps(verdict, ensure_ascii=False))
-            return {'PASS': 0, 'ISSUES': 1, 'BLOCKED': 2}[verdict['status']]
+            return {'PASS': 0, 'NOT_REQUIRED': 0, 'ISSUES': 1, 'BLOCKED': 2}[verdict['status']]
         if args.bundle_output and args.bundle_output.exists():
             raise ValueError('Bundle output already exists')
         argv, cwd = check_target(root, args.feature, args.check)

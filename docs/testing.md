@@ -70,3 +70,10 @@ Equal check IDs/effective argv/cwd run once in the batch; separate IDs do not me
 Each Feature bundle binds the same raw run only when it was named before execution.
 Lookup rechecks current identity without rerunning. This is declared unittest coverage,
 not automatic selection of affected Features or sharing of unrelated browser/DB criteria.
+
+Use `--work-id <id>` or `--pending-state .work/<record>.json` instead of `--features`
+to select currently required execution through the sibling workflow CLI.
+The adapter refuses mismatched map/workflow check sets before execution.
+NOT_REQUIRED means no commands ran; unresolved semantic/product obligations remain visible.
+Returned workflow status is the pre-execution selection snapshot. Bind new bundles
+through semantic review, then use read-only audit for current completion status.

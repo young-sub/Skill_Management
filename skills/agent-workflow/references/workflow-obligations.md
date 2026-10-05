@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: 1943ef0ec95aaa5e29e839ebe8c99e25ebc84b859ae0fc869eb6807a2cc20037 -->
+<!-- Source-SHA256: de7bf79bce967a016ec76a2acfe7f81a2a384a672c0e9f9646cc2ab0e3820767 -->
 
 # Project workflow obligations
 
@@ -114,6 +114,19 @@ native exit and counts are reassessed for every consumer. Coverage is the
 project's declared check-to-Feature mapping, not inferred from matching command
 text. Different raw-JSON criteria/fixtures and cross-batch caching are not merged.
 Attach that project-relative bundle path to the semantic review's `bundle` field.
+The same project adapter can select pending execution directly with
+`--work-id <id> --all-checks --output <new-directory>`, or
+`--pending-state .work/<record>.json --all-checks --output <new-directory>`.
+It calls the sibling workflow CLI to recompute actual obligations and current
+evidence, then executes only Features whose `verification_status` is REQUIRED.
+Workflow and Feature Map check lists must agree before commands launch. Missing,
+empty, wrong-target or old unsupported records cannot produce a no-op success.
+Current native evidence is reused even if a separate product finding remains;
+no pending execution returns NOT_REQUIRED with zero commands and no output
+directory, never product PASS. `workflow_status` and remaining obligations are
+the selection-time snapshot; semantic review and binding the returned bundle
+remain explicit work. Automatic selection does not invent missing project runners
+or make unsupported browser/API/DB checks into unittest commands.
 Workflow audit uses the same native unittest assessor to reread stdout, exit,
 counts, skips, exact target and current Git identity. It never runs the suite or
 loads project code during lookup, and ignores submitted bundle verdict fields.

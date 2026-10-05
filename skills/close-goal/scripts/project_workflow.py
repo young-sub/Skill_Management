@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: 7da67a7104f9ec03ebee8c52a7d9facba08534f288254f4062f900146e5d065c
+# Source-SHA256: 15ed9e5a4f837b1266127c31ec4d734ab0a274c0c07e15ddf72bae51e81d7fe8
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -169,8 +169,10 @@ def inspect_project(root, project, state=None):
         return result
     if state is not None and not isinstance(state, dict):
         raise ValueError('workflow_state_must_be_object')
-    if state and (state.get('schema_version') != 1 or state.get('root') != str(root)):
+    if state is not None and (state.get('schema_version') != 1 or state.get('root') != str(root)):
         raise ValueError('work_target_mismatch')
+    if state is not None and not isinstance(state.get('baseline'), dict):
+        raise ValueError('workflow_baseline_required')
     state = state or {}
     for field in ('reviews', 'retired_reviews', 'baseline', 'input_bases', 'source_patterns', 'documentation_only'):
         if not isinstance(state.get(field, {}), dict):
@@ -257,6 +259,8 @@ def inspect_project(root, project, state=None):
                 'verification_changed': verification_changed,
                 'requires': requires, 'references': sorted(refs)})
         result['features'].append({'id': identity, 'basis': basis, 'partition': feature['partition'],
+                                   'verification_status': ('NOT_REQUIRED' if not needs_behavior else
+                                       'PASS' if behavior and behavior['status'] == 'PASS' else 'REQUIRED'),
                                    'reviewed': reviewed, 'mapping_ready': bool(mapping_ready), 'source_count': len(sources)})
         partition = feature['partition']
         prior = result['partitions'].get(partition, 'READY_FOR_REVIEW')
@@ -414,6 +418,8 @@ def main(argv=None):
         if state_path and not state_path.resolve().is_relative_to(root / '.work'):
             raise ValueError('state_must_be_task_local_under_work')
         state = json.loads(state_path.read_text(encoding='utf-8')) if state_path and state_path.exists() else None
+        if state_path and state_path.exists() and state is None:
+            raise ValueError('workflow_state_must_be_object')
         if args.work_id:
             if args.action == 'begin':
                 raise ValueError('Harness start owns this baseline; use audit or review with --work-id')

@@ -4,7 +4,7 @@ description: Coordinate a coding task from a natural-language request through re
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: 3c40cb86fe08b5cf3b5b44bba9d0f339bfebcf1c82d97c576bd3649ed343214b -->
+<!-- Source-SHA256: e2f38f5c3508f14d5f8427663250e92b4d57a7292407b108fa68d1ea17b40f25 -->
 
 
 # Agent Workflow
@@ -25,7 +25,7 @@ Load [verification responsibilities](references/project-verification.md) for set
 
 For configured projects, [workflow obligations](references/workflow-obligations.md) provides the direct audit/resume CLI. Consume its affected references and perform the required semantic work. Local consistency and host-protected acceptance are distinct; the CLI reports the unsupported enforcement boundary explicitly.
 
-When the project already provides the native unittest adapter described in its guide, reuse its `--all-checks --output <new-directory>` or bind an existing capture with `--evidence` and `--bundle-output`. The workflow audit consumes that bundle directly without rerunning tests. This producer belongs to the project and is not bundled as a universal product adapter. If absent, setup must connect the project's actual runner first. Do not fabricate native JSON observations to make unittest output fit the browser/API viewer.
+When the project already provides the native unittest adapter described in its guide, reuse its `--work-id <id> --all-checks --output <new-directory>` (or `--pending-state` for an existing non-Harness record) to execute recomputed pending checks; use explicit Feature selection when no task record exists or bind an existing capture with `--evidence` and `--bundle-output`. The workflow audit consumes that bundle directly without rerunning tests. This producer belongs to the project and is not bundled as a universal product adapter. If absent, setup must connect the project's actual runner first. Do not fabricate native JSON observations to make unittest output fit the browser/API viewer.
 
 For existing structured project evidence, the bundled [read-only viewer](scripts/verification_results.py) joins a project plan, capture, adapter assessment and raw observations. Read its [input and reuse contract](references/result-viewer.md); preserve the project's native report format and use its criterion/observation pointers. It never launches a recorded command. If the project has no compatible plan, inspect raw directly and report the missing binding; do not manufacture a successful plan or silently execute during lookup.
 

@@ -175,6 +175,62 @@ class VerifyProductTests(unittest.TestCase):
         self.assertEqual(failed.returncode, 1, failed.stderr + failed.stdout)
         self.assertEqual(json.loads(failed.stdout)['status'], 'ISSUES')
 
+    def test_pending_work_selects_only_needed_checks_and_reuses_current_evidence(self):
+        runtime = runpy.run_path(str(ROOT / 'authoring/scripts/project_workflow.py'))
+        self.root.joinpath('.gitignore').write_text('evidence/\n.work/\n__pycache__/\n')
+        self.root.joinpath('.work').mkdir()
+        project_path = self.root / '.harness/project.yaml'
+        project = json.loads(project_path.read_text())
+        project['extensions'] = {'workflow': {'roots': ['suite.py'], 'features': [{
+            'id': 'native-verification', 'partition': 'verification', 'sources': ['suite.py'],
+            'map': ['docs/feature-map.md'], 'criteria': ['docs/feature-map.md'], 'checks': ['fixture']}]}}
+        project['commands']['unused'] = dict(project['commands']['fixture'], id='unused',
+                                             argv=[sys.executable, '-m', 'unittest', 'must_not_run'])
+        self.root.joinpath('other.py').write_text('value = 1\n')
+        project['extensions']['workflow']['roots'].append('other.py')
+        project['extensions']['workflow']['features'].append({
+            'id': 'unaffected', 'partition': 'other', 'sources': ['other.py'],
+            'map': ['docs/feature-map.md'], 'criteria': ['docs/feature-map.md'], 'checks': ['unused']})
+        mapping = self.root / 'docs/feature-map.md'
+        mapping.write_text(mapping.read_text() +
+            '| unaffected | Other | Read | One | other | none | unused |\n')
+        project_path.write_text(json.dumps(project))
+        state = runtime['begin'](self.root, project, 'change')
+        self.suite.write_text(self.suite.read_text() + '# implementation changed\n')
+        path = self.root / '.work/state.json'
+        path.write_text(json.dumps(state))
+        command = [sys.executable, str(VERIFIER), '--root', str(self.root), '--pending-state', '.work/state.json',
+                   '--all-checks', '--output', str(self.root / 'evidence/pending')]
+        result = subprocess.run(command, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        outcome = json.loads(result.stdout)
+        self.assertEqual(outcome['selected_features'], ['native-verification'])
+        current = runtime['inspect_project'](self.root, project, state)
+        state = runtime['record_review'](self.root, project, state, {
+            'feature': 'native-verification', 'basis': current['features'][0]['basis'],
+            'analysis': 'Changed implementation checked by the native suite.',
+            'references': ['suite.py'], 'findings': [], 'product_findings': ['Separate quality review remains.'],
+            'bundle': Path(outcome['bundles']['native-verification']).relative_to(self.root).as_posix()})
+        path.write_text(json.dumps(state))
+        before = path.read_bytes()
+        command[-1] = str(self.root / 'evidence/not-needed')
+        result = subprocess.run(command, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        outcome = json.loads(result.stdout)
+        self.assertEqual(outcome['status'], 'NOT_REQUIRED')
+        self.assertEqual(outcome['workflow_status'], 'PARTIAL', 'Unresolved product gap must stay visible')
+        self.assertFalse((self.root / 'evidence/not-needed').exists())
+        self.assertEqual(path.read_bytes(), before)
+        path.unlink()
+        result = subprocess.run(command, capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(json.loads(result.stdout)['status'], 'BLOCKED')
+        for invalid in ('{}', 'null'):
+            path.write_text(invalid)
+            result = subprocess.run(command, capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0, 'An empty record is not a zero-impact work baseline')
+            self.assertFalse((self.root / 'evidence/not-needed').exists())
+
     def test_stale_source_and_wrong_binding_are_blocked(self):
         record = self.run_check()
         code, verdict = self.verify('--evidence', str(self.output), '--run-id', 'another-run')
