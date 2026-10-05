@@ -32,6 +32,26 @@ def context(payload):
         return {}
     audit = runtime['inspect_configured'](root, project)
     summary = {key: audit[key] for key in ('status', 'mapping_status', 'enforcement')}
+    active_root = runtime['local_path'](root, '.work/goals/active')
+    active = []
+    if active_root.is_dir():
+        for entry in sorted(active_root.iterdir()):
+            manifest = runtime['local_path'](root, f'.work/goals/active/{entry.name}/work.json')
+            if manifest.is_file():
+                active.append(entry.name)
+    # No host session-to-work binding is available: expose candidates, never guess.
+    summary.update(active_work_count=len(active), active_work_omitted=max(0, len(active) - 8), active_work=[])
+    for work_id in active[:8]:
+        item = {'work_id': work_id}
+        try:
+            state, _ = runtime['work_record'](root, work_id)
+            work = runtime['inspect_project'](root, project, state)
+            item.update(status=work['status'], obligation_count=len(work['obligations']),
+                        obligations=[{'target': row['target'], 'requires': row['requires']}
+                                     for row in work['obligations'][:3]], findings=work['findings'][:3])
+        except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
+            item.update(status='BLOCKED', error=str(error))
+        summary['active_work'].append(item)
     summary.update(root=str(root), state=config.get('state'), obligation_count=len(audit['obligations']),
                    obligations=audit['obligations'][:8], unmapped_count=len(audit['unmapped']),
                    unmapped=audit['unmapped'][:8], findings=audit['findings'][:8],

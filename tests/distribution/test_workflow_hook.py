@@ -1,6 +1,7 @@
 """A prompt hook hands off actual project obligations without running work."""
 import hashlib
 import json
+import runpy
 from pathlib import Path
 import subprocess
 import sys
@@ -52,6 +53,47 @@ class WorkflowHookTests(unittest.TestCase):
             self.assertEqual(invoke(), result)
             self.assertEqual(before, {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in paths})
             self.assertEqual(set(before), {str(p) for p in root.rglob('*') if p.is_file() and '.git' not in p.parts})
+            runtime = runpy.run_path(str(WORKFLOW))
+            # Project-level review is ready, while work A still owns an earlier change.
+            state = json.loads((root / '.work/task.json').read_text())
+            state['intent'] = 'change'
+            state['targets'] = []
+            for work_id, work_state in [('W-A', state), ('W-B', runtime['begin'](root, project, 'change'))]:
+                directory = root / '.work/goals/active' / work_id
+                directory.mkdir(parents=True)
+                audit = runtime['inspect_project'](root, project, work_state)
+                work_state = runtime['record_review'](root, project, work_state, {
+                    'feature': 'price', 'basis': audit['features'][0]['basis'],
+                    'analysis': 'Reviewed price and requirement.', 'references': ['map.md'], 'findings': []})
+                (directory / 'work.json').write_text(json.dumps({'work_id': work_id, 'state': 'active',
+                    'source_commit': work_state['base'], 'workflow_baseline': work_state}))
+                if work_id == 'W-B':
+                    (root / '.work/task.json').write_text(json.dumps(work_state))
+            snapshot = {str(p): p.read_bytes() for p in root.rglob('*') if p.is_file() and '.git' not in p.parts}
+            context = invoke()['hookSpecificOutput']['additionalContext']
+            details = json.loads(context.split('\n', 1)[1])
+            self.assertEqual(details['status'], 'READY_FOR_REVIEW')
+            self.assertEqual(details['active_work_count'], 2)
+            works = {item['work_id']: item for item in details['active_work']}
+            self.assertEqual(works['W-A']['status'], 'PARTIAL')
+            self.assertIn('verification', works['W-A']['obligations'][0]['requires'])
+            self.assertEqual(works['W-B']['status'], 'READY_FOR_REVIEW')
+            self.assertNotIn('selected_work_id', details, 'Prompt text is not a trusted session binding')
+            self.assertEqual(snapshot, {str(p): p.read_bytes() for p in root.rglob('*') if p.is_file() and '.git' not in p.parts})
+            (root / '.work/goals/active/W-A/workflow.json').write_text('null')
+            details = json.loads(invoke()['hookSpecificOutput']['additionalContext'].split('\n', 1)[1])
+            self.assertEqual(details['active_work'][0]['status'], 'BLOCKED')
+            self.assertEqual(details['active_work'][1]['status'], 'READY_FOR_REVIEW')
+            for index in range(9):
+                directory = root / '.work/goals/active' / f'W-Z{index}'
+                directory.mkdir()
+                (directory / 'work.json').write_text('{}')
+            context = invoke()['hookSpecificOutput']['additionalContext']
+            details = json.loads(context.split('\n', 1)[1])
+            self.assertEqual(details['active_work_count'], 11)
+            self.assertEqual(details['active_work_omitted'], 3)
+            self.assertEqual(len(details['active_work']), 8)
+            self.assertLess(len(context), 6000)
             (root / '.work/task.json').write_text('null')
             self.assertIn('workflow_state_must_be_object', invoke()['systemMessage'])
             config.write_text('{}')

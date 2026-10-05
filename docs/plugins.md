@@ -65,6 +65,14 @@ host delivery and authenticated Agent behavior still require user hook review
 and a logged-in isolated host. Installation does not grant hook trust. No ordinary
 home or project trust setting was changed for this probe.
 
+The read-only context includes separate summaries for up to eight existing active
+Harness work records, using the same baseline reader as close. Project-wide status
+does not replace those per-work obligations. Invalid work records remain visible
+as BLOCKED, and omitted work counts are explicit. There is no trusted host
+session-to-work binding: these are identified candidates, not an automatically
+selected task. The hook neither reads the prompt to guess a work ID nor executes
+the pending checks.
+
 For an isolated Codex host, place the built package at
 `<marketplace>/plugins/agentic-coding` and create
 `<marketplace>/.agents/plugins/marketplace.json`:

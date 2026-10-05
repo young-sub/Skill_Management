@@ -4,6 +4,30 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Active-work obligation handoff, 2026-10-05
+
+RED confirmed the prompt hook only delivered the configured project-wide record;
+an earlier active task's pending verification was absent when the shared record
+was already ready. The hook now reads existing active records through the same
+`work_record` baseline validation used by close and audits each independently.
+At most eight identified candidates and three obligations per candidate enter the
+bounded context. Total/omitted counts remain explicit, malformed work stays
+BLOCKED, and no project commands or model requests execute. There is no trusted
+session-to-work binding in this path, so it does not infer a selected task from
+prompt text. Project status and per-work status remain separate.
+
+Workflow/hook/package checks passed 25 tests in 29.046 seconds. Native guarded
+update installed candidate 0.1.23 into `host-006`; all 244 files matched. Direct
+subprocess execution of that installed hook passed the read-only scenario in
+2.496 seconds. Its nine invocations include project-ready/task-A-pending/task-B-ready,
+invalid task A with intact task B, eleven tasks with eight shown and three omitted,
+unconfigured project and wrong event. The test compares file sets and bytes before
+and after delivery, checks that prompt content is absent and that no task is
+automatically selected. Raw inputs/outputs and argv are retained in
+`.work/plugin-transition/hook-active-installed-v023/calls.json`. This is installed
+handler behavior against fixture work records, not a trusted automatic host event
+or authenticated Agent session. Feature: `workflow-obligations`.
+
 ## Verification obligations for changed criteria and standards, 2026-10-05
 
 RED reproduced a false completion path: changing a registered check definition
