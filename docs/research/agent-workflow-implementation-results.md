@@ -4,6 +4,32 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Plugin transition and environment recheck, 2026-10-05
+
+The transition resumed from clean `3c3a5be` on the same branch. The [plugin
+builder](../plugins.md) produces the current 19-Skill catalog and capture CLI from
+existing sources, checks generated drift, and refuses an existing output directory.
+The package integration test executes its capture tool outside the checkout and
+checks preservation on a repeated build. It does not claim Agent task success.
+
+An actual task-local Codex 0.160.0 marketplace install and duplicate add completed.
+A fresh app-server returned all 19 enabled `agentic-coding:` Skills under the
+isolated plugin cache with the expected plugin ID. The cache's capture CLI then
+ran a real foreground command successfully. Raw CLI and discovery records are in
+`.work/plugin-transition/host-001/captures/`. General installation and global
+configuration were not changed. Authenticated autonomous task acceptance remains
+separate; the isolated discovery home intentionally contains no copied credentials.
+
+The earlier socket 10013 and process-cleanup failures below are historical, not
+proof of an unavoidable host limitation. The same credential-free TLS handshake
+failed inside the outer tool sandbox and succeeded with scoped external execution;
+the exact owned-child cleanup test also passed there. Full tests for this package
+unit passed: **282 tests**, with no skip or failure, using scoped external execution
+for the existing process-cleanup requirement. Distribution validation passed.
+This corrects the previous environment diagnosis without claiming authenticated
+model execution or protected acceptance. `accept` still has no connected protected
+host boundary, and the full U1-U7 task acceptance remains incomplete.
+
 ## U1-U7 implementation, 2026-10-05
 
 This continuation started from clean `wp-20261004-agent-coding-foundation` at `864ee4f053463e843e2a41d4ad57799446113f70`. The coupled runtime/evidence/distribution unit is committed locally as `b1b710c`. The current design is [completion design](agent-workflow-completion-design.md), and the authorized execution is [next-session prompt](agent-workflow-next-session.md). New temporary evidence is under `.work/agent-workflow-foundation-20261005/`; earlier T1-T6 raw remains unchanged. Local source delivery, temporary installation, product observations, supervised Agent behavior and protected host acceptance are separate outcomes. Overall status remains **PARTIAL / BLOCKED**, not completion of the whole system.

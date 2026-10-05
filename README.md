@@ -7,6 +7,7 @@
 - 에이전트 구현 문서: [`docs/index.md`](docs/index.md)
 - 기계 판독 설정: [`.harness/project.yaml`](.harness/project.yaml)
 - 공개 Skill: `skills/`
+- 로컬 플러그인 생성·검증: [`docs/plugins.md`](docs/plugins.md)
 - canonical source와 생성 매핑: `authoring/`
 
 공개 Harness Skill은 `setup-agent-harness`, `explore-idea`, `design-goal`, `execute-codex-goal`, `diagnose`, `close-goal`, `maintain-agent-harness`입니다. 기존 v2.0.0 배포 사실은 [`docs/releases/v2.0.0.md`](docs/releases/v2.0.0.md)에 역사적 릴리스 증거로 남아 있으며, 현재 workflow authority는 아닙니다.

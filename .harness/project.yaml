@@ -32,6 +32,7 @@
       {"id": "repository-ignore", "source_prefixes": [".gitignore"], "tests": ["tests/harness/test_core_first_setup.py", "tests/harness/test_core_first_design_execution.py"], "feature": "harness-core", "triggers": []}
     ],
     "feature_selectors": {
+      "plugin-package": ["python", "-m", "unittest", "tests.distribution.test_plugin_package"],
       "workflow-obligations": ["python", "-m", "unittest", "tests.distribution.test_project_workflow"],
       "verification-results": ["python", "-m", "unittest", "tests.distribution.test_verification_results", "tests.distribution.test_verification_execution"],
       "workflow-distribution": ["python", "-m", "unittest", "tests.distribution.test_public_catalog", "tests.distribution.test_self_containment", "tests.distribution.test_sync_skill_resources"],
@@ -65,6 +66,7 @@
     "roots": ["authoring/scripts", "authoring/skills", "scripts", "skills/impeccable", "skills/fixing-accessibility", "skills/vercel-react-best-practices", "skills/multi-agent-review", "skills/explore-idea", "skills/prototype", "skills/teach", "skills/zoom-out", "skills/finance-research", "skills/hwp-form-fill"],
     "state": ".work/project-verification/state.json",
     "features": [
+      {"id": "plugin-package", "partition": "distribution", "sources": ["scripts/build_plugin.py"], "map": ["docs/feature-map.md"], "criteria": ["docs/plugins.md"], "checks": ["plugin-package"]},
       {"id": "workflow-obligations", "partition": "workflow", "sources": ["authoring/scripts/project_workflow.py", "scripts/project_workflow.py"], "map": ["docs/feature-map.md"], "criteria": ["authoring/references/workflow-obligations.md"], "checks": ["workflow-obligations"]},
       {"id": "verification-results", "partition": "verification", "sources": ["authoring/scripts/verification_results.py", "scripts/verification_results.py"], "map": ["docs/feature-map.md"], "criteria": ["authoring/references/result-viewer.md"], "checks": ["verification-results"]},
       {"id": "native-verification", "partition": "verification", "sources": ["scripts/run_check.py", "scripts/verify_product.py"], "map": ["docs/feature-map.md"], "criteria": ["docs/testing.md"], "checks": ["verification-capture", "documentation"]},

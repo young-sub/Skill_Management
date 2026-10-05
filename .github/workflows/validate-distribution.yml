@@ -119,3 +119,6 @@ jobs:
       - name: Generated resource drift
         shell: pwsh
         run: scripts/sync-skill-resources.ps1 -Check
+      - name: Build local plugin
+        if: needs.scope.outputs.docs_only != 'true'
+        run: python scripts/build_plugin.py --output dist/agentic-coding

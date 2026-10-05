@@ -12,6 +12,7 @@ Load ignored repository-local `.harness/environment-exceptions.json` once per ta
 - [Tracker integration](agents/issue-tracker.md) — optional local/GitHub tracker channel policy.
 - [Triage labels](agents/triage-labels.md) — current issue vocabulary.
 - [Skill inventory](architecture/skill-inventory.md) — public distribution inventory.
+- [Agentic Coding plugin](plugins.md) — reproducible local package, installed CLI paths, and separate host/task acceptance boundaries.
 - [Agent Coding direction](research/agent-coding-system-direction.md) — October 5 decisions and discussion history: one workflow entry, full-stack verification, feedback guardrails, Feature/UI maintenance, and evidence-based pruning; agreed capabilities are distinguished from implemented behavior.
 - [Agent workflow completion design](research/agent-workflow-completion-design.md) — system-wide responsibility/authority and deterministic/semantic processing criteria across all capabilities, full Feature init, environmental enforcement, task benefit, and U1–U7; current acceptance design; implementation and remaining host limits are reported separately.
 - [Next implementation prompt](research/agent-workflow-next-session.md) — execution scope applying the common separation criteria to the whole workflow and delivering U1–U7 in functional units; Feature Map is one example, not the implementation scope.
