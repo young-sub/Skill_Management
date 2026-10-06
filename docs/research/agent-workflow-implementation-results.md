@@ -4,7 +4,41 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
-## Fixed protected-oracle trial and approved host setup, 2026-10-06
+## Dedicated-account execution and repeated setup repair, 2026-10-06
+
+The approved setup subsequently completed in host-006. Native `whoami /user`
+returned `CodexSandboxOffline`, SID ending 1004. The candidate wrote an ordinary
+workspace marker, but protected canary overwrite and deletion were denied and
+the canary hash stayed identical. OpenProcess/CloseHandle probes against an owned
+idle controller process denied query, termination, memory-write/operation,
+thread-creation and DACL-write handles. No injection or termination was attempted.
+Raw evidence is `elevated-authority/setup-result.json` and `boundary-result.json`
+under `.work/plugin-transition/`.
+
+The first elevated oracle attempt exposed a controller defect: every case selected
+a different sandbox workspace root. The first two normal cases ran, then native
+setup requests recurred and returned error 1223. This was not a product failure or
+a need to ask the user for the same authorization again. Its failed record,
+`price-trial/result-17656e0b-8b2d-42e8-a562-b1a885b52ddc.json`, is retained.
+
+The protected trial launcher now fixes `-C` to the already configured controller
+workspace and keeps distinct case data beneath that root. All ten native cases
+then completed: the five normal cases matched; three defective saved values were
+rejected and two valid neighboring cases matched. The protected record is
+`price-trial/result-dedfb33d-02f9-4652-86ea-baf707c65edc.json`; the launch receipt is
+`elevated-authority/fixed-root-oracle-trial.json`. The frozen policy and candidate
+snapshots were reused, not weakened. Earlier trial verifiers and results remain
+intact. This fixes the observed repeated-setup path without full-access candidates
+or disabling UAC.
+
+Feature impact: workflow-obligations/U2 host verification. Dedicated-account
+execution is now observed, but the bounded trial still is not a distributed host
+acceptance adapter. Public `accept` remains BLOCKED and source/install stays
+0.1.33. Protected task/snapshot binding, interruption/descendant handling and the
+general acceptance integration remain implementation work; whole U1-U7 completion
+is not claimed. No generated resource changed in this environmental repair.
+
+## Earlier fixed protected-oracle trial and approved host setup, 2026-10-06
 
 The user subsequently approved administrator sandbox setup and related actions
 for this session. No repeated authorization was requested. The main tool context
@@ -17,10 +51,11 @@ host-006 home with a fixed `whoami /user` command. The first controller used a
 was acknowledged. After both its native/consent processes were confirmed gone,
 a new retained process waited without that short deadline. Windows ultimately
 returned `orchestrator_helper_launch_canceled` / ShellExecuteExW error 1223.
-The second process and UAC process are now terminal. No successful dedicated-user
-setup or identity transition is claimed. The helper and raw outcome are retained
-at `.work/plugin-transition/elevated-authority/setup.py` and `setup-result.json`.
-This is now an OS setup-completion dependency, not missing user authorization.
+The second process and UAC process terminated. At that point dedicated-user setup
+was incomplete; the subsequent successful setup and identity transition are
+recorded above. The helper remains at
+`.work/plugin-transition/elevated-authority/setup.py`; `setup-result.json` now
+contains the latest successful attempt. User authorization was already sufficient.
 
 Independent of that account transition, the previously prepared fixed price
 oracle was actually exercised under the approved restricted-token trial. The
