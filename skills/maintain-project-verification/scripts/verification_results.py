@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/verification_results.py
-# Source-SHA256: 72aea91e128db1617453296911395f613459d3b4e4ea04c0a9168ecca8aaa5ea
+# Source-SHA256: 42c22e2a3b757c835b5841aa2664dadff3add3500702b0e9103f01900a3e83f8
 
 """Read-only viewer for plan-bound verification captures and observations.
 
@@ -1001,6 +1001,13 @@ def _execution_conditions(check: dict[str, Any], cwd: Path) -> dict[str, Any]:
     return conditions
 
 
+def _report_root(command: dict[str, Any], cwd: Path, evidence_dir: Path | None) -> Path | None:
+    if 'report_dir' not in command:
+        return evidence_dir
+    return _safe_path(command['report_dir'], root=_repository_root(cwd),
+                      label='report directory', allow_absolute=True)
+
+
 def _validate_execution_check(
     check: dict[str, Any], index: int, evidence_dir: Path, *, completed: bool = False,
 ) -> tuple[Path, dict[str, Any], Path]:
@@ -1038,7 +1045,7 @@ def _validate_execution_check(
         root=cwd,
         label=f"checks[{index}].native_report",
         allow_absolute=True,
-        extra_root=evidence_dir,
+        extra_root=_report_root(command, cwd, evidence_dir),
     )
     if _is_alias(report_path) or report_path.exists() and not completed:
         raise ViewerInputError(f"checks[{index}] native report path already exists: {report_path}")
@@ -1213,7 +1220,7 @@ def _validate_bundle_report_paths(plan: dict[str, Any], evidence_dir: Path | Non
                 root=cwd,
                 label=f"checks[{index}].raw_observations[{descriptor_index}].path",
                 allow_absolute=True,
-                extra_root=evidence_dir,
+                extra_root=_report_root(command, cwd, evidence_dir),
             )
             producer = descriptor.get("producer") if isinstance(descriptor, dict) else None
             if isinstance(producer, dict) and isinstance(producer.get("json_report_path"), str):
@@ -1222,7 +1229,7 @@ def _validate_bundle_report_paths(plan: dict[str, Any], evidence_dir: Path | Non
                     root=cwd,
                     label=f"checks[{index}].raw_observations[{descriptor_index}].producer.json_report_path",
                     allow_absolute=True,
-                    extra_root=evidence_dir,
+                    extra_root=_report_root(command, cwd, evidence_dir),
                 )
 
 
@@ -1722,7 +1729,7 @@ def view_results(
     }
 
 
-def prepare_plan(root: Path, spec_path: Path, output: Path) -> dict[str, Any]:
+def prepare_plan(root: Path, spec_path: Path, output: Path, *, report_dir: Path | None = None) -> dict[str, Any]:
     """Bind project-selected assertions to registered commands; never execute them."""
     root = _safe_cwd(Path(root).absolute(), 'project')
     spec_file = _safe_path(str(spec_path), root=root, label='spec', allow_absolute=True)
@@ -1732,6 +1739,8 @@ def prepare_plan(root: Path, spec_path: Path, output: Path) -> dict[str, Any]:
     ignored = subprocess.run(['git', '-C', str(root), 'check-ignore', '-q', '--', str(output)], capture_output=True)
     if ignored.returncode:
         raise ViewerInputError('Prepared plan output must be Git-ignored to preserve the measured source')
+    if report_dir is not None:
+        report_dir = _safe_path(str(report_dir), root=root, label='report directory', allow_absolute=True)
     spec, _ = _read_json(spec_file)
     if not isinstance(spec, dict) or spec.get('schema_version') != 1 or not isinstance(spec.get('checks'), list) or not spec['checks']:
         raise ViewerInputError('Preparation requires schema_version 1 and explicit checks')
@@ -1758,11 +1767,25 @@ def prepare_plan(root: Path, spec_path: Path, output: Path) -> dict[str, Any]:
                            for name in feature['criteria']}
         revision = workflow['digest'](criterion_files)
         check = copy.deepcopy({key: value for key, value in item.items() if key not in {'dependency', 'fixture'}})
+        argv = workflow['resolve_report_command'](root, command.get('argv'), report_dir)
+        declared = {raw['path'] for raw in check['raw_observations']}
+        if any('{report_dir}' in arg and arg not in declared for arg in command['argv']):
+            raise ViewerInputError('Report templates must name the declared native output argument')
+        for raw in check['raw_observations']:
+            templated = '{report_dir}' in raw['path']
+            raw['path'] = workflow['resolve_report_path'](root, raw['path'], report_dir)
+            if templated:
+                ignored = subprocess.run(['git', '-C', str(root), 'check-ignore', '-q', '--',
+                                          raw['path']], capture_output=True)
+                if ignored.returncode:
+                    raise ViewerInputError('Native report output must be Git-ignored')
         check['criteria_revision'] = revision
         check['conditions'] = {'source': _git_snapshot(cwd), 'criteria': {'revision': revision},
-                               'command': {'argv': command.get('argv'), 'cwd': str(cwd)},
+                               'command': {'argv': argv, 'cwd': str(cwd)},
                                'dependency': copy.deepcopy(item['dependency']), 'fixture': copy.deepcopy(item['fixture']),
                                'runtime': {}}
+        if report_dir is not None:
+            check['conditions']['command']['report_dir'] = str(report_dir)
         for group in ('dependency', 'fixture'):
             if not isinstance(check['conditions'][group], dict) or not check['conditions'][group]:
                 raise ViewerInputError(f'Preparation requires explicit {group} conditions')
@@ -1801,6 +1824,7 @@ def _parser() -> argparse.ArgumentParser:
     source.add_argument('--prepare', type=Path, help='Prepare a plan from project-selected native assertions without executing checks')
     parser.add_argument('--root', type=Path, help='Configured project for --prepare')
     parser.add_argument('--plan-output', type=Path, help='New Git-ignored plan path for --prepare')
+    parser.add_argument('--report-dir', type=Path, help='Git-ignored project directory for explicit {report_dir}/file native output templates')
     parser.add_argument("--record", dest="records", action="append", default=[])
     parser.add_argument("--assessment", dest="assessments", action="append", default=[])
     parser.add_argument("--observation", dest="observations", action="append", default=[])
@@ -1823,13 +1847,13 @@ def main(argv: list[str] | None = None) -> int:
         if not args.root or not args.plan_output or args.execute or args.resume or args.records or args.assessments or args.observations or args.current_context:
             _parser().error('--prepare requires --root and --plan-output, without execution or lookup inputs')
         try:
-            result = prepare_plan(args.root, args.prepare, args.plan_output)
+            result = prepare_plan(args.root, args.prepare, args.plan_output, report_dir=args.report_dir)
         except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
             result = {'status': 'BLOCKED', 'reason': str(error), 'test_commands_executed': 0}
         print(json.dumps(result, ensure_ascii=False, indent=2 if args.pretty else None))
         return 0 if result['status'] == 'PREPARED' else 2
-    if args.root or args.plan_output:
-        _parser().error('--root and --plan-output require --prepare')
+    if args.root or args.plan_output or args.report_dir:
+        _parser().error('--root, --plan-output and --report-dir require --prepare')
     if args.resume and not args.execute:
         _parser().error('--resume requires --execute')
     if args.bundle:

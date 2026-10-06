@@ -21,6 +21,86 @@ def _digest(data: bytes) -> str:
 
 
 class VerificationExecutionTests(unittest.TestCase):
+    def test_registered_report_directory_runs_twice_without_configuration_edits(self, subdirectory=False):
+        api = __import__('runpy').run_path(str(VIEWER))
+        workflow = __import__('runpy').run_path(str(VIEWER.with_name('project_workflow.py')))
+        original = json.loads(self._plan().read_text())['checks'][0]
+        (self.project / '.gitignore').write_text('.work/\n__pycache__/\n')
+        (self.project / 'check.py').write_text(
+            "import json,sys\nfrom pathlib import Path\n"
+            "target=Path(sys.argv[1]); target.parent.mkdir(parents=True,exist_ok=True)\n"
+            "target.write_text(json.dumps({'checks':[{'sum':5,'readback':'ok'}]}))\n")
+        feature = {'id': 'fixture-product', 'partition': 'domain', 'sources': ['check.py'],
+                   'map': ['fixture.json'], 'criteria': ['fixture.json'], 'checks': ['arithmetic-readback']}
+        command = [sys.executable, 'check.py', '{report_dir}/result.json']
+        config = {'commands': {'arithmetic-readback': command},
+                  'extensions': {'workflow': {'roots': ['check.py'], 'features': [feature]}}}
+        (self.project / '.harness').mkdir()
+        config_path = self.project / '.harness/project.yaml'
+        config_path.write_text(json.dumps(config))
+        item = {k: original[k] for k in ('id', 'feature_id', 'expected', 'required', 'selection', 'raw_observations')}
+        item['raw_observations'][0]['path'] = '{report_dir}/result.json'
+        item.update(dependency={'file_refs': ['dependency.txt']}, fixture={'file_refs': ['fixture.json']})
+        spec = self.project / 'assertions.json'
+        spec.write_text(json.dumps({'schema_version': 1, 'checks': [item]}))
+        if subdirectory:
+            (self.project / 'backend').mkdir()
+            for name in ('check.py', 'dependency.txt', 'fixture.json'):
+                (self.project / 'backend' / name).write_bytes((self.project / name).read_bytes())
+            config['commands']['arithmetic-readback'] = {'argv': command, 'working_directory': 'backend'}
+            config_path.write_text(json.dumps(config))
+        before = {p: p.read_bytes() for p in (config_path, spec)}
+        bundles = []
+        for name in ('first', 'second'):
+            output = self.project / f'.work/{name}/plan.json'
+            if name == 'first':
+                prepared = subprocess.run([sys.executable, str(VIEWER), '--prepare', str(spec),
+                    '--root', str(self.project), '--plan-output', str(output),
+                    '--report-dir', f'.work/{name}/native'], capture_output=True, text=True)
+                self.assertEqual(prepared.returncode, 0, prepared.stdout + prepared.stderr)
+                self.assertEqual(json.loads(prepared.stdout)['test_commands_executed'], 0)
+            else:
+                api['prepare_plan'](self.project, spec, output, report_dir=Path(f'.work/{name}/native'))
+            result = api['execute_plan'](output, run_check_path=RUN_CHECK,
+                                         evidence_dir=self.project / f'.work/{name}/evidence')
+            self.assertEqual(result['status'], 'PASS', result)
+            self.assertEqual(result['test_commands_executed'], 1)
+            bundle = result['execution']['bundle_path']
+            self.assertEqual(workflow['inspect_evidence'](
+                self.project, feature, config['commands'], str(Path(bundle).relative_to(self.project)))['status'], 'PASS')
+            bundles.append(bundle)
+        self.assertEqual({p: p.read_bytes() for p in before}, before)
+        for bundle in bundles:
+            looked_up = api['view_bundle'](bundle)
+            self.assertEqual(looked_up['status'], 'PASS', looked_up)
+            self.assertEqual(looked_up['test_commands_executed'], 0)
+        with (self.project / '.gitignore').open('a') as stream:
+            stream.write('reports/native-report.json\n')
+        with self.assertRaises(ValueError):
+            api['prepare_plan'](self.project, spec, self.project / '.work/refused.json',
+                                report_dir=Path('reports'))
+        self.assertFalse((self.project / '.work/refused.json').exists())
+        for directory in (None, Path('tracked-output'), self.root / 'outside', Path('.work/first/native')):
+            with self.subTest(directory=directory), self.assertRaises(ValueError):
+                api['prepare_plan'](self.project, spec, self.project / '.work/refused.json', report_dir=directory)
+        # Only the declared output argument may vary; changing a real argument
+        # must not discharge the workflow check with an older captured command.
+        changed = {'arithmetic-readback': [sys.executable, 'other.py', '{report_dir}/result.json']}
+        self.assertEqual(workflow['inspect_evidence'](self.project, feature, changed,
+            str(Path(bundles[-1]).relative_to(self.project)))['status'], 'BLOCKED')
+        for invalid in (["{report_dir}/python", 'check.py', '{report_dir}/result.json'],
+                        [sys.executable, '{report_dir}/other.py', '{report_dir}/result.json'],
+                        [sys.executable, 'check.py', '{report_dir}/../result.json']):
+            with self.subTest(command=invalid), self.assertRaises(ValueError):
+                config['commands']['arithmetic-readback'] = invalid
+                config_path.write_text(json.dumps(config))
+                api['prepare_plan'](self.project, spec, self.project / '.work/refused.json',
+                                    report_dir=Path('.work/invalid/native'))
+            self.assertFalse((self.project / '.work/refused.json').exists())
+
+    def test_report_directory_supports_registered_subdirectory_commands(self):
+        self.test_registered_report_directory_runs_twice_without_configuration_edits(subdirectory=True)
+
     def test_shared_feature_command_runs_once_and_keeps_independent_assertions(self, second_sum=5):
         import copy
         child = self.project / 'check.py'

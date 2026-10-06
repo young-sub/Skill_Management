@@ -4,6 +4,33 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Repeated verification without connection edits, 2026-10-06
+
+Version 0.1.39 adds `--prepare --report-dir` for explicit `{report_dir}/file`
+output arguments and native observation paths. Projects retain their registered
+commands and reviewed assertions across runs; deterministic preparation resolves
+only the declared output paths. Executables, other arguments and semantic
+assertions are not templated. Workflow evidence checks use the same expansion.
+The directory stays inside the project, actual expanded outputs must be ignored,
+and existing reports cannot be overwritten. Commands running from a registered
+subdirectory can use the same project-level report directory during execution
+and subsequent read-only bundle lookup.
+
+Two negative controls reproduced unignored actual outputs slipping past a dummy
+filename check and subdirectory execution rejecting valid project report paths.
+Both are repaired. Repeated real Python checks exercise preparation, capture,
+assertion evaluation, exact workflow command matching and zero-command lookup;
+configuration and assertion bytes remain unchanged. This is deterministic CLI
+coverage, not new native-Agent browser or protected-acceptance evidence. The
+host-006 environment and protected acceptance limitations below still apply.
+The same two integration tests also passed against the installed 0.1.39 CLI
+(four real check executions total); all 246 installed files match the built
+package. The guarded update reused the existing home without approval prompts.
+Retained installation receipts: `.work/plugin-transition/report-dir-v039/`.
+Affected execution/viewer/workflow/hook/package/document tests passed (86 tests);
+resource drift, distribution validation and `git diff --check` passed. Independent
+review confirmed both reproduced path defects are fixed.
+
 ## Installed execution connection and environment regression, 2026-10-06
 
 At `e07a4fa`, the native UI task had used the installed workflow but generated an

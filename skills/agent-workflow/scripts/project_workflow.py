@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: b7787e301996c76e39b34574fc34e9d68ebc85bee5ec4b41b3b1a711e7da948d
+# Source-SHA256: 1b6f6d7fdf6235200a188ddd76c05b33176cfa4738fe9166d96331434ed931b5
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -42,6 +42,30 @@ def local_path(root, name):
 def file_hash(root, name):
     path = local_path(root, name)
     return hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
+
+
+def resolve_report_path(root, value, report_dir):
+    """Expand only an explicit native-report path, never general command text."""
+    if '{report_dir}' not in value:
+        return value
+    if not value.startswith('{report_dir}/') or not report_dir:
+        raise ValueError('report_directory_required_for_path_template')
+    suffix = value[len('{report_dir}/'):]
+    if not suffix or '{report_dir}' in suffix or '..' in Path(suffix).parts:
+        raise ValueError('invalid_report_path_template')
+    directory = Path(report_dir)
+    if directory.is_absolute():
+        directory = directory.relative_to(root.resolve())
+    directory = local_path(root, str(directory)).resolve()
+    return str(local_path(directory, suffix))
+
+
+def resolve_report_command(root, argv, report_dir=None):
+    if not isinstance(argv, list) or not argv or any(not isinstance(arg, str) for arg in argv):
+        raise ValueError('registered_command_requires_argv')
+    if '{report_dir}' in argv[0]:
+        raise ValueError('report_template_cannot_select_executable')
+    return [resolve_report_path(root, arg, report_dir) for arg in argv]
 
 
 def git(root, *args):
@@ -340,7 +364,9 @@ def inspect_evidence(root, feature, commands, bundle):
             if item['feature'] != feature['id'] or item['current_status'] != 'PASS':
                 continue
             descriptor = commands.get(item['id'])
-            expected = descriptor.get('argv') if isinstance(descriptor, dict) else descriptor
+            expected = resolve_report_command(root,
+                descriptor.get('argv') if isinstance(descriptor, dict) else descriptor,
+                item['conditions']['expected']['command'].get('report_dir'))
             cwd = root / (descriptor.get('working_directory', '.') if isinstance(descriptor, dict) else '.')
             if item['capture']['argv'] == expected and Path(item['capture']['cwd']).resolve() == cwd.resolve():
                 verified.add(item['id'])

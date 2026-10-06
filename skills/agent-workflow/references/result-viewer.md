@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/result-viewer.md -->
-<!-- Source-SHA256: e3f00edfcded654d7486e6b4ef23cc00c0752d2ab3c99c4d415e7fb253867832 -->
+<!-- Source-SHA256: 3497835290dbc620a95c5e1bedfa0ff78e3c973e8959e80d579599943df85741 -->
 
 # Existing-result lookup
 
@@ -68,6 +68,24 @@ use command-directory-relative `file_refs` or explicit Git-root-relative
 `repository_file_refs`. Preparation binds connected config/criteria/map/UI files
 through the latter, preserving the registered subdirectory command and cwd. Preparation
 is not execution, a semantic review, or protected completion acceptance.
+
+For recurring runs, register the native output argument and its raw-observation
+`path` as the same explicit template, for example `{report_dir}/browser.json`.
+Pass `--report-dir .work/run-2/native` alongside `--prepare`, `--root` and
+`--plan-output`. Preparation expands only declared report arguments and raw paths;
+it leaves the registry and assertion file unchanged. This is a path prefix, not a
+general template language: executable selection, embedded command strings,
+undeclared arguments, escaping paths and non-ignored output directories are
+refused. Existing report files remain protected by the normal no-overwrite check.
+Fixed-path registrations continue to work without this option.
+
+The prepared conditions retain the resolved report directory and exact expanded
+argv. Workflow evidence checking resolves the current registered template against
+that directory before comparing the captured command and cwd; another executable
+or argument cannot satisfy the check. Two fresh run directories therefore do not
+change source/configuration identity or stale the earlier result merely by
+choosing another output location. Use `--bundle` for lookup and the original plan
+with `--resume` for interrupted work; neither requires a new report directory.
 
 ## Explicit execution
 
