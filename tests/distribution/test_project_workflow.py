@@ -95,6 +95,39 @@ class ProjectWorkflowTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'coverage_axis'):
             runtime.configuration(self.project)
 
+    def test_feedback_requires_owner_repair_and_bound_failure_normal_evidence(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'feedback', ['api'])
+        feedback = {'id': 'wrong-price', 'feature': 'api', 'observed': 'Price is eleven',
+                    'expected': 'Price is ten', 'reproduction': 'Read price from API'}
+        state = runtime.record_feedback(self.root, self.project, state, feedback)
+        result = runtime.inspect_project(self.root, self.project, state)
+        self.assertEqual(result['feedback'][0]['status'], 'OPEN')
+        self.assertIn('root_cause', result['feedback'][0]['remaining'])
+        # Explanation/guide edits cannot discharge the owner repair.
+        complete = dict(feedback, trace='api.py -> price', root_cause='Wrong shared constant',
+                        failed_prevention='No boundary assertion', repair_paths=['src/api.py'],
+                        guardrail={'failure': 'wrong price', 'scope': 'api', 'check': 'check',
+                                   'normal_exception': 'zero remains valid', 'reconsider': 'price contract changes',
+                                   'regression_pointer': '$.price', 'normal_pointer': '$.zero'},
+                        red_bundle='.work/red.json', green_bundle='.work/green.json')
+        state = runtime.record_feedback(self.root, self.project, state, complete)
+        self.write('docs/map.md', 'Warning: keep price ten\n')
+        result = runtime.inspect_project(self.root, self.project, state)
+        self.assertIn('owner_repair_not_observed', result['feedback'][0]['remaining'])
+        self.write('src/api.py', 'price = 10\n# reject invalid input centrally\n')
+        result = runtime.inspect_project(self.root, self.project, state)
+        self.assertNotIn('owner_repair_not_observed', result['feedback'][0]['remaining'])
+        self.assertIn('active_prevention_link_missing', result['feedback'][0]['remaining'])
+        self.project['extensions']['workflow']['state'] = '.work/current.json'
+        self.write('.work/current.json', json.dumps(state))
+        subsequent = runtime.begin_work(self.root, self.project)
+        self.assertEqual(subsequent['feedback'], state['feedback'])
+        # Updating a stage cannot silently drop the original complaint.
+        updated = runtime.record_feedback(self.root, self.project, subsequent,
+                                          {'id': 'wrong-price', 'feature': 'api', 'trace': 'new caller -> api.py'})
+        self.assertEqual(updated['feedback']['wrong-price']['expected'], feedback['expected'])
+
     def test_change_reopens_only_affected_and_typo_does_not(self):
         runtime = self.runtime()
         state = runtime.begin(self.root, self.project, 'init')

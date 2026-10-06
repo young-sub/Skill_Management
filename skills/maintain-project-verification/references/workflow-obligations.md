@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: 6bdbc36d96bfe71ef8a1b84fd7caaa6d72720e5c91b537877ba8fb8603320df7 -->
+<!-- Source-SHA256: 107f49b967b64fdb396c65a3e59387b4b39409ac3bade349248e2de7ba2f38ab -->
 
 # Project workflow obligations
 
@@ -148,3 +148,12 @@ loads project code during lookup, and ignores submitted bundle verdict fields.
 The native-JSON path remains available for browser/API/DB observations.
 Unittest captures establish only their assertions; ignored inputs, dependencies,
 live runtime identity and protected acceptance require separate evidence.
+# Feedback state and follow-up consumption
+
+The existing work JSON now retains `feedback` by incident ID. `feedback --feedback
+<entry.json>` merges an explicit complaint/repair stage; audit returns each chain's
+computed OPEN/RESOLVED and `remaining`, not a submitted done flag. The feedback
+playbook selected by agent-workflow supplies fields and native evidence bindings.
+Configured-state begin/Harness start retain it in the next work record and the
+prompt hook exposes pending causes/guardrails. No automatic conversation collection
+or universal host request registration is implied.

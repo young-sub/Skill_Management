@@ -56,6 +56,8 @@ def context(payload):
                    obligations=audit['obligations'][:8], unmapped_count=len(audit['unmapped']),
                    unmapped=audit['unmapped'][:8], findings=audit['findings'][:8],
                    product_findings=audit['product_findings'][:8])
+    summary['feedback'] = [{key: entry.get(key) for key in ('id', 'feature', 'status', 'expected', 'root_cause', 'guardrail', 'remaining')}
+                           for entry in audit.get('feedback', [])[:5]]
     # Bounded context, with the existing audit retaining the complete result.
     detail = json.dumps(summary, ensure_ascii=False, separators=(',', ':'))
     if len(detail) > 5500:

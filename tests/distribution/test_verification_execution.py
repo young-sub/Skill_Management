@@ -125,6 +125,60 @@ class VerificationExecutionTests(unittest.TestCase):
     def test_full_stack_scope_survives_prepare_execute_and_lookup(self):
         self.test_registered_report_directory_runs_twice_without_configuration_edits(coverage=True)
 
+    def test_feedback_red_green_normal_and_subsequent_revalidation(self):
+        import runpy
+        api = runpy.run_path(str(VIEWER))
+        workflow = runpy.run_path(str(VIEWER.with_name('project_workflow.py')))
+        original = json.loads(self._plan().read_text())['checks'][0]
+        (self.project / '.gitignore').write_text('.work/\n__pycache__/\n')
+        (self.project / 'domain.py').write_text('def valid(value):\n    return True\n')
+        (self.project / 'check.py').write_text(
+            "import json,sys\nfrom pathlib import Path\nfrom domain import valid\n"
+            "p=Path(sys.argv[1]);p.parent.mkdir(parents=True,exist_ok=True)\n"
+            "p.write_text(json.dumps({'checks':[{'rejected':not valid(-1),'normal':valid(0)}]}))\n")
+        guardrail = {'failure': 'Negative allowed', 'scope': 'Domain quantities', 'check': 'arithmetic-readback',
+                     'normal_exception': 'Zero is valid', 'reconsider': 'Quantity contract changes',
+                     'regression_pointer': '$.checks[0].rejected', 'normal_pointer': '$.checks[0].normal'}
+        feature = {'id': 'fixture-product', 'partition': 'orders', 'sources': ['domain.py', 'check.py'],
+                   'map': ['fixture.json'], 'criteria': ['fixture.json'], 'checks': ['arithmetic-readback'],
+                   'prevention': [{key: guardrail[key] for key in ('failure', 'scope', 'check', 'normal_exception', 'reconsider')}]}
+        project = {'commands': {'arithmetic-readback': [sys.executable, 'check.py', '{report_dir}/result.json']},
+                   'extensions': {'workflow': {'roots': ['domain.py', 'check.py'], 'state': '.work/state.json', 'features': [feature]}}}
+        (self.project / '.harness').mkdir()
+        (self.project / '.harness/project.yaml').write_text(json.dumps(project))
+        spec = {key: original[key] for key in ('id', 'feature_id', 'expected', 'required', 'selection')}
+        spec.update(raw_observations=[{'path': '{report_dir}/result.json', 'pointer': '$.checks[0]', 'assertions': [
+            {'pointer': guardrail['regression_pointer'], 'equals': True}, {'pointer': guardrail['normal_pointer'], 'equals': True}]}],
+            dependency={'file_refs': ['dependency.txt']}, fixture={'file_refs': ['fixture.json']})
+        (self.project / 'assertions.json').write_text(json.dumps({'schema_version': 1, 'checks': [spec]}))
+        state = workflow['begin'](self.project, project, 'feedback', ['fixture-product'])
+        complaint = {'id': 'negative', 'feature': 'fixture-product', 'expected': 'Reject negative',
+                     'observed': 'Negative accepted', 'reproduction': 'valid(-1) returns True'}
+        state = workflow['record_feedback'](self.project, project, state, complaint)
+        for stage in ('red', 'green'):
+            if stage == 'green':
+                (self.project / 'domain.py').write_text('def valid(value):\n    return value >= 0\n')
+            output = self.project / f'.work/{stage}/plan.json'
+            api['prepare_plan'](self.project, Path('assertions.json'), output, report_dir=Path(f'.work/{stage}/native'))
+            outcome = api['execute_plan'](output, run_check_path=RUN_CHECK, evidence_dir=self.project / f'.work/{stage}/evidence')
+            self.assertEqual(outcome['status'], 'ISSUES' if stage == 'red' else 'PASS', outcome)
+        complaint.update(trace='check.py -> domain.valid -> result', root_cause='Domain accepted every value',
+                         failed_prevention='No negative case', repair_paths=['domain.py'], guardrail=guardrail,
+                         red_bundle='.work/red/evidence/bundle.json', green_bundle='.work/green/evidence/bundle.json')
+        state = workflow['record_feedback'](self.project, project, state, complaint)
+        self.assertEqual(workflow['inspect_project'](self.project, project, state)['feedback'][0]['status'], 'RESOLVED')
+        (self.project / '.work/state.json').write_text(json.dumps(state))
+        later = workflow['begin_work'](self.project, project)
+        self.assertEqual(workflow['inspect_project'](self.project, project, later)['feedback'][0]['status'], 'RESOLVED')
+        # The positive counterpart must be distinct and the original oracle cannot weaken.
+        broken = __import__('copy').deepcopy(state)
+        broken['feedback']['negative']['guardrail']['normal_pointer'] = guardrail['regression_pointer']
+        self.assertIn('nearby_normal_evidence_missing', workflow['inspect_project'](self.project, project, broken)['feedback'][0]['remaining'])
+        (self.project / 'domain.py').write_text('def valid(value):\n    return value > 0\n')
+        reopened = workflow['inspect_project'](self.project, project, later)['feedback'][0]
+        self.assertEqual(reopened['status'], 'OPEN')
+        self.assertIn('repair_revalidation_required', reopened['remaining'])
+
     def test_shared_feature_command_runs_once_and_keeps_independent_assertions(self, second_sum=5):
         import copy
         child = self.project / 'check.py'

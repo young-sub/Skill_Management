@@ -25,6 +25,24 @@ MISSING for arithmetic, ownership review and display linkage respectively. Raw a
 summary are retained in that new work directory. These are local synthetic CLI
 observations, not new native Agent or live-product acceptance.
 
+## Feedback repair and subsequent consumption, 2026-10-06
+
+`project_workflow.py feedback` merges stages into the existing task state. Audit
+calculates OPEN/RESOLVED and missing cause/owner/prevention/evidence links. Source
+repair is measured against the captured work baseline; guide-only changes cannot
+resolve it. Prepared red/green raw assertions must preserve the failing oracle and
+include a distinct passing normal counterpart. Configured-state begin/Harness start
+carry the chain forward, and read-only hook context surfaces causes and guardrails.
+Automatic diagnosis/conversation collection is not implemented or required.
+
+The focused owner-repair test and actual native red/green/normal integration test
+passed; workflow/hook regression: 27 tests passed. The new local synthetic CLI example
+retained `b-*.json` under `.work/agentic-user-flow-20261006`: red ISSUES (one command),
+green PASS (one command), feedback RESOLVED with no remaining stages, and a fresh
+change work received the same resolved guardrail. Missing/stale green reopens
+revalidation; adapters without compatible prepared native-JSON evidence remain OPEN
+until their project-owned evidence binding exists. Existing diagnosis is reused.
+
 Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876fb9f8922e0cade072469ddc9a51267df`, with a clean worktree. This implements the [execution prompt](agent-coding-next-session.md); the prior review-only restriction does not apply to this authorized implementation. Source/distribution `c7c064a`, viewer soundness repairs `7e9eb8d`, and UI reuse/selection-reason follow-up `95eed81` are committed. T1–T6 were performed within the independent pilot. The whole delegation system remains PARTIAL/BLOCKED for the host and evidence limits below.
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
