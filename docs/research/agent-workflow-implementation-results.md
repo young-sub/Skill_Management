@@ -27,6 +27,22 @@ and controller result are retained under
 `.work/plugin-transition/lookup-native-v034/`. No new approval was requested.
 Whole-system protected acceptance and continuous-task acceptance remain incomplete.
 
+The same native session was then resumed with a follow-up asking whether its
+historical full-Harness findings were actionable, and authorizing repair only
+for a demonstrated broken connection. It selected the installed 0.1.34
+`maintain-project-verification` Skill and read the current workflow configuration.
+In 33.748 seconds it correctly concluded that the missing full-Harness schema,
+impact rules and documentation index did not establish a defect in this fixture's
+direct `commands`/`extensions.workflow` connections. It added no setup files,
+changed no product behavior and reran no checks. All 13 observed inputs and the
+controller's complete current bundle lookup result stayed identical. Existing
+tracked maintenance changes in the fixture were preserved; it was not a clean
+fixture. The resumed TUI exited zero. Evidence is in `followup-observed.json`
+and the same session transcript under the lookup trial above. This establishes
+actual lookup-to-maintenance continuation and a no-repair normal case. The
+explicit follow-up correcting the relevance of earlier findings is a controller
+intervention, not evidence of autonomous perfect triage or complete U7 acceptance.
+
 ## Explicit interrupted-install resume, 2026-10-06
 
 Plugin 0.1.35 connects the existing guarded update to an explicit `--resume-from`
