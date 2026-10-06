@@ -78,8 +78,9 @@ class HostVerifyTests(unittest.TestCase):
                 (root / 'execution.json').write_text(json.dumps(config))
                 (root / 'policy.json').write_text(json.dumps(policy))
                 real_load = runpy.run_path
+                saved_value = b'10'
                 def execute_case(_launcher, argv, **_kwargs):
-                    Path(argv[-1]).write_bytes(b'10')
+                    Path(argv[-1]).write_bytes(saved_value)
                     return dict(executions[0], stdout='', stderr='')
                 def load(path):
                     return {'run': execute_case} if Path(path).name == 'windows_job.py' else real_load(path)
@@ -88,6 +89,13 @@ class HostVerifyTests(unittest.TestCase):
                     state['reviews']['price']['basis'] = initial['features'][0]['basis']
                     (project_root / 'state.json').write_text(json.dumps(state))
                     self.assertEqual(host['execute'](root)['status'], 'ACCEPTED')
+                    saved_value = b'9'
+                    for basis in (initial['features'][0]['basis'], 'stale'):
+                        state['reviews']['price']['basis'] = basis
+                        (project_root / 'state.json').write_text(json.dumps(state))
+                        rejected = host['execute'](root)
+                        self.assertEqual(rejected['status'], 'REJECTED')
+                        self.assertEqual(len(rejected['executions']), 1)
                 config['workflow']['checks']['price']['price-check'] = ['unrelated']
                 with self.assertRaises(ValueError):
                     evaluate(root, config, facts, executions)

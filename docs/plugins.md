@@ -100,7 +100,10 @@ The host recomputes obligations using frozen file hashes and its collected
 case observations. It never runs candidate Git, imports candidate modules or
 reads submitted verification bundles. Stale/missing reviews, unmapped sources,
 unresolved findings and missing/rejected case evidence prevent acceptance even
-when the other product cases pass. Without `workflow`, acceptance covers only
+when the other product cases pass. A complete native product mismatch remains REJECTED even
+when workflow review is pending; missing review blocks an otherwise passing run.
+Workflow findings remain in the protected raw record, and rejected runs retain
+their execution lifecycle facts. Without `workflow`, acceptance covers only
 the declared cases. Integration coverage and the actual five-case native
 price-save trial both distinguish accepted normal behavior from missing review
 and defective behavior. That bounded host trial does not establish whole-system

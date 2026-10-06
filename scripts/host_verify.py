@@ -214,7 +214,9 @@ def execute(root):
             audit = workflow_audit(root, config, observations, executions)
             raw.append({'workflow': audit})
             if audit['status'] != 'READY_FOR_REVIEW':
-                executions = []  # Pending obligations cannot publish ACCEPTED.
+                _, cases = result_api['_basis'](root)
+                if result_api['_verdict'](cases, observations, executions) == 'ACCEPTED':
+                    executions = []  # Pending review blocks success, not an observed rejection.
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError, queue.Empty) as error:
         raw.append({'error': str(error)})
         # No partial observations can satisfy a full host policy.

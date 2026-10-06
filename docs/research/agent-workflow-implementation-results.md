@@ -25,6 +25,17 @@ the new connection using the real native sandbox and process controller:
 | Same product, missing review | The same five product outcomes passed, but the unresolved review prevented completion: BLOCKED. |
 | Defect, supplied current review | `1.15 -> 114`; negative and over-precision values were wrongly saved. Those observed mismatches left verification obligations unresolved: BLOCKED, with raw failing facts retained. |
 
+A subsequent focused correction preserves the distinction between observed
+product defects and missing verification: pending workflow obligations now block
+an otherwise accepted run without masking an already rejected native result.
+RED reproduced BLOCKED instead of REJECTED; ten host/result/installer tests passed
+after repair, including defective bytes with both current and stale review.
+A fresh protected `workflow-defect-verdict-v1` installation reran the same five
+cases and returned REJECTED, retaining all five execution lifecycle records and
+the actual `114`, negative-save and over-precision mismatches. The earlier BLOCKED
+record above is preserved as historical evidence. New receipts are retained as
+`defect-verdict-*` in the same trial directory.
+
 Every native case had no timeout, no forced descendant cleanup and zero remaining
 job members. Actual candidate-account probes denied write/delete/create/rename
 and security-descriptor changes during installation. A post-install probe also
