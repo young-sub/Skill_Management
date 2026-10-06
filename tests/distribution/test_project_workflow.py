@@ -128,6 +128,34 @@ class ProjectWorkflowTests(unittest.TestCase):
                                           {'id': 'wrong-price', 'feature': 'api', 'trace': 'new caller -> api.py'})
         self.assertEqual(updated['feedback']['wrong-price']['expected'], feedback['expected'])
 
+    def test_shared_ui_owners_reopen_consumers_and_retain_intentional_exceptions(self):
+        runtime = self.runtime()
+        config = self.project['extensions']['workflow']
+        self.write('src/tokens.css', ':root { --space: 1rem; }\n')
+        self.write('src/shared.py', 'button = "shared"\n')
+        self.write('docs/ui.md', 'Calm layout; code owns spacing. Include keyboard and narrow states.\n')
+        config['ui_systems'] = {'shared': {'guide': 'docs/ui.md', 'tokens': ['src/tokens.css'],
+            'components': ['src/shared.py'], 'consumers': ['api', 'cli'],
+            'exceptions': [{'feature': 'cli', 'reason': 'Terminal flow has no pointer states',
+                            'reference': 'docs/ui.md', 'reconsider': 'GUI is introduced'}]}}
+        state = runtime.begin(self.root, self.project, 'change')
+        for name in ('api', 'cli'):
+            state = self.review(runtime, state, name)
+        initial = runtime.inspect_project(self.root, self.project, state)
+        self.assertEqual(initial['unmapped'], [])
+        self.assertEqual(initial['ui_systems'][0]['exceptions'][0]['feature'], 'cli')
+        self.write('src/tokens.css', ':root { --space: 2rem; }\n')
+        result = runtime.inspect_project(self.root, self.project, state)
+        self.assertEqual([item['target'] for item in result['obligations']], ['api', 'cli'])
+        for obligation in result['obligations']:
+            self.assertIn('ui_review', obligation['requires'])
+            self.assertIn('verification', obligation['requires'])
+            self.assertIn('src/tokens.css', obligation['changed'])
+        (self.root / 'docs/ui.md').unlink()
+        self.assertIn('missing_ui_guide:shared:docs/ui.md', runtime.inspect_project(self.root, self.project, state)['findings'])
+        config['features'].pop()
+        self.assertIn('removed_ui_consumer:shared:cli', runtime.inspect_project(self.root, self.project, state)['findings'])
+
     def test_change_reopens_only_affected_and_typo_does_not(self):
         runtime = self.runtime()
         state = runtime.begin(self.root, self.project, 'init')

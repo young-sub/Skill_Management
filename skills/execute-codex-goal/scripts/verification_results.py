@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/verification_results.py
-# Source-SHA256: e40b4e7f53e9fb4fe91fc381d72ef3ab07cbfd50a35e2ff8924ff85942104468
+# Source-SHA256: 911eb48e96698791323c86bf7d96e3362ab9372cdd6dd7bda86f0a5b807d7fc5
 
 """Read-only viewer for plan-bound verification captures and observations.
 
@@ -1787,6 +1787,7 @@ def prepare_plan(root: Path, spec_path: Path, output: Path, *, report_dir: Path 
     features = {feature['id']: feature for feature in config['features']}
     commands = dict(project.get('commands', {}))
     commands.update(project.get('impact', {}).get('feature_selectors', {}))
+    ui_systems = workflow['inspect_ui_systems'](root, config, workflow['inventory'](root, config['roots']))
     checks = []
     for item in spec['checks']:
         allowed = {'id', 'feature_id', 'expected', 'required', 'selection', 'raw_observations', 'dependency', 'fixture'}
@@ -1829,7 +1830,9 @@ def prepare_plan(root: Path, spec_path: Path, output: Path, *, report_dir: Path 
         refs = _file_refs({'file_refs': fixtures.get('repository_file_refs')}, 'fixture')
         refs += [os.path.relpath(_safe_path(name, root=root, label='connected reference'), repository_root) for name in
                  dict.fromkeys(['.harness/project.yaml'] + feature['criteria'] + feature['map'] + feature.get('ui', []) +
-                               [row['requirement'] for row in feature.get('coverage', [])])]
+                               [row['requirement'] for row in feature.get('coverage', [])] +
+                               [name for system in ui_systems if feature['id'] in system['consumers']
+                                for name in [*system['source_hashes'], *system['reference_hashes']]])]
         fixtures['repository_file_refs'] = list(dict.fromkeys(refs))
         check['conditions'] = _execution_conditions(check, cwd)
         checks.append(check)

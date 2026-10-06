@@ -269,6 +269,10 @@ class VerificationExecutionTests(unittest.TestCase):
                   'extensions': {'workflow': {'roots': ['backend'], 'features': [{
                       'id': 'shared', 'partition': 'backend', 'sources': ['backend/*'],
                       'map': ['fixture.json'], 'criteria': ['fixture.json'], 'checks': ['shared']}]}}}
+        (root / 'ui.css').write_text(':root { --spacing: 1rem; }')
+        config['extensions']['workflow']['roots'].append('ui.css')
+        config['extensions']['workflow']['ui_systems'] = {'controls': {
+            'guide': 'fixture.json', 'tokens': ['ui.css'], 'components': ['backend/check.py'], 'consumers': ['shared']}}
         (root / '.harness/project.yaml').write_text(json.dumps(config))
         spec = {'schema_version': 1, 'checks': [{'id': 'shared', 'feature_id': 'shared',
             'expected': 'Backend reads the shared repository input', 'required': True,
@@ -283,6 +287,7 @@ class VerificationExecutionTests(unittest.TestCase):
         self.assertFalse((root / 'backend/result.json').exists())
         plan = json.loads(output.read_text())
         self.assertEqual(plan['checks'][0]['conditions']['command']['cwd'], str(root / 'backend'))
+        self.assertIn('ui.css', plan['checks'][0]['conditions']['fixture']['repository_file_refs'])
         before = api['_git_snapshot'](root / 'backend')
         (root / 'shared.txt').write_text('changed untracked shared input')
         self.assertNotEqual(before['untracked'], api['_git_snapshot'](root / 'backend')['untracked'])

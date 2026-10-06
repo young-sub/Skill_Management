@@ -8,6 +8,11 @@ the existing viewer joins it to actual native evidence. Semantic reviews retain
 analysis/references and current-input validity separately from test verdicts.
 See [the result contract](../../authoring/references/result-viewer.md).
 
+Shared UI systems live in that same project extension: guide/token/component
+references and consumer Feature IDs feed current bases, changed-work obligations
+and prepared input hashes. Values remain code-owned; exceptions and design
+sufficiency remain review inputs, not automated visual verdicts.
+
 ## Control plane
 
 `.harness/project.yaml` is JSON-compatible YAML. Its internal schema version is retained for machine compatibility. The file owns mapped roots, command descriptors, source-to-test candidates, Full warning triggers, document boundaries, retention, Git policy, and baseline debt. Unknown normative fields are rejected; provider extensions belong under `extensions`.

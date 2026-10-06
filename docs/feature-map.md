@@ -14,6 +14,12 @@ active prevention and preserved failure/nearby normal evidence; subsequent confi
 work and prompt context consume the same chain. Cause diagnosis and source repair
 remain Agent work. No automatic feedback collection is implied.
 
+`ui-standards` and `workflow-obligations` now consume shared `ui_systems` ownership:
+guide/token/component references, consumer Feature IDs and reasoned exceptions.
+Audit detects broken references and removed consumers; shared changes reopen only
+their consumer reviews/verification and preparation binds the same shared inputs.
+Guide creation and design/state/responsive/accessibility sufficiency remain Agent work.
+
 All rows have FE and BE/API **not applicable**: this repository distributes Skills and local CLIs, with no product UI or API. Data effects below concern files and processes, not an external product database. Command IDs refer to existing command descriptors or `impact.feature_selectors` in [project configuration](../.harness/project.yaml); that file owns argv. The adapter consumes only the first and last columns of this table. Keep one row per unique Feature ID and comma-separated command IDs in the last column.
 
 | Feature ID | Name | Action | Result and invariant | Domain | Side effects | Command IDs |

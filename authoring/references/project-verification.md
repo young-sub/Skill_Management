@@ -4,6 +4,23 @@ The project owns business requirements, invariants, Feature Map, UI implementati
 
 ## Criteria and change impact
 
+In configured projects, shared UI ownership belongs in optional
+`extensions.workflow.ui_systems`, keyed by system ID. Each system declares
+`guide` (intent/reference file), `tokens` and `components` (existing code path
+patterns within workflow roots), and `consumers` (Feature IDs). It does not copy
+token values. Optional `exceptions` have `feature`, `reason`, `reference` and
+`reconsider`; a declared exception is a semantic-review input, not an automatic
+test exclusion. The guide links design intent, state behavior, responsive and
+accessibility expectations to those owners; these details remain project-specific.
+
+Audit reports missing guides/owners, removed consumers and broken exception refs.
+Shared source/reference changes reopen affected consumers' map/UI review and
+verification; preparation binds their actual shared input files too. If a guide
+is missing, the Agent creates it from the project's existing intent and code,
+then re-audits the same connection. The CLI does not generate visual design or
+decide whether a discrepancy is intentional. Removed systems and Features need
+reconciliation through the existing retirement path; past result bundles stay intact.
+
 Use existing requirement documents and user decisions as the expected outcome. A Feature connects ID/name, user action/result, invariant, FE, BE/API, Domain, data side effects, executable checks and the requirement source/revision. Non-applicable layers need a reason. Commands stay in the existing project registry; the map references them instead of duplicating argv.
 
 Trace actual callers and data: external input → parsing/validation → typed domain model → business logic → persistence/external adapter. Review state/effect/transaction ownership at touched boundaries. Existing owners come first; new state machines, registries or domain modules need an observed complexity problem.

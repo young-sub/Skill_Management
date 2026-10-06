@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: 06a323edf2cd441794a112fc6e0d36f6ae4a74fd6f146705e6ab8327cec01900
+# Source-SHA256: c92e36d11402b8332f7362f591abfff5a5ab24e2200c8f7a1a1e810be03d7c60
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -141,7 +141,50 @@ def configuration(project):
             raise ValueError('documentation_only_requires_exact_paths_and_reasons')
     if len(ids) != len(set(ids)):
         raise ValueError('duplicate_feature_identity')
+    systems = config.get('ui_systems', {})
+    if not isinstance(systems, dict):
+        raise ValueError('ui_systems_must_be_object')
+    for identity, system in systems.items():
+        if not isinstance(identity, str) or not identity or not isinstance(system, dict) or not isinstance(system.get('guide'), str) or not system['guide']:
+            raise ValueError('ui_system_requires_identity_and_guide')
+        for field in ('tokens', 'components', 'consumers'):
+            if not isinstance(system.get(field), list) or any(not isinstance(v, str) or not v for v in system[field]):
+                raise ValueError(f'ui_system_requires:{field}')
+        if not isinstance(system.get('exceptions', []), list):
+            raise ValueError('ui_exceptions_must_be_list')
+        for exception in system.get('exceptions', []):
+            if not isinstance(exception, dict) or any(not isinstance(exception.get(key), str) or not exception[key].strip()
+                    for key in ('feature', 'reason', 'reference', 'reconsider')):
+                raise ValueError('ui_exception_requires_scope_reason_reference_reconsider')
     return config
+
+
+def inspect_ui_systems(root, config, files):
+    features = {f['id'] for f in config['features']}
+    result = []
+    for identity, system in config.get('ui_systems', {}).items():
+        sources, findings = {}, []
+        for field in ('tokens', 'components'):
+            if not system[field]:
+                findings.append(f'missing_ui_owner:{identity}:{field}')
+            for pattern in system[field]:
+                local_path(root, pattern)
+                matched = {name: value for name, value in files.items() if fnmatchcase(name, pattern) and value is not None}
+                if not matched:
+                    findings.append(f'missing_ui_owner:{identity}:{pattern}')
+                sources.update(matched)
+        references = {name: file_hash(root, name) for name in [system['guide']] +
+                      [entry['reference'] for entry in system.get('exceptions', [])]}
+        if references[system['guide']] is None:
+            findings.append(f'missing_ui_guide:{identity}:{system["guide"]}')
+        findings.extend(f'missing_ui_exception_reference:{identity}:{entry["reference"]}' for entry in system.get('exceptions', [])
+                        if references[entry['reference']] is None)
+        findings.extend(f'removed_ui_consumer:{identity}:{name}' for name in system['consumers'] if name not in features)
+        findings.extend(f'ui_exception_consumer_unlinked:{identity}:{entry["feature"]}' for entry in system.get('exceptions', [])
+                        if entry['feature'] not in system['consumers'])
+        result.append(dict(system, id=identity, source_hashes=sources, reference_hashes=references,
+                           status='NEEDS_REPAIR' if findings else 'CONNECTED', findings=findings))
+    return result
 
 
 def coverage_rows(feature, review, basis, items=(), *, current_basis=None):
@@ -218,7 +261,9 @@ def begin(root, project, intent, targets=()):
             'targets': sorted(set(targets)), 'base': git(root, 'rev-parse', 'HEAD').decode().strip(),
             'dirty_baseline': git(root, 'status', '--porcelain').decode('utf-8'),
             'baseline': inventory(root, config['roots']), 'reviews': {}, 'feedback': feedback,
-            'source_patterns': {f['id']: list(f['sources']) for f in config['features']},
+            'source_patterns': {f['id']: list(dict.fromkeys(f['sources'] + [pattern
+                for system in config.get('ui_systems', {}).values() if f['id'] in system['consumers']
+                for field in ('tokens', 'components') for pattern in system[field]])) for f in config['features']},
             'documentation_only': {f['id']: dict(f.get('documentation_only', {})) for f in config['features']},
             'input_bases': {item['id']: item['basis'] for item in features},
             'verification_bases': {item['id']: item['verification_basis'] for item in features}}
@@ -277,7 +322,7 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
               'trust': 'editable local consistency; host-protected acceptance unavailable',
               'obligations': [], 'features': [], 'partitions': {}, 'unmapped': [],
               'unlinked': [], 'findings': [], 'product_findings': [], 'retired': [], 'coverage': coverage_summary([]),
-              'feedback': []}
+              'feedback': [], 'ui_systems': []}
     if config is None:
         return result
     if state is not None and not isinstance(state, dict):
@@ -293,6 +338,8 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
     if state.get('intent') in {'feedback', 'ui'} and not state.get('targets'):
         raise ValueError('target_required')
     files = inventory(root, config['roots']) if file_inventory is None else file_inventory
+    result['ui_systems'] = inspect_ui_systems(root, config, files)
+    result['findings'].extend(finding for system in result['ui_systems'] for finding in system['findings'])
     commands = dict(project.get('commands', {}))
     commands.update(project.get('impact', {}).get('feature_selectors', {}))
     result['feedback'] = inspect_feedback(root, config, state)
@@ -309,6 +356,9 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
         identity = feature['id']
         sources = {name: value for name, value in files.items()
                    if any(fnmatchcase(name, pattern) for pattern in feature['sources'])}
+        ui_systems = [system for system in result['ui_systems'] if identity in system['consumers']]
+        for system in ui_systems:
+            sources.update(system['source_hashes'])
         covered.update(sources)
         findings = []
         for pattern in feature['sources']:
@@ -316,6 +366,9 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
                 findings.append(f'missing_source:{identity}:{pattern}')
         refs = {name: file_hash(root, name) for field in ('map', 'criteria', 'ui') for name in feature.get(field, [])}
         refs.update({row['requirement']: file_hash(root, row['requirement']) for row in feature.get('coverage', [])})
+        for system in ui_systems:
+            refs.update(system['reference_hashes'])
+            findings.extend(system['findings'])
         findings.extend(f'missing_reference:{identity}:{name}' for name, value in refs.items() if value is None)
         findings.extend(f'missing_command:{identity}:{name}' for name in feature['checks'] if name not in commands)
         for prevention in feature.get('prevention', []):
@@ -323,12 +376,17 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
                 findings.append(f'incomplete_prevention:{identity}')
             if prevention.get('check') not in feature['checks']:
                 findings.append(f'inactive_prevention:{identity}:{prevention.get("check")}')
-        basis = digest({'feature': feature, 'sources': sources, 'references': refs,
-                        'commands': {name: commands.get(name) for name in feature['checks']}})
+        basis_inputs = {'feature': feature, 'sources': sources, 'references': refs,
+                        'commands': {name: commands.get(name) for name in feature['checks']}}
+        if ui_systems:
+            basis_inputs['ui_systems'] = ui_systems
+        basis = digest(basis_inputs)
         verification_basis = digest({
             'references': {field: {name: refs[name] for name in feature.get(field, [])}
                            for field in ('criteria', 'ui')},
             'commands': {name: commands.get(name) for name in feature['checks']}})
+        if ui_systems:
+            verification_basis = digest({'verification': verification_basis, 'ui_systems': ui_systems})
         review = state.get('reviews', {}).get(identity, {})
         # A recorded analysis is a semantic-review input, never a success flag.
         reviewed = current_review(root, review, basis)
@@ -337,7 +395,8 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
             result['product_findings'].extend({'feature': identity, 'finding': finding}
                 for finding in product_findings if isinstance(finding, str) and finding.strip())
         # Preserve ownership across staged deletion and source-map reassignment.
-        patterns = feature['sources'] + state.get('source_patterns', {}).get(identity, [])
+        patterns = feature['sources'] + state.get('source_patterns', {}).get(identity, []) + [pattern
+            for system in ui_systems for field in ('tokens', 'components') for pattern in system[field]]
         affected = sorted(name for name in changed
                           if any(fnmatchcase(name, pattern) for pattern in patterns))
         # Only a predeclared, still-existing document edit can avoid product execution.
@@ -363,7 +422,7 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
             requires.append('verification')
             if not feature.get('ui'):
                 findings.append(f'missing_ui_standard:{identity}')
-        if feature.get('ui') or ui_requested:
+        if feature.get('ui') or ui_requested or ui_systems:
             requires.append('ui_review')
         mapping_ready = reviewed and not findings
         mapping_pending = mapping_pending or not mapping_ready
@@ -398,7 +457,9 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
                 'basis': basis, 'reason': 'initial_or_changed_inputs', 'changed': affected,
                 'verification_changed': verification_changed,
                 'verification_inputs_changed': bool(state and verification_inputs_changed),
-                'requires': requires, 'references': sorted(refs)})
+                'requires': requires, 'references': sorted(refs),
+                'ui_systems': [system['id'] for system in ui_systems],
+                'prevention': feature.get('prevention', [])})
         result['features'].append({'id': identity, 'basis': basis, 'partition': feature['partition'],
                                    'verification_basis': verification_basis,
                                    'verification_status': ('NOT_REQUIRED' if not needs_behavior else

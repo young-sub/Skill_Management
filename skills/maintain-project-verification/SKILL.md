@@ -4,7 +4,7 @@ description: Audit and repair drift in a project's Feature Map, executable verif
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/maintain-project-verification/SKILL.md -->
-<!-- Source-SHA256: 2e4c0fb8be9fd9e0ded98eb4cc48176709fb7a69b5963bbc8ef6ed38dbbf03d9 -->
+<!-- Source-SHA256: f190ad4192397a397e669e18dbab2f5863308c58daa686d9696df44df9b73aba -->
 
 
 # Maintain Project Verification
@@ -18,6 +18,8 @@ When `.harness/project.yaml` exists and mapping/cohort/retention is affected, us
 Audit-only ends with findings and their evidence, without writes, launches or side-effecting tests. Authorized improvement continues through the actual owner repair: code for product defects, adapter/driver for observation errors, map/command/guide for drift, shared component/token for repeated UI inconsistency. Reuse `diagnose` and the relevant UI capability. Read [repair and reuse](references/repair-and-reuse.md) when those paths apply.
 
 Use [workflow obligations](references/workflow-obligations.md) for configured project links and resumable review. Its audit computes omissions and changed consumers without executing tests; Harness maintenance consumes the same calculation. Unconfigured projects remain read-only findings until setup is authorized.
+
+Consume `coverage.gaps` and `ui_systems` from the same audit. Repair affected requirement/check/review connections and shared UI consumer references at their existing owners. A missing guide needs project-specific intent/state/responsive/accessibility writing with the existing UI capability; keep token values in the linked code. Preserve declared UI exceptions and inspect whether their reason still applies. Re-audit the actual shared change to find consumer obligations rather than maintaining a second screen list.
 
 Keep feature additions/changes/removals and their map/guide/active selectors in the same functional change. Confirm removed entrypoints really have no callers; remove only active connections and retain historical runs. Execute repaired commands and the affected flow without lowering requirements, assertions, skips or visual baselines. Preserve both verified work and remaining BLOCKED areas.
 

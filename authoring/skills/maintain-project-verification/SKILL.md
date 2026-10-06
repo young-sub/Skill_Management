@@ -15,6 +15,8 @@ Audit-only ends with findings and their evidence, without writes, launches or si
 
 Use [workflow obligations](references/workflow-obligations.md) for configured project links and resumable review. Its audit computes omissions and changed consumers without executing tests; Harness maintenance consumes the same calculation. Unconfigured projects remain read-only findings until setup is authorized.
 
+Consume `coverage.gaps` and `ui_systems` from the same audit. Repair affected requirement/check/review connections and shared UI consumer references at their existing owners. A missing guide needs project-specific intent/state/responsive/accessibility writing with the existing UI capability; keep token values in the linked code. Preserve declared UI exceptions and inspect whether their reason still applies. Re-audit the actual shared change to find consumer obligations rather than maintaining a second screen list.
+
 Keep feature additions/changes/removals and their map/guide/active selectors in the same functional change. Confirm removed entrypoints really have no callers; remove only active connections and retain historical runs. Execute repaired commands and the affected flow without lowering requirements, assertions, skips or visual baselines. Preserve both verified work and remaining BLOCKED areas.
 
 Review redundant, implementation-coupled or costly checks by the failure each detects. Consolidate only when the remaining mechanism demonstrably rejects the same defect and permits nearby valid behavior. Without that evidence retain the checks and explain why. Counts and coverage alone do not establish value. Do not create a separate test-pruning framework.

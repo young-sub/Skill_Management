@@ -43,6 +43,23 @@ change work received the same resolved guardrail. Missing/stale green reopens
 revalidation; adapters without compatible prepared native-JSON evidence remain OPEN
 until their project-owned evidence binding exists. Existing diagnosis is reused.
 
+## Shared verification/UI maintenance, 2026-10-06
+
+Optional `ui_systems` on the existing project workflow connects guide intent to code
+token/component paths, Feature consumers and reasoned/reconsiderable exceptions.
+Audit detects missing owners/guides, broken exception references and removed consumers.
+Shared changes reopen consumer map/UI/verification work; preparation binds shared
+source/guide inputs even for subdirectory runners. No token values are copied and
+no visual-violation detector or CSS framework was added. Existing UI capabilities
+perform project-specific guide generation, intention and visual sufficiency review.
+
+Workflow/hook plus the A/B prepare/execute regressions passed: 30 tests. The shared
+subdirectory input case verifies automatic UI-file bindings. Actual local CLI
+`c-*.json` observations show a missing guide as NEEDS_REPAIR, an Agent-authored guide
+as CONNECTED, and a shared token change reopening the consuming `order` Feature's
+UI review and verification. The fixture explicitly records its CLI-only exception;
+CONNECTED proves reference structure, not rendered UI correctness.
+
 Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876fb9f8922e0cade072469ddc9a51267df`, with a clean worktree. This implements the [execution prompt](agent-coding-next-session.md); the prior review-only restriction does not apply to this authorized implementation. Source/distribution `c7c064a`, viewer soundness repairs `7e9eb8d`, and UI reuse/selection-reason follow-up `95eed81` are committed. T1–T6 were performed within the independent pilot. The whole delegation system remains PARTIAL/BLOCKED for the host and evidence limits below.
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.

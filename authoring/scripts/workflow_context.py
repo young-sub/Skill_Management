@@ -58,6 +58,8 @@ def context(payload):
                    product_findings=audit['product_findings'][:8])
     summary['feedback'] = [{key: entry.get(key) for key in ('id', 'feature', 'status', 'expected', 'root_cause', 'guardrail', 'remaining')}
                            for entry in audit.get('feedback', [])[:5]]
+    summary['ui_systems'] = [{key: entry.get(key) for key in ('id', 'guide', 'tokens', 'components', 'consumers', 'exceptions', 'findings')}
+                            for entry in audit.get('ui_systems', [])[:4]]
     # Bounded context, with the existing audit retaining the complete result.
     detail = json.dumps(summary, ensure_ascii=False, separators=(',', ':'))
     if len(detail) > 5500:

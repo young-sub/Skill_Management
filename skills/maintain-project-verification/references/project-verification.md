@@ -1,12 +1,29 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/project-verification.md -->
-<!-- Source-SHA256: edea47102d7868ce82c6eddf6fb90082e32129653b774337a1b4bb5a113ea4bb -->
+<!-- Source-SHA256: a36f40568f27e5cfaba5bfd19f1a62c4b558f41eeaf6c163175bda924f73ed0f -->
 
 # Project verification responsibilities
 
 The project owns business requirements, invariants, Feature Map, UI implementation and runner interpretation. Shared tools capture execution and link evidence. Skills select work; neither a registry row nor a PASS string executes it.
 
 ## Criteria and change impact
+
+In configured projects, shared UI ownership belongs in optional
+`extensions.workflow.ui_systems`, keyed by system ID. Each system declares
+`guide` (intent/reference file), `tokens` and `components` (existing code path
+patterns within workflow roots), and `consumers` (Feature IDs). It does not copy
+token values. Optional `exceptions` have `feature`, `reason`, `reference` and
+`reconsider`; a declared exception is a semantic-review input, not an automatic
+test exclusion. The guide links design intent, state behavior, responsive and
+accessibility expectations to those owners; these details remain project-specific.
+
+Audit reports missing guides/owners, removed consumers and broken exception refs.
+Shared source/reference changes reopen affected consumers' map/UI review and
+verification; preparation binds their actual shared input files too. If a guide
+is missing, the Agent creates it from the project's existing intent and code,
+then re-audits the same connection. The CLI does not generate visual design or
+decide whether a discrepancy is intentional. Removed systems and Features need
+reconciliation through the existing retirement path; past result bundles stay intact.
 
 Use existing requirement documents and user decisions as the expected outcome. A Feature connects ID/name, user action/result, invariant, FE, BE/API, Domain, data side effects, executable checks and the requirement source/revision. Non-applicable layers need a reason. Commands stay in the existing project registry; the map references them instead of duplicating argv.
 
