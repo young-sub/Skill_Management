@@ -53,8 +53,16 @@ verdicts and evidence pointers for the five-check bundle, executed zero test
 commands, and left all 23 evidence files byte-identical. A repeated update
 returned UNCHANGED without creating another backup. Raw receipts and the
 installed lookup are retained under `.work/plugin-transition/summary-v034/`.
-This verifies the installed CLI and update path, not a new native Agent task,
-hook trust after update, or protected acceptance. Ordinary installations,
+Fresh read-only app-server discovery subsequently returned all 19 plugin Skills
+from the 0.1.34 cache. `hooks/list` reported its workflow prompt hook enabled and
+trusted, with no warnings/errors (hash
+`86a1d69d52a90aec364318ef56881767c7085ec5a1b0c7b62c84d9fb2b1587ef`).
+Both discovery processes exited zero without timeout; raw responses are retained
+in the same evidence directory. No model task or hook execution was requested.
+The sandbox setup marker still exists while the account artifact is absent;
+discovery therefore does not establish model execution or protected acceptance.
+There is no observed need to request hook trust again for this installed version.
+Ordinary installations,
 global configuration and the original Labeler were not changed.
 
 ## Host installer and missing-setup guard, 2026-10-06
