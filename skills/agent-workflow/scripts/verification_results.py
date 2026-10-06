@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/verification_results.py
-# Source-SHA256: aa441330074d0a13c046e5950cbb53c8bde39b3ef9e2d5e00368b40ea0033665
+# Source-SHA256: 72aea91e128db1617453296911395f613459d3b4e4ea04c0a9168ecca8aaa5ea
 
 """Read-only viewer for plan-bound verification captures and observations.
 
@@ -1783,6 +1783,16 @@ def prepare_plan(root: Path, spec_path: Path, output: Path) -> dict[str, Any]:
     return {'status': 'PREPARED', 'plan': str(output), 'checks': len(checks), 'test_commands_executed': 0}
 
 
+def summarize_results(result: dict[str, Any]) -> dict[str, Any]:
+    """Reduce presentation only, after the complete evidence validation."""
+    result = copy.deepcopy(result)
+    for item in result.get('items', []):
+        item.pop('conditions', None)
+        for raw in item.get('raw', []):
+            raw.pop('observations', None)
+    return result
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     source = parser.add_mutually_exclusive_group(required=True)
@@ -1801,11 +1811,14 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--evidence-dir", "--output-dir", dest="evidence_dir", type=Path, help="New directory for execution captures and bound results")
     parser.add_argument("--timeout", type=float, default=300, help="Execution timeout passed to run_check.py")
     parser.add_argument("--pretty", action="store_true")
+    parser.add_argument('--summary', action='store_true', help='Read-only lookup without repeated conditions or raw assertion values; retain verdicts and evidence pointers')
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    if args.summary and (args.execute or args.prepare):
+        _parser().error('--summary requires read-only lookup')
     if args.prepare:
         if not args.root or not args.plan_output or args.execute or args.resume or args.records or args.assessments or args.observations or args.current_context:
             _parser().error('--prepare requires --root and --plan-output, without execution or lookup inputs')
@@ -1824,6 +1837,8 @@ def main(argv: list[str] | None = None) -> int:
             result = _blocked_bundle("--bundle cannot combine with execution or manual evidence arguments")
         else:
             result = view_bundle(args.bundle)
+        if args.summary:
+            result = summarize_results(result)
         print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2 if args.pretty else None))
         return {"PASS": 0, "ISSUES": 1, "BLOCKED": 2}.get(result.get("status"), 2)
     if args.execute:
@@ -1873,6 +1888,8 @@ def main(argv: list[str] | None = None) -> int:
             "items": [],
             "remaining": [str(error)],
         }
+    if args.summary:
+        result = summarize_results(result)
     print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2 if args.pretty else None))
     return {"PASS": 0, "ISSUES": 1, "BLOCKED": 2}.get(result.get("status"), 2)
 

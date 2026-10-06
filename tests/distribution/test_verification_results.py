@@ -154,6 +154,40 @@ class VerificationResultViewerTests(unittest.TestCase):
         self.assertTrue(result.stdout.strip(), result.stderr)
         return result, json.loads(result.stdout)
 
+    def test_summary_preserves_verdicts_and_evidence_without_replaying_commands(self) -> None:
+        marker = self.root / 'must-not-run'
+        self.conditions['command']['argv'] = [sys.executable, '-c',
+            f'from pathlib import Path; Path({str(marker)!r}).touch()']
+        self.make_raw()
+        self.make_plan({'id': 'save-flow', 'expected': 'price survives reload'},
+                       {'id': 'optional', 'expected': 'unaffected', 'required': False,
+                        'selection': {'status': 'excluded', 'reason': 'unchanged'}}, raw_for=self.raw)
+        self.make_capture()
+        self.make_observation()
+        self.make_current()
+        before = {p: p.read_bytes() for p in self.root.glob('*.json')}
+        for status in ('PASS', 'ISSUES', 'BLOCKED'):
+            with self.subTest(status=status):
+                self.make_assessment(status=status)
+                full_process, full = self.check()
+                short_process, short = self.check('--summary')
+                self.assertEqual(short_process.returncode, full_process.returncode)
+                for item in full['items']:
+                    item.pop('conditions')
+                    for raw in item['raw']:
+                        raw.pop('observations')
+                self.assertEqual(short, full)
+                self.assertEqual(short['test_commands_executed'], 0)
+        self.assertFalse(marker.exists())
+        self.assertEqual(before, {p: p.read_bytes() for p in before})
+
+    def test_summary_rejects_execution_and_preparation(self) -> None:
+        for mode in ('--execute', '--prepare'):
+            args = ['--plan', str(self.plan), '--execute'] if mode == '--execute' else ['--prepare', str(self.plan)]
+            result = subprocess.run([sys.executable, str(VIEWER), *args, '--summary'], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn('--summary requires read-only lookup', result.stderr)
+
     def test_pass_requires_linked_raw_assertion_and_reports_reusable_history(self) -> None:
         check = {"id": "save-flow", "expected": "entered price survives save and reload"}
         self.make_raw()

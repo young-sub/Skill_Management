@@ -8,6 +8,13 @@ python <agent-workflow>/scripts/verification_results.py --plan plan.json --recor
 
 Repeat record/assessment/observation arguments for multiple checks. Exit 0 means all required checks are currently reusable PASS, 1 means issues, 2 means blocked/incomplete. Always inspect `items`, `historical`, `current`, `remaining`; ISSUES and BLOCKED can coexist.
 
+For concise lookup, add `--summary` to `--plan` or `--bundle`. It performs the
+same validation and preserves exit codes, historical/current verdicts, selection
+reasons, commands, run IDs and evidence paths/hashes/pointers. It omits repeated
+condition snapshots and raw assertion values from the output only. Omit the flag
+to inspect those details. Summary lookup never reruns tests and cannot combine
+with `--execute` or `--prepare`.
+
 ## Project-owned input
 
 Create the plan while selecting checks, before execution. Add actual run/raw bindings after execution without rewriting criteria. Each check requires:

@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/result-viewer.md -->
-<!-- Source-SHA256: c4642c66af1a9b8c2842fa63ab61311b7542d22e21a2cc551d4f161fa7cff811 -->
+<!-- Source-SHA256: e3f00edfcded654d7486e6b4ef23cc00c0752d2ab3c99c4d415e7fb253867832 -->
 
 # Existing-result lookup
 
@@ -11,6 +11,13 @@ python <agent-workflow>/scripts/verification_results.py --plan plan.json --recor
 ```
 
 Repeat record/assessment/observation arguments for multiple checks. Exit 0 means all required checks are currently reusable PASS, 1 means issues, 2 means blocked/incomplete. Always inspect `items`, `historical`, `current`, `remaining`; ISSUES and BLOCKED can coexist.
+
+For concise lookup, add `--summary` to `--plan` or `--bundle`. It performs the
+same validation and preserves exit codes, historical/current verdicts, selection
+reasons, commands, run IDs and evidence paths/hashes/pointers. It omits repeated
+condition snapshots and raw assertion values from the output only. Omit the flag
+to inspect those details. Summary lookup never reruns tests and cannot combine
+with `--execute` or `--prepare`.
 
 ## Project-owned input
 

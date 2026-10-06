@@ -4,6 +4,25 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Concise verification lookup, 2026-10-06
+
+Plugin 0.1.34 adds `--summary` to the existing read-only verification viewer.
+The feature is limited to reducing context in the actual "what was verified"
+flow: complete validation still runs, and verdicts, selection reasons, commands,
+run IDs and evidence pointers remain unchanged. Repeated condition snapshots and
+raw assertion values are omitted from presentation. Execution and preparation
+reject this flag. No new host infrastructure or verification framework was added.
+
+The packaged viewer read the retained five-check UI bundle at
+`.work/plugin-transition/shared-v033/ui-result.json/bundle.json` both ways.
+Output decreased from 71,169 to 24,492 bytes (65.6%); all retained fields and exit
+codes matched, with zero test commands executed. Current status remained BLOCKED;
+this lookup does not renew the historical UI evidence or prove native Agent use
+of 0.1.34. The existing isolated installation was not changed. Regression coverage
+checks PASS/ISSUES/BLOCKED, exclusions, evidence preservation, no replay/input
+mutation, and rejection of execution/preparation combinations. Whole-system
+acceptance and the existing native sandbox limitation remain incomplete.
+
 ## Host installer and missing-setup guard, 2026-10-06
 
 A subsequent dirty-tree check found a literal `%SystemDrive%/ProgramData/...`
