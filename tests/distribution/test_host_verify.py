@@ -20,6 +20,10 @@ class HostVerifyTests(unittest.TestCase):
                 shutil.copyfile(ROOT / 'scripts' / name, root / name)
             workspace = root / 'workspace'
             workspace.mkdir()
+            for name in ['.sandbox/setup_marker.json', '.sandbox-secrets/sandbox_users.json']:
+                path = root / name
+                path.parent.mkdir(exist_ok=True)
+                path.touch()
             python_hash = hashlib.sha256(Path(sys.executable).read_bytes()).hexdigest()
             config = {'workspace': str(workspace), 'home': str(root),
                       'codex': sys.executable, 'python': sys.executable,
@@ -65,3 +69,6 @@ class HostVerifyTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     module['execute'](root)
                 self.assertEqual(len(writes), 4)
+                (root / '.sandbox-secrets/sandbox_users.json').unlink()
+                with self.assertRaisesRegex(ValueError, 'sandbox_setup_incomplete'):
+                    module['require_sandbox_ready'](config)

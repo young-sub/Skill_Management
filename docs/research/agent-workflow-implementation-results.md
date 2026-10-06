@@ -4,6 +4,41 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Host installer and missing-setup guard, 2026-10-06
+
+`scripts/install_host_verifier.py` freezes reviewed inputs, uses repository
+canonical helpers rather than executing supplied helper copies, refuses existing
+targets and probes the candidate boundary before publishing an installation.
+It requires an already provisioned protected parent and does not alter ACLs,
+accounts, ordinary installations or existing results. `host_verify.prepare`
+shares preflight validation without executing product checks.
+
+The first real installation attempt did not reach its permission probe. Native
+0.160.0 reported `sandbox users missing or incompatible with marker version` and
+opened setup. Fixing the subprocess cwd and using a short file-based invocation
+did not resolve it. Both attempts timed out; their disposable targets contain
+only canaries, no installation manifest. Subsequent metadata-only inspection
+found `.sandbox/setup_marker.json` present but
+`.sandbox-secrets/sandbox_users.json` absent in host-006. The Offline Windows
+account still exists. The file's removal cause is unknown; no credential contents
+were read or copied. This is not proof that earlier successful runs were invalid.
+The [pinned native source](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/windows-sandbox-rs/src/setup.rs)
+identifies those separate setup artifacts.
+
+Installation and verification now refuse missing native state before launching
+Codex. The actual third installation attempt immediately returned
+`sandbox_setup_incomplete:.sandbox-secrets/sandbox_users.json`; it created no
+target and no new setup process. Prior setup dialogs were subsequently absent.
+This prevents repeated setup requests for the observed missing-file condition;
+file presence is a preflight, not credential validity attestation.
+
+Features: host-install/host-verification, U2/U7. Canonical helper selection,
+existing-target preservation, shared preflight and no-target missing-state behavior
+are source-tested. The new installer has **not** completed a real positive native
+installation, so that scope is BLOCKED. Existing manual protected installations
+and their prior raw results are retained. Whole workflow acceptance remains
+incomplete; no fallback to a full-access candidate or weaker identity was used.
+
 ## Protected host execution entrypoint, 2026-10-06
 
 `scripts/host_verify.py` now connects fixed host policy, native sandbox execution,

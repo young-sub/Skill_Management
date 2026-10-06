@@ -26,7 +26,15 @@ def _identities(config):
         raise ValueError('host_interpreter_mismatch')
 
 
-def execute(root):
+def require_sandbox_ready(config):
+    # Presence only: never read/copy credential material or automatically re-run
+    # administrator setup. The native launcher still validates existing state.
+    for name in ['.sandbox/setup_marker.json', '.sandbox-secrets/sandbox_users.json']:
+        if not (Path(config['home']) / name).is_file():
+            raise ValueError('sandbox_setup_incomplete:' + name)
+
+
+def prepare(root):
     root = Path(root).resolve()
     result_api = runpy.run_path(str(root / 'host_result.py'))
     basis, expected = result_api['_basis'](root)
@@ -77,6 +85,14 @@ def execute(root):
     if len(selected) != len(set(selected)) or set(selected) != {c['id'] for c in expected}:
         raise ValueError('host_case_coverage_mismatch')
     _identities(config)
+    require_sandbox_ready(config)
+    return result_api, config
+
+
+def execute(root):
+    root = Path(root).resolve()
+    result_api, config = prepare(root)
+    workspace = Path(config['workspace']).resolve()
     job = runpy.run_path(str(root / 'windows_job.py'))
     run = result_api['begin'](root)
     runtime = workspace / ('host-run-' + run['run_id'])

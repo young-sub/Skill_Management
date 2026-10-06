@@ -36,6 +36,24 @@ See the [system direction](research/agent-coding-system-direction.md) and
 required behavior; packaging alone does not satisfy those requirements.
 
 The builder never installs, publishes, changes global settings, or trusts hooks.
+[`install_host_verifier.py`](../scripts/install_host_verifier.py) stages a reviewed
+host bundle with `--bundle PATH --target NEW_PATH` below an **already provisioned
+protected parent**. It freezes declared inputs as bytes, supplies canonical host
+helpers instead of importing bundle helpers, refuses existing targets, probes the
+native candidate's write/delete/create/rename and security-descriptor access, then
+validates configuration and writes an installation manifest. Failed targets are
+retained; nothing is overwritten or recursively cleaned up. This command does not
+provision accounts/ACLs or authorize unreviewed policies/drivers.
+
+Both installation and execution check for the native setup marker and sandbox
+account file before invoking the native CLI. Only file presence is inspected;
+credential contents are never read or copied. Missing setup returns BLOCKED
+without invoking a setup dialog. Presence alone does not attest credential
+validity; the native launcher still validates its own state. The current real
+installation trial is BLOCKED by a missing account file in the isolated home;
+source tests and the no-launch missing-state check passed, but successful
+automatic protected installation is not yet established.
+
 The protected-host [`host_verify.py`](../scripts/host_verify.py) entrypoint joins
 execution, independent saved-byte readback and result publication. Install it with
 `host_result.py`, `windows_job.py`, `policy.json`, `execution.json` and the frozen
