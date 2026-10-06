@@ -4,7 +4,40 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
-## Host-owned result binding implementation, 2026-10-06
+## Host process lifetime implementation, 2026-10-06
+
+A real native elevated sandbox counterexample showed why command exit is not
+completion: the parent returned zero after about two seconds, but its detached
+child wrote a file later. `descendant-result.json` retains the started child and
+absent-at-exit/present-after-wait bytes. A separate owned-child handle probe showed
+the host could control the sandbox process without granting candidate authority.
+
+`scripts/windows_job.py` now gates candidate startup until the host assigns the
+trusted child to an unnamed Windows Job Object. The host alone retains the handle;
+kill-on-close is enabled and breakaway is not. It queries live job membership,
+terminates residual children and reports timeout/forced cleanup separately.
+`host_result.finish` requires complete per-case host execution facts and blocks
+missing lifecycle evidence or forced cleanup even if output bytes match.
+
+Actual installed protected-helper verification used the same stable native
+sandbox root: the formerly surviving child was terminated, active count reached
+zero and its late file never appeared. A running candidate timed out and produced
+exit 124 with zero active processes and no late write. Killing the dedicated host
+controller after candidate startup also prevented the late write; subsequent
+process inspection found no trial Python/Codex processes. Unit coverage exercises
+normal completion, detached children, timeout and denied breakaway. A fresh ten-case
+protected price run using this controller still accepted normal code and rejected
+the three defective cases through `host-result-v2`.
+
+Raw records are `.work/plugin-transition/elevated-authority/descendant-result.json`,
+`job-native-result.json`, `job-timeout-result.json`, `job-crash-result.json` and
+`job-publication-trial.json`. Features: host-process and host-result/U2. These
+results cover descendants in this process hierarchy, not arbitrary external
+brokers or a general proof of sandbox isolation. General workflow `accept` and
+full obligation binding remain unimplemented; ordinary plugin version/generated
+resources are unchanged because these modules belong to the protected host.
+
+## Earlier host-owned result binding implementation, 2026-10-06
 
 `scripts/host_result.py` now owns a host run's pending/terminal publication,
 protected policy and snapshot identity, exact case coverage and saved-byte/exit

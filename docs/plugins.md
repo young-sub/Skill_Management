@@ -39,7 +39,11 @@ The builder never installs, publishes, changes global settings, or trusts hooks.
 The host-only [`host_result.py`](../scripts/host_result.py) publisher binds a
 protected `policy.json`, explicit snapshot files and a unique run. The host calls
 `begin(authority_root)` before execution, then `finish(authority_root, run_id,
-observations)` with independently collected `{id, exit, saved_hex}` facts. The
+observations, executions=executions)` with independently collected
+`{id, exit, saved_hex}` facts. Each execution has `id`, `exit`, `timed_out`,
+`descendants_killed` and `remaining`, collected by the host process controller.
+Missing lifecycle evidence, timeout or forced descendant cleanup blocks acceptance
+even when the saved bytes match. The
 policy declares `task`, nonempty `snapshot` paths and nonempty expected `cases`
 with those same three fields. `lookup(authority_root, run_id, task)` remeasures
 policy, publisher and snapshot bytes. Missing/duplicate/extra cases are BLOCKED;
@@ -54,6 +58,18 @@ report is not that interface's trusted caller. Its ACCEPTED verdict covers the
 declared snapshot and cases, not all workflow obligations. Ordinary plugin
 `project_workflow.py accept` remains BLOCKED until the actual host adapter owns
 those obligations and the complete execution lifecycle.
+
+[`windows_job.py`](../scripts/windows_job.py) supplies Windows process lifetime
+control around an existing native sandbox launcher. Its trusted isolated-Python
+child waits before executing candidate code. The host assigns it to an unnamed
+[Windows Job Object](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects)
+with kill-on-close and without breakaway, then opens the gate. The job handle stays
+in the host. Normal completion measures remaining processes; lingering children
+are terminated and reported, while timeout and controller death also terminate
+the job. `run(launcher, command, cwd=..., timeout=..., env=...)` returns lifecycle
+facts, not a product verdict. Pin the installed helper, interpreter and launcher;
+keep the sandbox workspace root stable. This does not attest unrelated brokered
+services, external effects or every possible sandbox escape.
 
 Local marketplace installation, fresh-host discovery, installed Agent task
 behavior, and protected acceptance are separate checks. An editable local state

@@ -22,6 +22,11 @@ class HostResultTests(unittest.TestCase):
         (self.root / 'policy.json').write_text(json.dumps(self.policy))
         self.facts = [{'id': 'save', 'exit': 0, 'saved_hex': b'115'.hex()},
                       {'id': 'reject', 'exit': 3, 'saved_hex': b'old'.hex()}]
+        self.executions = [{'id': f['id'], 'exit': f['exit'], 'timed_out': False,
+                            'descendants_killed': False, 'remaining': 0} for f in self.facts]
+
+    def finish(self, run, facts):
+        return self.runtime.finish(self.root, run['run_id'], facts, executions=self.executions)
 
     def test_actual_bytes_and_all_cases_required(self):
         for facts, verdict in [(self.facts, 'ACCEPTED'), ([], 'BLOCKED'),
@@ -32,14 +37,14 @@ class HostResultTests(unittest.TestCase):
                                ([dict(self.facts[0], saved_hex=b'114'.hex()), self.facts[1]], 'REJECTED')]:
             with self.subTest(facts=facts):
                 run = self.runtime.begin(self.root)
-                self.assertEqual(self.runtime.finish(self.root, run['run_id'], facts)['status'], verdict)
+                self.assertEqual(self.finish(run, facts)['status'], verdict)
 
     def test_pending_stale_and_duplicate_finish_are_not_accepted(self):
         run = self.runtime.begin(self.root)
         self.assertEqual(self.runtime.lookup(self.root, run['run_id'], 'price')['status'], 'PENDING')
-        self.runtime.finish(self.root, run['run_id'], self.facts)
+        self.finish(run, self.facts)
         with self.assertRaises(ValueError):
-            self.runtime.finish(self.root, run['run_id'], self.facts)
+            self.finish(run, self.facts)
         with self.assertRaises(ValueError):
             self.runtime.lookup(self.root, run['run_id'], 'other-task')
         (self.root / 'snapshot/app.py').write_text('price = 114')
@@ -54,7 +59,7 @@ class HostResultTests(unittest.TestCase):
                 run = self.runtime.begin(self.root)
                 path.write_bytes(before + b' ')
                 with self.assertRaises(ValueError):
-                    self.runtime.finish(self.root, run['run_id'], self.facts)
+                    self.finish(run, self.facts)
                 path.write_bytes(before)
                 self.assertEqual(self.runtime.lookup(self.root, run['run_id'], 'price')['status'], 'PENDING')
 
@@ -73,5 +78,11 @@ class HostResultTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.runtime.lookup(self.root, run['run_id'], 'price')
         with self.assertRaises(ValueError):
-            self.runtime.finish(self.root, run['run_id'], self.facts)
+            self.finish(run, self.facts)
         self.assertEqual(terminal.read_bytes(), before)
+
+    def test_missing_or_unclean_execution_blocks_matching_bytes(self):
+        for executions in [None, [], [dict(self.executions[0], descendants_killed=True), self.executions[1]]]:
+            run = self.runtime.begin(self.root)
+            result = self.runtime.finish(self.root, run['run_id'], self.facts, executions=executions)
+            self.assertEqual(result['status'], 'BLOCKED')

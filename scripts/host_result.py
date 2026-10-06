@@ -69,13 +69,28 @@ def begin(root):
     return record
 
 
-def _verdict(cases, observations):
+def _verdict(cases, observations, executions):
     try:
         if not isinstance(observations, list):
             raise ValueError('observations_required')
         facts = [_case(fact) for fact in observations]
         if (len(facts) != len(cases) or len({f['id'] for f in facts}) != len(facts)
                 or {f['id'] for f in facts} != {c['id'] for c in cases}):
+            return 'BLOCKED'
+        if not isinstance(executions, list) or len(executions) != len(cases):
+            return 'BLOCKED'
+        exits = {}
+        for execution in executions:
+            if (not isinstance(execution, dict)
+                    or set(execution) != {'id', 'exit', 'timed_out', 'descendants_killed', 'remaining'}
+                    or not isinstance(execution['id'], str) or execution['id'] in exits
+                    or type(execution['exit']) is not int
+                    or execution['timed_out'] is not False
+                    or execution['descendants_killed'] is not False
+                    or type(execution['remaining']) is not int or execution['remaining'] != 0):
+                return 'BLOCKED'
+            exits[execution['id']] = execution['exit']
+        if exits != {fact['id']: fact['exit'] for fact in facts}:
             return 'BLOCKED'
     except (ValueError, TypeError):
         return 'BLOCKED'
@@ -92,17 +107,18 @@ def lookup(root, run_id, task):
         return pending
     result = json.loads(path.read_bytes())
     if (result.get('run_id') != run_id or result.get('basis') != basis
-            or result.get('status') != _verdict(cases, result.get('observations'))):
+            or result.get('status') != _verdict(cases, result.get('observations'), result.get('executions'))):
         raise ValueError('invalid_host_result')
     return result
 
 
-def finish(root, run_id, observations):
+def finish(root, run_id, observations, *, executions=None):
     basis, cases = _basis(root)
     pending = lookup(root, run_id, basis['task'])
     if pending['status'] != 'PENDING':
         raise ValueError('host_run_already_finished')
-    result = dict(pending, status=_verdict(cases, observations), observations=observations)
+    result = dict(pending, status=_verdict(cases, observations, executions),
+                  observations=observations, executions=executions)
     # Exclusive terminal publication: interruption leaves unreadable/absent data,
     # never an older accepted record. The host owns serialization of each run.
     with _path(root, run_id, '.result.json').open('x', encoding='utf-8') as stream:
