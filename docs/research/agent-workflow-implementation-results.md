@@ -4,6 +4,73 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Installed execution connection and environment regression, 2026-10-06
+
+At `e07a4fa`, the native UI task had used the installed workflow but generated an
+ad hoc report instead of a reusable bundle. The common entrypoint still described
+the bundled CLI only as read-only, and setup left direct native capture as the
+fallback despite the installed prepare/execute capability. Version 0.1.37 fixes
+those discovery paths: reuse reviewed assertions and the existing CLI for measured
+preparation, shared execution and bundle production; lookup stays read-only.
+No new runner, collector or environment-enforcement instruction was introduced.
+Canonical Skills, generated copies and the public manifest were synchronized.
+Thirteen package/self-containment/document tests and distribution validation passed;
+all 246 installed files match the candidate in the existing host-006 home.
+
+A natural-language connection request selected the installed setup/workflow
+resources. After the environment intervention below, the actual Agent added the
+fixture's `docs/verification-assertions.json`, connected fresh registered report
+paths and documented execution, resume and lookup. It preserved product code,
+requirements, UI standard and all existing test assertions. The installed CLI
+prepared five Feature/check selections with zero tests, executed three shared
+producers, and wrote captures, checkpoints, bound conditions and a bundle. The
+VM producer passed for both Features. Both Chrome launches failed with `spawn
+EPERM` under the unelevated sandbox; the overall result remained BLOCKED. No
+browser success is claimed for this run.
+
+With the owned server stopped, actual installed lookup ran zero test commands
+and kept the two VM consumer results reusable while retaining browser failures.
+Main independently compared the Agent's before hashes: all 24 retained execution
+files and all 97 protected/prior-evidence files remained unchanged. Lookup of an
+older browser-success bundle retained historical PASS but rejected current reuse
+after the registry/source changes. This validates connection and failure/lookup
+behavior; fresh browser PASS through this new connection remains unverified.
+The project still needs coordinated new report paths in its registry and assertion
+specification for another run. That manual coupling is a remaining usability cost,
+not a claimed fully automatic recurring execution path.
+The isolated connection is retained in fixture commit `3912164`. Its commit
+changes the Git identity after the observed lookup, so that pre-commit bundle is
+historical; no post-commit current PASS is claimed. The resumed native turn took
+398.772 seconds, in addition to the interrupted setup attempt. No efficiency
+improvement is inferred from this single setup task.
+
+The first native attempt failed before reading any files: the setup helper
+returned `orchestrator_helper_launch_canceled` / Windows error 1223. Native logs
+reported missing or incompatible sandbox accounts, and a live presence check
+confirmed the isolated `sandbox_users.json` was absent. Its disappearance cause
+is not established. **Correction to earlier no-prompt claims:** zero approval
+events in an Agent transcript does not establish absence of native setup/UAC
+activity; the native log also records provisioning during the preceding UI trial.
+Approval policy never does not suppress that OS setup path.
+
+The controller interrupted the pending native attempt and resumed the same
+session with the previously authorized unelevated workspace sandbox, changing
+only the isolated home's Windows mode. Ordinary shell work then ran without
+setup. A combined server/check/cleanup command was rejected by automatic review;
+the Agent used a separate foreground server session and closed that owned session.
+These interventions are retained, not described as autonomous or prompt-free
+success. The protected verifier has not been weakened: missing account artifacts
+currently block new protected executions. Earlier accepted frozen results remain
+historical evidence; routine development continues without repeated admin setup.
+
+Evidence: `.work/plugin-transition/ui-connection-v037/` retains the request,
+update/backup, environment change, invocation and source baseline. Native session:
+`01a110f2-d8ea-7632-94a6-fbf179854082`. The fixture's
+`.work/verification-connection-v1/` retains actual native captures, bundle,
+read-only lookup/proofs, served-byte readiness and cleanup. Features:
+`agent-workflow`, `verification-results`, `plugin-package`; U3/U7 remain bounded
+by the recorded browser, recurring-path and protected-host gaps.
+
 ## Native UI verification after sandbox repair, 2026-10-06
 
 Starting from clean `cce652b`, the existing UI fixture at `247a293` and the same

@@ -4,7 +4,7 @@ description: Coordinate a coding task from a natural-language request through re
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: e2f38f5c3508f14d5f8427663250e92b4d57a7292407b108fa68d1ea17b40f25 -->
+<!-- Source-SHA256: ce8f05e854d39bf6b13e739a48b3b3dbb4b881c340ee9fb4f7a4d0f3e9612ded -->
 
 
 # Agent Workflow
@@ -27,7 +27,9 @@ For configured projects, [workflow obligations](references/workflow-obligations.
 
 When the project already provides the native unittest adapter described in its guide, reuse its `--work-id <id> --all-checks --output <new-directory>` (or `--pending-state` for an existing non-Harness record) to execute recomputed pending checks; use explicit Feature selection when no task record exists or bind an existing capture with `--evidence` and `--bundle-output`. The workflow audit consumes that bundle directly without rerunning tests. This producer belongs to the project and is not bundled as a universal product adapter. If absent, setup must connect the project's actual runner first. Do not fabricate native JSON observations to make unittest output fit the browser/API viewer.
 
-For existing structured project evidence, the bundled [read-only viewer](scripts/verification_results.py) joins a project plan, capture, adapter assessment and raw observations. Read its [input and reuse contract](references/result-viewer.md); preserve the project's native report format and use its criterion/observation pointers. It never launches a recorded command. If the project has no compatible plan, inspect raw directly and report the missing binding; do not manufacture a successful plan or silently execute during lookup.
+For registered native JSON checks, the bundled [verification CLI](scripts/verification_results.py) prepares measured bindings with `--prepare`, runs selected checks once with `--execute`, and joins their captures, assessments and raw observations into a reusable bundle. Read its [input and reuse contract](references/result-viewer.md). Reuse the project's reviewed assertion specification and execution connection; if missing, use the setup responsibility to connect them within the authorized scope. In an installed plugin the CLI discovers its bundled capture script automatically. Keep criterion selection and visual judgment with the Agent; let the CLI collect identities, run commands and build the bundle instead of recreating that work in shell snippets.
+
+For lookup-only requests use `--bundle` (optionally `--summary`) or read existing raw evidence. Lookup runs no recorded command. If compatible bindings are missing, report that limit; do not manufacture a successful plan or backfill evidence through execution. A native pass without a bundle remains bounded native evidence, not current reusable workflow acceptance.
 
 Keep a single concise plan for nontrivial work. Use the existing Harness contract only when coordination/risk or the user requires it. Never force Full, all playbooks, a fixed agent count or new setup on every request. Current user authorization remains authoritative; global installs, provider changes and publishing are separate effects.
 

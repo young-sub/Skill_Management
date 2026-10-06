@@ -57,13 +57,19 @@ then passed real candidate-account boundary probes; see the current
 
 For repeated authorized development trials, reuse the same authenticated isolated
 home and trusted workspace. Set that home's top-level `approval_policy = "never"`
-and `sandbox_mode = "workspace-write"`; keep its existing Windows sandbox setup.
+and `sandbox_mode = "workspace-write"`. For ordinary development that must avoid
+administrator setup prompts, use the authorized `[windows] sandbox = "unelevated"`
+mode. The elevated native host can request setup even with approval policy never
+if its account artifacts disappear; that policy does not suppress Windows UAC.
 The native task launcher also passes `--ask-for-approval never --sandbox workspace-write`
 explicitly. These settings suppress per-command approval prompts, not sandbox
 restrictions. Do not recreate the home, repeat account setup, or change the ordinary
 installation for each task. Checks outside the authorized environment remain
 BLOCKED; a new trust boundary is a separate operation, not a reason to repeat
-setup for routine tests.
+setup for routine tests. The protected verifier still explicitly requires its
+elevated account artifacts and boundary probe; ordinary unelevated execution
+does not substitute for protected acceptance. Keep that scope BLOCKED if its
+required account state is absent instead of silently weakening its boundary.
 
 The protected-host [`host_verify.py`](../scripts/host_verify.py) entrypoint joins
 execution, independent saved-byte readback and result publication. Install it with
