@@ -4,6 +4,29 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Native lookup and corrected sandbox scope, 2026-10-06
+
+The prior statement that the missing sandbox account artifact blocks all native
+Agent tasks was too broad. Direct inspection found host-006 already configured
+with `windows.sandbox = "unelevated"`. With that existing configuration, the
+authenticated 0.1.34 TUI completed a fresh natural-language read-only price
+verification request in 58.494 seconds, using five tool calls. No configuration,
+credential, trust or OS setup change was required. The missing artifact still
+blocks the dedicated elevated protected-verifier path, not this observed task.
+
+The Agent read requirements, current source and historical raw records, compared
+Git/file hashes, and reported 49 historical observations, mutation findings and
+the limits of current reuse. It did not execute tests, repair files or start
+services; 13 tracked source/task/evidence inputs remained byte-identical.
+It did not invoke the installed viewer or explicitly load a plugin Skill during
+this turn, so this demonstrates native task availability and read-only behavior,
+not autonomous selection of the new summary option. A separate controller call
+to the installed viewer returned current PASS with no reasons and zero test
+executions. The TUI then exited zero. Request, commands, hashes, session pointer
+and controller result are retained under
+`.work/plugin-transition/lookup-native-v034/`. No new approval was requested.
+Whole-system protected acceptance and continuous-task acceptance remain incomplete.
+
 ## Explicit interrupted-install resume, 2026-10-06
 
 Plugin 0.1.35 connects the existing guarded update to an explicit `--resume-from`
@@ -23,8 +46,9 @@ single surviving file and original backup were preserved byte-for-byte. Repeat
 returned UNCHANGED without another backup. This is controlled partial-copy-state
 recovery, not proof of terminating the native installer mid-copy. No credentials,
 ordinary installation, OS security settings or original Labeler were changed.
-The authenticated host-006 remains at 0.1.34; model tasks remain blocked by its
-missing sandbox account artifact. Whole-system acceptance remains incomplete.
+The authenticated host-006 remains at 0.1.34; the missing sandbox account artifact
+blocks the elevated protected-verifier path. The subsequent ordinary native task
+above disproves a blanket model-execution block. Whole-system acceptance remains incomplete.
 
 ## Concise verification lookup, 2026-10-06
 
@@ -76,7 +100,7 @@ selecting only the isolated CODEX_HOME. A regression checks both preservation an
 secret exclusion. The task-created cache was moved, with resolved-path checks,
 into retained work evidence; it was not deleted. This is a controller defect,
 not a reason to blame sandbox permissions. Its relationship to the missing native
-account file is unproven; native execution remains blocked before launch.
+account file is unproven; the protected-verifier launcher remains blocked before launch.
 
 `scripts/install_host_verifier.py` freezes reviewed inputs, uses repository
 canonical helpers rather than executing supplied helper copies, refuses existing
