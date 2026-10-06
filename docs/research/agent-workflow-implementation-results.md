@@ -4,6 +4,58 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Native UI verification after sandbox repair, 2026-10-06
+
+Starting from clean `cce652b`, the existing UI fixture at `247a293` and the same
+authenticated host-006 home were reused without setup, login, trust, permission
+or package changes. An initial deterministic capability check ran the unchanged
+`node verify.cjs` through the real elevated native sandbox and existing Windows
+job controller. Chrome returned 16 observations, exit zero, no timeout, forced
+cleanup or remaining job members. Ten checked product/criteria/guide files stayed
+byte-identical. The controller stopped its own local server. This changes the
+current environment finding: the earlier native Chrome `EPERM` is historical,
+not a continuing block in this repaired environment.
+
+A separate fresh native Agent request named no Skill and prescribed no command
+order: verify the existing inventory/order desktop/mobile flows and shared guide,
+preserving source, criteria, previous evidence and Git state. The Agent selected
+and read the installed 0.1.36 `agent-workflow`, followed the project guide, started
+its own local server, and ran the three existing checks once each. It inspected
+the raw results and screenshots, then added an evidence-only browser check for
+Tab order, focus visibility and keyboard Retry. Actual results were:
+
+- Existing browser flow: 16 observations at 1280 and 390 pixels, including loading,
+  search/empty, keyboard add, saved order reload, clear/reload and error/retry.
+- Existing order review: two viewport observations, including saved quantities,
+  long-name wrapping, empty recovery and keyboard clear.
+- Existing VM-state check: seven observations; kept separate from browser proof.
+- Supplemental browser check: both viewport observations passed Tab/focus and
+  keyboard retry/hide assertions. It retained loading/empty/focus screenshots.
+
+The Agent inspected all 18 screenshots against the shared guide; main separately
+inspected mobile inventory and desktop order output. No guide discrepancy was
+observed within those views. All four check commands exited zero. The Agent
+terminated its own server; an independent port check found no listener. All 14
+baseline file hashes and clean fixture Git state were preserved. Native task
+duration was 163.067 seconds, with 13 command events and zero approval events;
+the TUI exited zero. No controller follow-up or repair was needed for this task.
+
+Evidence: `.work/plugin-transition/ui-sandbox-v036/` contains the deterministic
+launcher/lifecycle capture, natural-language request, native invocation, exit and
+`native-observed.json`. Native session is
+`01a110ec-5de5-7e53-bc39-e9e2294f7b35`; the actual reports, screenshots, input
+hashes and cleanup record are in the UI fixture's
+`.work/verification-20261006-01/`. The capability check and fresh Agent task are
+separate executions; their observations are not counted as additional coverage.
+
+Features: workflow-distribution and verification-capture; U3/U5/U7 acceptance
+evidence. This resolves the prior inner-native browser execution gap for this
+fixture. It remains headless local Chrome, viewport emulation and sessionStorage,
+not BE persistence, screen-reader speech, cross-browser or protected UI acceptance.
+The fresh task did not produce a bound viewer bundle or protected workflow result.
+Whole-system request-to-protected-acceptance integration remains incomplete. No
+runtime or generated resource changed in this verification unit.
+
 ## Reused environment: installed Agent repair to protected acceptance, 2026-10-06
 
 Starting at clean `dbde8df`, the guarded updater installed 0.1.36 into the existing
@@ -1654,12 +1706,12 @@ Installation reuses an already exact cohort without rewriting it. A replacement 
 | Unit | Implementation and actual acceptance evidence | Remaining scope |
 | --- | --- | --- |
 | U1 | Executable partitioned obligations; Git fixtures cover full API/CLI inventory, unconnected coverage, addition/deletion, shared criteria/command changes, stale/duplicate review and resume. Independent Labeler survey exported 319 safe tracked donor files, created 11 functional areas including roles/API/CLI/webhooks/recovery and retained the map in local fixture commit `c770500`. The subsequent installed audit records all 11 Features as reviewed/mapping-ready, while retaining translation quality and catalog completeness as product findings. | The shared-map dependency repair reopened all 11 reviews; the subsequent bounded section 3.2 review connected requirements, variants, shared flows and explicit execution gaps, and installed 0.1.32 now reports all 11 current mapping reviews valid. This establishes the isolated snapshot map within the observed survey boundary, not universal product completeness or host-protected semantic acceptance. The two product findings do not block map readiness and do not authorize provider/product work. File coverage (`unmapped=0`) alone is insufficient; runtime/provider/print acceptance is separate from this survey. |
-| U2 | Same-authority child probe actually changed a task-local policy and wrote forged success; `accept` still refused protected acceptance. Configured local close rejects unresolved obligations and submitted success. Normal edits and native runs remain available. | Protected policy, verifier identity, result authority and bypass-resistant acceptance are BLOCKED. The earlier model-startup block is resolved in the approved isolated native trial; successful login/task execution does not supply protected result authority. No unsupported security promise is made. |
+| U2 | Same-authority child probe actually changed a task-local policy and wrote forged success; `accept` still refused protected acceptance. Configured local close rejects unresolved obligations and submitted success. Normal edits and native runs remain available. | The later approved elevated sandbox repair and protected host entrypoint now establish candidate-account write denial, process cleanup, frozen workflow/review checks and protected results for the declared price-save cases. The actual 0.1.36 Agent repair is rejected before and accepted after under the same fixed oracle. Whole-project host policies and automatic request-to-host handoff remain incomplete; ordinary editable workflow acceptance still reports BLOCKED. |
 | U3 | Actual child runs produce current native facts, captures and bundles; zero/skip/missing/stale/changed-criterion cases reject reuse. Fresh installed v3 executed the price save/read/quote check once and then queried the bundle with zero test executions and 12 retained files unchanged. The authenticated 0.1.25 trial later queried without re-execution, resumed with zero commands and 14 files unchanged, then captured/bound the registered 41-case command after feedback. | External runtime attestation and independently authenticated semantic criteria are unavailable. Only explicitly selected facts are covered. |
 | U4 | Fresh collaboration context read installed diagnose/workflow resources, traced save and quote to the same faulty float converter, repaired that owner with Decimal in fixture commit `d2f1181`, and preserved the original requirement/check. RED observed `1.15 -> 114` and invalid overwrite; GREEN observed 115, valid zero/12.30 and unchanged saved bytes on rejection. Installed v3 bundle moved the actual feedback obligation from PARTIAL to READY_FOR_REVIEW. Authenticated 0.1.25 diagnosis repaired the same shared owner; a subsequent user-shaped maintenance complaint resolved default-command and binding gaps with 41 native cases and zero remaining local obligations. | Controlled repairs with an explicit follow-up needed in the native trial, not longitudinal prevention effectiveness. The environment checks registered prevention connections and changed evidence; semantic cause/coverage remains review work. |
-| U5 | A fresh Agent created a small inventory UI without an existing standard, shared CSS/guide and actual desktop/mobile/browser state checks. Loading/error/retry, zero stock, search/filter and restock interaction were exercised. Main inspected screenshots and removed duplicated token values from the guide. A separate fresh-context follow-up reuses these standards for the related request screen. | UI review and its explicit intervention are distinct from numeric/browser assertions. Two authenticated native sessions now establish guide creation and fresh-context reuse; both inner Chrome launches failed, while the default restricted controller completed the real browser checks. Whole-product accessibility and fully autonomous host completion are not established. Explicit interventions and follow-up evidence are recorded above and below. |
+| U5 | A fresh Agent created a small inventory UI without an existing standard, shared CSS/guide and actual desktop/mobile/browser state checks. Loading/error/retry, zero stock, search/filter and restock interaction were exercised. Main inspected screenshots and removed duplicated token values from the guide. A separate fresh-context follow-up reuses these standards for the related request screen. | UI review and its explicit intervention are distinct from numeric/browser assertions. Two authenticated native sessions establish guide creation and fresh-context reuse. Their earlier inner Chrome failures are historical: after sandbox repair, the 0.1.36 natural-language native verification task ran all three registered checks plus focused keyboard observations without intervention, inspected screenshots and stopped its server. No protected UI acceptance is claimed. Whole-product accessibility and fully autonomous host completion are not established. Explicit interventions and follow-up evidence are recorded above and below. |
 | U6 | Product feedback/map connection and Harness cohort drift were repaired. Read-only/non-Harness counterexamples remain covered. A controlled duplicate check list was reduced from two to one invocation per normal/float-defect state, preserving identical raw observations and exits. Removing the unique negative-write assertion produced a demonstrated false green and was rejected. Scanner false positive was fixed without removing real docstring checks. Authenticated native maintenance also repaired the fixture runner and connected its real execution. The subsequent 0.1.30 maintenance task consolidated ten duplicate calls; independently replayed normal/six-defect comparisons preserved detection and old raw, with current installed lookup and workflow binding. | The duplicate experiment is a scoped fixture comparison, not evidence of general suite speed/cost improvement. No useful product test was deleted. |
-| U7 | Real cached local Skills CLI installed/refreshed 19 Skill trees for temporary Codex/Claude targets; full tree comparison passed. Fresh v3 installed Harness CLI ran seven end-to-end cases successfully. Exact-repeat/no-op, user-byte preservation, rollback and failed-restore retention have executable regression coverage. Task records and bundle lookup support restart without replaying completed commands. The 0.1.25 updater persistently rebinds the native local marketplace and preserves unrelated config; authenticated TUI repair, lookup and native session resume now have actual tool/context evidence. | Remote update is unverified/unsupported for the local source. Actual guard termination between native registration and installation now resumes with byte-preserved recovery; interruption inside native file copy and autonomous whole-system acceptance remain unverified; 0.1.35 now repairs a controlled attributable partial-copy state through the native installer. A native repair needed follow-up for runner/evidence integration; protected acceptance stays BLOCKED. Outer-sandbox taskkill failed while the focused process-control-authorized check passed. General installations and operational environments were not changed. |
+| U7 | Real cached local Skills CLI installed/refreshed 19 Skill trees for temporary Codex/Claude targets; full tree comparison passed. Fresh v3 installed Harness CLI ran seven end-to-end cases successfully. Exact-repeat/no-op, user-byte preservation, rollback and failed-restore retention have executable regression coverage. Task records and bundle lookup support restart without replaying completed commands. The 0.1.25 updater persistently rebinds the native local marketplace and preserves unrelated config; authenticated TUI repair, lookup and native session resume now have actual tool/context evidence. | Remote update is unverified/unsupported for the local source. Actual guard termination between native registration and installation now resumes with byte-preserved recovery; interruption inside native file copy and autonomous whole-system acceptance remain unverified; 0.1.35 now repairs a controlled attributable partial-copy state through the native installer. Earlier native repair needed follow-up for runner/evidence integration; the 0.1.36 repair now reaches bounded protected acceptance through explicit controller review/staging, not autonomous whole-system acceptance. Outer-sandbox taskkill failed while the focused process-control-authorized check passed. General installations and operational environments were not changed. |
 
 ### Retained observations and limits
 
