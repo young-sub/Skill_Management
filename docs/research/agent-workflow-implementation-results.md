@@ -4,6 +4,35 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Protected host execution entrypoint, 2026-10-06
+
+`scripts/host_verify.py` now connects fixed host policy, native sandbox execution,
+job lifetime control, independent saved-byte readback and protected publication.
+Its CLI selects only `run` or run/task-bound `lookup`; it cannot take a candidate
+policy, command or evidence path. Configuration must cover exactly the required
+cases, pin interpreter/launcher bytes and bind the host modules, execution config,
+protected driver and referenced input files. Case state is separate under one
+stable sandbox workspace. Provider credentials are not forwarded from host env.
+
+The final source was installed as `host-entry-v2/{normal,defect}` beneath the
+existing protected trial root. Ten real native executions accepted all normal
+cases and rejected the defective candidate, using actual saved bytes. The earlier
+entrypoint installation also demonstrated read-only lookup with all result hashes
+unchanged, and candidate-side invocation failed at protected pending-record
+creation before any case ran. Source tests cover misleading PASS stdout versus
+saved bytes, missing output, lingering children, unbound driver and incomplete
+case coverage. The affected host/document/cutover checks total twenty passing
+tests. Evidence: `elevated-authority/host-entry-v2-trial.json`,
+`host-entry-trial.json` and `host-entry-boundary.json` under `.work/plugin-transition`.
+
+Feature: host-verification/U2. This makes a protected installation directly
+executable without the former trial-specific orchestration wrapper. It is still
+bounded to its explicit policy and controlled trial execution. Full workflow
+obligations, automatic protected installation and arbitrary concurrent/brokered
+writers are not established by this evidence. Candidate `project_workflow accept`
+remains BLOCKED; ordinary plugin/generated version remains 0.1.33. No whole-system
+completion or new native Agent behavior result is claimed.
+
 ## Host process lifetime implementation, 2026-10-06
 
 A real native elevated sandbox counterexample showed why command exit is not

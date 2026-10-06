@@ -36,6 +36,28 @@ See the [system direction](research/agent-coding-system-direction.md) and
 required behavior; packaging alone does not satisfy those requirements.
 
 The builder never installs, publishes, changes global settings, or trusts hooks.
+The protected-host [`host_verify.py`](../scripts/host_verify.py) entrypoint joins
+execution, independent saved-byte readback and result publication. Install it with
+`host_result.py`, `windows_job.py`, `policy.json`, `execution.json` and the frozen
+driver/inputs in the host-owned directory, outside the candidate workspace.
+Run that installed file with isolated Python and `run`; use
+`lookup --run-id ID --task TASK` for a read-only lookup. There is no CLI switch for
+an alternate policy, command, authority directory or submitted result.
+
+`execution.json` declares absolute `workspace`, `home`, `codex` and `python`
+paths, `codex_sha256`, `python_sha256`, a positive finite `timeout`, and `cases`.
+Each case has `id`, `argv`, relative `saved` and `initial_hex`. The case IDs must
+exactly cover the protected policy. Commands use the pinned Python with `-I` and
+a protected driver; `{authority}` and `{runtime}` expand to protected inputs and
+fresh per-case output directories. Referenced protected files must be in the
+policy snapshot, including all files of a referenced directory. Bind the three
+host modules and `execution.json` too. The host checks executable bytes before
+and after execution, keeps the native sandbox root fixed, and reads saved bytes
+only after job cleanup. Missing/aliased outputs or incomplete execution block
+acceptance. The current adapter supports Python drivers; FE/BE tools can be
+invoked by an explicitly reviewed driver with their dependencies bound by the
+host policy. This is not automatic full-project obligation discovery.
+
 The host-only [`host_result.py`](../scripts/host_result.py) publisher binds a
 protected `policy.json`, explicit snapshot files and a unique run. The host calls
 `begin(authority_root)` before execution, then `finish(authority_root, run_id,

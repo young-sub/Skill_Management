@@ -13,7 +13,7 @@
   },
   "impact": {
     "rules": [
-      {"id": "host-result", "source_prefixes": ["scripts/host_result.py", "scripts/windows_job.py"], "tests": ["tests/distribution/test_host_result.py", "tests/distribution/test_windows_job.py"], "feature": "host-result", "triggers": []},
+      {"id": "host-result", "source_prefixes": ["scripts/host_result.py", "scripts/windows_job.py", "scripts/host_verify.py"], "tests": ["tests/distribution/test_host_result.py", "tests/distribution/test_windows_job.py", "tests/distribution/test_host_verify.py"], "feature": "host-result", "triggers": []},
       {"id": "workflow-obligations", "source_prefixes": ["authoring/scripts/workflow_context.py", "authoring/scripts/project_workflow.py", "scripts/project_workflow.py", "authoring/references/workflow-obligations.md"], "tests": ["tests/distribution/test_project_workflow.py", "tests/distribution/test_workflow_hook.py"], "feature": "workflow-obligations", "triggers": []},
       {"id": "verification-results", "source_prefixes": ["authoring/scripts/verification_results.py", "scripts/verification_results.py", "authoring/references/result-viewer.md"], "tests": ["tests/distribution/test_verification_results.py", "tests/distribution/test_verification_execution.py"], "feature": "verification-results", "triggers": []},
       {"id": "harness-core", "source_prefixes": ["authoring/scripts/core_harness.py"], "tests": ["tests/harness/test_core_first_schema.py", "tests/harness/test_core_first_setup.py", "tests/harness/test_core_first_design_execution.py", "tests/harness/test_core_first_amendment.py", "tests/harness/test_core_first_close_lifecycle.py", "tests/harness/test_core_first_cutover.py", "tests/harness/test_core_first_forward_workflows.py", "tests/harness/test_core_first_cli_maintain.py", "tests/harness/test_core_first_installed_cli_e2e.py"], "feature": "harness-core", "triggers": ["shared_runtime"]},
@@ -33,7 +33,7 @@
       {"id": "repository-ignore", "source_prefixes": [".gitignore"], "tests": ["tests/harness/test_core_first_setup.py", "tests/harness/test_core_first_design_execution.py"], "feature": "harness-core", "triggers": []}
     ],
     "feature_selectors": {
-      "host-result": ["python", "-m", "unittest", "tests.distribution.test_host_result", "tests.distribution.test_windows_job"],
+      "host-result": ["python", "-m", "unittest", "tests.distribution.test_host_result", "tests.distribution.test_windows_job", "tests.distribution.test_host_verify"],
       "plugin-package": ["python", "-m", "unittest", "tests.distribution.test_plugin_package", "tests.distribution.test_plugin_update"],
       "workflow-obligations": ["python", "-m", "unittest", "tests.distribution.test_project_workflow", "tests.distribution.test_workflow_hook"],
       "verification-results": ["python", "-m", "unittest", "tests.distribution.test_verification_results", "tests.distribution.test_verification_execution"],
