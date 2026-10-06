@@ -4,6 +4,32 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Host-owned result binding implementation, 2026-10-06
+
+`scripts/host_result.py` now owns a host run's pending/terminal publication,
+protected policy and snapshot identity, exact case coverage and saved-byte/exit
+comparison. Its focused tests cover actual mismatches, missing/duplicate cases,
+pending and interrupted records, duplicate finish, wrong task, changed criteria
+and changed snapshot. The helper requires an already protected host installation;
+it does not infer authority from an arbitrary path or submitted PASS.
+
+An actual copy was installed under the existing protected profile trial directory
+`host-result-v1`. Before a fresh native dedicated-account execution, it created
+normal and defect runs bound to frozen source, driver, verifier and policy files.
+The trusted controller supplied independently collected observations from all ten
+cases: normal became ACCEPTED, defect REJECTED. Read-only lookup returned the same
+bound results. A native sandbox child then attempted to overwrite the actual
+accepted record; PermissionError and identical retained bytes confirmed denial.
+Raw observations and publication are retained at
+`.work/plugin-transition/elevated-authority/publication-trial.json` and
+`publication-denial.json`.
+
+Feature: host-result/U2. This is an implemented and exercised host component, not
+general workflow acceptance. The host execution adapter, descendant cleanup and
+full obligation binding remain incomplete; public `accept` stays BLOCKED.
+The helper is host-only, so candidate plugin/generated resources and version
+0.1.33 remain unchanged.
+
 ## Dedicated-account execution and repeated setup repair, 2026-10-06
 
 The approved setup subsequently completed in host-006. Native `whoami /user`

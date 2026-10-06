@@ -36,6 +36,25 @@ See the [system direction](research/agent-coding-system-direction.md) and
 required behavior; packaging alone does not satisfy those requirements.
 
 The builder never installs, publishes, changes global settings, or trusts hooks.
+The host-only [`host_result.py`](../scripts/host_result.py) publisher binds a
+protected `policy.json`, explicit snapshot files and a unique run. The host calls
+`begin(authority_root)` before execution, then `finish(authority_root, run_id,
+observations)` with independently collected `{id, exit, saved_hex}` facts. The
+policy declares `task`, nonempty `snapshot` paths and nonempty expected `cases`
+with those same three fields. `lookup(authority_root, run_id, task)` remeasures
+policy, publisher and snapshot bytes. Missing/duplicate/extra cases are BLOCKED;
+complete but different bytes/exits are REJECTED. Pending, malformed terminal,
+wrong-task and stale records cannot become accepted by lookup or repeated finish.
+
+This helper is installed by a trusted host alongside its protected policy and
+snapshots, not copied into candidate-writable plugin resources. It does not create
+ACLs, authenticate arbitrary supplied directories, execute checks, or prove child
+process cleanup. Only host-collected observations may reach `finish`; a candidate
+report is not that interface's trusted caller. Its ACCEPTED verdict covers the
+declared snapshot and cases, not all workflow obligations. Ordinary plugin
+`project_workflow.py accept` remains BLOCKED until the actual host adapter owns
+those obligations and the complete execution lifecycle.
+
 Local marketplace installation, fresh-host discovery, installed Agent task
 behavior, and protected acceptance are separate checks. An editable local state
 file is not a protected acceptance boundary. Ordinary installation and remote
