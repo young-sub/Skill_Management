@@ -4,7 +4,7 @@ description: Coordinate a coding task from a natural-language request through re
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: ce8f05e854d39bf6b13e739a48b3b3dbb4b881c340ee9fb4f7a4d0f3e9612ded -->
+<!-- Source-SHA256: ab6f5527072578adb54126ae67e0c40da460cb44287db8ceeb59e50f744b18a3 -->
 
 
 # Agent Workflow
@@ -30,6 +30,8 @@ When the project already provides the native unittest adapter described in its g
 For registered native JSON checks, the bundled [verification CLI](scripts/verification_results.py) prepares measured bindings with `--prepare`, runs selected checks once with `--execute`, and joins their captures, assessments and raw observations into a reusable bundle. Read its [input and reuse contract](references/result-viewer.md). Reuse the project's reviewed assertion specification and execution connection; if missing, use the setup responsibility to connect them within the authorized scope. In an installed plugin the CLI discovers its bundled capture script automatically. Keep criterion selection and visual judgment with the Agent; let the CLI collect identities, run commands and build the bundle instead of recreating that work in shell snippets.
 
 For lookup-only requests use `--bundle` (optionally `--summary`) or read existing raw evidence. Lookup runs no recorded command. If compatible bindings are missing, report that limit; do not manufacture a successful plan or backfill evidence through execution. A native pass without a bundle remains bounded native evidence, not current reusable workflow acceptance.
+
+Consume the result's `coverage` alongside test verdicts. Project Feature `coverage` connects requirements/outcomes to independent business/architecture perspectives and FE/BE/API/Domain responsibilities; cross-layer/E2E describes the method. Fill only applicable links. Record semantic `scope_reviews` through the existing workflow review and include `--workflow-state` during preparation when those reviews are needed in retained results. Report semantic review separately from executed tests and retain missing, excluded and stale scope.
 
 Keep a single concise plan for nontrivial work. Use the existing Harness contract only when coordination/risk or the user requires it. Never force Full, all playbooks, a fixed agent count or new setup on every request. Current user authorization remains authoritative; global installs, provider changes and publishing are separate effects.
 

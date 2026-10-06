@@ -1,5 +1,30 @@
 # Agent workflow implementation and acceptance
 
+## User-function completion: full-stack scope, 2026-10-06
+
+This session started from branch `wp-20261004-agent-coding-foundation`, HEAD
+`e7e4be0f1e627c6ab1e51aae9727a9870b5cba40`, with no tracked/untracked dirty.
+The user's current implementation priority supersedes historical host-first gates.
+Existing `.work` evidence and installations are preserved; protected host acceptance
+is separate and remains unverified for the latest handoff.
+
+The existing Feature/check preparation and viewer now retain requirement/outcome
+coverage on independent business/architecture and FE/BE/API/Domain axes. Cross-layer
+and E2E are methods. Actual capture/run/argv/cwd/native exit/raw pointers are joined
+to test rows; Agent scope reviews retain analysis/references and input validity.
+MISSING, NOT_RUN, failure, reasoned exclusion and STALE remain distinct. A test-scoped
+PASS does not imply complete scope or semantic architecture acceptance.
+
+Focused checks: `python -m unittest tests.distribution.test_project_workflow
+tests.distribution.test_verification_results tests.distribution.test_verification_execution`
+plus the new full-stack CLI case: 83 tests passed. The scope status/exclusion/stale
+case also passed independently. The actual example uses
+`.work/agentic-user-flow-20261006/project`: prepare captured no execution; execute
+ran one native command; `--bundle --summary` ran zero and showed PASS / NOT_RUN /
+MISSING for arithmetic, ownership review and display linkage respectively. Raw and
+summary are retained in that new work directory. These are local synthetic CLI
+observations, not new native Agent or live-product acceptance.
+
 Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876fb9f8922e0cade072469ddc9a51267df`, with a clean worktree. This implements the [execution prompt](agent-coding-next-session.md); the prior review-only restriction does not apply to this authorized implementation. Source/distribution `c7c064a`, viewer soundness repairs `7e9eb8d`, and UI reuse/selection-reason follow-up `95eed81` are committed. T1–T6 were performed within the independent pilot. The whole delegation system remains PARTIAL/BLOCKED for the host and evidence limits below.
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.

@@ -1149,6 +1149,13 @@ def _invalidate_current_result(result: dict[str, Any], reason: str) -> dict[str,
     result["remaining"] = sorted(
         {reason for item in items for reason in item.get("reasons", []) if reason} | {reason}
     )
+    for row in result.get('coverage', {}).get('rows', []):
+        if row['kind'] == 'test' and row['status'] != 'NOT_REQUIRED':
+            row['status'] = 'STALE'
+            row['reasons'] = sorted(set(row['reasons']) | {reason})
+    if result.get('coverage', {}).get('rows'):
+        workflow = runpy.run_path(str(Path(__file__).with_name('project_workflow.py')))
+        result['coverage'] = workflow['coverage_summary'](result['coverage']['rows'])
     return result
 
 
@@ -1265,6 +1272,8 @@ def view_bundle(bundle: dict[str, Any] | str | Path) -> dict[str, Any]:
             raise ViewerInputError("bundle.plan must contain a JSON object")
         original, _ = _read_json(source_plan)
         original_checks = _plan_checks(original, allow_unbound=True)
+        if original.get('workflow_scope') != plan.get('workflow_scope'):
+            raise ViewerInputError('bound plan changed workflow scope')
         bound_checks = _plan_checks(plan)
         if len(original_checks) != len(bound_checks):
             raise ViewerInputError("bound plan changed selected checks")
@@ -1710,7 +1719,7 @@ def view_results(
     items = [_item_result(check, plan_file, records, assessments, observations, current) for check in checks]
     historical = _summary(items, "historical_status")
     current_summary = _summary(items, "current_status", required_only=True)
-    return {
+    result = {
         "schema_version": 1,
         "read_only": True,
         "test_commands_executed": 0,
@@ -1723,9 +1732,35 @@ def view_results(
         "items": items,
         "remaining": sorted({reason for item in items for reason in item["reasons"] if reason}),
     }
+    result['coverage'] = _view_coverage(plan, items)
+    return result
 
 
-def prepare_plan(root: Path, spec_path: Path, output: Path, *, report_dir: Path | None = None) -> dict[str, Any]:
+def _view_coverage(plan, items):
+    workflow = runpy.run_path(str(Path(__file__).with_name('project_workflow.py')))
+    scope = plan.get('workflow_scope')
+    if not scope:
+        return workflow['coverage_summary']([])
+    root = _safe_cwd(Path(scope['root']), 'workflow scope')
+    rows = []
+    try:
+        project, _ = _read_json(_safe_path('.harness/project.yaml', root=root, label='project'))
+        current = workflow['inspect_project'](root, project)
+        bases = {feature['id']: feature['basis'] for feature in current['features']}
+    except (OSError, ValueError, KeyError, subprocess.CalledProcessError):
+        bases = {}
+    for feature in scope['features']:
+        basis = scope['bases'][feature['id']]
+        review = scope.get('reviews', {}).get(feature['id'], {})
+        current_basis = bases.get(feature['id'], 'unavailable')
+        if any(workflow['file_hash'](root, name) != value for name, value in review.get('reference_hashes', {}).items()):
+            current_basis = 'review_reference_changed'
+        rows.extend(workflow['coverage_rows'](feature, review, basis, items, current_basis=current_basis))
+    return workflow['coverage_summary'](rows)
+
+
+def prepare_plan(root: Path, spec_path: Path, output: Path, *, report_dir: Path | None = None,
+                 workflow_state: Path | None = None) -> dict[str, Any]:
     """Bind project-selected assertions to registered commands; never execute them."""
     root = _safe_cwd(Path(root).absolute(), 'project')
     spec_file = _safe_path(str(spec_path), root=root, label='spec', allow_absolute=True)
@@ -1789,11 +1824,24 @@ def prepare_plan(root: Path, spec_path: Path, output: Path, *, report_dir: Path 
         repository_root = _repository_root(cwd)
         refs = _file_refs({'file_refs': fixtures.get('repository_file_refs')}, 'fixture')
         refs += [os.path.relpath(_safe_path(name, root=root, label='connected reference'), repository_root) for name in
-                 dict.fromkeys(['.harness/project.yaml'] + feature['criteria'] + feature['map'] + feature.get('ui', []))]
+                 dict.fromkeys(['.harness/project.yaml'] + feature['criteria'] + feature['map'] + feature.get('ui', []) +
+                               [row['requirement'] for row in feature.get('coverage', [])])]
         fixtures['repository_file_refs'] = list(dict.fromkeys(refs))
         check['conditions'] = _execution_conditions(check, cwd)
         checks.append(check)
     plan = {'schema_version': 1, 'checks': checks}
+    selected = set(item['feature_id'] for item in checks)
+    state = None
+    if workflow_state is not None:
+        state_path = workflow['local_path'](root, str(workflow_state))
+        if not state_path.resolve().is_relative_to(root / '.work'):
+            raise ViewerInputError('workflow state must be under .work')
+        state, _ = _read_json(state_path)
+    audit = workflow['inspect_project'](root, project, state)
+    plan['workflow_scope'] = {'root': str(root), 'features': [copy.deepcopy(f) for f in config['features'] if f['id'] in selected],
+                              'bases': {f['id']: f['basis'] for f in audit['features'] if f['id'] in selected},
+                              'reviews': {key: copy.deepcopy(value) for key, value in (state or {}).get('reviews', {}).items()
+                                          if key in selected}}
     _plan_checks(plan, allow_unbound=True)
     prepared = _preflight_execution(plan, checks, output.parent)
     if any(item['report_path'] == output for item in prepared.values()):
@@ -1821,6 +1869,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument('--root', type=Path, help='Configured project for --prepare')
     parser.add_argument('--plan-output', type=Path, help='New Git-ignored plan path for --prepare')
     parser.add_argument('--report-dir', type=Path, help='Git-ignored project directory for explicit {report_dir}/file native output templates')
+    parser.add_argument('--workflow-state', type=Path, help='Project-relative .work record containing semantic scope reviews for preparation')
     parser.add_argument("--record", dest="records", action="append", default=[])
     parser.add_argument("--assessment", dest="assessments", action="append", default=[])
     parser.add_argument("--observation", dest="observations", action="append", default=[])
@@ -1843,12 +1892,13 @@ def main(argv: list[str] | None = None) -> int:
         if not args.root or not args.plan_output or args.execute or args.resume or args.records or args.assessments or args.observations or args.current_context:
             _parser().error('--prepare requires --root and --plan-output, without execution or lookup inputs')
         try:
-            result = prepare_plan(args.root, args.prepare, args.plan_output, report_dir=args.report_dir)
+            result = prepare_plan(args.root, args.prepare, args.plan_output, report_dir=args.report_dir,
+                                  workflow_state=args.workflow_state)
         except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
             result = {'status': 'BLOCKED', 'reason': str(error), 'test_commands_executed': 0}
         print(json.dumps(result, ensure_ascii=False, indent=2 if args.pretty else None))
         return 0 if result['status'] == 'PREPARED' else 2
-    if args.root or args.plan_output or args.report_dir:
+    if args.root or args.plan_output or args.report_dir or args.workflow_state:
         _parser().error('--root, --plan-output and --report-dir require --prepare')
     if args.resume and not args.execute:
         _parser().error('--resume requires --execute')

@@ -2,6 +2,12 @@
 
 This is the canonical user-function map for **repository/harness** verification. Feature owners update the affected row when behavior or its checks change. Results name a Feature ID, or explain why there is no user-feature impact. Path mappings discover candidates; changed logic, callers, contracts and invariants decide the checks.
 
+`verification-results` now carries project-declared full-stack `coverage` from
+preparation through execution and lookup: requirements/outcomes, independent
+perspective/area axes, semantic reviews, actual check evidence and scope gaps.
+`workflow-obligations` retains missing scope connections and semantic-review
+obligations. Scope completeness and executed check verdicts are separate.
+
 All rows have FE and BE/API **not applicable**: this repository distributes Skills and local CLIs, with no product UI or API. Data effects below concern files and processes, not an external product database. Command IDs refer to existing command descriptors or `impact.feature_selectors` in [project configuration](../.harness/project.yaml); that file owns argv. The adapter consumes only the first and last columns of this table. Keep one row per unique Feature ID and comma-separated command IDs in the last column.
 
 | Feature ID | Name | Action | Result and invariant | Domain | Side effects | Command IDs |

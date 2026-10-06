@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/result-viewer.md -->
-<!-- Source-SHA256: 3497835290dbc620a95c5e1bedfa0ff78e3c973e8959e80d579599943df85741 -->
+<!-- Source-SHA256: e2435fd5d90b5a4894da461851603144e0b1502511054b773057bef3f503005d -->
 
 # Existing-result lookup
 
@@ -146,3 +146,32 @@ not evidence that retry is safe. Changed criteria/source/dependencies, missing
 raw and damaged checkpoints also block reuse. Preserve the old run and create a
 new plan/output path when a repair changes the conditions. These local files are
 not a protected acceptance boundary. No LLM call is needed to resume or look up.
+# Full-stack scope on the existing Feature
+
+Declare `coverage` once on an `extensions.workflow.features` entry. Each row has
+`id`, project-relative `requirement`, `outcome`, `perspectives` (`business`,
+`architecture`), `areas` (`FE`, `BE/API`, `Domain`) and `kind` (`test`, `review`).
+Test rows reference an existing `check`; an absent/inactive link is MISSING.
+Optional `method` is `direct`, `cross-layer` or `e2e`; connection methods are not
+responsibility areas or partitions. Declare only applicable scope; the Agent owns
+that semantic selection. Existing Features without declarations remain supported.
+
+```json
+{"id":"save-readback","requirement":"docs/requirements.md","outcome":"Saved order survives reload","perspectives":["business"],"areas":["FE","BE/API","Domain"],"kind":"test","method":"e2e","check":"order-flow"}
+```
+
+Preparation snapshots the selected Features' scope from the registry, binds its
+requirement files, and execution/bundle/`--summary` retain `coverage.rows`, separate
+axis counts and `coverage.gaps`. Rows link run/argv/cwd/native exit/raw pointers and
+original judgment/current reuse. Scope completeness is separate from check-scoped
+PASS: NOT_RUN, MISSING, ISSUES, BLOCKED, STALE and reasoned NOT_REQUIRED remain visible.
+No missing row causes a command to run automatically.
+
+For architecture/business semantic review, record `scope_reviews` keyed by the
+coverage row ID in the existing workflow review. Each entry has `status` (PASS,
+ISSUES, BLOCKED, NOT_REQUIRED), `analysis`, existing-file `references`, and `reason`
+for an exclusion. PASS here is explicitly an Agent semantic review, never an
+automated-test verdict. `--prepare ... --workflow-state .work/task.json` snapshots
+these reviews; changed Feature inputs or reference bytes make them STALE. Without
+a review they remain NOT_RUN. Historical plans/raw are preserved. Lookup never
+executes a command from the scope or reviews.

@@ -21,7 +21,7 @@ def _digest(data: bytes) -> str:
 
 
 class VerificationExecutionTests(unittest.TestCase):
-    def test_registered_report_directory_runs_twice_without_configuration_edits(self, subdirectory=False):
+    def test_registered_report_directory_runs_twice_without_configuration_edits(self, subdirectory=False, coverage=False):
         api = __import__('runpy').run_path(str(VIEWER))
         workflow = __import__('runpy').run_path(str(VIEWER.with_name('project_workflow.py')))
         original = json.loads(self._plan().read_text())['checks'][0]
@@ -32,6 +32,15 @@ class VerificationExecutionTests(unittest.TestCase):
             "target.write_text(json.dumps({'checks':[{'sum':5,'readback':'ok'}]}))\n")
         feature = {'id': 'fixture-product', 'partition': 'domain', 'sources': ['check.py'],
                    'map': ['fixture.json'], 'criteria': ['fixture.json'], 'checks': ['arithmetic-readback']}
+        if coverage:
+            feature['coverage'] = [
+                {'id': 'sum', 'requirement': 'fixture.json', 'outcome': 'Correct arithmetic readback',
+                 'perspectives': ['business'], 'areas': ['BE/API', 'Domain'],
+                 'kind': 'test', 'method': 'cross-layer', 'check': 'arithmetic-readback'},
+                {'id': 'ownership', 'requirement': 'fixture.json', 'outcome': 'One state owner',
+                 'perspectives': ['architecture'], 'areas': ['Domain'], 'kind': 'review'},
+                {'id': 'display', 'requirement': 'fixture.json', 'outcome': 'Display readback',
+                 'perspectives': ['business'], 'areas': ['FE'], 'kind': 'test'}]
         command = [sys.executable, 'check.py', '{report_dir}/result.json']
         config = {'commands': {'arithmetic-readback': command},
                   'extensions': {'workflow': {'roots': ['check.py'], 'features': [feature]}}}
@@ -65,6 +74,14 @@ class VerificationExecutionTests(unittest.TestCase):
                                          evidence_dir=self.project / f'.work/{name}/evidence')
             self.assertEqual(result['status'], 'PASS', result)
             self.assertEqual(result['test_commands_executed'], 1)
+            if coverage:
+                rows = {row['id']: row for row in result['coverage']['rows']}
+                self.assertEqual(rows['sum']['status'], 'PASS')
+                self.assertEqual(rows['sum']['areas'], ['BE/API', 'Domain'])
+                self.assertEqual(rows['ownership']['status'], 'NOT_RUN')
+                self.assertEqual(rows['display']['status'], 'MISSING')
+                self.assertEqual(result['coverage']['status'], 'PARTIAL')
+                self.assertEqual(rows['sum']['evidence']['run_id'], result['items'][0]['run_id'])
             bundle = result['execution']['bundle_path']
             self.assertEqual(workflow['inspect_evidence'](
                 self.project, feature, config['commands'], str(Path(bundle).relative_to(self.project)))['status'], 'PASS')
@@ -74,6 +91,10 @@ class VerificationExecutionTests(unittest.TestCase):
             looked_up = api['view_bundle'](bundle)
             self.assertEqual(looked_up['status'], 'PASS', looked_up)
             self.assertEqual(looked_up['test_commands_executed'], 0)
+            if coverage:
+                summary = api['summarize_results'](looked_up)
+                self.assertEqual(looked_up['coverage']['gaps'], summary['coverage']['gaps'])
+                self.assertEqual(looked_up['coverage']['rows'][0]['status'], 'PASS')
         with (self.project / '.gitignore').open('a') as stream:
             stream.write('reports/native-report.json\n')
         with self.assertRaises(ValueError):
@@ -100,6 +121,9 @@ class VerificationExecutionTests(unittest.TestCase):
 
     def test_report_directory_supports_registered_subdirectory_commands(self):
         self.test_registered_report_directory_runs_twice_without_configuration_edits(subdirectory=True)
+
+    def test_full_stack_scope_survives_prepare_execute_and_lookup(self):
+        self.test_registered_report_directory_runs_twice_without_configuration_edits(coverage=True)
 
     def test_shared_feature_command_runs_once_and_keeps_independent_assertions(self, second_sum=5):
         import copy

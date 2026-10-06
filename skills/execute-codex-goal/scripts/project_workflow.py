@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: 1b6f6d7fdf6235200a188ddd76c05b33176cfa4738fe9166d96331434ed931b5
+# Source-SHA256: afaff7c370bc2b3947855a0e77f416002eab3fe6d09f34a038670610709db5f5
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -111,6 +111,27 @@ def configuration(project):
             if len(value) != len(set(value)):
                 raise ValueError(f'duplicate:{feature["id"]}:{field}')
         ids.append(feature['id'])
+        coverage = feature.get('coverage', [])
+        if not isinstance(coverage, list):
+            raise ValueError('coverage_must_be_list')
+        coverage_ids = []
+        for row in coverage:
+            if not isinstance(row, dict) or any(not isinstance(row.get(key), str) or not row[key].strip()
+                    for key in ('id', 'requirement', 'outcome')):
+                raise ValueError('coverage_requires_id_requirement_outcome')
+            for axis, allowed in (('perspectives', {'business', 'architecture'}),
+                                  ('areas', {'FE', 'BE/API', 'Domain'})):
+                values = row.get(axis)
+                if (not isinstance(values, list) or not values or any(not isinstance(v, str) or v not in allowed for v in values)
+                        or len(values) != len(set(values))):
+                    raise ValueError(f'invalid_coverage_axis:{axis}')
+            if row.get('kind') not in {'test', 'review'} or row.get('method', 'direct') not in {'direct', 'cross-layer', 'e2e'}:
+                raise ValueError('invalid_coverage_kind_or_method')
+            if 'check' in row and (row['kind'] != 'test' or not isinstance(row['check'], str) or not row['check']):
+                raise ValueError('invalid_coverage_check')
+            coverage_ids.append(row['id'])
+        if len(coverage_ids) != len(set(coverage_ids)):
+            raise ValueError('duplicate_coverage_identity')
         documents = feature.get('documentation_only', {})
         if not isinstance(documents, dict) or any(
                 not isinstance(name, str) or not name or Path(name).is_absolute()
@@ -121,6 +142,55 @@ def configuration(project):
     if len(ids) != len(set(ids)):
         raise ValueError('duplicate_feature_identity')
     return config
+
+
+def coverage_rows(feature, review, basis, items=(), *, current_basis=None):
+    """Declared scope only; the Agent decides which requirements/layers apply."""
+    tests = {item['id']: item for item in items if item['feature'] == feature['id']}
+    rows = []
+    for declaration in feature.get('coverage', []):
+        row = dict(declaration, feature=feature['id'], reasons=[], evidence=None)
+        if row['kind'] == 'review':
+            entry = review.get('scope_reviews', {}).get(row['id'], {})
+            row['historical_status'] = entry.get('status', 'NOT_RUN')
+            row['status'] = row['historical_status']
+            if entry:
+                row['evidence'] = {'analysis': entry.get('analysis'), 'references': entry.get('references', []),
+                                   'reason': entry.get('reason'), 'kind': 'Agent semantic review'}
+                if review.get('basis') != basis or (current_basis is not None and current_basis != basis):
+                    row['status'] = 'STALE'
+                    row['reasons'].append('semantic_review_basis_changed')
+        else:
+            item = tests.get(row.get('check'))
+            row['historical_status'] = item['historical_status'] if item else 'NOT_RUN'
+            if not row.get('check') or row['check'] not in feature['checks']:
+                row['status'] = 'MISSING'
+                row['reasons'].append('active_check_link_missing')
+            elif not item:
+                row['status'] = 'NOT_RUN'
+                row['reasons'].append('check_not_in_result')
+            else:
+                row['status'] = ('NOT_REQUIRED' if not item['selected'] else
+                                 'STALE' if item['current_reuse'] == 'STALE' else
+                                 'NOT_RUN' if item['historical_status'] == 'NOT_RUN' else
+                                 'BLOCKED' if item['current_status'] == 'UNKNOWN' else item['current_status'])
+                row['reasons'] = item['reasons']
+                row['evidence'] = {key: item[key] for key in ('run_id', 'capture', 'raw', 'selection', 'current_reuse')}
+        rows.append(row)
+    return rows
+
+
+def coverage_summary(rows):
+    return {'status': ('NOT_CONFIGURED' if not rows else
+                       'COMPLETE' if all(row['status'] in {'PASS', 'NOT_REQUIRED'} for row in rows) else 'PARTIAL'),
+            'rows': rows, 'gaps': [f"{row['feature']}/{row['id']}:{row['status']}" for row in rows
+                                  if row['status'] not in {'PASS', 'NOT_REQUIRED'}],
+            'perspectives': {axis: {status: sum(axis in row['perspectives'] and row['status'] == status for row in rows)
+                                   for status in sorted({row['status'] for row in rows if axis in row['perspectives']})}
+                             for axis in ('business', 'architecture')},
+            'areas': {axis: {status: sum(axis in row['areas'] and row['status'] == status for row in rows)
+                            for status in sorted({row['status'] for row in rows if axis in row['areas']})}
+                      for axis in ('FE', 'BE/API', 'Domain')}}
 
 
 def begin(root, project, intent, targets=()):
@@ -195,7 +265,7 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
     result = {'status': 'NOT_CONFIGURED', 'mapping_status': 'NOT_CONFIGURED', 'enforcement': 'BLOCKED',
               'trust': 'editable local consistency; host-protected acceptance unavailable',
               'obligations': [], 'features': [], 'partitions': {}, 'unmapped': [],
-              'unlinked': [], 'findings': [], 'product_findings': [], 'retired': []}
+              'unlinked': [], 'findings': [], 'product_findings': [], 'retired': [], 'coverage': coverage_summary([])}
     if config is None:
         return result
     if state is not None and not isinstance(state, dict):
@@ -232,6 +302,7 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
             if not any(fnmatchcase(name, pattern) and value is not None for name, value in files.items()):
                 findings.append(f'missing_source:{identity}:{pattern}')
         refs = {name: file_hash(root, name) for field in ('map', 'criteria', 'ui') for name in feature.get(field, [])}
+        refs.update({row['requirement']: file_hash(root, row['requirement']) for row in feature.get('coverage', [])})
         findings.extend(f'missing_reference:{identity}:{name}' for name, value in refs.items() if value is None)
         findings.extend(f'missing_command:{identity}:{name}' for name in feature['checks'] if name not in commands)
         for prevention in feature.get('prevention', []):
@@ -297,6 +368,14 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
         if state.get('intent') == 'feedback' and identity in state.get('targets', []) and state.get('input_bases', {}).get(identity) == basis:
             findings.append(f'repair_not_observed:{identity}')
         pending = not reviewed or findings or product_findings or (needs_behavior and (not behavior or behavior['status'] != 'PASS'))
+        rows = coverage_rows(feature, review, basis, behavior.get('items', []) if behavior else [])
+        result['coverage']['rows'].extend(rows)
+        scope_gaps = [row['id'] for row in rows if row['kind'] == 'review' and row['status'] not in {'PASS', 'NOT_REQUIRED'}
+                      or row['status'] == 'MISSING']
+        if scope_gaps:
+            pending = True
+            requires.append('scope_review_or_connection')
+            findings.extend(f'coverage_gap:{identity}:{name}' for name in scope_gaps)
         if pending:
             result['obligations'].append({'id': f'feature:{identity}:{basis}', 'target': identity,
                 'basis': basis, 'reason': 'initial_or_changed_inputs', 'changed': affected,
@@ -344,6 +423,7 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
                             (['product_resolution'] if product_findings else []),
                 'references': sorted({p for f in config['features'] for p in f['map']})})
     result['mapping_status'] = 'PARTIAL' if mapping_pending or result['unmapped'] else 'READY_FOR_REVIEW'
+    result['coverage'] = coverage_summary(result['coverage']['rows'])
     result['status'] = 'PARTIAL' if result['obligations'] or result['unmapped'] or result['findings'] else 'READY_FOR_REVIEW'
     return result
 
@@ -358,7 +438,8 @@ def inspect_evidence(root, feature, commands, bundle):
         viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
         observed = viewer['view_bundle'](path)
         if observed['status'] != 'PASS':
-            return {'status': 'BLOCKED', 'findings': observed.get('remaining', ['verification_incomplete'])}
+            return {'status': 'BLOCKED', 'findings': observed.get('remaining', ['verification_incomplete']),
+                    'items': observed.get('items', [])}
         verified = set()
         for item in observed['items']:
             if item['feature'] != feature['id'] or item['current_status'] != 'PASS':
@@ -373,7 +454,7 @@ def inspect_evidence(root, feature, commands, bundle):
         missing = set(feature['checks']) - verified
         if missing or not verified:
             return {'status': 'BLOCKED', 'findings': [f'verification_missing:{feature["id"]}:{name}' for name in sorted(missing or {'unconnected'})]}
-        return {'status': 'PASS', 'findings': []}
+        return {'status': 'PASS', 'findings': [], 'items': observed['items']}
     except (OSError, ValueError, TypeError, KeyError) as error:
         return {'status': 'BLOCKED', 'findings': [f'verification_unavailable:{error}']}
 
@@ -441,6 +522,21 @@ def validate_review(root, review):
     for name in review['references']:
         if not isinstance(name, str) or not name or file_hash(root, name) is None:
             raise ValueError(f'review_reference_missing:{name}')
+    scopes = review.get('scope_reviews', {})
+    if not isinstance(scopes, dict):
+        raise ValueError('scope_reviews_must_be_object')
+    for entry in scopes.values():
+        if not isinstance(entry, dict) or entry.get('status') not in {'PASS', 'ISSUES', 'BLOCKED', 'NOT_REQUIRED'}:
+            raise ValueError('invalid_scope_review_status')
+        if not isinstance(entry.get('analysis'), str) or not entry['analysis'].strip():
+            raise ValueError('scope_review_analysis_required')
+        if entry['status'] == 'NOT_REQUIRED' and not entry.get('reason'):
+            raise ValueError('scope_exclusion_reason_required')
+        if not isinstance(entry.get('references'), list) or not entry['references']:
+            raise ValueError('scope_review_references_required')
+        for name in entry['references']:
+            if file_hash(root, name) is None:
+                raise ValueError(f'scope_review_reference_missing:{name}')
 
 
 def current_review(root, review, basis):
@@ -448,6 +544,8 @@ def current_review(root, review, basis):
         return False
     try:
         validate_review(root, review)
+        if any(file_hash(root, name) != value for name, value in review.get('reference_hashes', {}).items()):
+            return False
     except (OSError, ValueError, TypeError):
         return False
     return not review['findings']
@@ -462,6 +560,9 @@ def record_review(root, project, state, review):
     updated = deepcopy(state)
     key = 'retired_reviews' if feature in result['retired'] else 'reviews'
     updated.setdefault(key, {})[review['feature']] = deepcopy(review)
+    updated[key][review['feature']]['reference_hashes'] = {
+        name: file_hash(root, name) for name in dict.fromkeys(review['references'] +
+        [name for entry in review.get('scope_reviews', {}).values() for name in entry['references']])}
     return updated
 
 

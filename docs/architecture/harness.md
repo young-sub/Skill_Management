@@ -1,5 +1,13 @@
 # Harness Architecture
 
+Project workflow Features can declare `coverage` without changing their partition.
+Business/architecture perspectives and FE/BE/API/Domain responsibilities are
+independent axes; cross-layer/E2E is a method. The existing workflow owner validates
+links and scope-review records; result preparation snapshots that declaration and
+the existing viewer joins it to actual native evidence. Semantic reviews retain
+analysis/references and current-input validity separately from test verdicts.
+See [the result contract](../../authoring/references/result-viewer.md).
+
 ## Control plane
 
 `.harness/project.yaml` is JSON-compatible YAML. Its internal schema version is retained for machine compatibility. The file owns mapped roots, command descriptors, source-to-test candidates, Full warning triggers, document boundaries, retention, Git policy, and baseline debt. Unknown normative fields are rejected; provider extensions belong under `extensions`.

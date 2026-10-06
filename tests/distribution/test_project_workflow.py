@@ -67,6 +67,34 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertEqual(result['enforcement'], 'BLOCKED')
         self.assertEqual(runtime.inspect_project(self.root, self.project, state), result)
 
+    def test_scope_axes_review_exclusion_failure_and_stale_remain_distinct(self):
+        runtime = self.runtime()
+        feature = self.project['extensions']['workflow']['features'][0]
+        feature['coverage'] = [
+            {'id': 'ownership', 'requirement': 'docs/requirement.md', 'outcome': 'Single state owner',
+             'perspectives': ['architecture'], 'areas': ['BE/API', 'Domain'], 'kind': 'review'},
+            {'id': 'price', 'requirement': 'docs/requirement.md', 'outcome': 'Expected price',
+             'perspectives': ['business'], 'areas': ['Domain'], 'kind': 'test', 'check': 'check'}]
+        state = self.review(runtime, runtime.begin(self.root, self.project, 'init'), 'api')
+        basis = state['reviews']['api']['basis']
+        review = dict(state['reviews']['api'], scope_reviews={'ownership': {
+            'status': 'NOT_REQUIRED', 'reason': 'No state ownership change',
+            'analysis': 'Only presentation changed', 'references': ['src/api.py']}})
+        state = runtime.record_review(self.root, self.project, state, review)
+        test = {'feature': 'api', 'id': 'check', 'historical_status': 'ISSUES', 'current_status': 'ISSUES',
+                'current_reuse': 'REUSABLE', 'selected': True, 'reasons': ['assertion_failed'],
+                'run_id': 'run', 'capture': {}, 'raw': [], 'selection': {'status': 'selected', 'reason': 'price changed'}}
+        rows = runtime.coverage_rows(feature, state['reviews']['api'], basis, [test])
+        self.assertEqual([row['status'] for row in rows], ['NOT_REQUIRED', 'ISSUES'])
+        test.update(selected=False, current_status='NOT_REQUIRED')
+        self.assertEqual(runtime.coverage_rows(feature, review, basis, [test])[1]['status'], 'NOT_REQUIRED')
+        rows = runtime.coverage_rows(feature, review, basis, current_basis='changed')
+        self.assertEqual(rows[0]['status'], 'STALE')
+        self.assertEqual(runtime.coverage_summary(rows)['areas']['Domain'], {'NOT_RUN': 1, 'STALE': 1})
+        feature['coverage'][0]['areas'] = ['e2e']
+        with self.assertRaisesRegex(ValueError, 'coverage_axis'):
+            runtime.configuration(self.project)
+
     def test_change_reopens_only_affected_and_typo_does_not(self):
         runtime = self.runtime()
         state = runtime.begin(self.root, self.project, 'init')
