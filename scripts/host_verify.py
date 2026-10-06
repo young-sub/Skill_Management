@@ -34,6 +34,21 @@ def require_sandbox_ready(config):
             raise ValueError('sandbox_setup_incomplete:' + name)
 
 
+def sandbox_env(config):
+    # Windows known-folder and user-account resolution needs these standard OS
+    # variables too. Dropping SYSTEMDRIVE/PROGRAMDATA creates literal fallback
+    # cache paths; dropping identity fields can break native setup resolution.
+    names = ['SYSTEMROOT', 'WINDIR', 'COMSPEC', 'TEMP', 'TMP', 'USERPROFILE',
+             'LOCALAPPDATA', 'APPDATA', 'PATH', 'SYSTEMDRIVE', 'PROGRAMDATA',
+             'USERNAME', 'USERDOMAIN', 'USERDOMAIN_ROAMINGPROFILE', 'HOMEDRIVE',
+             'HOMEPATH', 'PROGRAMFILES', 'PROGRAMFILES(X86)', 'PROGRAMW6432',
+             'COMMONPROGRAMFILES', 'COMMONPROGRAMFILES(X86)', 'COMMONPROGRAMW6432',
+             'PUBLIC', 'ALLUSERSPROFILE', 'COMPUTERNAME', 'PATHEXT']
+    env = {name: os.environ[name] for name in names if name in os.environ}
+    env['CODEX_HOME'] = config['home']
+    return env
+
+
 def prepare(root):
     root = Path(root).resolve()
     result_api = runpy.run_path(str(root / 'host_result.py'))
@@ -98,9 +113,7 @@ def execute(root):
     runtime = workspace / ('host-run-' + run['run_id'])
     runtime.mkdir(exist_ok=False)
     # Do not pass provider credentials or arbitrary host environment to candidates.
-    env = {name: os.environ[name] for name in ['SYSTEMROOT', 'WINDIR', 'COMSPEC', 'TEMP',
-           'TMP', 'USERPROFILE', 'LOCALAPPDATA', 'APPDATA', 'PATH'] if name in os.environ}
-    env['CODEX_HOME'] = config['home']
+    env = sandbox_env(config)
     launcher = [config['codex'], 'sandbox', '-P', ':workspace', '-c',
                 'windows.sandbox="elevated"', '-C', str(workspace), '--']
     observations, executions, raw = [], [], []

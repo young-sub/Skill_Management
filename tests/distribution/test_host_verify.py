@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 from pathlib import Path
 import runpy
 import shutil
@@ -13,6 +14,15 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class HostVerifyTests(unittest.TestCase):
+    def test_windows_environment_preserved_without_provider_secrets(self):
+        module = runpy.run_path(str(ROOT / 'scripts/host_verify.py'))
+        with patch.dict(os.environ, {'SYSTEMDRIVE': 'C:', 'PROGRAMDATA': 'C:/ProgramData',
+                        'USERNAME': 'host-user', 'OPENAI_API_KEY': 'do-not-forward',
+                        'CODEX_HOME': 'ordinary-home'}, clear=True):
+            env = module['sandbox_env']({'home': 'isolated-home'})
+        self.assertEqual(env, {'SYSTEMDRIVE': 'C:', 'PROGRAMDATA': 'C:/ProgramData',
+                              'USERNAME': 'host-user', 'CODEX_HOME': 'isolated-home'})
+
     def test_host_executes_then_reads_bytes_and_rejects_incomplete_policy(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

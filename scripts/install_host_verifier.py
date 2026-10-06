@@ -49,9 +49,7 @@ def _probe(target, config):
     if target.is_relative_to(workspace) or not workspace.is_dir():
         raise ValueError('authority_inside_candidate_workspace')
     marker = workspace / ('host-install-probe-' + str(uuid.uuid4()))
-    env = {key: os.environ[key] for key in ['SYSTEMROOT', 'WINDIR', 'COMSPEC', 'TEMP',
-           'TMP', 'USERPROFILE', 'LOCALAPPDATA', 'APPDATA', 'PATH'] if key in os.environ}
-    env['CODEX_HOME'] = config['home']
+    env = verifier['sandbox_env'](config)
     argv = [config['codex'], 'sandbox', '-P', ':workspace', '-c', 'windows.sandbox="elevated"',
             '-C', str(workspace), '--', config['python'], '-I', str(Path(__file__).resolve()),
             '--probe-child', str(target), str(marker)]

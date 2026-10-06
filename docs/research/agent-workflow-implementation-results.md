@@ -6,6 +6,17 @@ Subsequent user requirements are specified in the [completion design](agent-work
 
 ## Host installer and missing-setup guard, 2026-10-06
 
+A subsequent dirty-tree check found a literal `%SystemDrive%/ProgramData/...`
+Windows cache directory created during the installer attempt. The host environment
+allowlist had incorrectly omitted standard Windows identity/known-folder variables.
+The shared `sandbox_env` now retains SYSTEMDRIVE, PROGRAMDATA and the standard
+Windows user/program-directory fields while excluding provider credentials and
+selecting only the isolated CODEX_HOME. A regression checks both preservation and
+secret exclusion. The task-created cache was moved, with resolved-path checks,
+into retained work evidence; it was not deleted. This is a controller defect,
+not a reason to blame sandbox permissions. Its relationship to the missing native
+account file is unproven; native execution remains blocked before launch.
+
 `scripts/install_host_verifier.py` freezes reviewed inputs, uses repository
 canonical helpers rather than executing supplied helper copies, refuses existing
 targets and probes the candidate boundary before publishing an installation.
