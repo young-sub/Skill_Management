@@ -107,7 +107,7 @@ def update_lock(home):
         yield
 
 
-def update(home, marketplace, backup, run=subprocess.run):
+def update(home, marketplace, backup, run=subprocess.run, *, resume_from=None):
     home, marketplace, backup = map(checked_path, (home, marketplace, backup))
     if not home.is_dir():
         raise ValueError('An existing explicit home is required')
@@ -126,9 +126,26 @@ def update(home, marketplace, backup, run=subprocess.run):
     identity, expected = package(candidate)
     cache = checked_path(home / 'plugins/cache' / name / 'agentic-coding')
     with update_lock(home):
-        if not cache.is_dir():
+        if resume_from is not None:
+            resume_from = checked_path(resume_from)
+            if backup.is_relative_to(resume_from) or resume_from.is_relative_to(backup):
+                raise ValueError('Resume backup must be separate from original backup')
+            snapshot_path = checked_path(resume_from / 'snapshot.json')
+            snapshot = json.loads(snapshot_path.read_text(encoding='utf-8'))
+            if ((resume_from / 'completed.json').exists() or
+                    snapshot.get('home') != str(home) or snapshot.get('marketplace') != name or
+                    snapshot.get('candidate') != identity or snapshot.get('candidate_files') != expected):
+                raise ValueError('Resume requires the original interrupted update and identical candidate bytes')
+            previous_hashes = hashes(files(checked_path(resume_from / 'previous')))
+            if previous_hashes != snapshot.get('files'):
+                raise ValueError('Invalid resume snapshot')
+            candidate_hashes = {identity['version'] + '/' + key: value for key, value in expected.items()}
+            if any(value not in (previous_hashes.get(key), candidate_hashes.get(key))
+                   for key, value in hashes(files(cache)).items()):
+                raise ValueError('Resume refuses unattributed or modified cache files')
+        elif not cache.is_dir():
             raise ValueError('No installed plugin to update; use native installation first')
-        for version in cache.iterdir():
+        for version in (() if resume_from is not None else cache.iterdir()):
             if not version.is_dir():
                 raise ValueError(f'Unrecognized cache entry: {version.name}')
             installed, _ = package(checked_path(version), allow_bytecode=True)
@@ -137,11 +154,15 @@ def update(home, marketplace, backup, run=subprocess.run):
         target = cache / identity['version']
         same_version = False
         if target.exists():
-            _, actual = package(target, allow_bytecode=True)
-            if all(actual.get(key) == value for key, value in expected.items()):
-                same_version = True
-            else:
-                raise ValueError('Same version has different bytes; build a new version')
+            try:
+                _, actual = package(target, allow_bytecode=True)
+                if all(actual.get(key) == value for key, value in expected.items()):
+                    same_version = True
+                else:
+                    raise ValueError('Same version has different bytes; build a new version')
+            except (ValueError, FileNotFoundError):
+                if resume_from is None:
+                    raise
         config_path = checked_path(home / 'config.toml')
 
         def registration():
@@ -169,6 +190,7 @@ def update(home, marketplace, backup, run=subprocess.run):
             raise ValueError('Cache changed during snapshot; native update not started')
         write_json(backup / 'snapshot.json', {'files': before, 'home': str(home),
                    'marketplace': name, 'candidate': identity,
+                   'candidate_files': expected,
                    'previous_source': registered})
         # Native commands preserve unrelated config; never copy home/auth/config.
         env = dict(os.environ, CODEX_HOME=str(home))
@@ -233,12 +255,13 @@ def main():
     update_parser = actions.add_parser('update')
     for option in ('home', 'marketplace', 'backup'):
         update_parser.add_argument('--' + option, type=Path, required=True)
+    update_parser.add_argument('--resume-from', type=Path, help='Verified backup of an interrupted update with identical candidate bytes')
     recovery_parser = actions.add_parser('recover')
     for option in ('backup', 'output'):
         recovery_parser.add_argument('--' + option, type=Path, required=True)
     args = parser.parse_args()
     try:
-        result = (update(args.home, args.marketplace, args.backup) if args.action == 'update'
+        result = (update(args.home, args.marketplace, args.backup, resume_from=args.resume_from) if args.action == 'update'
                   else recover(args.backup, args.output))
         print(json.dumps(result))
         return 0

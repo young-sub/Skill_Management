@@ -24,6 +24,68 @@ def package(path, version):
 
 
 class PluginUpdateTests(unittest.TestCase):
+    def test_resume_partial_native_copy_preserves_unknown_bytes_and_original_backup(self):
+        api = runpy.run_path(str(SCRIPT))
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            home, marketplace = root / 'home', root / 'marketplace'
+            cache = home / 'plugins/cache/local/agentic-coding'
+            package(cache / '1.0', '1.0')
+            candidate = marketplace / 'plugins/agentic-coding'
+            package(candidate, '2.0')
+            descriptor = marketplace / '.agents/plugins/marketplace.json'
+            descriptor.parent.mkdir(parents=True)
+            descriptor.write_text(json.dumps({'name': 'local', 'plugins': [
+                {'name': 'agentic-coding', 'source': {'source': 'local', 'path': './plugins/agentic-coding'}}]}))
+            (home / 'config.toml').write_text('[marketplaces.local]\nsource_type = "local"\nsource = ' + json.dumps(str(marketplace)) + '\n')
+            interrupted = True
+            calls = []
+
+            def native(argv, **kwargs):
+                calls.append(argv)
+                if cache.exists():
+                    shutil.rmtree(cache)
+                shutil.copytree(candidate, cache / '2.0')
+                if interrupted:
+                    (cache / '2.0/tool.py').unlink()
+                    raise subprocess.CalledProcessError(17, argv)
+                receipt = {'pluginId': 'agentic-coding@local', 'version': '2.0', 'installedPath': str(cache / '2.0')}
+                return subprocess.CompletedProcess(argv, 0, json.dumps(receipt).encode(), b'')
+
+            backup = root / 'interrupted'
+            with self.assertRaises(subprocess.CalledProcessError):
+                api['update'](home, marketplace, backup, native)
+            original = api['hashes'](api['files'](backup))
+            interrupted = False
+            note = cache / '2.0/user-note.txt'
+            note.write_text('preserve')
+            with self.assertRaisesRegex(ValueError, 'unattributed'):
+                api['update'](home, marketplace, root / 'refused', native, resume_from=backup)
+            self.assertEqual(note.read_text(), 'preserve')
+            self.assertEqual(len(calls), 1)
+            note.unlink()
+            manifest = backup / 'snapshot.json'
+            saved = manifest.read_bytes()
+            for field, value in (('candidate_files', {}), ('home', str(root / 'other-home')), ('files', {})):
+                altered = json.loads(saved)
+                altered[field] = value
+                manifest.write_text(json.dumps(altered))
+                with self.assertRaises(ValueError):
+                    api['update'](home, marketplace, root / 'invalid', native, resume_from=backup)
+                manifest.write_bytes(saved)
+            self.assertEqual(len(calls), 1)
+            partial = api['hashes'](api['files'](cache))
+            result = api['update'](home, marketplace, root / 'resumed', native, resume_from=backup)
+            self.assertEqual(result['status'], 'UPDATED')
+            self.assertEqual(api['hashes'](api['files'](backup)), original)
+            self.assertEqual(api['hashes'](api['files'](root / 'resumed/previous')), partial)
+            self.assertEqual(api['package'](cache / '2.0')[0]['version'], '2.0')
+            with self.assertRaisesRegex(ValueError, 'original interrupted'):
+                api['update'](home, marketplace, root / 'completed', native, resume_from=root / 'resumed')
+            shutil.rmtree(cache)
+            result = api['update'](home, marketplace, root / 'absent', native, resume_from=backup)
+            self.assertEqual(result['status'], 'UPDATED')
+
     def test_same_version_repairs_persistent_source_without_reinstall(self):
         api = runpy.run_path(str(SCRIPT))
         with tempfile.TemporaryDirectory() as temporary:

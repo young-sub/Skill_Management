@@ -181,9 +181,20 @@ the cache being replaced, and stop other plugin installers first:
 ```powershell
 python scripts/update_plugin.py update --home <explicit-task-home> --marketplace <local-marketplace> --backup <new-backup-directory>
 python scripts/update_plugin.py recover --backup <backup-directory> --output <new-recovery-directory>
+python scripts/update_plugin.py update --home <explicit-task-home> --marketplace <same-candidate-marketplace> --backup <new-backup-directory> --resume-from <interrupted-backup-directory>
 ```
 
 The marketplace must contain one local `plugins/agentic-coding` entry. The guard
+can explicitly resume an interrupted update whose snapshot binds the same home,
+marketplace identity and exact candidate bytes. Remaining cache files must match
+either the original snapshot or the candidate; unknown/user-modified bytes are
+refused. Missing files are allowed only on this explicit path. The attempt saves
+the remaining files in a new backup before the native installer runs, and retains
+the original backup. Completed or older snapshots without candidate hashes cannot
+authorize this recovery. This is a serialized local recovery check, not protection
+against a concurrent external installer or tampering with the backup itself.
+
+For ordinary updates, the guard
 checks both packages, refuses changed/missing/extra installed files before native
 installation, and binds the native command to that inspected local marketplace.
 Interpreter bytecode beside a packaged Python source is permitted and preserved.
@@ -221,12 +232,13 @@ If removal succeeds but registration fails, the snapshot retains the former sour
 retry the guard with the same candidate and a new backup directory. No completion
 is claimed until the persistent binding and installed bytes are verified. Keep
 the registered local marketplace available for later host starts.
-The guard still refuses missing/corrupt active caches. In an isolated host with a
+Ordinary updates still refuse missing/corrupt active caches. In an isolated host with a
 wholly absent version directory, native `codex plugin add` against the verified
 local marketplace can recreate it; this was tested with all old bytes retained
 outside the cache. Do not apply that operation over partial or user-modified
 contents, because native installation can delete them. Preserve and inspect such
-contents first. Repair of a partially damaged active cache remains unverified.
+contents first. `--resume-from` supports missing files and surviving bytes tied
+to its original update snapshot; truncated or unattributed bytes remain refused.
 Inventory hashes detect ordinary drift, not maliciously rewritten inventories.
 
 ## Verification
@@ -258,5 +270,10 @@ old 246-file snapshot and unrelated home settings/files survived; export recover
 matched that snapshot and the resumed installed viewer read real retained evidence.
 This establishes restart between native commands, not interruption inside a native
 file-copy operation or repair of a partially corrupted cache.
+The 0.1.35 trial then constructed a partial-copy state after registration (one
+candidate file retained, original cache moved intact to trial storage). Explicit
+resume used the actual native installer to restore all 246 package files, kept
+the original backup and partial file bytes, and returned UNCHANGED on repeat.
+This is controlled interruption-state recovery, not an actual mid-copy crash.
 Full CI runs these tests with the existing
 distribution suite and builds the package after resource checks.
