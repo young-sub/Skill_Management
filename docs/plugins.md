@@ -49,10 +49,11 @@ Both installation and execution check for the native setup marker and sandbox
 account file before invoking the native CLI. Only file presence is inspected;
 credential contents are never read or copied. Missing setup returns BLOCKED
 without invoking a setup dialog. Presence alone does not attest credential
-validity; the native launcher still validates its own state. The current real
-installation trial is BLOCKED by a missing account file in the isolated home;
-source tests and the no-launch missing-state check passed, but successful
-automatic protected installation is not yet established.
+validity; the native launcher still validates its own state. The missing-account
+trial was subsequently repaired with the explicit native setup command running
+from an elevated process against that same isolated home. Fresh installations
+then passed real candidate-account boundary probes; see the current
+[native results](research/agent-workflow-implementation-results.md).
 
 The protected-host [`host_verify.py`](../scripts/host_verify.py) entrypoint joins
 execution, independent saved-byte readback and result publication. Install it with
@@ -100,9 +101,10 @@ case observations. It never runs candidate Git, imports candidate modules or
 reads submitted verification bundles. Stale/missing reviews, unmapped sources,
 unresolved findings and missing/rejected case evidence prevent acceptance even
 when the other product cases pass. Without `workflow`, acceptance covers only
-the declared cases. This connection has focused integration coverage with a
-substituted process launcher; its new native protected-host acceptance remains
-unverified. The ordinary candidate-side `accept` stays BLOCKED.
+the declared cases. Integration coverage and the actual five-case native
+price-save trial both distinguish accepted normal behavior from missing review
+and defective behavior. That bounded host trial does not establish whole-system
+acceptance. The ordinary candidate-side `accept` stays BLOCKED.
 
 The host-only [`host_result.py`](../scripts/host_result.py) publisher binds a
 protected `policy.json`, explicit snapshot files and a unique run. The host calls

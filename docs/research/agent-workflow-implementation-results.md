@@ -4,6 +4,41 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Elevated setup repaired and native workflow acceptance exercised, 2026-10-06
+
+The explicit native setup command returned
+`orchestrator_elevation_required` from the ordinary process. Running that official
+command from an elevated PowerShell process for the explicitly selected existing
+Windows user and host-006 CODEX_HOME completed with exit zero. The account artifact
+now exists; its contents were not read or copied. Native setup selected `elevated`
+in this isolated home's Windows setting. It did not update the ordinary plugin
+installation or account configuration. The earlier missing-artifact block is
+resolved; the previous blanket Agent-execution block had already been disproved.
+Setup logs are under `.work/plugin-transition/elevated-authority/explicit-*`.
+
+Three fresh installations below the existing protected trial parent exercised
+the new connection using the real native sandbox and process controller:
+
+| Frozen case | Actual observations and workflow result |
+| --- | --- |
+| Normal, current review | `1.15 -> 115`, zero and `12.30 -> 1230`; negative and over-precision inputs exited 3 and retained prior saved bytes. Five cases and required review accepted: ACCEPTED. |
+| Same product, missing review | The same five product outcomes passed, but the unresolved review prevented completion: BLOCKED. |
+| Defect, supplied current review | `1.15 -> 114`; negative and over-precision values were wrongly saved. Those observed mismatches left verification obligations unresolved: BLOCKED, with raw failing facts retained. |
+
+Every native case had no timeout, no forced descendant cleanup and zero remaining
+job members. Actual candidate-account probes denied write/delete/create/rename
+and security-descriptor changes during installation. A post-install probe also
+denied write handles for policy, evaluator and review state, and denied forged
+result creation. Read-only lookup of all three runs returned identical records
+without altering retained run files or rerunning cases. Raw evidence and summary
+are under `.work/plugin-transition/frozen-workflow-v036/`; protected installations
+are `workflow-{normal,missing-review,defect}-v036` beneath the existing trial parent.
+
+This proves the five-case frozen price-save workflow boundary and installer on
+this host. The controller prepared/reviewed those inputs; it is not autonomous
+end-to-end U1-U7 completion, broader quote/catalog/UI coverage, or a general
+candidate-side `accept` interface. Whole-system acceptance remains incomplete.
+
 ## Frozen workflow obligations connected to host acceptance, 2026-10-06
 
 The optional host `execution.json.workflow` now connects the existing obligation
