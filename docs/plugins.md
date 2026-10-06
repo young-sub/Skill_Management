@@ -125,6 +125,31 @@ price-save trial both distinguish accepted normal behavior from missing review
 and defective behavior. That bounded host trial does not establish whole-system
 acceptance. The ordinary candidate-side `accept` stays BLOCKED.
 
+For a reviewed task, optionally include canonical `host_handoff.py` and
+`handoff.json` in the protected policy snapshot. The installer supplies the
+handoff code from this repository, not from candidate bundle code. The host-owned
+configuration has exactly `candidate` (an absolute candidate checkout path) and
+`files` (candidate-relative path to protected snapshot-relative path):
+
+```json
+{"candidate":"C:/isolated/project","files":{"src/price.py":"project/src/price.py"}}
+```
+
+Invoke the installed `host_handoff.py --task TASK` with the pinned Python, or add
+`--run-id ID` for read-only lookup. There is no authority/configuration/command
+path argument. The task must match the protected policy, and mapped candidate
+bytes must match the reviewed frozen snapshot both before and after execution.
+A changed candidate blocks current handoff while preserving the original run.
+The returned run ID and result come from the existing protected publisher;
+no candidate success submission or duplicate result ledger is introduced.
+
+The host reviewer owns mapping completeness and baseline/oracle/semantic review.
+Unmapped files are outside this binding, so a partial map never establishes
+whole-project acceptance. This entrypoint does not provision accounts, install
+an unreviewed task, discover the originating chat, or approve semantic changes.
+Its actual native execution still needs the existing sandbox boundary; current
+missing-account preflight remains BLOCKED without requesting setup.
+
 The host-only [`host_result.py`](../scripts/host_result.py) publisher binds a
 protected `policy.json`, explicit snapshot files and a unique run. The host calls
 `begin(authority_root)` before execution, then `finish(authority_root, run_id,

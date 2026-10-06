@@ -4,6 +4,33 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Fixed-task protected handoff implementation, 2026-10-06
+
+`host_handoff.py` connects an already reviewed protected task to its existing
+verifier and canonical result. The host freezes `handoff.json` and the canonical
+entrypoint in its policy snapshot. Callers provide only the expected task and
+optional run ID. Host-selected candidate files must equal the reviewed snapshot
+before and after the operation. A changed candidate blocks current handoff;
+original protected results are retained. Lookup never runs checks, including
+an explicitly empty run ID (a reproduced review defect, now rejected).
+
+The existing installer supplies canonical handoff code when included in policy;
+candidate bundle helper bytes are ignored. No new publisher, result ledger,
+account setup, general plugin installation or semantic auto-approval was added.
+The Feature Map and host-result test selector include this entrypoint.
+Twenty-three host/handoff/install/result/document/cutover tests passed. These
+exercise real snapshot/task binding and retained publisher records with a
+substituted executor, not actual sandbox execution. Independent review found the
+empty-ID defect; its failing counterexample then passed after the branch repair.
+
+Current native preflight still reports
+`sandbox_setup_incomplete:.sandbox-secrets/sandbox_users.json` without invoking
+the CLI or setup. This handoff is not installed into the protected host in that
+state. It covers explicitly mapped reviewed files; arbitrary-project mapping,
+chat-to-task dispatch and native end-to-end acceptance remain unverified or
+incomplete. The overall goal is not complete. No package version or generated
+Skill resource changes are needed for this host-only implementation.
+
 ## Repeated verification without connection edits, 2026-10-06
 
 Version 0.1.39 adds `--prepare --report-dir` for explicit `{report_dir}/file`

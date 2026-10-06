@@ -87,7 +87,7 @@ def install(bundle, target):
     payload = {'policy.json': policy_bytes}
     for name in policy['snapshot']:
         source = (helper_root.parent / 'authoring/scripts/project_workflow.py' if name == 'project_workflow.py'
-                  else helper_root / name if name in HELPERS else api['_file'](bundle, name))
+                  else helper_root / name if name in HELPERS + ('host_handoff.py',) else api['_file'](bundle, name))
         payload[name] = source.read_bytes()
     if not set(HELPERS + ('execution.json',)).issubset(payload):
         raise ValueError('host_runtime_not_bound')

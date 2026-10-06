@@ -23,7 +23,7 @@ class InstallHostTests(unittest.TestCase):
                 path = root / name
                 path.parent.mkdir(exist_ok=True)
                 path.touch()
-            names = ['host_verify.py', 'host_result.py', 'windows_job.py']
+            names = ['host_verify.py', 'host_result.py', 'windows_job.py', 'host_handoff.py']
             for name in names:
                 (bundle / name).write_text('raise SystemExit("candidate helper executed")')
             (bundle / 'driver.py').write_text('print("driver")')
