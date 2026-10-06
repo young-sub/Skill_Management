@@ -31,6 +31,39 @@ Affected execution/viewer/workflow/hook/package/document tests passed (86 tests)
 resource drift, distribution validation and `git diff --check` passed. Independent
 review confirmed both reproduced path defects are fixed.
 
+## Installed recurring UI verification, 2026-10-06
+
+The existing isolated UI project now connects its three native output arguments
+and five Feature/check observation paths through `{report_dir}`. Fixture commit
+`125f645` retains this connection and its executable guide. Source, requirements,
+DESIGN.md and all three original check scripts were unchanged (11 hashes checked).
+No original Labeler, ordinary installation, global Git settings or protected
+branch was changed. Git ownership trust was supplied only to the child process.
+
+Using installed 0.1.39, two preparations each executed zero checks; two executions
+each ran exactly three shared commands for five consumers, all PASS. Each run
+observed 16 browser states, two order viewport scenarios and seven local VM
+checks. Browser coverage includes 1280px/390px search/empty, keyboard add,
+sessionStorage save/reload/readback, clear/reload, loading/error/retry and overflow;
+order adds compact layout, keyboard focus and long-name wrapping. Two retained
+screenshots were also inspected against the shared guide. Preparation took
+6.59/7.16 seconds and execution 18.55/18.53 seconds on this fixture; these bounded
+observations are not a general performance claim.
+
+Registry, assertion specification and guide bytes were identical across both
+runs. Subsequent lookup of both bundles was current PASS with zero test commands,
+and each run's 39 retained files stayed byte-identical. The owned foreground
+server served bytes identical to six local assets, was stopped by its session
+handle, and port 4187 had no listener afterward. Evidence is retained under
+`.work/plugin-transition/report-dir-v039/` and fixture
+`.work/report-dir-v039-first/` / `.work/report-dir-v039-second/`.
+
+These are controller-executed browser observations, not native sandbox Agent or
+protected acceptance. Fixture commit changes the Git identity after validation;
+the precommit bundles remain historical execution evidence and are not asserted
+to be current PASS after that commit. No tests were replayed merely to refresh a
+success label. Native Chrome/protected-host limitations remain separately open.
+
 ## Installed execution connection and environment regression, 2026-10-06
 
 At `e07a4fa`, the native UI task had used the installed workflow but generated an
