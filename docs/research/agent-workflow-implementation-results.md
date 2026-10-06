@@ -4,6 +4,54 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Reused environment: installed Agent repair to protected acceptance, 2026-10-06
+
+Starting at clean `dbde8df`, the guarded updater installed 0.1.36 into the existing
+authenticated host-006 home. All 246 package files match the built candidate.
+The same home's top-level defaults now select `approval_policy="never"` and
+`sandbox_mode="workspace-write"`, preserving its existing elevated sandbox and
+trusted workspace. No new home, login, trust registration, UAC setup, ordinary
+installation change or user approval was needed for this trial.
+
+A fresh native Agent task ran from the already trusted `native-agent-v023`
+workspace and changed only its `.work/price-repair-v036` fixture. The transcript
+shows the installed 0.1.36 `diagnose` Skill read, eight command executions,
+117.310 seconds, and no approval events. Eleven parent-project files retained
+their original hashes. The Agent reproduced float truncation and invalid-input
+overwrites, observed five regression methods fail (13 failing subtests and four
+errors), replaced the shared conversion with Decimal parsing and integer-ratio
+arithmetic, then observed those methods pass. Actual before/after readback showed
+save/quote `1.15` change from 114 to 115 and rejected save/catalog inputs preserve
+the exact prior bytes. It also checked missing files, unmentioned catalog records,
+zero, large exact amounts and empty updates. The TUI exited zero.
+
+The controller independently reviewed the changed converter and its three callers,
+then froze the original and Agent-repaired source separately with the existing
+five-case price-save oracle and current semantic-review bases. The existing
+protected parent, sandbox workspace and account were reused. Both installations
+passed real candidate-account write/delete/create/rename/security-access denial
+probes. Native verification independently read saved bytes:
+
+| Snapshot | Observed result |
+| --- | --- |
+| Original converter | REJECTED, run `935ed4b3-0d34-4ee3-9834-f91c452352aa`: 114 cents, negative saved, and over-precision saved. |
+| Actual Agent repair | ACCEPTED, run `fa43c8d3-89bc-4bba-a509-799a72877bfa`: 115/0/1230 cents; negative and over-precision inputs exit 3 and preserve `{"cents":731}` byte-for-byte. |
+
+All ten protected executions completed without timeout, forced cleanup or remaining
+job members. Protected acceptance covers only those five price-save cases; the
+Agent's quote/catalog regressions are separate editable-fixture evidence. The
+controller still reviews and stages the host bundle; this does not prove an
+autonomous full-project handoff, FE coverage, concurrency or I/O-failure behavior,
+or overall U1-U7 completion. No comparative speed/context reduction is claimed.
+
+Evidence is retained under `.work/plugin-transition/repair-native-v036/`: update
+receipt/backup, task request, invocation, original-file hashes, `observed.json`
+with real command outputs, task metrics, reviewed frozen bundles, installer and
+native results, and `summary.json`. Native session:
+`01a110e5-a950-7401-b916-17a7620f50d1`. Feature coverage: `plugin-package`,
+`host-install`, `host-verification`, and `host-result`; no public Feature behavior
+or generated resource changed in this validation unit.
+
 ## Elevated setup repaired and native workflow acceptance exercised, 2026-10-06
 
 The explicit native setup command returned

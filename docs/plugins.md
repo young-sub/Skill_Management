@@ -55,6 +55,16 @@ from an elevated process against that same isolated home. Fresh installations
 then passed real candidate-account boundary probes; see the current
 [native results](research/agent-workflow-implementation-results.md).
 
+For repeated authorized development trials, reuse the same authenticated isolated
+home and trusted workspace. Set that home's top-level `approval_policy = "never"`
+and `sandbox_mode = "workspace-write"`; keep its existing Windows sandbox setup.
+The native task launcher also passes `--ask-for-approval never --sandbox workspace-write`
+explicitly. These settings suppress per-command approval prompts, not sandbox
+restrictions. Do not recreate the home, repeat account setup, or change the ordinary
+installation for each task. Checks outside the authorized environment remain
+BLOCKED; a new trust boundary is a separate operation, not a reason to repeat
+setup for routine tests.
+
 The protected-host [`host_verify.py`](../scripts/host_verify.py) entrypoint joins
 execution, independent saved-byte readback and result publication. Install it with
 `host_result.py`, `windows_job.py`, `policy.json`, `execution.json` and the frozen
