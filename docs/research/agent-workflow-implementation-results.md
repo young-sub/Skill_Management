@@ -4,6 +4,32 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Frozen workflow obligations connected to host acceptance, 2026-10-06
+
+The optional host `execution.json.workflow` now connects the existing obligation
+evaluator to host-approved project policy, original baseline, semantic reviews,
+frozen source/references and explicit Feature/check-to-case associations. This
+addresses a missing implementation connection separately from native setup.
+The evaluator accepts supplied inventory and evidence resolution; ordinary
+Git/bundle audit behavior remains unchanged. The host supplies bound snapshot
+hashes and independently collected case facts, never candidate Git configuration,
+submitted bundles or a candidate PASS field. The installer supplies canonical
+evaluator code. All snapshot inputs and associations participate in result reuse
+identity. Semantic approval of those inputs remains the host owner's responsibility;
+a case label alone does not establish coverage of a business requirement.
+
+Focused RED observed the missing evaluator connection. The selected workflow,
+hook, host/result/installer, package and documentation modules passed 39 tests.
+Integration coverage substitutes the process launcher and demonstrates correct
+product bytes plus stale review -> BLOCKED, then current review -> ACCEPTED;
+missing/rejected observations and unbound references cannot discharge obligations.
+Tests forbid subprocess invocation during frozen evaluation, and independent
+source review found no blocker. Generated resources and the 0.1.36 package
+(19 Skills, 246 files) were built and distribution-checked. This is source and
+local integration evidence, not a new real protected-host acceptance run. Existing
+protected installations were not updated; the elevated setup artifact is still
+missing, ordinary `accept` remains BLOCKED, and whole-system completion is unproven.
+
 ## Native lookup and corrected sandbox scope, 2026-10-06
 
 The prior statement that the missing sandbox account artifact blocks all native

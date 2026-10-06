@@ -33,7 +33,8 @@ class InstallHostTests(unittest.TestCase):
                       'timeout': 10, 'cases': [{'id': 'one', 'argv': [sys.executable, '-I', '{authority}/driver.py'],
                                              'saved': 'saved', 'initial_hex': ''}]}
             (bundle / 'execution.json').write_text(json.dumps(config))
-            policy = {'task': 'one', 'snapshot': names + ['driver.py', 'execution.json'],
+            (bundle / 'project_workflow.py').write_text('raise SystemExit("candidate evaluator executed")')
+            policy = {'task': 'one', 'snapshot': names + ['driver.py', 'execution.json', 'project_workflow.py'],
                       'cases': [{'id': 'one', 'exit': 0, 'saved_hex': ''}]}
             (bundle / 'policy.json').write_text(json.dumps(policy))
             target = parent / 'installed'
@@ -42,6 +43,8 @@ class InstallHostTests(unittest.TestCase):
                 self.assertEqual(result['status'], 'INSTALLED')
                 for name in names:
                     self.assertEqual((target / name).read_bytes(), (scripts / name).read_bytes())
+                self.assertEqual((target / 'project_workflow.py').read_bytes(),
+                                 (scripts.parent / 'authoring/scripts/project_workflow.py').read_bytes())
                 before = {p.name: p.read_bytes() for p in target.iterdir() if p.is_file()}
                 with self.assertRaises(FileExistsError):
                     module.install(bundle, target)

@@ -86,7 +86,9 @@ def install(bundle, target):
     # Freeze bytes before creating an installation. Never import bundle helpers.
     payload = {'policy.json': policy_bytes}
     for name in policy['snapshot']:
-        payload[name] = (helper_root / name).read_bytes() if name in HELPERS else api['_file'](bundle, name).read_bytes()
+        source = (helper_root.parent / 'authoring/scripts/project_workflow.py' if name == 'project_workflow.py'
+                  else helper_root / name if name in HELPERS else api['_file'](bundle, name))
+        payload[name] = source.read_bytes()
     if not set(HELPERS + ('execution.json',)).issubset(payload):
         raise ValueError('host_runtime_not_bound')
     config = json.loads(payload['execution.json'])

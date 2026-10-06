@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / 'authoring/scripts/project_workflow.py'
@@ -78,6 +79,46 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertEqual([o['target'] for o in result['obligations']], ['api'])
         self.assertIn('verification', result['obligations'][0]['requires'])
         self.assertEqual(result['partitions']['operator'], 'READY_FOR_REVIEW')
+
+    def test_host_inputs_bypass_git_and_editable_evidence_without_skipping_reviews(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'change')
+        for feature in ('api', 'cli'):
+            state = self.review(runtime, state, feature)
+        self.write('src/api.py', 'price = 11\n')
+        state = self.review(runtime, state, 'api')
+        files = runtime.inventory(self.root, ['src'])
+        self.assertEqual(runtime.inspect_project(self.root, self.project, state)['status'], 'PARTIAL')
+        calls = []
+
+        def resolve(root, feature, commands):
+            calls.append(feature['id'])
+            self.assertEqual(root, self.root.resolve())
+            self.assertEqual(feature['checks'], ['check'])
+            self.assertEqual(commands, self.project['commands'])
+            return {'status': 'PASS', 'findings': []}
+
+        with patch.object(runtime, 'git', side_effect=AssertionError('Git must not run')), \
+                patch.object(runtime, 'inspect_evidence', side_effect=AssertionError('Editable evidence must not load')):
+            result = runtime.inspect_project(self.root, self.project, state,
+                                             file_inventory=files, evidence_resolver=resolve)
+            self.assertEqual(result['status'], 'READY_FOR_REVIEW', result)
+            self.assertEqual(calls, ['api'])
+            for review in ({}, dict(state['reviews']['api'], basis='stale')):
+                altered = dict(state, reviews=dict(state['reviews'], api=review))
+                result = runtime.inspect_project(self.root, self.project, altered,
+                                                 file_inventory=files, evidence_resolver=resolve)
+                self.assertEqual(result['status'], 'PARTIAL')
+                self.assertIn('map_review', result['obligations'][0]['requires'])
+            self.assertEqual(calls, ['api'], 'Missing/stale semantic review must not be replaced by execution')
+            blocked = runtime.inspect_project(self.root, self.project, state, file_inventory=files,
+                evidence_resolver=lambda *_: {'status': 'BLOCKED', 'findings': ['host_case_missing']})
+            self.assertEqual(blocked['status'], 'PARTIAL')
+            self.assertIn('host_case_missing', blocked['findings'])
+            empty = runtime.inspect_project(self.root, self.project, state,
+                                            file_inventory={}, evidence_resolver=resolve)
+            self.assertEqual(empty['status'], 'PARTIAL')
+            self.assertIn('missing_source:api:src/api.py', empty['findings'])
 
     def test_map_readiness_is_separate_from_retained_product_gaps(self):
         runtime = self.runtime()

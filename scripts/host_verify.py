@@ -49,6 +49,76 @@ def sandbox_env(config):
     return env
 
 
+def workflow_audit(root, config, observations, executions):
+    """Recompute obligations from host-approved files and host-collected cases.
+
+    Never invoke candidate Git, import candidate code, or consume its bundles.
+    The installation owner must review the frozen baseline and semantic reviews.
+    """
+    api = runpy.run_path(str(root / 'host_result.py'))
+    basis, cases = api['_basis'](root)
+    descriptor = config['workflow']
+    if not isinstance(descriptor, dict) or set(descriptor) != {'root', 'state', 'checks'}:
+        raise ValueError('invalid_host_workflow')
+    project_root = api['_file'](root, descriptor['root'])
+    if project_root == root or not project_root.is_dir():
+        raise ValueError('workflow_snapshot_directory_required')
+    for path in project_root.rglob('*'):
+        relative = path.relative_to(root).as_posix()
+        api['_file'](root, relative)
+        if path.is_file() and relative not in basis['snapshot']:
+            raise ValueError('unbound_workflow_file:' + relative)
+    for name in ('project_workflow.py', descriptor['state'],
+                 (project_root / '.harness/project.yaml').relative_to(root).as_posix()):
+        if name not in basis['snapshot']:
+            raise ValueError('unbound_workflow_file:' + name)
+    workflow = runpy.run_path(str(root / 'project_workflow.py'))
+    project = json.loads((project_root / '.harness/project.yaml').read_bytes())
+    state = json.loads(api['_file'](root, descriptor['state']).read_bytes())
+    if not isinstance(state, dict) or not state:
+        raise ValueError('host_workflow_baseline_required')
+    # Relocate the approved snapshot, preserving logical paths and all bases.
+    state = dict(state, root=str(project_root.resolve()))
+    configured = workflow['configuration'](project)
+    if configured is None:
+        raise ValueError('host_workflow_not_configured')
+    mapping = descriptor['checks']
+    known = {f['id']: set(f['checks']) for f in configured['features']}
+    case_ids = {c['id'] for c in cases}
+    if not isinstance(mapping, dict):
+        raise ValueError('invalid_workflow_case_mapping')
+    for feature, checks in mapping.items():
+        if feature not in known or not isinstance(checks, dict):
+            raise ValueError('unknown_workflow_feature')
+        for check, ids in checks.items():
+            if (check not in known[feature] or not isinstance(ids, list) or not ids
+                    or any(not isinstance(i, str) for i in ids) or len(set(ids)) != len(ids)
+                    or not set(ids).issubset(case_ids)):
+                raise ValueError('invalid_workflow_case_mapping')
+    inventory = {path.relative_to(project_root).as_posix(): workflow['file_hash'](
+                    project_root, path.relative_to(project_root).as_posix())
+                 for path in project_root.rglob('*') if path.is_file() and any(
+                     path.relative_to(project_root).as_posix() == prefix or
+                     path.relative_to(project_root).as_posix().startswith(prefix.rstrip('/') + '/')
+                     for prefix in configured['roots'])}
+
+    def resolve(_root, feature, _commands):
+        findings = []
+        for check in feature['checks']:
+            ids = mapping.get(feature['id'], {}).get(check, [])
+            verdict = api['_verdict']([c for c in cases if c['id'] in ids],
+                [c for c in observations if c['id'] in ids],
+                [c for c in executions if c['id'] in ids]) if ids else 'BLOCKED'
+            if verdict != 'ACCEPTED':
+                findings.append('protected_check_unverified:' + feature['id'] + ':' + check)
+        if not feature['checks']:
+            findings.append('protected_checks_missing:' + feature['id'])
+        return {'status': 'BLOCKED' if findings else 'PASS', 'findings': findings}
+
+    return workflow['inspect_project'](project_root, project, state,
+                                      file_inventory=inventory, evidence_resolver=resolve)
+
+
 def prepare(root):
     root = Path(root).resolve()
     result_api = runpy.run_path(str(root / 'host_result.py'))
@@ -57,7 +127,7 @@ def prepare(root):
     if not required.issubset(basis['snapshot']):
         raise ValueError('host_runtime_not_bound')
     config = json.loads((root / 'execution.json').read_bytes())
-    if (not isinstance(config, dict) or set(config) != {'workspace', 'home', 'codex', 'python',
+    if (not isinstance(config, dict) or set(config) - {'workflow'} != {'workspace', 'home', 'codex', 'python',
             'codex_sha256', 'python_sha256', 'timeout', 'cases'}
             or not isinstance(config['cases'], list)
             or type(config['timeout']) not in (int, float)
@@ -99,6 +169,8 @@ def prepare(root):
         selected.append(case['id'])
     if len(selected) != len(set(selected)) or set(selected) != {c['id'] for c in expected}:
         raise ValueError('host_case_coverage_mismatch')
+    if 'workflow' in config:
+        workflow_audit(root, config, [], [])  # Validate bindings before any launch.
     _identities(config)
     require_sandbox_ready(config)
     return result_api, config
@@ -138,6 +210,11 @@ def execute(root):
             if execution['timed_out'] or execution['descendants_killed'] or execution['remaining']:
                 break
         _identities(config)
+        if 'workflow' in config:
+            audit = workflow_audit(root, config, observations, executions)
+            raw.append({'workflow': audit})
+            if audit['status'] != 'READY_FOR_REVIEW':
+                executions = []  # Pending obligations cannot publish ACCEPTED.
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError, queue.Empty) as error:
         raw.append({'error': str(error)})
         # No partial observations can satisfy a full host policy.

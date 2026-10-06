@@ -156,7 +156,12 @@ def work_record(root, work_id):
     return state, directory / 'workflow.json'
 
 
-def inspect_project(root, project, state=None):
+def inspect_project(root, project, state=None, *, file_inventory=None, evidence_resolver=None):
+    """Host callers supply trusted inventory/evidence and a protected snapshot root.
+
+    Reference and semantic-review reads still use root; injected inputs alone do
+    not establish protected acceptance. Ordinary audit keeps its local adapters.
+    """
     root = root.resolve()
     config = configuration(project)
     result = {'status': 'NOT_CONFIGURED', 'mapping_status': 'NOT_CONFIGURED', 'enforcement': 'BLOCKED',
@@ -177,7 +182,7 @@ def inspect_project(root, project, state=None):
             raise ValueError(f'workflow_state_requires_object:{field}')
     if state.get('intent') in {'feedback', 'ui'} and not state.get('targets'):
         raise ValueError('target_required')
-    files = inventory(root, config['roots'])
+    files = inventory(root, config['roots']) if file_inventory is None else file_inventory
     commands = dict(project.get('commands', {}))
     commands.update(project.get('impact', {}).get('feature_selectors', {}))
     covered = set()
@@ -254,9 +259,12 @@ def inspect_project(root, project, state=None):
             requires.append('product_resolution')
         needs_behavior = any(requirement in requires for requirement in ('verification', 'repair', 'regression'))
         behavior = None
-        if needs_behavior and reviewed and review.get('bundle'):
-            behavior = inspect_evidence(root, feature, commands, review['bundle'])
-            if behavior['status'] != 'PASS':
+        if needs_behavior and reviewed:
+            if evidence_resolver is not None:
+                behavior = evidence_resolver(root, feature, commands)
+            elif review.get('bundle'):
+                behavior = inspect_evidence(root, feature, commands, review['bundle'])
+            if behavior is not None and behavior['status'] != 'PASS':
                 findings.extend(behavior['findings'])
         if state.get('intent') == 'feedback' and identity in state.get('targets', []) and state.get('input_bases', {}).get(identity) == basis:
             findings.append(f'repair_not_observed:{identity}')

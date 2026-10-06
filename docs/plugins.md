@@ -76,6 +76,34 @@ acceptance. The current adapter supports Python drivers; FE/BE tools can be
 invoked by an explicitly reviewed driver with their dependencies bound by the
 host policy. This is not automatic full-project obligation discovery.
 
+`execution.json` may additionally bind a reviewed workflow snapshot:
+
+```json
+"workflow": {
+  "root": "project",
+  "state": "project/state.json",
+  "checks": {"price": {"price-check": ["saved-price", "invalid-price"]}}
+}
+```
+
+The snapshot directory contains `.harness/project.yaml`, candidate source and
+references; every file, the baseline/review state, and canonical
+`project_workflow.py` must be included in `policy.json`'s snapshot. The installer
+supplies that evaluator from repository canonical source, never from bundle code.
+The installation owner reviews the original baseline, semantic reviews and exact
+Feature/check-to-case associations. An unrelated oracle does not validate a check
+merely because its identifier is mapped. Relocation changes only the state root;
+source/review bases remain intact.
+
+The host recomputes obligations using frozen file hashes and its collected
+case observations. It never runs candidate Git, imports candidate modules or
+reads submitted verification bundles. Stale/missing reviews, unmapped sources,
+unresolved findings and missing/rejected case evidence prevent acceptance even
+when the other product cases pass. Without `workflow`, acceptance covers only
+the declared cases. This connection has focused integration coverage with a
+substituted process launcher; its new native protected-host acceptance remains
+unverified. The ordinary candidate-side `accept` stays BLOCKED.
+
 The host-only [`host_result.py`](../scripts/host_result.py) publisher binds a
 protected `policy.json`, explicit snapshot files and a unique run. The host calls
 `begin(authority_root)` before execution, then `finish(authority_root, run_id,
