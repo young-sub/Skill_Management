@@ -4,6 +4,37 @@ Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876
 
 Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
+## Native recurring verification adoption, 2026-10-06
+
+A natural-language price-verification maintenance request used installed 0.1.39
+in the existing authenticated, trusted, unelevated host. Session
+`01a11117-7e36-7912-81b2-380c38ca94e0` selected installed project/Harness maintenance,
+used the report-directory capability and isolated the unchanged check's scratch
+files via its registered working directory. It retained 65 assertions from the
+existing requirements/check/plan. No Skill name, CLI sequence or patch was given.
+The task took 151264 ms and ten tool calls, without a follow-up intervention;
+the TUI subsequently exited zero. This is adoption evidence, not a general
+cost/efficiency claim (the Agent still read substantial reference content).
+
+Two real native runs each recorded 49 observations, zero skips and one command.
+Both bundle lookups and completed resumes returned PASS with zero commands.
+Independent controller inspection found exactly two invocation-log entries and
+all 481 baseline file hashes unchanged, including product, original checks,
+requirements, historical records and `.work/task.json`. The original workflow
+state remains PARTIAL; the Agent did not claim local PASS discharged protected
+acceptance. Connection edits remain in the isolated fixture alongside preserved
+earlier dirty work; no product or global installation changes were committed.
+Evidence: `.work/plugin-transition/recurring-native-v039/` and fixture
+`.work/recurring-v039/`. The latest bounded U3/U7 adoption gap is now exercised.
+
+Remaining acceptance requires the stable protected native host: install and run
+the new fixed-task handoff, then verify its actual candidate-denial, task/result
+binding and restart behavior. Current account-artifact preflight still blocks
+that path before native/setup execution. Repeating ordinary PASS runs or adding
+another wrapper would not establish this boundary. No further required code
+change was identified by the bounded independent review; whole-goal completion
+remains unproven while protected installation/execution cannot be exercised.
+
 ## Fixed-task protected handoff implementation, 2026-10-06
 
 `host_handoff.py` connects an already reviewed protected task to its existing
