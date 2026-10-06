@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/unittest_evidence.py
-# Source-SHA256: 7e150bb3c066d06a83f581f7eea7421300d50522972f3c1352504f21c4a5d23e
+# Source-SHA256: 5d3d01edfe8cd0689ffde6baaaea2178a5661a2d9e69a24a396d3bc0aef2e583
 
 """Reassess native unittest captures; no test execution or stored-verdict trust.
 
@@ -84,6 +84,9 @@ def assess(path, run_id, feature, check, argv, cwd):
     if len(counts) == 1 and int(counts[0]) == 0:
         raise ValueError('No tests ran; not_run is not PASS')
     if record['exit_code'] != 0:
+        if re.search(r'_FailedTest|Failed to import test module', output):
+            return {**verdict, 'status': 'BLOCKED', 'reason': 'Unittest discovery/import unavailable; inspect raw error',
+                    'exit_code': record['exit_code']}
         return {**verdict, 'status': 'ISSUES', 'reason': 'Native command failed',
                 'exit_code': record['exit_code']}
     # This project owns these unittest commands. Output strings are not

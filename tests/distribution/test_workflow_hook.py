@@ -48,6 +48,10 @@ class WorkflowHookTests(unittest.TestCase):
             context = result['hookSpecificOutput']['additionalContext']
             self.assertIn('regression', context)
             self.assertIn('map.md', context)
+            details = json.loads(context.split('\n', 1)[1])
+            self.assertIn('scope', details, 'Later work must consume current scope gaps from the existing audit')
+            self.assertEqual(details['scope']['status'], 'PARTIAL')
+            self.assertTrue(any('UNDECIDED' in gap for gap in details['scope']['gaps']))
             self.assertNotIn('NEVER ECHO THIS', context)
             self.assertNotIn('decision', result)
             self.assertEqual(invoke(), result)

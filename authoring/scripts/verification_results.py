@@ -1155,7 +1155,13 @@ def _invalidate_current_result(result: dict[str, Any], reason: str) -> dict[str,
             row['reasons'] = sorted(set(row['reasons']) | {reason})
     if result.get('coverage', {}).get('rows'):
         workflow = runpy.run_path(str(Path(__file__).with_name('project_workflow.py')))
-        result['coverage'] = workflow['coverage_summary'](result['coverage']['rows'])
+        coverage = result['coverage']
+        for cell in coverage.get('matrix', []):
+            changed = [row['status'] for row in coverage['rows']
+                       if row['feature'] == cell['feature'] and row['id'] in cell['coverage']]
+            if cell['applicability'] == 'REQUIRED' and 'STALE' in changed:
+                cell.update(status='STALE', statuses=list(dict.fromkeys(changed)))
+        result['coverage'] = workflow['coverage_summary'](coverage['rows'], coverage.get('matrix', []))
     return result
 
 
@@ -1236,7 +1242,8 @@ def _validate_bundle_report_paths(plan: dict[str, Any], evidence_dir: Path | Non
                 )
 
 
-def view_bundle(bundle: dict[str, Any] | str | Path, *, workflow_state: Path | None = None) -> dict[str, Any]:
+def view_bundle(bundle: dict[str, Any] | str | Path, *, workflow_state: Path | None = None,
+                include_scope: bool = True) -> dict[str, Any]:
     """Revalidate an execution bundle read-only against the current project state."""
     bundle_value: Any = bundle
     bundle_file: Path | None = None
@@ -1303,6 +1310,7 @@ def view_bundle(bundle: dict[str, Any] | str | Path, *, workflow_state: Path | N
             observation_paths=observations,
             current_context=current,
             workflow_state=workflow_state,
+            include_scope=include_scope,
         )
         result["bundle"] = copy.deepcopy(bundle_value)
         result["bundle_view"] = {"read_only": True, "source_plan": str(source_plan), "source_plan_sha256": source_hash}
@@ -1451,6 +1459,19 @@ def execute_plan(
             if _selection(check)[0] and index not in completed:
                 if (output_dir / f'command-{index}-started.json').exists():
                     raise ViewerInputError(f'command outcome unknown:{index}; automatic replay refused')
+        scope = plan.get('workflow_scope', {})
+        if scope.get('state'):
+            workflow = runpy.run_path(str(Path(__file__).with_name('project_workflow.py')))
+            root = Path(scope['root'])
+            state, _ = workflow['task_state'](root, scope['state'] if not scope.get('work_id') else None, scope.get('work_id'))
+            if workflow['task_identity'](state) != scope.get('task_identity'):
+                raise ViewerInputError('Task identity changed; prepare a new plan')
+            project, _ = _read_json(root / '.harness/project.yaml')
+            current_selection = workflow['pending_selection'](workflow['inspect_project'](root, project, state))
+            required = {(item['feature'], item['check']) for item in current_selection['selected_checks']}
+            prepared = {(check['feature_id'], check['id']) for check in checks if _selection(check)[0]}
+            if required != prepared:
+                raise ViewerInputError('Task execution selection changed; prepare a new plan')
         preconditions = _preflight_execution(plan, checks, output_dir, completed)
     except (OSError, ValueError, TypeError, KeyError) as error:
         return _blocked_execution(str(error), plan_path=plan_file, run_check_path=run_check)
@@ -1685,6 +1706,19 @@ def execute_plan(
     result["test_commands_executed"] = attempted
     if plan_mutated:
         _invalidate_current_result(result, "source_plan_changed_during_execution")
+    scope = plan.get('workflow_scope', {})
+    if scope.get('state') and not plan_mutated:
+        workflow = runpy.run_path(str(Path(__file__).with_name('project_workflow.py')))
+        try:
+            root = Path(scope['root'])
+            workflow['bind_results'](root, scope['state'],
+                {check['feature_id']: bundle_path for check in checks if _selection(check)[0]}, work_id=scope.get('work_id'),
+                expected_identity=scope['task_identity'])
+            result['coverage'] = _view_coverage(bound_plan, result['items'])
+            result['task_result_binding'] = {'state': scope['state'], 'bundle': str(bundle_path)}
+        except (OSError, ValueError, TypeError, KeyError) as error:
+            result['task_result_binding'] = {'status': 'BLOCKED', 'reason': str(error)}
+            _invalidate_current_result(result, 'task_result_binding_failed')
     return result
 
 
@@ -1697,6 +1731,7 @@ def view_results(
     current_context_path: str | Path | None = None,
     current_context: dict[str, Any] | None = None,
     workflow_state: Path | None = None,
+    include_scope: bool = True,
 ) -> dict[str, Any]:
     """Read and join records without executing or modifying any input."""
     plan_file = Path(plan_path).resolve()
@@ -1734,7 +1769,9 @@ def view_results(
         "items": items,
         "remaining": sorted({reason for item in items for reason in item["reasons"] if reason}),
     }
-    result['coverage'] = _view_coverage(plan, items, workflow_state=workflow_state)
+    result['status_scope'] = 'required selected checks; task completion is reported separately by workflow audit'
+    result['coverage'] = _view_coverage(plan, items, workflow_state=workflow_state) if include_scope else {
+        'status': 'NOT_CONFIGURED', 'rows': [], 'matrix': []}
     return result
 
 
@@ -1747,14 +1784,23 @@ def _view_coverage(plan, items, *, workflow_state=None):
         return workflow['coverage_summary']([])
     root = _safe_cwd(Path(scope['root']), 'workflow scope')
     state = None
+    automatic_state = workflow_state is None
+    task_stale = False
+    if workflow_state is None and scope.get('state'):
+        workflow_state = Path(scope['state'])
     if workflow_state is not None:
         path = workflow['local_path'](root, str(workflow_state))
         if not path.resolve().is_relative_to(root / '.work'):
             raise ViewerInputError('workflow state must be under .work')
-        state, _ = _read_json(path)
+        if automatic_state and scope.get('work_id'):
+            state, path = workflow['task_state'](root, work_id=scope['work_id'])
+        else:
+            state, _ = _read_json(path)
         if not isinstance(state, dict) or state.get('root') != str(root) or state.get('schema_version') != 1:
             raise ViewerInputError('workflow state target mismatch')
+        task_stale = bool(scope.get('task_identity') and workflow['task_identity'](state) != scope['task_identity'])
     rows = []
+    matrix = []
     try:
         project, _ = _read_json(_safe_path('.harness/project.yaml', root=root, label='project'))
         current = workflow['inspect_project'](root, project)
@@ -1766,10 +1812,23 @@ def _view_coverage(plan, items, *, workflow_state=None):
         historical_review = scope.get('reviews', {}).get(feature['id'], {})
         review = (state if state is not None else scope).get('reviews', {}).get(feature['id'], {})
         current_basis = bases.get(feature['id'], 'unavailable')
+        if task_stale:
+            current_basis = 'task_identity_changed'
         if any(workflow['file_hash'](root, name) != value for name, value in review.get('reference_hashes', {}).items()):
             current_basis = 'review_reference_changed'
-        current_rows = workflow['coverage_rows'](feature, review, basis, items, current_basis=current_basis,
-                                                semantic_valid=workflow['current_review'](root, review, basis))
+        feature_items = list(items)
+        if state is not None:
+            reusable = {item['id'] for item in items if item['feature'] == feature['id'] and not item['selected']
+                        and item['selection'].get('reason') == 'current_evidence_reusable'}
+            if reusable:
+                commands = dict(project.get('commands', {}))
+                commands.update(project.get('impact', {}).get('feature_selectors', {}))
+                observed = workflow['inspect_result_links'](root, feature, commands, state.get('results', {}).get(feature['id'], []))
+                feature_items = [item for item in items if not (item['feature'] == feature['id'] and item['id'] in reusable)]
+                feature_items += [item for item in observed['items'] if item['id'] in reusable]
+        current_rows = workflow['coverage_rows'](feature, review, basis, feature_items, current_basis=current_basis,
+                                                semantic_valid=workflow['current_review'](root, review, basis),
+                                                scope_states=workflow['review_scope_states'](root, review))
         if state is not None:
             historical_rows = {row['id']: row for row in workflow['coverage_rows'](feature, historical_review, basis, items)}
             for row in current_rows:
@@ -1778,13 +1837,28 @@ def _view_coverage(plan, items, *, workflow_state=None):
                     row['historical_evidence'] = historical_rows[row['id']]['evidence']
                     row['current_review_state'] = str(path)
         rows.extend(current_rows)
-    return workflow['coverage_summary'](rows)
+        matrix.extend(workflow['scope_matrix'](feature, review, basis, current_rows, current_basis=current_basis,
+                                              scope_states=workflow['review_scope_states'](root, review)))
+    result = workflow['coverage_summary'](rows, matrix)
+    if scope.get('state'):
+        result['task_binding'] = {'state': scope['state'], 'status': 'STALE' if task_stale else 'CURRENT'}
+    return result
 
 
-def prepare_plan(root: Path, spec_path: Path, output: Path, *, report_dir: Path | None = None,
-                 workflow_state: Path | None = None) -> dict[str, Any]:
+def prepare_plan(root: Path, spec_path: Path | None, output: Path, *, report_dir: Path | None = None,
+                 workflow_state: Path | None = None, pending_state: Path | None = None,
+                 work_id: str | None = None) -> dict[str, Any]:
     """Bind project-selected assertions to registered commands; never execute them."""
     root = _safe_cwd(Path(root).absolute(), 'project')
+    workflow = runpy.run_path(str(Path(__file__).with_name('project_workflow.py')))
+    project, _ = _read_json(_safe_path('.harness/project.yaml', root=root, label='project'))
+    config = workflow['configuration'](project)
+    if config is None:
+        raise ViewerInputError('Preparation requires configured workflow features')
+    if spec_path is None:
+        spec_path = config.get('assertions')
+        if not isinstance(spec_path, str) or not spec_path:
+            raise ViewerInputError('Project workflow requires a registered assertions path')
     spec_file = _safe_path(str(spec_path), root=root, label='spec', allow_absolute=True)
     output = _safe_path(str(output), root=root, label='output', allow_absolute=True)
     if output.exists():
@@ -1797,11 +1871,23 @@ def prepare_plan(root: Path, spec_path: Path, output: Path, *, report_dir: Path 
     spec, _ = _read_json(spec_file)
     if not isinstance(spec, dict) or spec.get('schema_version') != 1 or not isinstance(spec.get('checks'), list) or not spec['checks']:
         raise ViewerInputError('Preparation requires schema_version 1 and explicit checks')
-    workflow = runpy.run_path(str(Path(__file__).with_name('project_workflow.py')))
-    project, _ = _read_json(_safe_path('.harness/project.yaml', root=root, label='project'))
-    config = workflow['configuration'](project)
-    if config is None:
-        raise ViewerInputError('Preparation requires configured workflow features')
+    state, state_path, selection = None, None, None
+    if pending_state or work_id:
+        if workflow_state is not None:
+            raise ViewerInputError('Task selection already supplies the semantic review state')
+        state, state_path = workflow['task_state'](root, pending_state, work_id)
+        audit = workflow['inspect_project'](root, project, state)
+        selection = workflow['pending_selection'](audit)
+        known = {(item.get('feature_id'), item.get('id')) for item in spec['checks'] if isinstance(item, dict)}
+        missing = {(item['feature'], item['check']) for item in selection['selected_checks']} - known
+        if missing:
+            raise ViewerInputError(f'Missing registered task assertions: {sorted(missing)}')
+        if not selection['selected_checks']:
+            return {'status': 'BLOCKED' if selection['unconnected_features'] else 'NOT_REQUIRED',
+                    'test_commands_executed': 0, **selection}
+        dispositions = {(item['feature'], item['check']): item for item in selection['selection']}
+        task_features = {item['feature'] for item in selection['selected_checks']}
+        spec['checks'] = [item for item in spec['checks'] if isinstance(item, dict) and item.get('feature_id') in task_features]
     features = {feature['id']: feature for feature in config['features']}
     commands = dict(project.get('commands', {}))
     commands.update(project.get('impact', {}).get('feature_selectors', {}))
@@ -1821,6 +1907,10 @@ def prepare_plan(root: Path, spec_path: Path, output: Path, *, report_dir: Path 
                            for name in feature['criteria']}
         revision = workflow['digest'](criterion_files)
         check = copy.deepcopy({key: value for key, value in item.items() if key not in {'dependency', 'fixture'}})
+        if selection is not None:
+            decision = dispositions[(item['feature_id'], item['id'])]
+            check['required'] = decision['selected']
+            check['selection'] = {'status': 'selected' if decision['selected'] else 'not_required', 'reason': decision['reason']}
         argv = workflow['resolve_report_command'](root, command.get('argv'), report_dir)
         declared = {raw['path'] for raw in check['raw_observations']}
         if any('{report_dir}' in arg and arg not in declared for arg in command['argv']):
@@ -1851,12 +1941,12 @@ def prepare_plan(root: Path, spec_path: Path, output: Path, *, report_dir: Path 
                                [row['requirement'] for row in feature.get('coverage', [])] +
                                [name for system in ui_systems if feature['id'] in system['consumers']
                                 for name in [*system['source_hashes'], *system['reference_hashes']]])]
+        refs.append(os.path.relpath(spec_file, repository_root))
         fixtures['repository_file_refs'] = list(dict.fromkeys(refs))
         check['conditions'] = _execution_conditions(check, cwd)
         checks.append(check)
     plan = {'schema_version': 1, 'checks': checks}
     selected = set(item['feature_id'] for item in checks)
-    state = None
     if workflow_state is not None:
         state_path = workflow['local_path'](root, str(workflow_state))
         if not state_path.resolve().is_relative_to(root / '.work'):
@@ -1867,12 +1957,16 @@ def prepare_plan(root: Path, spec_path: Path, output: Path, *, report_dir: Path 
                               'bases': {f['id']: f['basis'] for f in audit['features'] if f['id'] in selected},
                               'reviews': {key: copy.deepcopy(value) for key, value in (state or {}).get('reviews', {}).items()
                                           if key in selected}}
+    if selection is not None:
+        plan['workflow_scope'].update(state=state_path.relative_to(root).as_posix(), work_id=work_id,
+                                      task_identity=workflow['task_identity'](state), selection=selection['selection'])
     _plan_checks(plan, allow_unbound=True)
     prepared = _preflight_execution(plan, checks, output.parent)
     if any(item['report_path'] == output for item in prepared.values()):
         raise ViewerInputError('Prepared plan output must differ from native report paths')
     _write_json(output, plan)
-    return {'status': 'PREPARED', 'plan': str(output), 'checks': len(checks), 'test_commands_executed': 0}
+    return {'status': 'PREPARED', 'plan': str(output), 'checks': len(checks), 'test_commands_executed': 0,
+            **(selection or {})}
 
 
 def summarize_results(result: dict[str, Any]) -> dict[str, Any]:
@@ -1890,11 +1984,14 @@ def _parser() -> argparse.ArgumentParser:
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--plan", type=Path)
     source.add_argument("--bundle", type=Path, help="Revalidate a retained execution bundle without running checks")
-    source.add_argument('--prepare', type=Path, help='Prepare a plan from project-selected native assertions without executing checks')
+    source.add_argument('--prepare', type=Path, nargs='?', const=Path('.'), help='Prepare explicit or registered project assertions without executing checks')
     parser.add_argument('--root', type=Path, help='Configured project for --prepare')
     parser.add_argument('--plan-output', type=Path, help='New Git-ignored plan path for --prepare')
     parser.add_argument('--report-dir', type=Path, help='Git-ignored project directory for explicit {report_dir}/file native output templates')
     parser.add_argument('--workflow-state', type=Path, help='Project-relative .work record containing semantic reviews for preparation or read-only result lookup')
+    task = parser.add_mutually_exclusive_group()
+    task.add_argument('--pending-state', type=Path, help='Select required checks from an existing task-local workflow record')
+    task.add_argument('--work-id', help='Select required checks from the Harness start baseline')
     parser.add_argument("--record", dest="records", action="append", default=[])
     parser.add_argument("--assessment", dest="assessments", action="append", default=[])
     parser.add_argument("--observation", dest="observations", action="append", default=[])
@@ -1917,13 +2014,14 @@ def main(argv: list[str] | None = None) -> int:
         if not args.root or not args.plan_output or args.execute or args.resume or args.records or args.assessments or args.observations or args.current_context:
             _parser().error('--prepare requires --root and --plan-output, without execution or lookup inputs')
         try:
-            result = prepare_plan(args.root, args.prepare, args.plan_output, report_dir=args.report_dir,
-                                  workflow_state=args.workflow_state)
+            result = prepare_plan(args.root, None if args.prepare == Path('.') else args.prepare, args.plan_output,
+                                  report_dir=args.report_dir, workflow_state=args.workflow_state,
+                                  pending_state=args.pending_state, work_id=args.work_id)
         except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
             result = {'status': 'BLOCKED', 'reason': str(error), 'test_commands_executed': 0}
         print(json.dumps(result, ensure_ascii=False, indent=2 if args.pretty else None))
-        return 0 if result['status'] == 'PREPARED' else 2
-    if args.root or args.plan_output or args.report_dir:
+        return 0 if result['status'] in {'PREPARED', 'NOT_REQUIRED'} else 2
+    if args.root or args.plan_output or args.report_dir or args.pending_state or args.work_id:
         _parser().error('--root, --plan-output and --report-dir require --prepare')
     if args.resume and not args.execute:
         _parser().error('--resume requires --execute')

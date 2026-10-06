@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: caf7c92faa6eb4200b5746d596b34c10a56404e9b1af21380e0a3e699ef7fbdc -->
+<!-- Source-SHA256: e1e68bcb1a29ab6e55578801ceec3a5c02e5e21e6aaf207d17c6f04be0b69e73 -->
 
 # Project workflow obligations
 
@@ -29,6 +29,23 @@ python <skill>/scripts/project_workflow.py review --root <project> --state .work
 ```
 
 `begin` preserves a matching existing record and its dirty baseline. `audit` writes nothing and launches no checks. A review contains `feature`, exact current `basis`, concrete `analysis`, existing `references`, and `findings`. Stale reviews are refused. Partitions remain PARTIAL until links and review inputs reconcile. Source, criteria, command, map and shared UI changes invalidate consumers; unrelated documents do not. Paths never select Full automatically.
+
+Audit also returns `execution_selection`: selected Feature/check pairs, reasons
+for selection/reuse/exclusion, and required Features with missing connections.
+The native JSON CLI and repository unittest adapter use the same deterministic
+selector. Task identity/baseline is bound before execution and checked again
+before storing result pointers. `results` holds existing bundle paths in the same
+task state; it does not add a parallel result ledger or make a semantic review.
+Read-only audit reassesses these results even when Agent review is unfinished.
+Subsequent configured-state begin/start retains result links, feedback and active
+prevention. Maintenance consumes these linked runs without another history list.
+
+The [result contract](result-viewer.md#task-scope-and-required-execution) defines
+task applicability decisions in existing `scope_reviews` and the derived scope
+matrix. An applicable but unreviewed architecture boundary remains an obligation
+alongside passing tests. Architecture findings retain owner/code repair or a
+reasoned exclusion; structural validation does not certify semantic sufficiency.
+The prompt context exposes bounded scope gaps from this audit for later work.
 
 For configured Harness work, normal `start` captures the workflow baseline inside
 its existing atomic `work.json` write; a separate workflow begin is unnecessary.

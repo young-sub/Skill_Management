@@ -58,6 +58,14 @@ The cohort installer preserves replaced trees at its returned `preserved_previou
 
 ## Distribution
 
+Task-native preparation and repository unittest execution share the existing
+workflow obligation selector. The task's immutable identity/baseline is separate
+from mutable review/feedback/result links; the same record owns the latter.
+Execution may attach verified captures while semantic review is unfinished.
+The result viewer projects declared task applicability and per-scope freshness
+without executing commands; architecture structure is validated while meaning
+remains Agent judgment. See the [task result contract](../../authoring/references/result-viewer.md#task-scope-and-required-execution).
+
 `agent-workflow` selects task procedures; `setup-project-verification` connects the first product flow; `maintain-project-verification` repairs product-map, command and UI drift. Their shared references are generated from one canonical source into each self-contained Skill. Existing Harness runtime retains mapping/cohort/retention ownership, while projects own requirements, runner adapters and UI implementation. Combining these capabilities does not turn a Harness integrity PASS into a product PASS or require a contract for ordinary development.
 
 The existing Impeccable entrypoint also loads the canonical repair/reuse reference when the request includes shared UI standards or subsequent-screen reuse. This bounded reverse route matters when a natural UI request selects the UI capability first: the shared implementation, existing guide and active Feature command must travel together. Ordinary visual refinement does not trigger project setup or unrelated maintenance.

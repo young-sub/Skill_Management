@@ -8,7 +8,7 @@ The package identity and version are owned by `distribution/plugin.json`.
 ## Build
 
 ```powershell
-python scripts/build_plugin.py --output .work/plugins/agentic-coding-0.1.40
+python scripts/build_plugin.py --output .work/packages/agentic-coding-0.1.41
 ```
 
 The builder first runs the existing generated-resource check. It selects tracked
@@ -24,6 +24,14 @@ automatically. Use `--run-check` only to override it or with a standalone Skill.
 The repository-specific unittest adapter remains in this repository, not in the
 common plugin. Project native runners and business assertions retain ownership
 of product judgments.
+
+Task delegation uses the existing workflow/result CLIs: register
+`extensions.workflow.assertions`, prepare with `--pending-state` or `--work-id`,
+execute into fresh paths, then inspect the bundle and read-only task audit.
+Execution retains result links independently of unfinished semantic review.
+The [task input contract](../authoring/references/result-viewer.md#task-scope-and-required-execution)
+defines the scope matrix, selection/reuse and architecture evidence. Building
+0.1.41 does not update an existing installation or establish host task acceptance.
 
 ## Capabilities and current boundary
 

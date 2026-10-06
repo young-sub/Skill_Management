@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/project-verification.md -->
-<!-- Source-SHA256: 62d30bca4f464656ca1251b3fa9309edd4bc884e7485ff986a506bc4ab9b71e8 -->
+<!-- Source-SHA256: e7a0cd379c8975899381775dc90ba4f1896f190976ca817a1ca39225d50c71cb -->
 
 # Project verification responsibilities
 
@@ -91,3 +91,13 @@ code/registry consolidation. The CLI verifies connected evidence and records
 PRESERVED or BLOCKED; it neither chooses checks to delete nor runs a pruning loop.
 Prepared native-JSON bundles currently support the raw preservation join; other
 project adapters must provide compatible bindings before that join can resolve.
+
+Connected tasks register the assertion path once and reuse the existing native
+preparation/execution CLI's task selector; see [task scope and execution](result-viewer.md#task-scope-and-required-execution).
+Maintenance automatically consumes task `results` bundle pointers alongside
+review/feedback/retirement evidence. The project continues to own Launch → Doctor
+→ Drive → Evidence → Cleanup. Register the actual foreground adapter and assert
+saved values, fresh read/reload and resource cleanup from its native report.
+The common CLI captures that report; it does not invent browser/API/Domain
+observations or supply a generic lifecycle runner. Non-JSON detail remains linked
+through the existing project adapter/raw evidence contract when needed.

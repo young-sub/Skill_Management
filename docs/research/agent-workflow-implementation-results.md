@@ -1,13 +1,71 @@
 # Agent workflow implementation and acceptance
 
-Current user-function delivery is plugin **0.1.40**, built locally at
-`.work/plugins/agentic-coding-0.1.40-delivery` (19 existing Skills, 246 files).
+Current user-function source is plugin **0.1.41** in the isolated
+`wp-20261006-full-stack-workflow` worktree, based on `172dfa3b8087b3c2de57b547165dbb46d0bbe263`.
 The A/B/C/D sections below distinguish deterministic CLI behavior from reused
 Agent diagnosis/design/semantic review. The package was not installed or published;
 ordinary/global installs, original Labeler and protected branches were unchanged.
 Local user-function completion does not resolve protected-host acceptance or prove
 new native Agent quality/performance. Historical host-first limitations below are
 not prerequisites for this implementation.
+
+## Task delegation connection, 2026-10-06
+
+The CLI now connects task scope, execution and current results. Existing
+`scope_reviews` hold explicit applicability for business/architecture × FE/BE/API/Domain;
+the matrix is derived from those decisions and existing requirement/outcome rows.
+Empty cells remain UNDECIDED. Matching declarations cannot be silently omitted.
+`registered_status` is bounded row coverage; it is distinct from task scope and
+check PASS. Multiple area tags do not grant every boundary a passing result.
+
+The shared deterministic selector drives both `verify_product.py`'s existing
+unittest path and native JSON preparation. Projects register the assertion file
+once, then use `--prepare --pending-state` or `--work-id`, explicit execute and
+read-only lookup. Task identity, baseline, selection and source conditions are
+checked before execution; result links attach to the existing task record without
+requiring semantic PASS. Partial valid evidence is reused per check; unrelated
+Features stay out of prepared plans. Completed resume executes nothing. Missing
+connections and reasoned exclusions stay visible, and exclusions are NOT_REQUIRED
+rather than test PASS. Unittest discovery/import blockers retain their raw cause.
+
+Architecture review retains actual flow/owner, contract/dependency/failure
+boundaries and open/fixed/excluded findings. A string-only PASS cannot satisfy
+the structure. Fixed findings bind changed owner bytes to the work baseline;
+open findings remain ISSUES even after their coverage row or Feature is removed.
+Later review requires an explicit disposition. Extra scope references stale independently. Semantic
+adequacy and causal judgment remain Agent work. Prompt context, follow-up work
+and maintenance consume the same scope, prevention and result links. Existing UI
+consumer and retirement/detection preservation behavior is reused.
+
+Actual local CLI evidence is retained at
+`.work/fullstack-task-20261006/project-final/.work/transcripts` in this worktree.
+The small project-owned HTTP adapter performs Launch, health Doctor, real POST/
+GET Drive, disk persistence, server restart and fresh read, native Evidence and
+owned-process Cleanup. Negative input produced ISSUES; the Domain owner repair
+produced PASS while semantic review was still NOT_RUN. Lookup and completed resume
+executed zero checks; feedback resolved with RED/GREEN and the zero normal case,
+and the next task retained prevention/results. A later extra review-reference
+change kept tests PASS while only the architecture row became STALE; lookup changed
+no input files. A separate observation report
+produced BLOCKED. FE was explicitly excluded because this trial has no UI.
+
+Impacted regression logs are retained under `.work/regression-retained`. The
+156-case run completed with 154 passes and two setup failures: generated drift
+during a concurrent canonical edit, and a non-Git fixture incorrectly inheriting
+the worktree's parent Git repository. After correcting those conditions, the
+affected cases were rerun individually. The final workflow module also passed
+34 cases, including preservation of unresolved architecture owner findings.
+
+Regression fixture deletion stalled in Windows `os.unlink`. The task-local
+fallback retains temporary fixtures and runs test bodies and product cleanup
+checks unchanged. Initial fixtures are under `.work/regression-retained`;
+the isolated non-Git fixture uses a new standard temporary directory to avoid
+parent Git discovery. Normal fixture garbage collection remains unverified.
+This is limited local CLI/product-adapter evidence. It does not establish general
+Agent task effectiveness, installed-host discovery, browser UI behavior or
+protected-host acceptance. No installation, global configuration, original Labeler,
+protected branch, push or publication was changed. Historical sections below
+retain their original version and acceptance scope.
 
 ## User-function completion: full-stack scope, 2026-10-06
 

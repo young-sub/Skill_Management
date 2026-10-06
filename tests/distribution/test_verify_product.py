@@ -134,6 +134,13 @@ class VerifyProductTests(unittest.TestCase):
                 self.assertNotEqual(code, 0)
                 self.assertEqual(verdict['status'], expected, verdict)
 
+    def test_unavailable_test_import_is_a_blocker_with_raw_cause(self):
+        self.suite.write_text('import missing_task_test_dependency\n')
+        code, verdict = self.verify('--output', str(self.output))
+        self.assertEqual(verdict['status'], 'BLOCKED', verdict)
+        self.assertEqual(code, 2)
+        self.assertIn('missing_task_test_dependency', self.output.read_text())
+
     def test_shared_native_check_runs_once_for_selected_features(self):
         project_path = self.root / '.harness/project.yaml'
         project = json.loads(project_path.read_text())

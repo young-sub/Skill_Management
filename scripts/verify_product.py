@@ -8,6 +8,7 @@ import json
 import math
 from pathlib import Path
 import re
+import runpy
 import subprocess
 import sys
 
@@ -32,7 +33,7 @@ def execute_feature(root, feature, output, timeout):
             'bundle': outcome['bundles'][feature], 'results': outcome['results'][feature]}
 
 
-def execute_features(root, features, output, timeout):
+def execute_features(root, features, output, timeout, selected_checks=None):
     """Share only the same registered check/argv/cwd within this execution batch."""
     project = json.loads((root / '.harness/project.yaml').read_text(encoding='utf-8'))
     commands = dict(project['commands'])
@@ -44,6 +45,8 @@ def execute_features(root, features, output, timeout):
     selected = {}
     for feature in features:
         for check in dict.fromkeys(mapping[feature]):
+            if selected_checks is not None and (feature, check) not in selected_checks:
+                continue
             argv, cwd = check_target(root, feature, check)
             selected.setdefault((check, tuple(argv), cwd), []).append(feature)
     output = output.resolve()
@@ -99,23 +102,16 @@ def feature_checks(root, commands):
 
 def execute_pending(root, state, work_id, output, timeout):
     """Ask the existing runtime to recompute obligations, never trust a saved verdict."""
-    if state:
-        path = (root / state).resolve()
-        if not path.is_relative_to(root / '.work') or not path.is_file():
-            raise ValueError('Pending selection requires an existing task-local state')
-    selection = ['--state', state] if state else ['--work-id', work_id]
-    completed = subprocess.run([sys.executable, str(Path(__file__).with_name('project_workflow.py')),
-        'audit', '--root', str(root), *selection], capture_output=True, text=True, encoding='utf-8')
-    audit = json.loads(completed.stdout)
-    if completed.returncode not in (0, 2) or audit.get('status') not in {'PARTIAL', 'READY_FOR_REVIEW'}:
-        raise ValueError(f'Workflow selection unavailable: {audit.get("findings", [])}')
-    selected = [feature['id'] for feature in audit['features'] if feature.get('verification_status') == 'REQUIRED']
-    if any(feature.get('verification_status') not in {'PASS', 'REQUIRED', 'NOT_REQUIRED'} for feature in audit['features']):
-        raise ValueError('Workflow runtime does not expose current verification requirements')
-    context = {'selected_features': selected, 'workflow_status': audit['status'],
-               'remaining_obligations': audit['obligations'], 'product_findings': audit['product_findings']}
+    workflow = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'authoring/scripts/project_workflow.py'))
+    record, state_path = workflow['task_state'](root, state, work_id)
+    project = json.loads((root / '.harness/project.yaml').read_text(encoding='utf-8'))
+    audit = workflow['inspect_project'](root, project, record)
+    context = workflow['pending_selection'](audit)
+    selected_checks = {(item['feature'], item['check']) for item in context['selected_checks']}
+    selected = list(dict.fromkeys(item['feature'] for item in context['selected_checks']))
+    context['selected_features'] = selected
     if not selected:
-        return {'status': 'NOT_REQUIRED', 'executed_checks': 0, **context}
+        return {'status': 'BLOCKED' if context['unconnected_features'] else 'NOT_REQUIRED', 'executed_checks': 0, **context}
     project = json.loads((root / '.harness/project.yaml').read_text(encoding='utf-8'))
     commands = dict(project['commands'])
     commands.update(project.get('impact', {}).get('feature_selectors', {}))
@@ -123,7 +119,12 @@ def execute_pending(root, state, work_id, output, timeout):
     configured = {f['id']: f['checks'] for f in project['extensions']['workflow']['features']}
     if any(set(mapping.get(feature, [])) != set(configured[feature]) for feature in selected):
         raise ValueError('Feature Map and workflow check selection disagree')
-    return {**execute_features(root, selected, output, timeout), **context}
+    result = execute_features(root, selected, output, timeout, selected_checks)
+    updated = workflow['bind_results'](root, state_path.relative_to(root), result['bundles'], work_id=work_id,
+                                      expected_identity=workflow['task_identity'](record))
+    current = workflow['inspect_project'](root, project, updated)
+    return {**result, **context, 'current_workflow_status': current['status'], 'current_coverage': current['coverage'],
+            'task_result_binding': str(state_path)}
 
 
 def check_target(root, feature, check):

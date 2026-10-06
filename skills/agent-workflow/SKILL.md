@@ -4,7 +4,7 @@ description: Coordinate a coding task from a natural-language request through re
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: 3ccd52b889d19cfe67200e3b2bdd97dd9c3cc11642c28cdd9cd940908a9a822a -->
+<!-- Source-SHA256: 68f01011dd1eb8dd31a35105bde16cf9cb8a7cb04f50eaafcdbeebd549d8ede1 -->
 
 
 # Agent Workflow
@@ -30,6 +30,16 @@ When the project already provides the native unittest adapter described in its g
 For registered native JSON checks, the bundled [verification CLI](scripts/verification_results.py) prepares measured bindings with `--prepare`, runs selected checks once with `--execute`, and joins their captures, assessments and raw observations into a reusable bundle. Read its [input and reuse contract](references/result-viewer.md). Reuse the project's reviewed assertion specification and execution connection; if missing, use the setup responsibility to connect them within the authorized scope. In an installed plugin the CLI discovers its bundled capture script automatically. Keep criterion selection and visual judgment with the Agent; let the CLI collect identities, run commands and build the bundle instead of recreating that work in shell snippets.
 
 For lookup-only requests use `--bundle` (optionally `--summary`) or read existing raw evidence. Lookup runs no recorded command. If compatible bindings are missing, report that limit; do not manufacture a successful plan or backfill evidence through execution. A native pass without a bundle remains bounded native evidence, not current reusable workflow acceptance.
+
+For a connected task, use `--prepare --root <project> --pending-state .work/task.json`
+(`--work-id` for Harness work), with new plan/report paths. The registry's
+`extensions.workflow.assertions` supplies reviewed assertions; the CLI selects
+pending checks, reuses valid results and explains exclusions. Explicit execution
+attaches the resulting bundle to that task independently of semantic review.
+Use the subsequent read-only workflow audit for current obligations and its
+business/architecture × FE/BE/API/Domain matrix. Record applicability and
+architecture flow/boundary/finding evidence in the existing `scope_reviews`;
+an empty cell remains UNDECIDED. The input contract specifies those fields.
 
 Consume the result's `coverage` alongside test verdicts. Project Feature `coverage` connects requirements/outcomes to independent business/architecture perspectives and FE/BE/API/Domain responsibilities; cross-layer/E2E describes the method. Fill only applicable links. Record semantic `scope_reviews` through the existing workflow review and include `--workflow-state` during preparation when those reviews are needed in retained results. Report semantic review separately from executed tests and retain missing, excluded and stale scope.
 

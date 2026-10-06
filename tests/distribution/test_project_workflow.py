@@ -67,6 +67,153 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertEqual(result['enforcement'], 'BLOCKED')
         self.assertEqual(runtime.inspect_project(self.root, self.project, state), result)
 
+    def test_task_matrix_requires_explicit_scope_and_does_not_expand_shared_check(self):
+        runtime = self.runtime()
+        feature = self.project['extensions']['workflow']['features'][0]
+        feature['coverage'] = [
+            {'id': 'price', 'requirement': 'docs/requirement.md', 'outcome': 'Price ten',
+             'perspectives': ['business'], 'areas': ['BE/API', 'Domain'], 'kind': 'test', 'check': 'check'},
+            {'id': 'owner', 'requirement': 'docs/requirement.md', 'outcome': 'Single state owner',
+             'perspectives': ['architecture'], 'areas': ['Domain'], 'kind': 'review'},
+            {'id': 'display', 'requirement': 'docs/requirement.md', 'outcome': 'Visible price',
+             'perspectives': ['business'], 'areas': ['FE'], 'kind': 'test'}]
+        state = runtime.begin(self.root, self.project, 'change')
+        self.write('src/api.py', 'price = 10\n# changed\n')
+        basis = runtime.inspect_project(self.root, self.project, state)['features'][0]['basis']
+        review = {'feature': 'api', 'basis': basis, 'analysis': 'Mapping is current; ownership review remains.',
+                  'references': ['src/api.py'], 'findings': [], 'bundle': '.work/native.json',
+                  'scope_reviews': {
+                      'business:Domain': {'status': 'REQUIRED', 'analysis': 'Price rule changed',
+                                          'references': ['src/api.py'], 'coverage': ['price']},
+                      'business:FE': {'status': 'REQUIRED', 'analysis': 'Display needs a check',
+                                      'references': ['src/api.py'], 'coverage': ['display']},
+                      'architecture:Domain': {'status': 'REQUIRED', 'analysis': 'Owner changed',
+                                              'references': ['src/api.py'], 'coverage': ['owner']},
+                      'architecture:FE': {'status': 'NOT_REQUIRED', 'analysis': 'No UI owner change',
+                                          'reason': 'API-only implementation', 'references': ['src/api.py']}}}
+        try:
+            state = runtime.record_review(self.root, self.project, state, review)
+        except ValueError as error:
+            self.fail(f'Existing review cannot record task scope decisions: {error}')
+        item = {'feature': 'api', 'id': 'check', 'historical_status': 'PASS', 'current_status': 'PASS',
+                'current_reuse': 'REUSABLE', 'selected': True, 'reasons': [], 'run_id': 'run',
+                'capture': {'argv': ['native'], 'cwd': str(self.root)}, 'raw': [],
+                'selection': {'status': 'selected', 'reason': 'price rule changed'}}
+        result = runtime.inspect_project(self.root, self.project, state,
+            evidence_resolver=lambda *_: {'status': 'PASS', 'findings': [], 'items': [item]})
+        matrix = {c['perspective'] + ':' + c['area']: c for c in result['coverage']['matrix'] if c['feature'] == 'api'}
+        self.assertEqual(matrix['business:Domain']['status'], 'PASS')
+        self.assertEqual(matrix['business:BE/API']['status'], 'UNDECIDED')
+        self.assertEqual(matrix['business:FE']['status'], 'MISSING')
+        self.assertEqual(matrix['architecture:Domain']['status'], 'NOT_RUN')
+        self.assertEqual(matrix['architecture:FE']['status'], 'NOT_REQUIRED')
+        self.assertEqual(result['features'][0]['verification_status'], 'PASS')
+        self.assertEqual(result['coverage']['status'], 'PARTIAL')
+        self.assertEqual(result['status'], 'PARTIAL')
+        self.assertEqual(result['coverage']['rows'][0]['evidence']['run_id'], 'run')
+
+    def test_registered_pass_without_scope_decisions_is_not_full_scope_complete(self):
+        runtime = self.runtime()
+        rows = [{'feature': 'api', 'id': 'price', 'status': 'PASS',
+                 'perspectives': ['business'], 'areas': ['Domain']}]
+        summary = runtime.coverage_summary(rows)
+        self.assertIn('registered_status', summary, 'Registered coverage must be distinguished from scope discovery')
+        self.assertEqual(summary['registered_status'], 'COMPLETE')
+        self.assertNotEqual(summary['status'], 'COMPLETE')
+
+    def test_omitted_matching_requirement_cannot_complete_scope(self):
+        runtime = self.runtime()
+        rows = [dict(feature='api', id=name, status=status, perspectives=['architecture'], areas=['Domain'])
+                for name, status in [('one', 'PASS'), ('two', 'NOT_RUN')]]
+        scopes = {p + ':' + a: {'status': 'NOT_REQUIRED', 'reason': 'Outside this task'}
+                  for p in ('business', 'architecture') for a in ('FE', 'BE/API', 'Domain')}
+        scopes['architecture:Domain'] = {'status': 'REQUIRED', 'coverage': ['one']}
+        matrix = runtime.scope_matrix({'id': 'api'}, {'basis': 'basis', 'scope_reviews': scopes}, 'basis', rows)
+        self.assertNotEqual(runtime.coverage_summary(rows, matrix)['status'], 'COMPLETE')
+
+    def test_all_check_exclusions_do_not_become_test_pass(self):
+        runtime = self.runtime()
+        feature = self.project['extensions']['workflow']['features'][0]
+        feature['coverage'] = [dict(id='unused', requirement='docs/requirement.md', outcome='Other case',
+                                    perspectives=['business'], areas=['Domain'], kind='test', check='check')]
+        state = runtime.begin(self.root, self.project, 'change', ['api'])
+        basis = runtime.inspect_project(self.root, self.project, state)['features'][0]['basis']
+        state = runtime.record_review(self.root, self.project, state, {
+            'feature': 'api', 'basis': basis, 'analysis': 'No product behavior changed', 'references': ['src/api.py'], 'findings': [],
+            'scope_reviews': {'unused': {'status': 'NOT_REQUIRED', 'reason': 'No impact on this behavior',
+                                        'analysis': 'Inspected unchanged path', 'references': ['src/api.py']}}})
+        self.assertEqual(runtime.inspect_project(self.root, self.project, state)['features'][0]['verification_status'], 'NOT_REQUIRED')
+
+    def test_architecture_needs_flow_boundary_and_owner_resolution_evidence(self):
+        runtime = self.runtime()
+        feature = self.project['extensions']['workflow']['features'][0]
+        feature['coverage'] = [{'id': 'owner', 'requirement': 'docs/requirement.md', 'outcome': 'One owner',
+                                'perspectives': ['architecture'], 'areas': ['Domain'], 'kind': 'review'}]
+        state = runtime.begin(self.root, self.project, 'change')
+        basis = runtime.inspect_project(self.root, self.project, state)['features'][0]['basis']
+        review = {'feature': 'api', 'basis': basis, 'analysis': 'Reviewed ownership', 'references': ['src/api.py'],
+                  'findings': [], 'scope_reviews': {'owner': {'status': 'PASS', 'analysis': 'Looks fine',
+                                                          'references': ['src/api.py']}}}
+        with self.assertRaisesRegex(ValueError, 'architecture_evidence'):
+            runtime.record_review(self.root, self.project, state, review)
+        scope = review['scope_reviews']['owner']
+        scope['architecture'] = {
+            'flows': [{'owner': 'src/api.py', 'call': 'CLI -> API price', 'state': 'API owns price',
+                       'data': 'price read -> result', 'references': ['src/api.py', 'src/cli.py']}],
+            'boundaries': [{'kind': kind, 'analysis': 'Unchanged in this task', 'references': ['src/api.py']}
+                           for kind in ('contract', 'dependency', 'failure')],
+            'findings': [{'id': 'duplicate-owner', 'problem': 'CLI stores a copy', 'status': 'open',
+                          'owner': 'src/cli.py', 'references': ['src/cli.py']}]}
+        state = runtime.record_review(self.root, self.project, state, review)
+        current = runtime.inspect_project(self.root, self.project, state)
+        self.assertEqual(current['coverage']['rows'][0]['status'], 'ISSUES')
+        open_state = state
+        self.assertEqual(current['coverage']['rows'][0]['evidence']['architecture']['findings'][0]['owner'], 'src/cli.py')
+        finding = scope['architecture']['findings'].pop()
+        with self.assertRaisesRegex(ValueError, 'unresolved_architecture_finding'):
+            runtime.record_review(self.root, self.project, state, review)
+        scope['architecture']['findings'].append(finding)
+        scope['architecture']['findings'][0].update(status='excluded', reason='CLI copy is an immutable display snapshot')
+        state = runtime.record_review(self.root, self.project, state, review)
+        self.assertEqual(runtime.inspect_project(self.root, self.project, state)['coverage']['rows'][0]['status'], 'PASS')
+        feature['coverage'] = []
+        basis = runtime.inspect_project(self.root, self.project, open_state)['features'][0]['basis']
+        with self.assertRaisesRegex(ValueError, 'unresolved_architecture_finding'):
+            runtime.record_review(self.root, self.project, open_state, dict(review, basis=basis, scope_reviews={}))
+        finding['status'] = 'open'
+        carried = runtime.record_review(self.root, self.project, open_state, dict(review, basis=basis))
+        audited = runtime.inspect_project(self.root, self.project, carried)
+        self.assertEqual(audited['status'], 'PARTIAL')
+        self.assertTrue(any(p.get('owner') == 'src/cli.py' for p in audited['product_findings']))
+        self.project['extensions']['workflow']['features'].remove(feature)
+        retired = runtime.inspect_project(self.root, self.project, carried)
+        self.assertTrue(any(p.get('owner') == 'src/cli.py' for p in retired['product_findings']))
+        basis = retired['retired'][0]['basis']
+        with self.assertRaisesRegex(ValueError, 'unresolved_architecture_finding'):
+            runtime.record_review(self.root, self.project, carried, dict(review, basis=basis, scope_reviews={}))
+        reconciled = runtime.record_review(self.root, self.project, carried, dict(review, basis=basis))
+        retained = json.dumps(reconciled, sort_keys=True)
+        self.assertTrue(any(p.get('owner') == 'src/cli.py' for p in
+                            runtime.inspect_project(self.root, self.project, reconciled)['product_findings']))
+        self.assertEqual(json.dumps(reconciled, sort_keys=True), retained, 'Retirement audit is read-only')
+
+    def test_changed_review_reference_only_stales_its_scope(self):
+        runtime = self.runtime()
+        feature = self.project['extensions']['workflow']['features'][0]
+        feature['coverage'] = [dict(id=name, requirement='docs/requirement.md', outcome='Expected rule',
+                                    perspectives=['business'], areas=['Domain'], kind='review') for name in ('one', 'two')]
+        self.write('docs/one.md', 'one\n')
+        self.write('docs/two.md', 'two\n')
+        state = runtime.begin(self.root, self.project, 'change')
+        basis = runtime.inspect_project(self.root, self.project, state)['features'][0]['basis']
+        review = {'feature': 'api', 'basis': basis, 'analysis': 'Rules reviewed separately', 'references': ['src/api.py'],
+                  'findings': [], 'scope_reviews': {name: {'status': 'PASS', 'analysis': 'Rule checked',
+                                                         'references': ['docs/' + name + '.md']} for name in ('one', 'two')}}
+        state = runtime.record_review(self.root, self.project, state, review)
+        self.write('docs/one.md', 'one changed\n')
+        rows = runtime.inspect_project(self.root, self.project, state)['coverage']['rows']
+        self.assertEqual([r['status'] for r in rows], ['STALE', 'PASS'])
+
     def test_scope_axes_review_exclusion_failure_and_stale_remain_distinct(self):
         runtime = self.runtime()
         feature = self.project['extensions']['workflow']['features'][0]

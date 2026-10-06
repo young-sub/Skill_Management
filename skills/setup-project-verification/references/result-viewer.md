@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/result-viewer.md -->
-<!-- Source-SHA256: c578c9e6d62772ea896c633049d640d6ee25bb4d4c0de36d3f635e91f7ad7736 -->
+<!-- Source-SHA256: b0804ae96671b7a290a1cf8aa5fcfe6284515c96a4df8414ba8baa2b6f986e14 -->
 
 # Existing-result lookup
 
@@ -180,3 +180,63 @@ original `historical_status`/`historical_evidence` separately from the current
 analysis/reference binding; changed inputs or incomplete reviews remain stale or
 blocked. Historical plans/raw are preserved. Lookup never
 executes a command from the scope or reviews.
+
+## Task scope and required execution
+
+`coverage.registered_status` counts declared rows only. `coverage.status` describes
+the declared task scope; neither attests that every requirement was discovered.
+`coverage.matrix` projects business/architecture × FE/BE/API/Domain independently,
+with `in_task` identifying the current work's impact. Method remains direct,
+cross-layer or e2e. Empty cells are UNDECIDED, never PASS or an automatic exclusion.
+
+In the existing Feature review's `scope_reviews`, use cell keys such as
+`business:Domain`. Each cell decision has `status: REQUIRED`, `coverage: [row IDs]`,
+`analysis` and existing-file `references`, or `status: NOT_REQUIRED` with a nonblank
+`reason`, analysis and references. Required cells must account for every matching
+declared row, either by an explicit link or a reasoned row exclusion. A check
+tagged with several areas does not automatically confirm the other cells.
+MISSING connections, NOT_RUN, ISSUES, BLOCKED with reasons, UNDECIDED,
+NOT_REQUIRED and STALE remain distinct. Rows retain original run, command, target,
+judgment and raw pointers. Check PASS, scope completion and workflow obligations
+are separate results; exclusions are not test passes.
+
+Register the reusable assertion file once at `extensions.workflow.assertions`.
+For later tasks, the existing CLI recomputes required checks instead of asking
+the Agent to reconstruct the command order or rewrite assertions:
+
+```text
+python <agent-workflow>/scripts/verification_results.py --prepare --root <project> --pending-state .work/task.json --plan-output .work/run-2/plan.json --report-dir .work/run-2/native
+python <agent-workflow>/scripts/verification_results.py --plan <project>/.work/run-2/plan.json --execute --evidence-dir <project>/.work/run-2/evidence
+python <agent-workflow>/scripts/verification_results.py --bundle <project>/.work/run-2/evidence/bundle.json --summary
+python <agent-workflow>/scripts/project_workflow.py audit --root <project> --state .work/task.json
+```
+
+Standalone/repository execution also passes `--run-check <project>/scripts/run_check.py`;
+the plugin already discovers its bundled capture tool. `--work-id` selects the
+existing Harness baseline instead of `--pending-state`. An explicit
+`--prepare <assertion-file>` remains supported. Preparation selects affected
+Features, keeps same-Feature exclusions/reuse explanations, and starts no command.
+Missing required assertions block. With no pending checks it returns NOT_REQUIRED
+and creates no plan; required Features without check connections remain BLOCKED.
+
+Execution rechecks task identity, selection and measured conditions, then retains
+the bundle pointer in that task's existing `results` field independently of
+semantic review. Review does not have to be complete to see real test results.
+Valid check evidence is reused individually; only unavailable checks are selected
+again. Completed `--resume` and lookup execute zero commands and do not change the
+task state. Existing bundles remain preserved. Single-writer task updates remain
+the supported concurrency boundary, not host-protected attestation.
+
+An architecture review row needs structured `architecture` evidence alongside
+its Agent analysis: nonempty `flows` with owner file, call/state/data descriptions
+and references; `boundaries` covering contract/dependency/failure with analysis
+and references; and `findings` with problem, owner, references and open/fixed/excluded
+disposition. Open findings remain ISSUES even with a submitted PASS. Removing a
+coverage row or retiring its Feature keeps the owner/problem/reference evidence
+and product-resolution obligation; a later review cannot drop their IDs without
+a disposition. Exclusion
+needs a reason. A fixed finding's `repair` binds owner `path`, `before_sha256` from
+the work baseline and actual `after_sha256`; unchanged owner bytes cannot claim a
+repair. Code validates structure and freshness, while the Agent judges meaning
+and sufficiency. Scope references are hashed independently so changing one
+review's extra reference stales that review, rather than every sibling review.

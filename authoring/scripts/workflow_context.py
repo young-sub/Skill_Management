@@ -6,6 +6,17 @@ import subprocess
 import sys
 
 
+def scope_context(audit):
+    coverage = audit['coverage']
+    gaps = [f"{c['feature']}/{c['perspective']}/{c['area']}:{c['status']}" for c in coverage['matrix']
+            if c['status'] not in {'PASS', 'NOT_REQUIRED'}]
+    return {'status': coverage['status'], 'registered_status': coverage['registered_status'],
+            'gap_count': len(gaps), 'gaps': gaps[:6],
+            'reviews': [{'feature': row['feature'], 'id': row['id'], 'status': row['status'],
+                         'reasons': row['reasons'], 'evidence': row['evidence']}
+                        for row in coverage['rows'] if row['kind'] == 'review' and row['status'] != 'PASS'][:3]}
+
+
 def context(payload):
     if not isinstance(payload, dict):
         raise ValueError('hook_input_must_be_object')
@@ -49,6 +60,8 @@ def context(payload):
             item.update(status=work['status'], obligation_count=len(work['obligations']),
                         obligations=[{'target': row['target'], 'requires': row['requires']}
                                      for row in work['obligations'][:3]], findings=work['findings'][:3])
+            if work['coverage']['rows']:
+                item['scope'] = scope_context(work)
         except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
             item.update(status='BLOCKED', error=str(error))
         summary['active_work'].append(item)
@@ -60,6 +73,7 @@ def context(payload):
                            for entry in audit.get('feedback', [])[:5]]
     summary['ui_systems'] = [{key: entry.get(key) for key in ('id', 'guide', 'tokens', 'components', 'consumers', 'exceptions', 'findings')}
                             for entry in audit.get('ui_systems', [])[:4]]
+    summary['scope'] = scope_context(audit)
     # Bounded context, with the existing audit retaining the complete result.
     detail = json.dumps(summary, ensure_ascii=False, separators=(',', ':'))
     if len(detail) > 5500:

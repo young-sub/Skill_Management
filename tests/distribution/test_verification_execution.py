@@ -21,6 +21,141 @@ def _digest(data: bytes) -> str:
 
 
 class VerificationExecutionTests(unittest.TestCase):
+    def test_registered_task_selection_executes_only_pending_and_binds_without_semantic_pass(self, exclude=False, partial=False, replace_task=False, work_id=False):
+        import copy
+        import runpy
+        api = runpy.run_path(str(VIEWER))
+        workflow = runpy.run_path(str(VIEWER.with_name('project_workflow.py')))
+        original = json.loads(self._plan().read_text())['checks'][0]
+        (self.project / '.gitignore').write_text('.work/\n__pycache__/\n')
+        (self.project / 'check.py').write_text(
+            "import json,sys\nfrom pathlib import Path\n"
+            "p=Path(sys.argv[1]);p.parent.mkdir(parents=True,exist_ok=True)\n"
+            "p.write_text(json.dumps({'checks':[{'sum':5,'readback':'ok'}]}))\n"
+            "count=Path('.work/calls');count.write_text(str(int(count.read_text())+1) if count.exists() else '1')\n")
+        feature = {'id': 'fixture-product', 'partition': 'orders', 'sources': ['check.py'],
+                   'map': ['fixture.json'], 'criteria': ['fixture.json'], 'checks': ['arithmetic-readback'],
+                   'coverage': [{'id': 'sum', 'requirement': 'fixture.json', 'outcome': 'Saved sum',
+                                 'perspectives': ['business'], 'areas': ['Domain'], 'kind': 'test', 'check': 'arithmetic-readback'},
+                                {'id': 'owner', 'requirement': 'fixture.json', 'outcome': 'Single owner',
+                                 'perspectives': ['architecture'], 'areas': ['Domain'], 'kind': 'review'}]}
+        untouched = dict(feature, id='untouched', sources=['dependency.txt'], checks=['unneeded'], coverage=[])
+        config = {'commands': {'arithmetic-readback': [sys.executable, 'check.py', '{report_dir}/result.json'],
+                               'unneeded': [sys.executable, 'must_not_run.py', '{report_dir}/unused.json']},
+                  'extensions': {'workflow': {'roots': ['check.py', 'dependency.txt'], 'features': [feature, untouched],
+                                              'assertions': 'assertions.json'}}}
+        (self.project / '.harness').mkdir()
+        (self.project / '.harness/project.yaml').write_text(json.dumps(config))
+        item = {k: original[k] for k in ('id', 'feature_id', 'expected', 'required', 'selection', 'raw_observations')}
+        item['raw_observations'][0]['path'] = '{report_dir}/result.json'
+        item.update(dependency={'file_refs': ['dependency.txt']}, fixture={'file_refs': ['fixture.json']})
+        unused = copy.deepcopy(item)
+        unused.update(id='unneeded', feature_id='untouched')
+        unused['raw_observations'][0]['path'] = '{report_dir}/unused.json'
+        if exclude:
+            feature['checks'].append('unneeded')
+            feature['coverage'].append({'id': 'unused', 'requirement': 'fixture.json', 'outcome': 'Other scenario',
+                                       'perspectives': ['business'], 'areas': ['Domain'], 'kind': 'test', 'check': 'unneeded'})
+            unused['feature_id'] = feature['id']
+            (self.project / '.harness/project.yaml').write_text(json.dumps(config))
+        specifications = [item, unused]
+        if partial:
+            feature['checks'].append('extra')
+            feature['coverage'].append(dict(feature['coverage'][0], id='extra', check='extra'))
+            config['commands']['extra'] = [sys.executable, 'check.py', '{report_dir}/extra.json']
+            extra = copy.deepcopy(item)
+            extra['id'] = 'extra'
+            extra['raw_observations'][0]['path'] = '{report_dir}/extra.json'
+            specifications.append(extra)
+            (self.project / '.harness/project.yaml').write_text(json.dumps(config))
+        (self.project / 'assertions.json').write_text(json.dumps({'schema_version': 1, 'checks': specifications}))
+        state = workflow['begin'](self.project, config, 'change')
+        with (self.project / 'check.py').open('a') as stream:
+            stream.write('# changed behavior\n')
+        if exclude:
+            basis = workflow['inspect_project'](self.project, config, state)['features'][0]['basis']
+            state = workflow['record_review'](self.project, config, state, {
+                'feature': feature['id'], 'basis': basis, 'analysis': 'Other scenario is unchanged',
+                'references': ['check.py'], 'findings': ['Semantic review is pending'],
+                'scope_reviews': {'unused': {'status': 'NOT_REQUIRED', 'reason': 'No change to other scenario',
+                                             'analysis': 'Independent scenario', 'references': ['check.py']}}})
+        (self.project / '.work').mkdir(exist_ok=True)
+        state_path = self.project / '.work/task.json'
+        state_path.write_text(json.dumps(state))
+        command = [sys.executable, str(VIEWER), '--prepare', '--root', str(self.project),
+                   '--pending-state', '.work/task.json', '--plan-output', '.work/run/plan.json', '--report-dir', '.work/run/native']
+        if work_id:
+            directory = self.project / '.work/goals/active/W-NATIVE'
+            directory.mkdir(parents=True)
+            (directory / 'work.json').write_text(json.dumps({'work_id': 'W-NATIVE', 'state': 'active',
+                                                            'source_commit': state['base'], 'workflow_baseline': state}))
+            state_path = directory / 'workflow.json'
+            command[command.index('--pending-state'):command.index('--pending-state') + 2] = ['--work-id', 'W-NATIVE']
+        prepared = subprocess.run(command, capture_output=True, text=True)
+        self.assertEqual(prepared.returncode, 0, prepared.stdout + prepared.stderr)
+        selection = json.loads(prepared.stdout)
+        self.assertEqual(selection['selected_checks'], [{'feature': 'fixture-product', 'check': name}
+                                                      for name in (['arithmetic-readback', 'extra'] if partial else ['arithmetic-readback'])])
+        plan = self.project / '.work/run/plan.json'
+        self.assertNotIn('untouched', [f['id'] for f in json.loads(plan.read_text())['workflow_scope']['features']],
+                         'Task preparation must stay within affected Features')
+        if replace_task:
+            replacement = workflow['begin'](self.project, config, 'change', ['fixture-product'])
+            state_path.write_text(json.dumps(replacement))
+        result = api['execute_plan'](plan, run_check_path=RUN_CHECK, evidence_dir=self.project / '.work/run/evidence')
+        if replace_task:
+            self.assertEqual(result['status'], 'BLOCKED', result)
+            self.assertEqual(result['test_commands_executed'], 0)
+            self.assertFalse((self.project / '.work/calls').exists())
+            return
+        self.assertEqual(result['status'], 'PASS', result)
+        self.assertEqual(result['test_commands_executed'], 2 if partial else 1)
+        current = workflow['inspect_project'](self.project, config, json.loads(state_path.read_text()))
+        self.assertEqual(current['features'][0]['verification_status'], 'PASS')
+        self.assertFalse(current['features'][0]['reviewed'])
+        self.assertEqual(current['coverage']['rows'][0]['status'], 'PASS')
+        self.assertEqual(current['coverage']['rows'][1]['status'], 'NOT_RUN')
+        before = state_path.read_bytes()
+        looked_up = api['view_bundle'](result['execution']['bundle_path'])
+        resumed = api['execute_plan'](plan, run_check_path=RUN_CHECK, evidence_dir=self.project / '.work/run/evidence', resume=True)
+        self.assertEqual(looked_up['test_commands_executed'], 0)
+        self.assertEqual(resumed['test_commands_executed'], 0)
+        self.assertEqual((self.project / '.work/calls').read_text(), '2' if partial else '1')
+        self.assertEqual(state_path.read_bytes(), before)
+        command[command.index('--plan-output') + 1] = '.work/reused/plan.json'
+        command[command.index('--report-dir') + 1] = '.work/reused/native'
+        reused = subprocess.run(command, capture_output=True, text=True)
+        self.assertEqual(reused.returncode, 0, reused.stdout + reused.stderr)
+        self.assertEqual(json.loads(reused.stdout)['status'], 'NOT_REQUIRED')
+        self.assertFalse((self.project / '.work/reused/plan.json').exists())
+        if partial:
+            (self.project / '.work/run/native/extra.json').write_text('{"checks":[]}')
+            command[command.index('--plan-output') + 1] = '.work/repair/plan.json'
+            command[command.index('--report-dir') + 1] = '.work/repair/native'
+            prepared = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(prepared.returncode, 0, prepared.stdout + prepared.stderr)
+            self.assertEqual(json.loads(prepared.stdout)['selected_checks'], [{'feature': 'fixture-product', 'check': 'extra'}])
+            repaired = api['execute_plan'](self.project / '.work/repair/plan.json', run_check_path=RUN_CHECK,
+                                            evidence_dir=self.project / '.work/repair/evidence')
+            self.assertEqual(repaired['test_commands_executed'], 1)
+            self.assertEqual((self.project / '.work/calls').read_text(), '3')
+            observed = api['view_bundle'](repaired['execution']['bundle_path'])
+            self.assertEqual(observed['coverage']['rows'][0]['status'], 'PASS', observed)
+            current = workflow['inspect_project'](self.project, config, json.loads(state_path.read_text()))
+            self.assertEqual(current['features'][0]['verification_status'], 'PASS', current)
+
+    def test_task_exclusion_is_explained_and_never_executed(self):
+        self.test_registered_task_selection_executes_only_pending_and_binds_without_semantic_pass(exclude=True)
+
+    def test_partial_result_reuse_reexecutes_only_unavailable_check(self):
+        self.test_registered_task_selection_executes_only_pending_and_binds_without_semantic_pass(partial=True)
+
+    def test_task_state_replacement_refuses_prepared_execution(self):
+        self.test_registered_task_selection_executes_only_pending_and_binds_without_semantic_pass(replace_task=True)
+
+    def test_native_task_execution_uses_harness_baseline_without_review_file(self):
+        self.test_registered_task_selection_executes_only_pending_and_binds_without_semantic_pass(work_id=True)
+
     def test_registered_report_directory_runs_twice_without_configuration_edits(self, subdirectory=False, coverage=False, semantic=False, semantic_after=False):
         api = __import__('runpy').run_path(str(VIEWER))
         workflow = __import__('runpy').run_path(str(VIEWER.with_name('project_workflow.py')))
@@ -64,7 +199,11 @@ class VerificationExecutionTests(unittest.TestCase):
             audit = workflow['inspect_project'](self.project, config, state)
             review = {'feature': feature['id'], 'basis': audit['features'][0]['basis'],
                       'analysis': 'Domain owns arithmetic and runner serializes the result', 'references': ['check.py'], 'findings': [],
-                      'scope_reviews': {'ownership': {'status': 'PASS', 'analysis': 'No parallel state owner', 'references': ['check.py']}}}
+                      'scope_reviews': {'ownership': {'status': 'PASS', 'analysis': 'No parallel state owner', 'references': ['check.py'],
+                          'architecture': {'flows': [{'owner': 'check.py', 'call': 'runner -> arithmetic',
+                              'state': 'one result object', 'data': 'sum -> JSON', 'references': ['check.py']}],
+                              'boundaries': [{'kind': kind, 'analysis': 'Unchanged runner boundary', 'references': ['check.py']}
+                                             for kind in ('contract', 'dependency', 'failure')], 'findings': []}}}}
             state = workflow['record_review'](self.project, config, state, review)
             (self.project / '.work').mkdir(exist_ok=True)
             (self.project / '.work/semantic.json').write_text(json.dumps(state))

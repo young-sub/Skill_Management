@@ -87,3 +87,13 @@ code/registry consolidation. The CLI verifies connected evidence and records
 PRESERVED or BLOCKED; it neither chooses checks to delete nor runs a pruning loop.
 Prepared native-JSON bundles currently support the raw preservation join; other
 project adapters must provide compatible bindings before that join can resolve.
+
+Connected tasks register the assertion path once and reuse the existing native
+preparation/execution CLI's task selector; see [task scope and execution](result-viewer.md#task-scope-and-required-execution).
+Maintenance automatically consumes task `results` bundle pointers alongside
+review/feedback/retirement evidence. The project continues to own Launch → Doctor
+→ Drive → Evidence → Cleanup. Register the actual foreground adapter and assert
+saved values, fresh read/reload and resource cleanup from its native report.
+The common CLI captures that report; it does not invent browser/API/Domain
+observations or supply a generic lifecycle runner. Non-JSON detail remains linked
+through the existing project adapter/raw evidence contract when needed.

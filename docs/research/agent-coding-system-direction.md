@@ -28,6 +28,7 @@
 | 구현됨 | 기존 Harness Skill, `diagnose`, UI 능력, `multi-agent-review`, source/generated 배포 체계 | 작업·재현·배포·보존 책임 재사용. 다른 제품의 의미를 자동 검증하지 않음 |
 | 구현됨 | `scripts/run_check.py` | 유한 foreground 실행, native exit/timeout, 실행 ID·대상·Git 상태·raw output, 새 native JSON report 캡처. `behavior_verdict`는 null |
 | 구현됨 | `scripts/verify_product.py`, 관리 저장소 Feature Map·selector | 이 저장소의 unittest 전용. 다른 프로젝트의 Vitest·브라우저용 범용 parser가 아님 |
+| 구현·로컬 CLI 확인 | 0.1.41 작업 scope matrix·공유 의무 selector·등록 assertion prepare/execute/lookup | 적용/미판단/제외·실패/차단·stale 및 의미 검토를 구분하고, 결과를 작업에 연결하여 필요한 검사만 재실행. 구조화된 아키텍처 근거의 의미 충분성은 Agent 판단. 설치·일반 Agent 업무·보호 호스트 효과는 별도 미검증 |
 | 파일럿 확인 | 독립 Labeler의 browser/API/D1/인쇄, 통제 결함·Agent 수리·독립 검증 | 고정 소스와 로컬 합성 fixture에 한정. [결과와 제한](labeler-verification-pilot.md) 참조 |
 | 파일럿 확인 | 임시 Plugin 설치·fresh host discovery·cache 명령 실행·버전 변경 | 일반 설치 전환, 모델의 Skill 선택·이행, hook 품질은 미검증 |
 | 구현·범위 한정 확인 | `agent-workflow`, `setup-project-verification`, `maintain-project-verification` | `c7c064a`와 후속 수정, 임시 설치·협업 Agent T1–T6. 전체 init·host 일반 동작의 완료는 아님 |

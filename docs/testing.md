@@ -60,7 +60,7 @@ For runners whose stdout only names a separate JSON report, pass `--json-report 
 
 Timeout requests termination of the owned foreground process/tree (Windows taskkill, POSIX process group), preserves partial output, and records the cleanup exit when attempted. A detached child or an exited parent retaining child pipes may escape; `cleanup_incomplete` means pipe draining timed out. A zero cleanup-tool exit does not prove all descendants terminated. The helper does not provide a process sandbox or replace the deferred Agent eval supervisor. No model/provider call is needed for these native checks.
 
-The current adapter classifies a nonzero native command as check-scoped `ISSUES`; it does not distinguish a product assertion failure from every runner/import/environment error. Product-level consumers must inspect the raw failure and retain unavailable or unknown observations as `BLOCKED`, rather than calling every command failure a product defect. The current `--evidence` command reassesses one record against current Git identity; it is not a task-history viewer or a multi-layer result aggregator. Those planned consumers and their acceptance tasks are specified in the [requirements review](research/agent-coding-requirements-review.md) and [system direction](research/agent-coding-system-direction.md).
+The unittest adapter distinguishes discovery/import failure as BLOCKED and retains its raw cause; other nonzero native failures remain check-scoped ISSUES and require interpretation. Product-level consumers must inspect the raw failure and retain unavailable or unknown observations as `BLOCKED`, rather than calling every command failure a product defect. The current `--evidence` command reassesses one record against current Git identity; it is not a task-history viewer or a multi-layer result aggregator. Task selection and multi-layer scope lookup now use the workflow/result CLIs; their bounded acceptance evidence and remaining limits are recorded in the [implementation results](research/agent-workflow-implementation-results.md).
 # Native unittest workflow connection
 
 `python scripts/verify_product.py --feature <feature-id> --all-checks --output .work/<new-run>`
@@ -86,7 +86,8 @@ Use `--work-id <id>` or `--pending-state .work/<record>.json` instead of `--feat
 to select currently required execution through the sibling workflow CLI.
 The adapter refuses mismatched map/workflow check sets before execution.
 NOT_REQUIRED means no commands ran; unresolved semantic/product obligations remain visible.
-Returned workflow status is the pre-execution selection snapshot. Bind new bundles
-through semantic review, then use read-only audit for current completion status.
+Returned workflow status is the pre-execution selection snapshot; current_workflow_status is recomputed after result attachment. Bundles attach to the task independently of semantic review; use read-only audit for current completion status.
 
 Registered preparation supports subdirectory commands: keep local `file_refs` relative to command cwd and declare shared inputs as `repository_file_refs` relative to the observed Git root. Config/criteria/map/UI bindings are automatic; changed shared inputs block execution and invalidate lookup.
+
+Task-mode native JSON preparation uses the same pending selector, registered assertion path, immutable task binding and automatic result links. Scope matrix gaps and structured architecture review are tested with the workflow/result selectors. The local HTTP trial under `.work/fullstack-task-20261006` adds actual persistence/restart/cleanup evidence; it excludes FE explicitly and is separate from browser, installed Agent or protected-host acceptance.

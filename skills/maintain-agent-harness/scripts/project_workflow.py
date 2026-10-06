@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: 07e70f4d3a8a1feda62ece274622027a7e5f6d74d845b587a436e63117a53460
+# Source-SHA256: 8fe763dc49f1b6de8641bf33db1505aa4ad2264aa250a64415f932fcd894ffcf
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -21,6 +21,7 @@ import runpy
 import subprocess
 import sys
 import tempfile
+import uuid
 
 
 def digest(value):
@@ -188,7 +189,7 @@ def inspect_ui_systems(root, config, files):
     return result
 
 
-def coverage_rows(feature, review, basis, items=(), *, current_basis=None, semantic_valid=True):
+def coverage_rows(feature, review, basis, items=(), *, current_basis=None, semantic_valid=True, scope_states=None):
     """Declared scope only; the Agent decides which requirements/layers apply."""
     tests = {item['id']: item for item in items if item['feature'] == feature['id']}
     rows = []
@@ -200,17 +201,34 @@ def coverage_rows(feature, review, basis, items=(), *, current_basis=None, seman
             row['status'] = row['historical_status']
             if entry:
                 row['evidence'] = {'analysis': entry.get('analysis'), 'references': entry.get('references', []),
-                                   'reason': entry.get('reason'), 'kind': 'Agent semantic review'}
+                                   'reason': entry.get('reason'), 'architecture': entry.get('architecture'),
+                                   'kind': 'Agent semantic review', 'sufficiency': 'Agent judgment; structural evidence is not semantic proof'}
                 if review.get('basis') != basis or (current_basis is not None and current_basis != basis):
                     row['status'] = 'STALE'
                     row['reasons'].append('semantic_review_basis_changed')
-                elif not semantic_valid:
+                elif (scope_states or {}).get(row['id']) == 'STALE':
+                    row['status'] = 'STALE'
+                    row['reasons'].append('scope_review_reference_changed')
+                elif not semantic_valid or (scope_states or {}).get(row['id']) == 'BLOCKED':
                     row['status'] = 'BLOCKED'
                     row['reasons'].append('semantic_review_invalid_or_unbound')
+                elif 'architecture' in row['perspectives'] and entry['status'] != 'NOT_REQUIRED' and not entry.get('architecture'):
+                    row['status'] = 'BLOCKED'
+                    row['reasons'].append('architecture_evidence_missing')
+                elif any(finding['status'] == 'open' for finding in entry.get('architecture', {}).get('findings', [])):
+                    row['status'] = 'ISSUES'
+                    row['reasons'].append('architecture_findings_unresolved')
         else:
             item = tests.get(row.get('check'))
             row['historical_status'] = item['historical_status'] if item else 'NOT_RUN'
-            if not row.get('check') or row['check'] not in feature['checks']:
+            decision = review.get('scope_reviews', {}).get(row['id'], {})
+            if decision.get('status') == 'NOT_REQUIRED' and decision.get('reason') and review.get('basis') == basis:
+                row['status'] = 'NOT_REQUIRED'
+                row['evidence'] = {'kind': 'Agent scope exclusion', **decision}
+                if (scope_states or {}).get(row['id']) in {'STALE', 'BLOCKED'}:
+                    row['status'] = scope_states[row['id']]
+                    row['reasons'].append('scope_exclusion_reference_changed_or_invalid')
+            elif not row.get('check') or row['check'] not in feature['checks']:
                 row['status'] = 'MISSING'
                 row['reasons'].append('active_check_link_missing')
             elif not item:
@@ -227,9 +245,59 @@ def coverage_rows(feature, review, basis, items=(), *, current_basis=None, seman
     return rows
 
 
-def coverage_summary(rows):
-    return {'status': ('NOT_CONFIGURED' if not rows else
-                       'COMPLETE' if all(row['status'] in {'PASS', 'NOT_REQUIRED'} for row in rows) else 'PARTIAL'),
+def scope_matrix(feature, review, basis, rows, *, current_basis=None, scope_states=None):
+    """Six projections of existing review decisions, never inferred test coverage."""
+    indexed = {row['id']: row for row in rows}
+    matrix = []
+    for perspective in ('business', 'architecture'):
+        for area in ('FE', 'BE/API', 'Domain'):
+            key = perspective + ':' + area
+            decision = review.get('scope_reviews', {}).get(key, {})
+            applicability = decision.get('status', 'UNDECIDED')
+            links = decision.get('coverage', [])
+            reasons = []
+            if decision and (review.get('basis') != basis or current_basis is not None and current_basis != basis):
+                applicability = 'STALE'
+                reasons.append('scope_decision_basis_changed')
+            elif decision and (scope_states or {}).get(key) in {'STALE', 'BLOCKED'}:
+                applicability = scope_states[key]
+                reasons.append('scope_decision_reference_changed_or_invalid')
+            linked = [indexed[name] for name in links if name in indexed
+                      and perspective in indexed[name]['perspectives'] and area in indexed[name]['areas']]
+            statuses = list(dict.fromkeys(row['status'] for row in linked))
+            if applicability == 'REQUIRED':
+                omitted = [row['id'] for row in rows if perspective in row['perspectives'] and area in row['areas']
+                           and row['id'] not in links and row['status'] != 'NOT_REQUIRED']
+                if omitted:
+                    statuses.append('MISSING')
+                    reasons.extend('scope_requirement_unaccounted:' + name for name in omitted)
+                if len(linked) != len(links) or not links:
+                    statuses.append('MISSING')
+                    reasons.append('scope_requirement_connection_missing')
+                status = next((s for s in ('ISSUES', 'BLOCKED', 'STALE', 'MISSING', 'NOT_RUN', 'UNKNOWN') if s in statuses), 'PASS')
+                if 'NOT_REQUIRED' in statuses:
+                    status = 'MISSING'
+                    reasons.append('required_scope_has_excluded_evidence')
+            else:
+                status = applicability
+            matrix.append({'feature': feature['id'], 'perspective': perspective, 'area': area,
+                           'applicability': applicability, 'status': status, 'statuses': statuses,
+                           'coverage': [row['id'] for row in linked], 'decision': deepcopy(decision), 'reasons': reasons})
+    return matrix
+
+
+def coverage_summary(rows, matrix=()):
+    registered = ('NOT_CONFIGURED' if not rows else
+                  'COMPLETE' if all(row['status'] in {'PASS', 'NOT_REQUIRED'} for row in rows) else 'PARTIAL')
+    active = [cell for cell in matrix if cell.get('in_task', True)]
+    targets = {cell['feature'] for cell in active}
+    task_rows = [row for row in rows if row['feature'] in targets]
+    return {'status': ('COMPLETE' if active and all(cell['status'] in {'PASS', 'NOT_REQUIRED'} for cell in active)
+                       and all(row['status'] in {'PASS', 'NOT_REQUIRED'} for row in task_rows)
+                       else 'NOT_REQUIRED' if matrix and not active
+                       else 'PARTIAL' if rows or matrix else 'NOT_CONFIGURED'),
+            'registered_status': registered, 'scope': 'Agent-declared task scope; completeness of discovery is not attested',
+            'matrix': list(matrix),
             'rows': rows, 'gaps': [f"{row['feature']}/{row['id']}:{row['status']}" for row in rows
                                   if row['status'] not in {'PASS', 'NOT_REQUIRED'}],
             'perspectives': {axis: {status: sum(axis in row['perspectives'] and row['status'] == status for row in rows)
@@ -252,6 +320,7 @@ def begin(root, project, intent, targets=()):
         raise ValueError('unknown_target')
     features = inspect_project(root, project)['features']
     feedback = {}
+    results = {}
     check_links = {f['id']: {'checks': list(f['checks']), 'prevention': deepcopy(f.get('prevention', []))}
                    for f in config['features']}
     if config.get('state'):
@@ -263,6 +332,12 @@ def begin(root, project, intent, targets=()):
             if not isinstance(saved, dict) or saved.get('root') != str(root.resolve()) or saved.get('schema_version') != 1:
                 raise ValueError('work_target_mismatch')
             feedback = deepcopy(saved.get('feedback', {}))
+            results = deepcopy(saved.get('results', {}))
+            for identity, review in saved.get('reviews', {}).items():
+                if review.get('bundle'):
+                    links = results.setdefault(identity, [])
+                    if review['bundle'] not in links:
+                        links.append(review['bundle'])
             for pending in inspect_project(root, project, saved)['check_retirements']:
                 if pending['status'] == 'BLOCKED' and pending['feature'] in check_links:
                     links = check_links[pending['feature']]
@@ -271,10 +346,10 @@ def begin(root, project, intent, targets=()):
                         links['checks'].append(pending['check'])
                     links['prevention'].extend(p for p in prior_links.get('prevention', [])
                                                if p['check'] == pending['check'] and p not in links['prevention'])
-    return {'schema_version': 1, 'root': str(root.resolve()), 'intent': intent,
+    return {'schema_version': 1, 'task_id': str(uuid.uuid4()), 'root': str(root.resolve()), 'intent': intent,
             'targets': sorted(set(targets)), 'base': git(root, 'rev-parse', 'HEAD').decode().strip(),
             'dirty_baseline': git(root, 'status', '--porcelain').decode('utf-8'),
-            'baseline': inventory(root, config['roots']), 'reviews': {}, 'feedback': feedback,
+            'baseline': inventory(root, config['roots']), 'reviews': {}, 'feedback': feedback, 'results': results,
             'source_patterns': {f['id']: list(dict.fromkeys(f['sources'] + [pattern
                 for system in config.get('ui_systems', {}).values() if f['id'] in system['consumers']
                 for field in ('tokens', 'components') for pattern in system[field]])) for f in config['features']},
@@ -320,9 +395,92 @@ def work_record(root, work_id):
     if not isinstance(state, dict):
         raise ValueError('invalid_work_workflow_record')
     for key, value in baseline.items():
-        if key not in {'reviews', 'retired_reviews', 'feedback'} and state.get(key) != value:
+        if key not in {'reviews', 'retired_reviews', 'feedback', 'results'} and state.get(key) != value:
             raise ValueError(f'work_workflow_baseline_changed:{key}')
     return state, directory / 'workflow.json'
+
+
+def task_state(root, state=None, work_id=None):
+    if bool(state) == bool(work_id):
+        raise ValueError('select_exactly_one_task_state_or_work_id')
+    if work_id:
+        return work_record(root, work_id)
+    path = local_path(root, str(state))
+    if not path.resolve().is_relative_to(root.resolve() / '.work') or not path.is_file():
+        raise ValueError('existing_task_local_state_required')
+    record = json.loads(path.read_text(encoding='utf-8'))
+    if (not isinstance(record, dict) or record.get('schema_version') != 1
+            or record.get('root') != str(root.resolve()) or not isinstance(record.get('baseline'), dict)):
+        raise ValueError('work_target_mismatch')
+    return record, path
+
+
+def pending_selection(audit):
+    """One selector for project adapters and native assertion preparation."""
+    if audit['status'] not in {'PARTIAL', 'READY_FOR_REVIEW'}:
+        raise ValueError('workflow_selection_unavailable')
+    decisions = []
+    for feature in audit['features']:
+        results = {item['id']: item for item in feature['check_results'] if item.get('selected')}
+        for check in feature['checks']:
+            result = results.get(check, {})
+            excluded = feature.get('excluded_checks', {}).get(check)
+            selected = (feature['verification_status'] == 'REQUIRED' and not excluded
+                        and result.get('current_status') != 'PASS')
+            decisions.append({'feature': feature['id'], 'check': check, 'selected': selected,
+                              'reason': excluded or ('current_evidence_reusable' if result.get('current_status') == 'PASS'
+                                        else 'task_verification_required' if selected else 'no_changed_behavior_obligation')})
+    return {'selected_checks': [{'feature': d['feature'], 'check': d['check']} for d in decisions if d['selected']],
+            'unconnected_features': [f['id'] for f in audit['features'] if f['verification_status'] == 'REQUIRED' and not f['checks']],
+            'selection': decisions, 'workflow_status': audit['status'],
+            'remaining_obligations': audit['obligations'], 'product_findings': audit['product_findings'],
+            'coverage': audit['coverage'], 'feedback': audit['feedback'], 'ui_systems': audit['ui_systems'],
+            'check_retirements': audit['check_retirements']}
+
+
+def write_state(path, state):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=path.parent,
+                                     prefix=path.name + '.', suffix='.pending', delete=False) as output:
+        json.dump(state, output, indent=2)
+        temporary = Path(output.name)
+    temporary.replace(path)
+
+
+def task_identity(state):
+    return digest({key: value for key, value in state.items() if key not in {'reviews', 'retired_reviews', 'feedback', 'results'}})
+
+
+def bind_results(root, state_path, bundles, *, work_id=None, expected_identity=None):
+    """Store existing result pointers, independently of Agent semantic review."""
+    state, path = task_state(root, state_path if not work_id else None, work_id)
+    if expected_identity is not None and task_identity(state) != expected_identity:
+        raise ValueError('task_identity_changed')
+    updated = deepcopy(state)
+    for feature, bundle in bundles.items():
+        name = Path(bundle).resolve().relative_to(root.resolve()).as_posix()
+        if not local_path(root, name).is_file():
+            raise ValueError('result_bundle_missing')
+        links = updated.setdefault('results', {}).setdefault(feature, [])
+        if name not in links:
+            links.append(name)
+    if updated != state:
+        write_state(path, updated)
+    return updated
+
+
+def inspect_result_links(root, feature, commands, links, required_checks=None):
+    items, findings = {}, []
+    for link in links:
+        observed = inspect_evidence(root, feature, commands, link)
+        findings.extend(observed['findings'])
+        for item in observed.get('items', []):
+            if item.get('selected') and item.get('feature') == feature['id']:
+                items[item['id']] = item
+    missing = [name for name in (feature['checks'] if required_checks is None else required_checks)
+               if items.get(name, {}).get('current_status') != 'PASS']
+    return {'status': 'BLOCKED' if missing else 'PASS', 'items': list(items.values()),
+            'findings': sorted(set(findings)) if missing else []}
 
 
 def inspect_project(root, project, state=None, *, file_inventory=None, evidence_resolver=None):
@@ -347,9 +505,12 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
     if state is not None and not isinstance(state.get('baseline'), dict):
         raise ValueError('workflow_baseline_required')
     state = state or {}
-    for field in ('reviews', 'retired_reviews', 'baseline', 'input_bases', 'verification_bases', 'source_patterns', 'documentation_only'):
+    for field in ('reviews', 'retired_reviews', 'baseline', 'input_bases', 'verification_bases', 'source_patterns', 'documentation_only', 'results'):
         if not isinstance(state.get(field, {}), dict):
             raise ValueError(f'workflow_state_requires_object:{field}')
+    for links in state.get('results', {}).values():
+        if not isinstance(links, list) or any(not isinstance(link, str) or not link for link in links):
+            raise ValueError('workflow_results_require_bundle_paths')
     if state.get('intent') in {'feedback', 'ui'} and not state.get('targets'):
         raise ValueError('target_required')
     files = inventory(root, config['roots']) if file_inventory is None else file_inventory
@@ -405,10 +566,25 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
         review = state.get('reviews', {}).get(identity, {})
         # A recorded analysis is a semantic-review input, never a success flag.
         reviewed = current_review(root, review, basis)
+        excluded = {}
+        states = review_scope_states(root, review)
+        if review.get('basis') == basis:
+            for check in feature['checks']:
+                declarations = [row for row in feature.get('coverage', []) if row.get('check') == check]
+                decisions = [review.get('scope_reviews', {}).get(row['id'], {}) for row in declarations]
+                if decisions and all(d.get('status') == 'NOT_REQUIRED' and d.get('reason')
+                                     and states.get(row['id']) == 'CURRENT' for row, d in zip(declarations, decisions)):
+                    excluded[check] = '; '.join(dict.fromkeys(d['reason'] for d in decisions))
+        required_feature = dict(feature, checks=[c for c in feature['checks'] if c not in excluded])
         product_findings = review.get('product_findings', []) if isinstance(review, dict) else []
         if isinstance(product_findings, list):
+            product_findings = list(product_findings)
             result['product_findings'].extend({'feature': identity, 'finding': finding}
                 for finding in product_findings if isinstance(finding, str) and finding.strip())
+        for finding in architecture_findings(review):
+            if finding['status'] == 'open':
+                product_findings.append(finding['problem'])
+                result['product_findings'].append(dict(finding, feature=identity))
         # Preserve ownership across staged deletion and source-map reassignment.
         patterns = feature['sources'] + state.get('source_patterns', {}).get(identity, []) + [pattern
             for system in ui_systems for field in ('tokens', 'components') for pattern in system[field]]
@@ -429,6 +605,8 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
             if 'verification_bases' in state else
             state.get('input_bases', {}).get(identity) != basis)
         if state and (verification_changed or verification_inputs_changed):
+            requires.append('verification')
+        if identity in state.get('targets', []):
             requires.append('verification')
         if state.get('intent') == 'feedback' and identity in state.get('targets', []):
             requires.extend(['repair', 'regression', 'normal_case'])
@@ -455,25 +633,42 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
                             for item in retirements for reason in item['remaining'])
         needs_behavior = any(requirement in requires for requirement in ('verification', 'repair', 'regression'))
         behavior = None
-        if reviewed and (needs_behavior or feature.get('coverage') and review.get('bundle')):
+        links = list(state.get('results', {}).get(identity, []))
+        if review.get('bundle') and review['bundle'] not in links:
+            links.insert(0, review['bundle'])
+        if needs_behavior or links:
             if evidence_resolver is not None:
-                behavior = evidence_resolver(root, feature, commands)
-            elif review.get('bundle'):
-                behavior = inspect_evidence(root, feature, commands, review['bundle'])
-            if needs_behavior and behavior is not None and behavior['status'] != 'PASS':
+                if reviewed:
+                    behavior = evidence_resolver(root, required_feature, commands)
+            elif links:
+                behavior = inspect_result_links(root, feature, commands, links, required_feature['checks'])
+            elif not required_feature['checks'] and excluded:
+                behavior = {'status': 'NOT_REQUIRED', 'findings': [], 'items': []}
+            if needs_behavior and behavior is not None and behavior['status'] not in {'PASS', 'NOT_REQUIRED'}:
                 findings.extend(behavior['findings'])
         if state.get('intent') == 'feedback' and identity in state.get('targets', []) and state.get('input_bases', {}).get(identity) == basis:
             findings.append(f'repair_not_observed:{identity}')
-        pending = not reviewed or findings or product_findings or (needs_behavior and (not behavior or behavior['status'] != 'PASS'))
-        rows = coverage_rows(feature, review, basis, behavior.get('items', []) if behavior else [], semantic_valid=reviewed)
+        pending = not reviewed or findings or product_findings or (needs_behavior and (not behavior or behavior['status'] not in {'PASS', 'NOT_REQUIRED'}))
+        rows = coverage_rows(feature, review, basis, behavior.get('items', []) if behavior else [],
+                             semantic_valid=reviewed, scope_states=states)
         result['coverage']['rows'].extend(rows)
+        matrix = scope_matrix(feature, review, basis, rows, scope_states=states)
+        in_task = not state or state.get('intent') == 'init' or bool(affected) or needs_behavior
+        for cell in matrix:
+            cell['in_task'] = in_task
+        result['coverage']['matrix'].extend(matrix)
         scope_gaps = [row['id'] for row in rows if row['kind'] == 'review' and row['status'] not in {'PASS', 'NOT_REQUIRED'}
                       or row['status'] == 'MISSING']
         if scope_gaps:
             pending = True
             requires.append('scope_review_or_connection')
             findings.extend(f'coverage_gap:{identity}:{name}' for name in scope_gaps)
+        if in_task and (feature.get('coverage') or any(':' in key for key in review.get('scope_reviews', {}))):
+            if any(cell['status'] not in {'PASS', 'NOT_REQUIRED'} for cell in matrix):
+                pending = True
+                requires.append('scope_applicability_or_evidence')
         if pending:
+            requires = list(dict.fromkeys(requires))
             result['obligations'].append({'id': f'feature:{identity}:{basis}', 'target': identity,
                 'basis': basis, 'reason': 'initial_or_changed_inputs', 'changed': affected,
                 'verification_changed': verification_changed,
@@ -483,8 +678,10 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
                 'prevention': feature.get('prevention', [])})
         result['features'].append({'id': identity, 'basis': basis, 'partition': feature['partition'],
                                    'verification_basis': verification_basis,
-                                   'verification_status': ('NOT_REQUIRED' if not needs_behavior else
+                                   'verification_status': ('NOT_REQUIRED' if not needs_behavior or not required_feature['checks'] and excluded else
                                        'PASS' if behavior and behavior['status'] == 'PASS' else 'REQUIRED'),
+                                   'checks': feature['checks'], 'excluded_checks': excluded,
+                                   'check_results': behavior.get('items', []) if behavior else [],
                                    'reviewed': reviewed, 'mapping_ready': bool(mapping_ready), 'source_count': len(sources)})
         partition = feature['partition']
         prior = result['partitions'].get(partition, 'READY_FOR_REVIEW')
@@ -509,10 +706,16 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
             if not isinstance(gaps, list) or any(not isinstance(gap, str) or not gap.strip() for gap in gaps):
                 raise ValueError('review_product_findings_must_be_nonempty_strings')
         previous = prior_review.get('product_findings', [])
-        product_findings = review.get('product_findings', previous) if reviewed else (
-            previous + review.get('product_findings', []))
+        product_findings = list(review.get('product_findings', previous) if reviewed else (
+            previous + review.get('product_findings', [])))
         result['product_findings'].extend({'feature': name, 'finding': finding}
             for finding in dict.fromkeys(product_findings))
+        architecture = architecture_findings(review) if reviewed else (
+            architecture_findings(prior_review) + architecture_findings(review))
+        for finding in architecture:
+            if finding['status'] == 'open':
+                product_findings.append(finding['problem'])
+                result['product_findings'].append(dict(finding, feature=name))
         if not reviewed:
             mapping_pending = True
             result['findings'].append(f'removed_feature_needs_reconciliation:{name}')
@@ -523,7 +726,7 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
                             (['product_resolution'] if product_findings else []),
                 'references': sorted({p for f in config['features'] for p in f['map']})})
     result['mapping_status'] = 'PARTIAL' if mapping_pending or result['unmapped'] else 'READY_FOR_REVIEW'
-    result['coverage'] = coverage_summary(result['coverage']['rows'])
+    result['coverage'] = coverage_summary(result['coverage']['rows'], result['coverage']['matrix'])
     result['status'] = 'PARTIAL' if result['obligations'] or result['unmapped'] or result['findings'] else 'READY_FOR_REVIEW'
     if any(item['status'] != 'RESOLVED' for item in result['feedback']):
         result['status'] = 'PARTIAL'
@@ -580,6 +783,7 @@ def maintenance_summary(root, project, state=None, history=(), *, retirements=()
                 if prevention['check'] == check and prevention not in row['failures']:
                     row['failures'].append(prevention)
     paths = list(history) + [review['bundle'] for review in state.get('reviews', {}).values() if review.get('bundle')]
+    paths += [path for links in state.get('results', {}).values() for path in links]
     paths += [entry[key] for entry in state.get('feedback', {}).values() for key in ('red_bundle', 'green_bundle') if entry.get(key)]
     paths += [proof[key] for review in state.get('reviews', {}).values()
               for decision in review.get('check_decisions', {}).values() for proof in decision.get('preservation', [])
@@ -783,24 +987,33 @@ def inspect_evidence(root, feature, commands, bundle):
         if isinstance(binding, dict) and binding.get('format') == 'unittest-captures-v1':
             return inspect_unittest_evidence(root, feature, commands, binding)
         viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
-        observed = viewer['view_bundle'](path)
-        if observed['status'] != 'PASS':
-            return {'status': 'BLOCKED', 'findings': observed.get('remaining', ['verification_incomplete']),
-                    'items': observed.get('items', [])}
+        observed = viewer['view_bundle'](path, include_scope=False)
         verified = set()
         for item in observed['items']:
-            if item['feature'] != feature['id'] or item['current_status'] != 'PASS':
+            if item['feature'] != feature['id']:
                 continue
             descriptor = commands.get(item['id'])
+            if descriptor is None:
+                item['current_status'] = 'BLOCKED'
+                item['reasons'].append('active_command_missing')
+                continue
             expected = resolve_report_command(root,
                 descriptor.get('argv') if isinstance(descriptor, dict) else descriptor,
                 item['conditions']['expected']['command'].get('report_dir'))
             cwd = root / (descriptor.get('working_directory', '.') if isinstance(descriptor, dict) else '.')
-            if item['capture']['argv'] == expected and Path(item['capture']['cwd']).resolve() == cwd.resolve():
+            if not item.get('selected'):
+                continue
+            if not item['capture'].get('argv') or not item['capture'].get('cwd'):
+                continue
+            if item['capture']['argv'] != expected or Path(item['capture']['cwd']).resolve() != cwd.resolve():
+                item['current_status'] = 'BLOCKED'
+                item['reasons'].append('registered_command_or_target_changed')
+            elif item['current_status'] == 'PASS':
                 verified.add(item['id'])
         missing = set(feature['checks']) - verified
         if missing or not verified:
-            return {'status': 'BLOCKED', 'findings': [f'verification_missing:{feature["id"]}:{name}' for name in sorted(missing or {'unconnected'})]}
+            return {'status': 'BLOCKED', 'findings': [f'verification_missing:{feature["id"]}:{name}' for name in sorted(missing or {'unconnected'})],
+                    'items': observed['items']}
         return {'status': 'PASS', 'findings': [], 'items': observed['items']}
     except (OSError, ValueError, TypeError, KeyError) as error:
         return {'status': 'BLOCKED', 'findings': [f'verification_unavailable:{error}']}
@@ -832,12 +1045,12 @@ def inspect_unittest_evidence(root, feature, commands, binding):
         captured = json.loads(path.read_text(encoding='utf-8'))
         try:
             observed = reader['assess'](path, record['run_id'], feature['id'], check, [sys.executable, *argv[1:]], cwd.resolve())
-        except (OSError, ValueError):
-            observed = {'status': 'BLOCKED'}
+        except (OSError, ValueError) as error:
+            observed = {'status': 'BLOCKED', 'reason': str(error)}
         items.append({'id': check, 'feature': feature['id'], 'historical_status': observed['status'],
             'current_status': observed['status'], 'current_reuse': 'REUSABLE' if observed['status'] == 'PASS' else 'UNKNOWN',
             'selected': True, 'selection': {'status': 'selected', 'reason': 'Feature native unittest binding'},
-            'run_id': record['run_id'], 'raw': [], 'reasons': [] if observed['status'] == 'PASS' else ['native_assertions_unavailable_or_failed'],
+            'run_id': record['run_id'], 'raw': [], 'reasons': [] if observed['status'] == 'PASS' else [observed.get('reason', 'native_assertions_unavailable_or_failed')],
             'capture': {'path': str(path.resolve()), 'argv': captured.get('argv'), 'cwd': captured.get('cwd'),
                         'execution': captured.get('execution'), 'exit_code': captured.get('exit_code')}})
         if observed['status'] == 'PASS':
@@ -884,9 +1097,15 @@ def validate_review(root, review):
     scopes = review.get('scope_reviews', {})
     if not isinstance(scopes, dict):
         raise ValueError('scope_reviews_must_be_object')
-    for entry in scopes.values():
-        if not isinstance(entry, dict) or entry.get('status') not in {'PASS', 'ISSUES', 'BLOCKED', 'NOT_REQUIRED'}:
+    cell_keys = {p + ':' + a for p in ('business', 'architecture') for a in ('FE', 'BE/API', 'Domain')}
+    for key, entry in scopes.items():
+        allowed = {'REQUIRED', 'NOT_REQUIRED'} if key in cell_keys else {'PASS', 'ISSUES', 'BLOCKED', 'NOT_REQUIRED'}
+        if not isinstance(entry, dict) or entry.get('status') not in allowed:
             raise ValueError('invalid_scope_review_status')
+        if key in cell_keys and entry['status'] == 'REQUIRED' and (not isinstance(entry.get('coverage'), list)
+                or not entry['coverage'] or any(not isinstance(name, str) or not name for name in entry['coverage'])
+                or len(entry['coverage']) != len(set(entry['coverage']))):
+            raise ValueError('scope_decision_requires_coverage_links')
         if not isinstance(entry.get('analysis'), str) or not entry['analysis'].strip():
             raise ValueError('scope_review_analysis_required')
         if entry['status'] == 'NOT_REQUIRED' and not entry.get('reason'):
@@ -896,6 +1115,8 @@ def validate_review(root, review):
         for name in entry['references']:
             if file_hash(root, name) is None:
                 raise ValueError(f'scope_review_reference_missing:{name}')
+        if 'architecture' in entry:
+            validate_architecture(root, entry['architecture'])
     decisions = review.get('check_decisions', {})
     if not isinstance(decisions, dict):
         raise ValueError('check_decisions_must_be_object')
@@ -906,11 +1127,71 @@ def validate_review(root, review):
             raise ValueError('check_preservation_must_be_list')
 
 
+def architecture_references(architecture):
+    return list(dict.fromkeys(name for group in ('flows', 'boundaries', 'findings')
+        for entry in architecture.get(group, []) for name in entry.get('references', []) +
+        ([entry['owner']] if 'owner' in entry else [])))
+
+
+def architecture_findings(review):
+    return [dict(finding, scope_review=key) for key, entry in review.get('scope_reviews', {}).items()
+            for finding in entry.get('architecture', {}).get('findings', [])]
+
+
+def validate_architecture(root, architecture):
+    if (not isinstance(architecture, dict) or not isinstance(architecture.get('flows'), list) or not architecture['flows']
+            or not isinstance(architecture.get('boundaries'), list) or not isinstance(architecture.get('findings'), list)):
+        raise ValueError('architecture_evidence_requires_flows_boundaries_findings')
+    for flow in architecture['flows']:
+        if not isinstance(flow, dict) or any(not isinstance(flow.get(k), str) or not flow[k].strip()
+                                              for k in ('owner', 'call', 'state', 'data')):
+            raise ValueError('architecture_flow_requires_owner_call_state_data')
+    kinds = {boundary.get('kind') for boundary in architecture['boundaries'] if isinstance(boundary, dict)}
+    if kinds != {'contract', 'dependency', 'failure'}:
+        raise ValueError('architecture_evidence_requires_contract_dependency_failure_boundaries')
+    for boundary in architecture['boundaries']:
+        if not isinstance(boundary, dict) or not isinstance(boundary.get('analysis'), str) or not boundary['analysis'].strip():
+            raise ValueError('architecture_boundary_analysis_required')
+    for finding in architecture['findings']:
+        if (not isinstance(finding, dict) or any(not isinstance(finding.get(k), str) or not finding[k].strip()
+                for k in ('id', 'problem', 'owner')) or finding.get('status') not in {'open', 'fixed', 'excluded'}):
+            raise ValueError('architecture_finding_requires_problem_owner_disposition')
+        if finding['status'] == 'excluded' and not finding.get('reason'):
+            raise ValueError('architecture_finding_exclusion_reason_required')
+        if finding['status'] == 'fixed':
+            repair = finding.get('repair', {})
+            if (repair.get('path') != finding['owner'] or not repair.get('before_sha256')
+                    or repair.get('before_sha256') == repair.get('after_sha256')
+                    or file_hash(root, finding['owner']) != repair.get('after_sha256')):
+                raise ValueError('architecture_finding_owner_repair_evidence_required')
+    for group in ('flows', 'boundaries', 'findings'):
+        for entry in architecture[group]:
+            if not isinstance(entry.get('references'), list) or not entry['references']:
+                raise ValueError('architecture_evidence_references_required')
+    for name in architecture_references(architecture):
+        if not isinstance(name, str) or file_hash(root, name) is None:
+            raise ValueError('architecture_evidence_reference_missing')
+
+
+def review_scope_states(root, review):
+    result = {}
+    for key, entry in review.get('scope_reviews', {}).items():
+        try:
+            if any(file_hash(root, name) != value for name, value in entry.get('reference_hashes', {}).items()):
+                result[key] = 'STALE'
+                continue
+            validate_review(root, dict(review, scope_reviews={key: entry}))
+            result[key] = 'CURRENT'
+        except (OSError, ValueError, TypeError, AttributeError):
+            result[key] = 'BLOCKED'
+    return result
+
+
 def current_review(root, review, basis):
     if not isinstance(review, dict) or review.get('basis') != basis:
         return False
     try:
-        validate_review(root, review)
+        validate_review(root, dict(review, scope_reviews={}))
         if any(file_hash(root, name) != value for name, value in review.get('reference_hashes', {}).items()):
             return False
     except (OSError, ValueError, TypeError):
@@ -924,12 +1205,30 @@ def record_review(root, project, state, review):
     feature = next((item for item in result['features'] + result['retired'] if item['id'] == review.get('feature')), None)
     if feature is None or feature['basis'] != review.get('basis'):
         raise ValueError('stale_or_unknown_review')
+    prior = state.get('retired_reviews', {}).get(review['feature'],
+                state.get('reviews', {}).get(review['feature'], {}))
+    unresolved = {f['id'] for f in architecture_findings(prior) if f['status'] == 'open'}
+    remaining = {f['id'] for f in architecture_findings(review)}
+    if unresolved - remaining:
+        raise ValueError(f'unresolved_architecture_finding_disposition_required:{sorted(unresolved - remaining)}')
+    for entry in review.get('scope_reviews', {}).values():
+        for finding in entry.get('architecture', {}).get('findings', []):
+            if finding['status'] == 'fixed' and state['baseline'].get(finding['owner']) != finding['repair']['before_sha256']:
+                raise ValueError('architecture_owner_repair_baseline_mismatch')
+    declared = next((f for f in configuration(project)['features'] if f['id'] == review['feature']), {})
+    for row in declared.get('coverage', []):
+        entry = review.get('scope_reviews', {}).get(row['id'], {})
+        if row['kind'] == 'review' and 'architecture' in row['perspectives'] and entry.get('status') in {'PASS', 'ISSUES', 'BLOCKED'}:
+            if not entry.get('architecture'):
+                raise ValueError('architecture_evidence_required')
     updated = deepcopy(state)
     key = 'retired_reviews' if feature in result['retired'] else 'reviews'
     updated.setdefault(key, {})[review['feature']] = deepcopy(review)
     updated[key][review['feature']]['reference_hashes'] = {
-        name: file_hash(root, name) for name in dict.fromkeys(review['references'] +
-        [name for entry in review.get('scope_reviews', {}).values() for name in entry['references']])}
+        name: file_hash(root, name) for name in review['references']}
+    for entry in updated[key][review['feature']].get('scope_reviews', {}).values():
+        entry['reference_hashes'] = {name: file_hash(root, name) for name in dict.fromkeys(
+            entry['references'] + architecture_references(entry.get('architecture', {})))}
     return updated
 
 
@@ -998,6 +1297,9 @@ def main(argv=None):
         if args.action == 'accept':
             result['status'] = 'BLOCKED'
             result['findings'].append('host_protected_acceptance_unavailable')
+        if state is not None:
+            selection = pending_selection(result)
+            result['execution_selection'] = {key: selection[key] for key in ('selected_checks', 'selection', 'unconnected_features')}
     except (OSError, ValueError, TypeError, KeyError, subprocess.CalledProcessError) as error:
         result = {'status': 'BLOCKED', 'findings': [str(error)]}
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))

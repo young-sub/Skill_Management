@@ -80,6 +80,9 @@ def assess(path, run_id, feature, check, argv, cwd):
     if len(counts) == 1 and int(counts[0]) == 0:
         raise ValueError('No tests ran; not_run is not PASS')
     if record['exit_code'] != 0:
+        if re.search(r'_FailedTest|Failed to import test module', output):
+            return {**verdict, 'status': 'BLOCKED', 'reason': 'Unittest discovery/import unavailable; inspect raw error',
+                    'exit_code': record['exit_code']}
         return {**verdict, 'status': 'ISSUES', 'reason': 'Native command failed',
                 'exit_code': record['exit_code']}
     # This project owns these unittest commands. Output strings are not
