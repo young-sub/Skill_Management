@@ -18,10 +18,22 @@ The packaged viewer read the retained five-check UI bundle at
 Output decreased from 71,169 to 24,492 bytes (65.6%); all retained fields and exit
 codes matched, with zero test commands executed. Current status remained BLOCKED;
 this lookup does not renew the historical UI evidence or prove native Agent use
-of 0.1.34. The existing isolated installation was not changed. Regression coverage
+of 0.1.34. Regression coverage
 checks PASS/ISSUES/BLOCKED, exclusions, evidence preservation, no replay/input
 mutation, and rejection of execution/preparation combinations. Whole-system
 acceptance and the existing native sandbox limitation remain incomplete.
+
+The subsequent guarded update installed 0.1.34 into the existing explicit
+`host-006/home`, retaining the previous cache under
+`.work/plugin-transition/summary-v034/backup`. All 246 packaged files matched
+the installed bytes. The installed viewer produced the same full/summary
+verdicts and evidence pointers for the five-check bundle, executed zero test
+commands, and left all 23 evidence files byte-identical. A repeated update
+returned UNCHANGED without creating another backup. Raw receipts and the
+installed lookup are retained under `.work/plugin-transition/summary-v034/`.
+This verifies the installed CLI and update path, not a new native Agent task,
+hook trust after update, or protected acceptance. Ordinary installations,
+global configuration and the original Labeler were not changed.
 
 ## Host installer and missing-setup guard, 2026-10-06
 
