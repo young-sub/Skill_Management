@@ -91,6 +91,8 @@ class ProjectWorkflowTests(unittest.TestCase):
         rows = runtime.coverage_rows(feature, review, basis, current_basis='changed')
         self.assertEqual(rows[0]['status'], 'STALE')
         self.assertEqual(runtime.coverage_summary(rows)['areas']['Domain'], {'NOT_RUN': 1, 'STALE': 1})
+        state['reviews']['api']['scope_reviews']['ownership'] = {'status': 'PASS'}
+        self.assertEqual(runtime.inspect_project(self.root, self.project, state)['coverage']['rows'][0]['status'], 'BLOCKED')
         feature['coverage'][0]['areas'] = ['e2e']
         with self.assertRaisesRegex(ValueError, 'coverage_axis'):
             runtime.configuration(self.project)
@@ -155,6 +157,29 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertIn('missing_ui_guide:shared:docs/ui.md', runtime.inspect_project(self.root, self.project, state)['findings'])
         config['features'].pop()
         self.assertIn('removed_ui_consumer:shared:cli', runtime.inspect_project(self.root, self.project, state)['findings'])
+
+    def test_check_removal_retains_missing_detection_preservation_obligation(self):
+        runtime = self.runtime()
+        feature = self.project['extensions']['workflow']['features'][0]
+        feature['prevention'] = [{'failure': 'Wrong price', 'scope': 'Pricing', 'check': 'check',
+                                  'normal_exception': 'Zero valid', 'reconsider': 'Contract changes'}]
+        state = runtime.begin(self.root, self.project, 'maintain')
+        feature['checks'] = []
+        feature['prevention'] = []
+        state = self.review(runtime, state, 'api')
+        result = runtime.inspect_project(self.root, self.project, state)
+        retired = result['check_retirements'][0]
+        self.assertEqual(retired['check'], 'check')
+        self.assertEqual(retired['status'], 'BLOCKED')
+        self.assertIn('preservation_decision_missing', retired['remaining'])
+        self.assertIn('check_preservation', next(o for o in result['obligations'] if o['target'] == 'api')['requires'])
+        maintenance = runtime.maintenance_summary(self.root, self.project, state)
+        self.assertEqual(maintenance['checks'][0]['disposition'], 'retain')
+        self.assertIn('No current detection-preservation evidence', maintenance['checks'][0]['retain_reason'])
+        self.project['extensions']['workflow']['state'] = '.work/current.json'
+        self.write('.work/current.json', json.dumps(state))
+        later = runtime.begin(self.root, self.project, 'change')
+        self.assertEqual(runtime.inspect_project(self.root, self.project, later)['check_retirements'][0]['status'], 'BLOCKED')
 
     def test_change_reopens_only_affected_and_typo_does_not(self):
         runtime = self.runtime()

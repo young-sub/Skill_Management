@@ -146,6 +146,11 @@ Unittest captures establish only their assertions; ignored inputs, dependencies,
 live runtime identity and protected acceptance require separate evidence.
 # Feedback state and follow-up consumption
 
+Read-only `maintain` adds measured `maintenance` for explicitly linked bundles.
+Removing baseline checks from an active Feature retains `check_retirements` and
+`check_preservation` until a current reasoned review connects preserved defect and
+normal evidence. Details live in [verification responsibilities](project-verification.md).
+
 The existing work JSON now retains `feedback` by incident ID. `feedback --feedback
 <entry.json>` merges an explicit complaint/repair stage; audit returns each chain's
 computed OPEN/RESOLVED and `remaining`, not a submitted done flag. The feedback

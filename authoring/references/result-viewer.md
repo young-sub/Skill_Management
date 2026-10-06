@@ -169,5 +169,10 @@ ISSUES, BLOCKED, NOT_REQUIRED), `analysis`, existing-file `references`, and `rea
 for an exclusion. PASS here is explicitly an Agent semantic review, never an
 automated-test verdict. `--prepare ... --workflow-state .work/task.json` snapshots
 these reviews; changed Feature inputs or reference bytes make them STALE. Without
-a review they remain NOT_RUN. Historical plans/raw are preserved. Lookup never
+a review they remain NOT_RUN. For a review completed after execution, use
+`--bundle <bundle.json> --workflow-state .work/task.json --summary`: it reads the
+same project's current review record without rerunning tests. Review rows retain
+original `historical_status`/`historical_evidence` separately from the current
+analysis/reference binding; changed inputs or incomplete reviews remain stale or
+blocked. Historical plans/raw are preserved. Lookup never
 executes a command from the scope or reviews.

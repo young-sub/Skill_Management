@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: 107f49b967b64fdb396c65a3e59387b4b39409ac3bade349248e2de7ba2f38ab -->
+<!-- Source-SHA256: caf7c92faa6eb4200b5746d596b34c10a56404e9b1af21380e0a3e699ef7fbdc -->
 
 # Project workflow obligations
 
@@ -149,6 +149,11 @@ The native-JSON path remains available for browser/API/DB observations.
 Unittest captures establish only their assertions; ignored inputs, dependencies,
 live runtime identity and protected acceptance require separate evidence.
 # Feedback state and follow-up consumption
+
+Read-only `maintain` adds measured `maintenance` for explicitly linked bundles.
+Removing baseline checks from an active Feature retains `check_retirements` and
+`check_preservation` until a current reasoned review connects preserved defect and
+normal evidence. Details live in [verification responsibilities](project-verification.md).
 
 The existing work JSON now retains `feedback` by incident ID. `feedback --feedback
 <entry.json>` merges an explicit complaint/repair stage; audit returns each chain's

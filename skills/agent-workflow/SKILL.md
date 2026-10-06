@@ -4,7 +4,7 @@ description: Coordinate a coding task from a natural-language request through re
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: bd5f6eba6eeb8f6079690b7cf89b87b7287252ce1d34b9d642926ed03cbfbae1 -->
+<!-- Source-SHA256: 3ccd52b889d19cfe67200e3b2bdd97dd9c3cc11642c28cdd9cd940908a9a822a -->
 
 
 # Agent Workflow
@@ -32,6 +32,8 @@ For registered native JSON checks, the bundled [verification CLI](scripts/verifi
 For lookup-only requests use `--bundle` (optionally `--summary`) or read existing raw evidence. Lookup runs no recorded command. If compatible bindings are missing, report that limit; do not manufacture a successful plan or backfill evidence through execution. A native pass without a bundle remains bounded native evidence, not current reusable workflow acceptance.
 
 Consume the result's `coverage` alongside test verdicts. Project Feature `coverage` connects requirements/outcomes to independent business/architecture perspectives and FE/BE/API/Domain responsibilities; cross-layer/E2E describes the method. Fill only applicable links. Record semantic `scope_reviews` through the existing workflow review and include `--workflow-state` during preparation when those reviews are needed in retained results. Report semantic review separately from executed tests and retain missing, excluded and stale scope.
+
+If semantic review follows execution, join the current record with `--bundle ... --workflow-state .work/task.json` during read-only lookup. The original review status remains historical; the current analysis is separately bound. Never rerun unchanged commands merely to attach a later review.
 
 For feedback, register the complaint/expected behavior/reproduction with the existing workflow `feedback` action before repair. Extend that same record with actual flow, cause, failed prevention, owner paths, guardrail and red/green bundles as described in [repair and reuse](references/repair-and-reuse.md). Audit computes unresolved stages and revalidation; consume prior active prevention and retained feedback on subsequent related changes. Diagnosis remains the existing Agent capability, not automatic root-cause analysis.
 

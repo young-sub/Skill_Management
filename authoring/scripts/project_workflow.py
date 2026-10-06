@@ -10,6 +10,7 @@ from copy import deepcopy
 from fnmatch import fnmatchcase
 import hashlib
 import json
+import math
 from pathlib import Path
 import re
 import runpy
@@ -183,7 +184,7 @@ def inspect_ui_systems(root, config, files):
     return result
 
 
-def coverage_rows(feature, review, basis, items=(), *, current_basis=None):
+def coverage_rows(feature, review, basis, items=(), *, current_basis=None, semantic_valid=True):
     """Declared scope only; the Agent decides which requirements/layers apply."""
     tests = {item['id']: item for item in items if item['feature'] == feature['id']}
     rows = []
@@ -199,6 +200,9 @@ def coverage_rows(feature, review, basis, items=(), *, current_basis=None):
                 if review.get('basis') != basis or (current_basis is not None and current_basis != basis):
                     row['status'] = 'STALE'
                     row['reasons'].append('semantic_review_basis_changed')
+                elif not semantic_valid:
+                    row['status'] = 'BLOCKED'
+                    row['reasons'].append('semantic_review_invalid_or_unbound')
         else:
             item = tests.get(row.get('check'))
             row['historical_status'] = item['historical_status'] if item else 'NOT_RUN'
@@ -244,6 +248,8 @@ def begin(root, project, intent, targets=()):
         raise ValueError('unknown_target')
     features = inspect_project(root, project)['features']
     feedback = {}
+    check_links = {f['id']: {'checks': list(f['checks']), 'prevention': deepcopy(f.get('prevention', []))}
+                   for f in config['features']}
     if config.get('state'):
         prior = local_path(root, config['state'])
         if not prior.resolve().is_relative_to(root.resolve() / '.work'):
@@ -253,6 +259,14 @@ def begin(root, project, intent, targets=()):
             if not isinstance(saved, dict) or saved.get('root') != str(root.resolve()) or saved.get('schema_version') != 1:
                 raise ValueError('work_target_mismatch')
             feedback = deepcopy(saved.get('feedback', {}))
+            for pending in inspect_project(root, project, saved)['check_retirements']:
+                if pending['status'] == 'BLOCKED' and pending['feature'] in check_links:
+                    links = check_links[pending['feature']]
+                    prior_links = saved['check_links'][pending['feature']]
+                    if pending['check'] not in links['checks']:
+                        links['checks'].append(pending['check'])
+                    links['prevention'].extend(p for p in prior_links.get('prevention', [])
+                                               if p['check'] == pending['check'] and p not in links['prevention'])
     return {'schema_version': 1, 'root': str(root.resolve()), 'intent': intent,
             'targets': sorted(set(targets)), 'base': git(root, 'rev-parse', 'HEAD').decode().strip(),
             'dirty_baseline': git(root, 'status', '--porcelain').decode('utf-8'),
@@ -262,7 +276,8 @@ def begin(root, project, intent, targets=()):
                 for field in ('tokens', 'components') for pattern in system[field]])) for f in config['features']},
             'documentation_only': {f['id']: dict(f.get('documentation_only', {})) for f in config['features']},
             'input_bases': {item['id']: item['basis'] for item in features},
-            'verification_bases': {item['id']: item['verification_basis'] for item in features}}
+            'verification_bases': {item['id']: item['verification_basis'] for item in features},
+            'check_links': check_links}
 
 
 def begin_work(root, project):
@@ -318,7 +333,7 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
               'trust': 'editable local consistency; host-protected acceptance unavailable',
               'obligations': [], 'features': [], 'partitions': {}, 'unmapped': [],
               'unlinked': [], 'findings': [], 'product_findings': [], 'retired': [], 'coverage': coverage_summary([]),
-              'feedback': [], 'ui_systems': []}
+              'feedback': [], 'ui_systems': [], 'check_retirements': []}
     if config is None:
         return result
     if state is not None and not isinstance(state, dict):
@@ -428,19 +443,25 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
         if unresolved_feedback:
             requires.extend(['repair', 'regression', 'normal_case'])
             findings.extend(f'feedback_pending:{item["id"]}:{part}' for item in unresolved_feedback for part in item['remaining'])
+        retirements = inspect_check_retirements(root, feature, state, review, reviewed)
+        result['check_retirements'].extend(retirements)
+        if any(item['status'] != 'PRESERVED' for item in retirements):
+            requires.append('check_preservation')
+            findings.extend(f'check_retirement_pending:{identity}:{item["check"]}:{reason}'
+                            for item in retirements for reason in item['remaining'])
         needs_behavior = any(requirement in requires for requirement in ('verification', 'repair', 'regression'))
         behavior = None
-        if needs_behavior and reviewed:
+        if reviewed and (needs_behavior or feature.get('coverage') and review.get('bundle')):
             if evidence_resolver is not None:
                 behavior = evidence_resolver(root, feature, commands)
             elif review.get('bundle'):
                 behavior = inspect_evidence(root, feature, commands, review['bundle'])
-            if behavior is not None and behavior['status'] != 'PASS':
+            if needs_behavior and behavior is not None and behavior['status'] != 'PASS':
                 findings.extend(behavior['findings'])
         if state.get('intent') == 'feedback' and identity in state.get('targets', []) and state.get('input_bases', {}).get(identity) == basis:
             findings.append(f'repair_not_observed:{identity}')
         pending = not reviewed or findings or product_findings or (needs_behavior and (not behavior or behavior['status'] != 'PASS'))
-        rows = coverage_rows(feature, review, basis, behavior.get('items', []) if behavior else [])
+        rows = coverage_rows(feature, review, basis, behavior.get('items', []) if behavior else [], semantic_valid=reviewed)
         result['coverage']['rows'].extend(rows)
         scope_gaps = [row['id'] for row in rows if row['kind'] == 'review' and row['status'] not in {'PASS', 'NOT_REQUIRED'}
                       or row['status'] == 'MISSING']
@@ -505,6 +526,140 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
     return result
 
 
+def inspect_check_retirements(root, feature, state, review, reviewed):
+    prior = state.get('check_links', {}).get(feature['id'], {})
+    result = []
+    for check in sorted(set(prior.get('checks', [])) - set(feature['checks'])):
+        decision = review.get('check_decisions', {}).get(check, {})
+        remaining = []
+        if not reviewed:
+            remaining.append('current_semantic_review_required')
+        if decision.get('action') not in {'remove', 'consolidate'} or not decision.get('reason'):
+            remaining.append('preservation_decision_missing')
+        failures = [p for p in prior.get('prevention', []) if p['check'] == check]
+        if not failures:
+            remaining.append('prior_detection_scope_unknown')
+        for failure in failures:
+            proof = next((p for p in decision.get('preservation', []) if
+                          all(p.get('guardrail', {}).get(key) == failure.get(key) for key in ('failure', 'scope'))), None)
+            if not proof:
+                remaining.append(f'detection_preservation_missing:{failure["failure"]}')
+                continue
+            guardrail = proof.get('guardrail', {})
+            if guardrail.get('check') not in feature['checks'] or not any(
+                    all(p.get(key) == guardrail.get(key) for key in ('failure', 'scope', 'check', 'normal_exception', 'reconsider'))
+                    for p in feature.get('prevention', [])):
+                remaining.append('replacement_prevention_inactive')
+            try:
+                remaining.extend(feedback_evidence(root, feature, proof, original_check=check))
+            except (OSError, ValueError, KeyError, TypeError):
+                remaining.append('replacement_evidence_unavailable')
+        result.append({'feature': feature['id'], 'check': check, 'decision': decision,
+                       'status': 'BLOCKED' if remaining else 'PRESERVED', 'remaining': sorted(set(remaining))})
+    return result
+
+
+def maintenance_summary(root, project, state=None, history=(), *, retirements=()):
+    """Inspect explicitly connected runs, not all past work or speculative pruning."""
+    config = configuration(project)
+    state = state or {}
+    commands = dict(project.get('commands', {}))
+    commands.update(project.get('impact', {}).get('feature_selectors', {}))
+    checks = {}
+    for feature in config['features']:
+        prior = state.get('check_links', {}).get(feature['id'], {})
+        for check in dict.fromkeys(feature['checks'] + prior.get('checks', [])):
+            row = checks.setdefault(check, {'id': check, 'features': [], 'failures': [], 'runs': [],
+                'disposition': 'retain', 'retain_reason': 'No current detection-preservation evidence; semantic review required'})
+            row['features'].append(feature['id'])
+            for prevention in feature.get('prevention', []) + prior.get('prevention', []):
+                if prevention['check'] == check and prevention not in row['failures']:
+                    row['failures'].append(prevention)
+    paths = list(history) + [review['bundle'] for review in state.get('reviews', {}).values() if review.get('bundle')]
+    paths += [entry[key] for entry in state.get('feedback', {}).values() for key in ('red_bundle', 'green_bundle') if entry.get(key)]
+    paths += [proof[key] for review in state.get('reviews', {}).values()
+              for decision in review.get('check_decisions', {}).values() for proof in decision.get('preservation', [])
+              for key in ('original_bundle', 'red_bundle', 'green_bundle') if proof.get(key)]
+    viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
+    findings, seen, variations = [], set(), {}
+    for name in dict.fromkeys(paths):
+        try:
+            path = local_path(root, name)
+            binding = json.loads(path.read_text(encoding='utf-8'))
+            if binding.get('format') == 'unittest-captures-v1':
+                feature = next(f for f in config['features'] if f['id'] == binding.get('feature'))
+                items = inspect_unittest_evidence(root, feature, commands, binding).get('items', [])
+            else:
+                viewed = viewer['view_bundle'](path)
+                items = viewed.get('items', [])
+                if not items:
+                    findings.append(f'maintenance_bundle_unavailable:{name}')
+            for item in items:
+                if item['id'] not in checks or not item['capture'].get('path'):
+                    continue
+                record_path = local_path(root, str(Path(item['capture']['path']).resolve().relative_to(root.resolve())))
+                record = json.loads(record_path.read_text(encoding='utf-8'))
+                key = (item['id'], record.get('run_id'), digest(record))
+                row = checks[item['id']]
+                if key not in seen:
+                    seen.add(key)
+                    row['runs'].append({'run_id': record.get('run_id'), 'capture': str(record_path),
+                        'capture_sha256': digest(record),
+                        'execution': record.get('execution'), 'exit_code': record.get('exit_code'),
+                        'elapsed_seconds': record.get('elapsed_seconds'),
+                        'native_report_error': record.get('json_report', {}).get('error'),
+                        'cleanup_incomplete': bool(record.get('cleanup_incomplete')), 'judgments': []})
+                run = next(run for run in row['runs'] if run['run_id'] == record.get('run_id') and run['capture_sha256'] == digest(record))
+                judgment = {key: item.get(key) for key in ('feature', 'historical_status', 'current_status', 'current_reuse', 'reasons')}
+                judgment['raw'] = [{key: raw[key] for key in ('path', 'sha256', 'pointer')} | {
+                    'assertions': [{'assertion': obs['assertion'], 'matched': obs['matched']}
+                                   for obs in raw.get('observations', [])]} for raw in item.get('raw', [])]
+                if judgment not in run['judgments']:
+                    run['judgments'].append(judgment)
+                conditions = dict(item.get('conditions', {}).get('expected', {}))
+                conditions['command'] = commands.get(item['id'])
+                assertions = [obs['assertion'] for raw in item.get('raw', []) for obs in raw.get('observations', [])]
+                if item.get('conditions', {}).get('expected') and assertions:
+                    signature = (item['id'], item['feature'], digest({'conditions': conditions, 'assertions': assertions}))
+                    group = variations.setdefault(signature, {'runs': set(), 'statuses': set()})
+                    group['runs'].add(record.get('run_id'))
+                    group['statuses'].add(item['historical_status'])
+        except (OSError, ValueError, TypeError, KeyError, StopIteration):
+            findings.append(f'maintenance_evidence_unavailable:{name}')
+    for row in checks.values():
+        costs = [run['elapsed_seconds'] for run in row['runs'] if type(run['elapsed_seconds']) in (int, float)
+                 and math.isfinite(run['elapsed_seconds']) and run['elapsed_seconds'] >= 0]
+        row['cost'] = {'unique_runs': len(row['runs']), 'measured_runs': len(costs),
+                       'elapsed_seconds': sum(costs) if costs else None,
+                       'native_failures': sum(type(run['exit_code']) is int and run['exit_code'] != 0 for run in row['runs']),
+                       'incomplete_runs': sum(run['execution'] != 'exited' or run['cleanup_incomplete'] for run in row['runs']),
+                       'native_report_errors': sum(bool(run['native_report_error']) for run in row['runs'])}
+        overlaps = sorted({other['id'] for other in checks.values() if other['id'] != row['id'] and any(
+            (left['failure'], left.get('scope')) == (right['failure'], right.get('scope'))
+            for left in row['failures'] for right in other['failures'])})
+        row['declared_overlap'] = overlaps
+        row['active_features'] = [f['id'] for f in config['features'] if row['id'] in f['checks']]
+        active_checks = {check for f in config['features'] for check in f['checks']}
+        row['candidate'] = 'review_overlap' if row['active_features'] and any(check in active_checks for check in overlaps) else 'retain'
+        row['declared_unique_failures'] = [p for p in row['failures'] if not any(
+            other['id'] != row['id'] and other['id'] in active_checks and any(
+                (p['failure'], p.get('scope')) == (q['failure'], q.get('scope')) for q in other['failures']) for other in checks.values())]
+        if row['active_features'] and row['runs'] and row['failures']:
+            row['retain_reason'] = 'Active failure detector; retain unless equivalent replacement is demonstrated'
+        row['registered_command'] = commands.get(row['id'])
+        row['retirements'] = [item for item in retirements if item['check'] == row['id']]
+        if row['retirements'] and all(item['status'] == 'PRESERVED' for item in row['retirements']) and not row['active_features']:
+            row['disposition'] = 'removed_with_preserved_detection'
+            row['retain_reason'] = None
+            row['candidate'] = 'completed_consolidation_or_removal'
+        row['same_conditions_outcome_variation'] = [{'feature': feature, 'condition_id': signature,
+            'runs': sorted(group['runs']), 'statuses': sorted(group['statuses'])}
+            for (check, feature, signature), group in variations.items()
+            if check == row['id'] and len(group['runs']) > 1 and len(group['statuses']) > 1]
+    return {'read_only': True, 'test_commands_executed': 0, 'checks': list(checks.values()), 'findings': findings,
+            'meaning': 'Declared overlap and outcome variation require Agent judgment; counts/cost never authorize deletion'}
+
+
 def record_feedback(root, project, state, entry):
     if not isinstance(entry, dict) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,127}', str(entry.get('id', ''))):
         raise ValueError('feedback_identity_required')
@@ -533,7 +688,7 @@ def record_feedback(root, project, state, entry):
     return result
 
 
-def feedback_evidence(root, feature, entry):
+def feedback_evidence(root, feature, entry, *, original_check=None):
     """Fixed viewer/raw joins, never run a submitted reproduction or command."""
     viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
     red = viewer['view_bundle'](local_path(root, entry['red_bundle']))
@@ -542,11 +697,13 @@ def feedback_evidence(root, feature, entry):
     before = next((i for i in red.get('items', []) if i['feature'] == feature['id'] and i['id'] == check), None)
     after = next((i for i in green.get('items', []) if i['feature'] == feature['id'] and i['id'] == check), None)
     reasons = []
+    def unbound(item):
+        return item['capture']['execution'] != 'exited' or any(reason == 'source_plan_hash_mismatch' or
+            reason.startswith(('raw_producer', 'capture_feature', 'capture_check', 'capture_run',
+                               'capture_source_changed', 'capture_invalid', 'assessment_')) for reason in item['reasons'])
     if not before or before['historical_status'] != 'ISSUES':
         reasons.append('original_failure_evidence_missing')
-    if before and (before['capture']['execution'] != 'exited' or any(
-            reason.startswith(('raw_producer', 'capture_feature', 'capture_check', 'capture_run', 'assessment_evidence'))
-            for reason in before['reasons'])):
+    if before and unbound(before):
         reasons.append('original_failure_evidence_unbound')
     if not after or after['current_status'] != 'PASS':
         reasons.append('repair_revalidation_required')
@@ -558,6 +715,12 @@ def feedback_evidence(root, feature, entry):
     passing = [obs['assertion'] for obs in assertions(after) if obs['assertion']['pointer'] == regression and obs['matched']]
     if not failing or not any(assertion in passing for assertion in failing):
         reasons.append('original_criterion_not_preserved')
+    if original_check is not None:
+        original_result = viewer['view_bundle'](local_path(root, entry.get('original_bundle', entry['red_bundle'])))
+        original = next((i for i in original_result.get('items', []) if i['feature'] == feature['id'] and i['id'] == original_check), None)
+        if (not original or original['historical_status'] != 'ISSUES' or unbound(original) or not any(
+                not obs['matched'] and obs['assertion'] in failing for obs in assertions(original))):
+            reasons.append('prior_detector_evidence_missing')
     if normal == regression or not any(obs['assertion']['pointer'] == normal and obs['matched'] for obs in assertions(after)):
         reasons.append('nearby_normal_evidence_missing')
     if before and after:
@@ -649,6 +812,7 @@ def inspect_unittest_evidence(root, feature, commands, binding):
         raise ValueError('verification_records_required')
     verified = set()
     findings = []
+    items = []
     for record in records:
         check = record['check']
         if check not in feature['checks'] or check in verified:
@@ -660,8 +824,18 @@ def inspect_unittest_evidence(root, feature, commands, binding):
         if isinstance(descriptor, dict) and descriptor.get('runtime', 'python') != 'python':
             raise ValueError('native_unittest_runtime_required')
         cwd = local_path(root, descriptor.get('working_directory', '.') if isinstance(descriptor, dict) else '.')
-        observed = reader['assess'](local_path(root, record['path']), record['run_id'],
-                                   feature['id'], check, [sys.executable, *argv[1:]], cwd.resolve())
+        path = local_path(root, record['path'])
+        captured = json.loads(path.read_text(encoding='utf-8'))
+        try:
+            observed = reader['assess'](path, record['run_id'], feature['id'], check, [sys.executable, *argv[1:]], cwd.resolve())
+        except (OSError, ValueError):
+            observed = {'status': 'BLOCKED'}
+        items.append({'id': check, 'feature': feature['id'], 'historical_status': observed['status'],
+            'current_status': observed['status'], 'current_reuse': 'REUSABLE' if observed['status'] == 'PASS' else 'UNKNOWN',
+            'selected': True, 'selection': {'status': 'selected', 'reason': 'Feature native unittest binding'},
+            'run_id': record['run_id'], 'raw': [], 'reasons': [] if observed['status'] == 'PASS' else ['native_assertions_unavailable_or_failed'],
+            'capture': {'path': str(path.resolve()), 'argv': captured.get('argv'), 'cwd': captured.get('cwd'),
+                        'execution': captured.get('execution'), 'exit_code': captured.get('exit_code')}})
         if observed['status'] == 'PASS':
             verified.add(check)
         else:
@@ -669,6 +843,7 @@ def inspect_unittest_evidence(root, feature, commands, binding):
     findings.extend(f'verification_missing:{feature["id"]}:{check}'
                     for check in sorted(set(feature['checks']) - verified))
     return {'status': 'BLOCKED' if findings else 'PASS', 'findings': findings,
+            'items': items,
             'test_commands_executed': 0, 'scope': 'native unittest assertions; local consistency only'}
 
 
@@ -717,6 +892,14 @@ def validate_review(root, review):
         for name in entry['references']:
             if file_hash(root, name) is None:
                 raise ValueError(f'scope_review_reference_missing:{name}')
+    decisions = review.get('check_decisions', {})
+    if not isinstance(decisions, dict):
+        raise ValueError('check_decisions_must_be_object')
+    for entry in decisions.values():
+        if not isinstance(entry, dict) or entry.get('action') not in {'retain', 'remove', 'consolidate'} or not entry.get('reason'):
+            raise ValueError('check_decision_requires_action_reason')
+        if not isinstance(entry.get('preservation', []), list) or any(not isinstance(p, dict) for p in entry.get('preservation', [])):
+            raise ValueError('check_preservation_must_be_list')
 
 
 def current_review(root, review, basis):
@@ -748,7 +931,7 @@ def record_review(root, project, state, review):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=['begin', 'audit', 'review', 'feedback', 'accept'])
+    parser.add_argument('action', choices=['begin', 'audit', 'maintain', 'review', 'feedback', 'accept'])
     parser.add_argument('--root', type=Path, required=True)
     parser.add_argument('--project', default='.harness/project.yaml')
     state_selection = parser.add_mutually_exclusive_group()
@@ -758,6 +941,7 @@ def main(argv=None):
     parser.add_argument('--target', action='append', default=[])
     parser.add_argument('--review', type=Path)
     parser.add_argument('--feedback', type=Path, help='Register/update a complaint and repair chain in the existing work state')
+    parser.add_argument('--history-bundle', action='append', default=[], help='Project-relative retained bundle for read-only maintenance costs/detection review')
     args = parser.parse_args(argv)
     try:
         root = args.root.resolve()
@@ -802,6 +986,11 @@ def main(argv=None):
                     temporary = Path(output.name)
                 temporary.replace(state_path)
         result = inspect_project(root, project, state)
+        if args.action == 'maintain':
+            result['maintenance'] = maintenance_summary(root, project, state, args.history_bundle,
+                                                        retirements=result['check_retirements'])
+        elif args.history_bundle:
+            raise ValueError('history_bundle_requires_read_only_maintain')
         if args.action == 'accept':
             result['status'] = 'BLOCKED'
             result['findings'].append('host_protected_acceptance_unavailable')

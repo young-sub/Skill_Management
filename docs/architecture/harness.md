@@ -13,6 +13,12 @@ references and consumer Feature IDs feed current bases, changed-work obligations
 and prepared input hashes. Values remain code-owned; exceptions and design
 sufficiency remain review inputs, not automated visual verdicts.
 
+Feedback chains and check-retirement obligations stay in the existing work state.
+Their direct raw-evidence joins reuse the result viewer. Read-only maintenance
+collects only explicitly linked runs and measured cost/errors; semantic overlap
+and unique-detector judgments belong to the Agent. There is no second ledger or
+test-pruning engine.
+
 ## Control plane
 
 `.harness/project.yaml` is JSON-compatible YAML. Its internal schema version is retained for machine compatibility. The file owns mapped roots, command descriptors, source-to-test candidates, Full warning triggers, document boundaries, retention, Git policy, and baseline debt. Unknown normative fields are rejected; provider extensions belong under `extensions`.

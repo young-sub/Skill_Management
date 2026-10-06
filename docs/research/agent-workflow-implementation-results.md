@@ -1,5 +1,14 @@
 # Agent workflow implementation and acceptance
 
+Current user-function delivery is plugin **0.1.40**, built locally at
+`.work/plugins/agentic-coding-0.1.40-delivery` (19 existing Skills, 246 files).
+The A/B/C/D sections below distinguish deterministic CLI behavior from reused
+Agent diagnosis/design/semantic review. The package was not installed or published;
+ordinary/global installs, original Labeler and protected branches were unchanged.
+Local user-function completion does not resolve protected-host acceptance or prove
+new native Agent quality/performance. Historical host-first limitations below are
+not prerequisites for this implementation.
+
 ## User-function completion: full-stack scope, 2026-10-06
 
 This session started from branch `wp-20261004-agent-coding-foundation`, HEAD
@@ -59,6 +68,62 @@ subdirectory input case verifies automatic UI-file bindings. Actual local CLI
 as CONNECTED, and a shared token change reopening the consuming `order` Feature's
 UI review and verification. The fixture explicitly records its CLI-only exception;
 CONNECTED proves reference structure, not rendered UI correctness.
+
+## Evidence-based check maintenance and package delivery, 2026-10-06
+
+Read-only `project_workflow.py maintain` now collects explicitly connected runs
+using existing native-JSON/unittest adapters: failure/scope/normal links, raw
+assertion pointers, deduplicated native captures, measured elapsed time, native
+failure/report/cleanup information, and original/current judgments. Declared
+overlap is a semantic review candidate; comparable outcome variation is evidence
+to investigate, not an automatic flaky-test classification. No count-based
+deletion rule or universal pruning engine exists.
+
+The captured work baseline retains check/prevention links. Removal from an active
+Feature remains BLOCKED until a current reasoned `check_decisions` review binds
+old and replacement defect detection, unchanged criterion, current normal evidence
+and active replacement prevention. Unresolved deletion survives the next configured
+work start. The Agent makes the scoped consolidation; the CLI validates its
+connected evidence. Unknown detection scope retains the check.
+
+Focused workflow/hook/native adapter/viewer/real consolidation regression: 64
+tests passed. Final changed-edge checks (retirement persistence, invalid scope
+review, consolidation, semantic staleness and full-stack round trip): 5 passed.
+Post-execution semantic lookup: 1 passed. Packaging/document checks: 4 passed.
+The final wrong-target preservation case initially failed; shared historical
+binding validation now rejects both unbound old and replacement detectors. That
+case and the feedback red/green regression passed (2 tests).
+Consolidation proof bundles now feed maintenance automatically; their paths need
+not be entered again as history. Its dedicated integration case covers that join
+alongside old-detector target refusal and actual registry consolidation.
+Resource drift, distribution validation and diff formatting passed. No Full or
+repeated native Agent evaluation/installation was run.
+
+Actual `d-*.json` CLI observations in `.work/agentic-user-flow-20261006` retain
+two failing detectors (RED ISSUES), two green detectors, and one green detector
+after scoped registry/assertion/prevention consolidation. Before evidence review,
+the deletion was BLOCKED; afterward it was PRESERVED. Old captures remain intact.
+Final packaged maintenance ran zero checks, automatically collected four unique
+linked `sum` runs and one `redundant` run without re-entering proof paths,
+retained the active detector and showed the removed
+detector with preserved detection. Times are actual local capture wall time,
+not a plugin performance comparison. The example's intentionally missing FE flow
+and old feedback revalidation remain visible separately from this maintenance
+proof; no global success flag hides them.
+
+The packaged viewer was also executed directly with `--bundle --workflow-state
+.work/maintain.json --summary`: zero test commands, original ownership review
+NOT_RUN versus current Agent review PASS, actual sum PASS and missing display
+link MISSING. Joining a later review reads the same task state; it never rewrites
+or reruns a prior bundle. Malformed/unbound semantic review cannot become PASS.
+The final package observations are `delivery-maintain.json` and
+`delivery-lookup.json` in that same retained work folder.
+
+Remaining boundaries: visual/design and causal/coverage equivalence require Agent
+judgment; prepared native-JSON currently supports the detailed feedback/deletion
+raw-preservation join. Other project runners need their own compatible bindings,
+not a new universal parser. New native Agent behavior and the latest protected
+handoff installation/execution were deliberately not evaluated in this session.
 
 Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876fb9f8922e0cade072469ddc9a51267df`, with a clean worktree. This implements the [execution prompt](agent-coding-next-session.md); the prior review-only restriction does not apply to this authorized implementation. Source/distribution `c7c064a`, viewer soundness repairs `7e9eb8d`, and UI reuse/selection-reason follow-up `95eed81` are committed. T1–T6 were performed within the independent pilot. The whole delegation system remains PARTIAL/BLOCKED for the host and evidence limits below.
 

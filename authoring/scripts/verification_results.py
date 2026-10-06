@@ -1236,7 +1236,7 @@ def _validate_bundle_report_paths(plan: dict[str, Any], evidence_dir: Path | Non
                 )
 
 
-def view_bundle(bundle: dict[str, Any] | str | Path) -> dict[str, Any]:
+def view_bundle(bundle: dict[str, Any] | str | Path, *, workflow_state: Path | None = None) -> dict[str, Any]:
     """Revalidate an execution bundle read-only against the current project state."""
     bundle_value: Any = bundle
     bundle_file: Path | None = None
@@ -1302,6 +1302,7 @@ def view_bundle(bundle: dict[str, Any] | str | Path) -> dict[str, Any]:
             assessment_paths=assessments,
             observation_paths=observations,
             current_context=current,
+            workflow_state=workflow_state,
         )
         result["bundle"] = copy.deepcopy(bundle_value)
         result["bundle_view"] = {"read_only": True, "source_plan": str(source_plan), "source_plan_sha256": source_hash}
@@ -1695,6 +1696,7 @@ def view_results(
     observation_paths: Iterable[str | Path] = (),
     current_context_path: str | Path | None = None,
     current_context: dict[str, Any] | None = None,
+    workflow_state: Path | None = None,
 ) -> dict[str, Any]:
     """Read and join records without executing or modifying any input."""
     plan_file = Path(plan_path).resolve()
@@ -1732,16 +1734,26 @@ def view_results(
         "items": items,
         "remaining": sorted({reason for item in items for reason in item["reasons"] if reason}),
     }
-    result['coverage'] = _view_coverage(plan, items)
+    result['coverage'] = _view_coverage(plan, items, workflow_state=workflow_state)
     return result
 
 
-def _view_coverage(plan, items):
+def _view_coverage(plan, items, *, workflow_state=None):
     workflow = runpy.run_path(str(Path(__file__).with_name('project_workflow.py')))
     scope = plan.get('workflow_scope')
     if not scope:
+        if workflow_state is not None:
+            raise ViewerInputError('Semantic lookup requires a prepared workflow scope')
         return workflow['coverage_summary']([])
     root = _safe_cwd(Path(scope['root']), 'workflow scope')
+    state = None
+    if workflow_state is not None:
+        path = workflow['local_path'](root, str(workflow_state))
+        if not path.resolve().is_relative_to(root / '.work'):
+            raise ViewerInputError('workflow state must be under .work')
+        state, _ = _read_json(path)
+        if not isinstance(state, dict) or state.get('root') != str(root) or state.get('schema_version') != 1:
+            raise ViewerInputError('workflow state target mismatch')
     rows = []
     try:
         project, _ = _read_json(_safe_path('.harness/project.yaml', root=root, label='project'))
@@ -1751,11 +1763,21 @@ def _view_coverage(plan, items):
         bases = {}
     for feature in scope['features']:
         basis = scope['bases'][feature['id']]
-        review = scope.get('reviews', {}).get(feature['id'], {})
+        historical_review = scope.get('reviews', {}).get(feature['id'], {})
+        review = (state if state is not None else scope).get('reviews', {}).get(feature['id'], {})
         current_basis = bases.get(feature['id'], 'unavailable')
         if any(workflow['file_hash'](root, name) != value for name, value in review.get('reference_hashes', {}).items()):
             current_basis = 'review_reference_changed'
-        rows.extend(workflow['coverage_rows'](feature, review, basis, items, current_basis=current_basis))
+        current_rows = workflow['coverage_rows'](feature, review, basis, items, current_basis=current_basis,
+                                                semantic_valid=workflow['current_review'](root, review, basis))
+        if state is not None:
+            historical_rows = {row['id']: row for row in workflow['coverage_rows'](feature, historical_review, basis, items)}
+            for row in current_rows:
+                if row['kind'] == 'review':
+                    row['historical_status'] = historical_rows[row['id']]['historical_status']
+                    row['historical_evidence'] = historical_rows[row['id']]['evidence']
+                    row['current_review_state'] = str(path)
+        rows.extend(current_rows)
     return workflow['coverage_summary'](rows)
 
 
@@ -1872,7 +1894,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument('--root', type=Path, help='Configured project for --prepare')
     parser.add_argument('--plan-output', type=Path, help='New Git-ignored plan path for --prepare')
     parser.add_argument('--report-dir', type=Path, help='Git-ignored project directory for explicit {report_dir}/file native output templates')
-    parser.add_argument('--workflow-state', type=Path, help='Project-relative .work record containing semantic scope reviews for preparation')
+    parser.add_argument('--workflow-state', type=Path, help='Project-relative .work record containing semantic reviews for preparation or read-only result lookup')
     parser.add_argument("--record", dest="records", action="append", default=[])
     parser.add_argument("--assessment", dest="assessments", action="append", default=[])
     parser.add_argument("--observation", dest="observations", action="append", default=[])
@@ -1901,7 +1923,7 @@ def main(argv: list[str] | None = None) -> int:
             result = {'status': 'BLOCKED', 'reason': str(error), 'test_commands_executed': 0}
         print(json.dumps(result, ensure_ascii=False, indent=2 if args.pretty else None))
         return 0 if result['status'] == 'PREPARED' else 2
-    if args.root or args.plan_output or args.report_dir or args.workflow_state:
+    if args.root or args.plan_output or args.report_dir:
         _parser().error('--root, --plan-output and --report-dir require --prepare')
     if args.resume and not args.execute:
         _parser().error('--resume requires --execute')
@@ -1909,7 +1931,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.execute or args.records or args.assessments or args.observations or args.current_context:
             result = _blocked_bundle("--bundle cannot combine with execution or manual evidence arguments")
         else:
-            result = view_bundle(args.bundle)
+            result = view_bundle(args.bundle, workflow_state=args.workflow_state)
         if args.summary:
             result = summarize_results(result)
         print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2 if args.pretty else None))
@@ -1924,7 +1946,7 @@ def main(argv: list[str] | None = None) -> int:
                     args.run_check = capture
             except (OSError, ValueError):
                 pass  # Standalone Skills still require their project's explicit capture tool.
-        if args.records or args.assessments or args.observations or args.current_context:
+        if args.records or args.assessments or args.observations or args.current_context or args.workflow_state:
             result = _blocked_execution("--execute cannot combine with lookup evidence arguments", plan_path=args.plan, run_check_path=args.run_check)
         elif args.run_check is None or args.evidence_dir is None:
             result = _blocked_execution("--execute requires --run-check and --evidence-dir", plan_path=args.plan, run_check_path=args.run_check)
@@ -1948,6 +1970,7 @@ def main(argv: list[str] | None = None) -> int:
             assessment_paths=args.assessments,
             observation_paths=args.observations,
             current_context_path=args.current_context,
+            workflow_state=args.workflow_state,
         )
     except (OSError, ValueError, TypeError, KeyError) as error:
         result = {

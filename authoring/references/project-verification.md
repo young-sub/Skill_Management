@@ -50,3 +50,40 @@ Show original execution/judgment separately from current reusable/stale/unverifi
 Keep planned, not-run, skip and not_required distinct from success. Required zero/all-skipped cases, wrong Feature/run/target, unavailable runtime, masked native failure or unresolved observation block overall PASS. Preserve ISSUES and BLOCKED together. Native failure is a check failure until raw evidence distinguishes a product assertion from environment/runner error. Report successful bounded observations without hiding gaps.
 
 Feature changes update map/guide/active selectors in the same functional diff/commit; completion review checks missing links, dead commands and removed-feature residues. Historical results are retained with their original target and criteria. Detailed runs live in the project temporary-work root; durable guides contain current methods, not copied PASS records.
+
+## Detection value and measured maintenance
+
+`project_workflow.py maintain --root <project> --state .work/task.json
+--history-bundle .work/retained/bundle.json` is read-only. It consumes explicitly
+linked review/feedback bundles plus named history; it does not scan all work or
+run checks. `maintenance.checks` joins each failure/scope/normal exception to
+native capture/raw assertion pointers, unique runs, measured elapsed time,
+nonzero native exits, incomplete executions and original/current judgments.
+Shared captures and repeated bundle references count once per check. Native
+unittest capture bundles reuse the existing adapter too; unavailable/stale
+assessment stays unavailable while actual native cost/exit remain observable.
+
+`declared_overlap` means matching declared failure/scope, not semantic equivalence.
+`same_conditions_outcome_variation` is reported only for repeated measured bindings
+and the same assertions, and needs Agent investigation before calling it flaky.
+Missing mappings/evidence retain the check; costs, counts and success rates never
+authorize deletion. Inspect unique regressions and nearest valid counterparts.
+
+Begin captures existing check/prevention links in the same work baseline. Removing
+a check from a still-active Feature creates `check_retirements` and a
+`check_preservation` obligation. The current semantic review's `check_decisions`
+is keyed by removed check, with `action` (`retain`, `consolidate`, `remove`), `reason`
+and `preservation` entries for every previously declared failure/scope. Each entry
+uses the feedback guardrail shape, replacement `check`, `red_bundle` proving the
+replacement detects the defect, `green_bundle` proving its current normal operation,
+and optionally `original_bundle` if the old detector's failed assertion is in a
+different bundle. The same oracle and distinct nearby normal assertion must remain.
+The replacement prevention link must be active; missing prior detection scope or
+evidence blocks preservation. Existing older baselines cannot invent absent prior
+links. Feature retirement uses its separate semantic removal review.
+
+The Agent decides whether the failures are equivalent and makes the actual scoped
+code/registry consolidation. The CLI verifies connected evidence and records
+PRESERVED or BLOCKED; it neither chooses checks to delete nor runs a pruning loop.
+Prepared native-JSON bundles currently support the raw preservation join; other
+project adapters must provide compatible bindings before that join can resolve.

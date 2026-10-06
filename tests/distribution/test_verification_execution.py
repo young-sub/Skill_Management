@@ -21,7 +21,7 @@ def _digest(data: bytes) -> str:
 
 
 class VerificationExecutionTests(unittest.TestCase):
-    def test_registered_report_directory_runs_twice_without_configuration_edits(self, subdirectory=False, coverage=False):
+    def test_registered_report_directory_runs_twice_without_configuration_edits(self, subdirectory=False, coverage=False, semantic=False, semantic_after=False):
         api = __import__('runpy').run_path(str(VIEWER))
         workflow = __import__('runpy').run_path(str(VIEWER.with_name('project_workflow.py')))
         original = json.loads(self._plan().read_text())['checks'][0]
@@ -59,17 +59,28 @@ class VerificationExecutionTests(unittest.TestCase):
             config['commands']['arithmetic-readback'] = {'argv': command, 'working_directory': 'backend'}
             config_path.write_text(json.dumps(config))
         before = {p: p.read_bytes() for p in (config_path, spec)}
+        if semantic:
+            state = workflow['begin'](self.project, config, 'init')
+            audit = workflow['inspect_project'](self.project, config, state)
+            review = {'feature': feature['id'], 'basis': audit['features'][0]['basis'],
+                      'analysis': 'Domain owns arithmetic and runner serializes the result', 'references': ['check.py'], 'findings': [],
+                      'scope_reviews': {'ownership': {'status': 'PASS', 'analysis': 'No parallel state owner', 'references': ['check.py']}}}
+            state = workflow['record_review'](self.project, config, state, review)
+            (self.project / '.work').mkdir(exist_ok=True)
+            (self.project / '.work/semantic.json').write_text(json.dumps(state))
         bundles = []
         for name in ('first', 'second'):
             output = self.project / f'.work/{name}/plan.json'
             if name == 'first':
                 prepared = subprocess.run([sys.executable, str(VIEWER), '--prepare', str(spec),
                     '--root', str(self.project), '--plan-output', str(output),
-                    '--report-dir', f'.work/{name}/native'], capture_output=True, text=True)
+                    '--report-dir', f'.work/{name}/native',
+                    *(['--workflow-state', '.work/semantic.json'] if semantic and not semantic_after else [])], capture_output=True, text=True)
                 self.assertEqual(prepared.returncode, 0, prepared.stdout + prepared.stderr)
                 self.assertEqual(json.loads(prepared.stdout)['test_commands_executed'], 0)
             else:
-                api['prepare_plan'](self.project, spec, output, report_dir=Path(f'.work/{name}/native'))
+                api['prepare_plan'](self.project, spec, output, report_dir=Path(f'.work/{name}/native'),
+                                    workflow_state=Path('.work/semantic.json') if semantic and not semantic_after else None)
             result = api['execute_plan'](output, run_check_path=RUN_CHECK,
                                          evidence_dir=self.project / f'.work/{name}/evidence')
             self.assertEqual(result['status'], 'PASS', result)
@@ -78,7 +89,7 @@ class VerificationExecutionTests(unittest.TestCase):
                 rows = {row['id']: row for row in result['coverage']['rows']}
                 self.assertEqual(rows['sum']['status'], 'PASS')
                 self.assertEqual(rows['sum']['areas'], ['BE/API', 'Domain'])
-                self.assertEqual(rows['ownership']['status'], 'NOT_RUN')
+                self.assertEqual(rows['ownership']['status'], 'PASS' if semantic and not semantic_after else 'NOT_RUN')
                 self.assertEqual(rows['display']['status'], 'MISSING')
                 self.assertEqual(result['coverage']['status'], 'PARTIAL')
                 self.assertEqual(rows['sum']['evidence']['run_id'], result['items'][0]['run_id'])
@@ -88,13 +99,24 @@ class VerificationExecutionTests(unittest.TestCase):
             bundles.append(bundle)
         self.assertEqual({p: p.read_bytes() for p in before}, before)
         for bundle in bundles:
-            looked_up = api['view_bundle'](bundle)
+            looked_up = api['view_bundle'](bundle, **({'workflow_state': Path('.work/semantic.json')} if semantic_after else {}))
             self.assertEqual(looked_up['status'], 'PASS', looked_up)
             self.assertEqual(looked_up['test_commands_executed'], 0)
             if coverage:
                 summary = api['summarize_results'](looked_up)
                 self.assertEqual(looked_up['coverage']['gaps'], summary['coverage']['gaps'])
                 self.assertEqual(looked_up['coverage']['rows'][0]['status'], 'PASS')
+                if semantic_after:
+                    ownership = next(row for row in looked_up['coverage']['rows'] if row['id'] == 'ownership')
+                    self.assertEqual(ownership['historical_status'], 'NOT_RUN')
+                    self.assertEqual(ownership['status'], 'PASS')
+        if semantic:
+            with (self.project / 'check.py').open('a') as stream:
+                stream.write('\n# changed owner\n')
+            changed = api['view_bundle'](bundles[-1], **({'workflow_state': Path('.work/semantic.json')} if semantic_after else {}))
+            semantic_row = next(row for row in changed['coverage']['rows'] if row['id'] == 'ownership')
+            self.assertEqual(semantic_row['historical_status'], 'NOT_RUN' if semantic_after else 'PASS')
+            self.assertEqual(semantic_row['status'], 'STALE')
         with (self.project / '.gitignore').open('a') as stream:
             stream.write('reports/native-report.json\n')
         with self.assertRaises(ValueError):
@@ -125,7 +147,13 @@ class VerificationExecutionTests(unittest.TestCase):
     def test_full_stack_scope_survives_prepare_execute_and_lookup(self):
         self.test_registered_report_directory_runs_twice_without_configuration_edits(coverage=True)
 
-    def test_feedback_red_green_normal_and_subsequent_revalidation(self):
+    def test_semantic_review_survives_preparation_and_reopens_on_owner_change(self):
+        self.test_registered_report_directory_runs_twice_without_configuration_edits(coverage=True, semantic=True)
+
+    def test_semantic_review_can_join_retained_results_without_execution(self):
+        self.test_registered_report_directory_runs_twice_without_configuration_edits(coverage=True, semantic=True, semantic_after=True)
+
+    def test_feedback_red_green_normal_and_subsequent_revalidation(self, maintenance=False):
         import runpy
         api = runpy.run_path(str(VIEWER))
         workflow = runpy.run_path(str(VIEWER.with_name('project_workflow.py')))
@@ -144,13 +172,23 @@ class VerificationExecutionTests(unittest.TestCase):
                    'prevention': [{key: guardrail[key] for key in ('failure', 'scope', 'check', 'normal_exception', 'reconsider')}]}
         project = {'commands': {'arithmetic-readback': [sys.executable, 'check.py', '{report_dir}/result.json']},
                    'extensions': {'workflow': {'roots': ['domain.py', 'check.py'], 'state': '.work/state.json', 'features': [feature]}}}
+        if maintenance:
+            feature['checks'].append('redundant')
+            feature['prevention'].append(dict(feature['prevention'][0], check='redundant'))
+            project['commands']['redundant'] = [sys.executable, 'check.py', '{report_dir}/redundant.json']
         (self.project / '.harness').mkdir()
         (self.project / '.harness/project.yaml').write_text(json.dumps(project))
         spec = {key: original[key] for key in ('id', 'feature_id', 'expected', 'required', 'selection')}
         spec.update(raw_observations=[{'path': '{report_dir}/result.json', 'pointer': '$.checks[0]', 'assertions': [
             {'pointer': guardrail['regression_pointer'], 'equals': True}, {'pointer': guardrail['normal_pointer'], 'equals': True}]}],
             dependency={'file_refs': ['dependency.txt']}, fixture={'file_refs': ['fixture.json']})
-        (self.project / 'assertions.json').write_text(json.dumps({'schema_version': 1, 'checks': [spec]}))
+        specs = [spec]
+        if maintenance:
+            redundant = __import__('copy').deepcopy(spec)
+            redundant['id'] = 'redundant'
+            redundant['raw_observations'][0]['path'] = '{report_dir}/redundant.json'
+            specs.append(redundant)
+        (self.project / 'assertions.json').write_text(json.dumps({'schema_version': 1, 'checks': specs}))
         state = workflow['begin'](self.project, project, 'feedback', ['fixture-product'])
         complaint = {'id': 'negative', 'feature': 'fixture-product', 'expected': 'Reject negative',
                      'observed': 'Negative accepted', 'reproduction': 'valid(-1) returns True'}
@@ -170,6 +208,47 @@ class VerificationExecutionTests(unittest.TestCase):
         (self.project / '.work/state.json').write_text(json.dumps(state))
         later = workflow['begin_work'](self.project, project)
         self.assertEqual(workflow['inspect_project'](self.project, project, later)['feedback'][0]['status'], 'RESOLVED')
+        if maintenance:
+            summary = workflow['maintenance_summary'](self.project, project, state, ['.work/green/evidence/bundle.json'] * 2)
+            check = next(row for row in summary['checks'] if row['id'] == 'arithmetic-readback')
+            self.assertEqual(check['cost']['unique_runs'], 2)
+            self.assertGreater(check['cost']['elapsed_seconds'], 0)
+            self.assertEqual(check['declared_overlap'], ['redundant'])
+            self.assertEqual(check['same_conditions_outcome_variation'], [])
+            self.assertEqual(check['disposition'], 'retain')
+            # Actual registry consolidation is blocked before proof, then accepted
+            # only with old and replacement RED plus current GREEN/normal evidence.
+            feature['checks'].remove('redundant')
+            feature['prevention'] = [p for p in feature['prevention'] if p['check'] != 'redundant']
+            del project['commands']['redundant']
+            (self.project / '.harness/project.yaml').write_text(json.dumps(project))
+            (self.project / 'assertions.json').write_text(json.dumps({'schema_version': 1, 'checks': [spec]}))
+            output = self.project / '.work/after/plan.json'
+            api['prepare_plan'](self.project, Path('assertions.json'), output, report_dir=Path('.work/after/native'))
+            after = api['execute_plan'](output, run_check_path=RUN_CHECK, evidence_dir=self.project / '.work/after/evidence')
+            self.assertEqual(after['status'], 'PASS')
+            audit = workflow['inspect_project'](self.project, project, state)
+            self.assertEqual(audit['check_retirements'][0]['status'], 'BLOCKED')
+            basis = next(f['basis'] for f in audit['features'] if f['id'] == feature['id'])
+            review = {'feature': feature['id'], 'basis': basis, 'analysis': 'Both tests detect the same negative quantity defect',
+                      'references': ['domain.py', 'fixture.json'], 'findings': [],
+                      'check_decisions': {'redundant': {'action': 'consolidate', 'reason': 'Shared domain regression preserves detection',
+                          'preservation': [{'guardrail': guardrail, 'red_bundle': '.work/red/evidence/bundle.json',
+                                            'green_bundle': '.work/after/evidence/bundle.json'}]}}}
+            state = workflow['record_review'](self.project, project, state, review)
+            self.assertEqual(workflow['inspect_project'](self.project, project, state)['check_retirements'][0]['status'], 'PRESERVED')
+            linked = workflow['maintenance_summary'](self.project, project, state)
+            self.assertEqual(next(c for c in linked['checks'] if c['id'] == 'arithmetic-readback')['cost']['unique_runs'], 3,
+                             'Consolidation proof runs must be consumed without re-entering their history paths')
+            # An old detector with a mismatched target cannot prove preservation,
+            # even if its raw failing assertion remains in the report.
+            red_binding = json.loads((self.project / '.work/red/evidence/bundle.json').read_text())
+            old_path = next(Path(p) for p in red_binding['records'] if json.loads(Path(p).read_text())['check'] == 'redundant')
+            old_record = json.loads(old_path.read_text())
+            old_record['feature'] = 'wrong-target'
+            old_path.write_text(json.dumps(old_record))
+            self.assertEqual(workflow['inspect_project'](self.project, project, state)['check_retirements'][0]['status'], 'BLOCKED')
+            return
         # The positive counterpart must be distinct and the original oracle cannot weaken.
         broken = __import__('copy').deepcopy(state)
         broken['feedback']['negative']['guardrail']['normal_pointer'] = guardrail['regression_pointer']
@@ -178,6 +257,9 @@ class VerificationExecutionTests(unittest.TestCase):
         reopened = workflow['inspect_project'](self.project, project, later)['feedback'][0]
         self.assertEqual(reopened['status'], 'OPEN')
         self.assertIn('repair_revalidation_required', reopened['remaining'])
+
+    def test_maintenance_cost_overlap_and_actual_consolidation_preserve_detection(self):
+        self.test_feedback_red_green_normal_and_subsequent_revalidation(maintenance=True)
 
     def test_shared_feature_command_runs_once_and_keeps_independent_assertions(self, second_sum=5):
         import copy

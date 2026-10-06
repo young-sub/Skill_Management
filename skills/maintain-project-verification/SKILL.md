@@ -4,7 +4,7 @@ description: Audit and repair drift in a project's Feature Map, executable verif
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/maintain-project-verification/SKILL.md -->
-<!-- Source-SHA256: f190ad4192397a397e669e18dbab2f5863308c58daa686d9696df44df9b73aba -->
+<!-- Source-SHA256: fae2a9fd5cf5e843a51c2e77471a2dc5d8e67a0c6569ab34b1fe38cd2c898297 -->
 
 
 # Maintain Project Verification
@@ -24,3 +24,5 @@ Consume `coverage.gaps` and `ui_systems` from the same audit. Repair affected re
 Keep feature additions/changes/removals and their map/guide/active selectors in the same functional change. Confirm removed entrypoints really have no callers; remove only active connections and retain historical runs. Execute repaired commands and the affected flow without lowering requirements, assertions, skips or visual baselines. Preserve both verified work and remaining BLOCKED areas.
 
 Review redundant, implementation-coupled or costly checks by the failure each detects. Consolidate only when the remaining mechanism demonstrably rejects the same defect and permits nearby valid behavior. Without that evidence retain the checks and explain why. Counts and coverage alone do not establish value. Do not create a separate test-pruning framework.
+
+Use the existing workflow CLI's read-only `maintain` action with the current work record and explicit `--history-bundle` paths for measured cost/native error/raw detection links; it also consumes already linked feedback/review runs. Treat `declared_overlap` as a review candidate and measured outcome variation as an investigation input. Record reasoned `check_decisions` in the same semantic review for scoped consolidation/removal, then satisfy every `check_retirements` preservation obligation with old/replacement defect detection and a current nearby normal case. See the shared verification reference for fields. Keep unique or unproven detectors.

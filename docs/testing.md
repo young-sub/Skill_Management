@@ -1,5 +1,14 @@
 # Testing And Impact Selection
 
+The workflow/result selectors also cover full-stack scope preparation and semantic
+review staleness, feedback owner repair with actual red/green/normal native JSON,
+shared UI consumer/input bindings, measured maintenance deduplication and real
+registry consolidation with preserved detection. New task-local CLI usage evidence
+is retained under `.work/agentic-user-flow-20261006`; it is synthetic/local, not
+native Agent or protected-host acceptance. `maintain` and bundle lookup run zero
+test commands. No broad evaluation or sandbox reconfiguration is needed for these
+user-function checks.
+
 Choose the smallest useful regression case or validation while editing. If a change cannot affect executable behavior, no new test is required. At Item completion, inspect the changed function, method, branch, state transition, or configuration rule plus its direct callers and public behavior using the existing diff and symbol searches. Record `changed_logic`, `affected_behaviors`, `scope`, and `reason`. Documentation-only changes with no executable, schema, test-discovery, or workflow effect may use `scope: none` and `tests: []`; use the relevant document, resource, or distribution check instead. Paths and filenames only discover candidate tests/features; they do not decide scope.
 
 Local impact runs the smallest relevant behavior tests. Capability impact adds only relevant contract/integration tests. Cross-cutting impact runs Full. Unknown or unexplained logic impact remains `unresolved_logic_impact` and requires investigation; it does not automatically expand to Full. CI uses Full as a safe fallback only when it cannot determine the changed file set. A configured `full_trigger` emits a candidate warning; only a cross-cutting logic assessment or explicit human Full request sets `full_required`. Generated prose, Skill instructions, and manifests use focused resource/distribution checks unless their actual logic impact crosses boundaries. `not_required` names the matched assessment/rule; it never means passed.

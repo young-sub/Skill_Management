@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/result-viewer.md -->
-<!-- Source-SHA256: e2435fd5d90b5a4894da461851603144e0b1502511054b773057bef3f503005d -->
+<!-- Source-SHA256: c578c9e6d62772ea896c633049d640d6ee25bb4d4c0de36d3f635e91f7ad7736 -->
 
 # Existing-result lookup
 
@@ -173,5 +173,10 @@ ISSUES, BLOCKED, NOT_REQUIRED), `analysis`, existing-file `references`, and `rea
 for an exclusion. PASS here is explicitly an Agent semantic review, never an
 automated-test verdict. `--prepare ... --workflow-state .work/task.json` snapshots
 these reviews; changed Feature inputs or reference bytes make them STALE. Without
-a review they remain NOT_RUN. Historical plans/raw are preserved. Lookup never
+a review they remain NOT_RUN. For a review completed after execution, use
+`--bundle <bundle.json> --workflow-state .work/task.json --summary`: it reads the
+same project's current review record without rerunning tests. Review rows retain
+original `historical_status`/`historical_evidence` separately from the current
+analysis/reference binding; changed inputs or incomplete reviews remain stale or
+blocked. Historical plans/raw are preserved. Lookup never
 executes a command from the scope or reviews.

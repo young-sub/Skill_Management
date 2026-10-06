@@ -8,7 +8,7 @@ The package identity and version are owned by `distribution/plugin.json`.
 ## Build
 
 ```powershell
-python scripts/build_plugin.py --output .work/plugins/agentic-coding-0.1.20
+python scripts/build_plugin.py --output .work/plugins/agentic-coding-0.1.40
 ```
 
 The builder first runs the existing generated-resource check. It selects tracked
@@ -34,6 +34,17 @@ and commands. Existing diagnosis, execution, review and UI Skills are reused.
 See the [system direction](research/agent-coding-system-direction.md) and
 [acceptance design](research/agent-workflow-completion-design.md) for the complete
 required behavior; packaging alone does not satisfy those requirements.
+
+Version 0.1.40 connects project-declared full-stack scope to prepare/execute/lookup,
+feedback repair evidence to subsequent work, shared UI ownership to consumer
+obligations, and read-only check maintenance to measured native records and
+detection-preserving consolidation. The CLI performs structural joins, state and
+evidence checks; Agents retain diagnosis, architecture/design sufficiency and
+semantic consolidation judgment. Read the [usage contract](../authoring/references/project-verification.md)
+and [current implementation evidence](research/agent-workflow-implementation-results.md).
+No automatic feedback collector, visual detector, universal parser or host-enforced
+request registration is claimed. The local package does not update an installed
+copy or change protected-host acceptance.
 
 The builder never installs, publishes, changes global settings, or trusts hooks.
 [`install_host_verifier.py`](../scripts/install_host_verifier.py) stages a reviewed
