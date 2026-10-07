@@ -950,6 +950,16 @@ def _file_hashes(group: dict[str, Any], cwd: Path, label: str) -> dict[str, str]
         except OSError as error:
             raise ViewerInputError(f"{label}.file_ref_unreadable:{ref}:{error}") from error
         hashes[str(path)] = _sha256(raw)
+    installed = _file_refs({'file_refs': group.get('installed_file_refs')}, label)
+    for ref in installed:
+        path = Path(ref)
+        if (label != 'dependency' or not path.is_absolute() or _private_path(path)
+                or '.git' in {part.lower() for part in path.parts}):
+            raise ViewerInputError('installed_file_refs require explicit absolute public dependency files')
+        _reject_alias_components(path, 'installed dependency')
+        if not path.is_file():
+            raise ViewerInputError(f'installed_dependency_unavailable:{path}')
+        hashes[str(path.resolve())] = _path_hash(path, 'installed dependency')
     return hashes
 
 
@@ -1639,7 +1649,7 @@ def execute_plan(
                 try:
                     report_raw = report_path.read_bytes()
                     report_hash = _sha256(report_raw)
-                    json.loads(report_raw)
+                    native_report = json.loads(report_raw)
                 except (OSError, ValueError, json.JSONDecodeError):
                     report_ok = False
             if report_hash is not None:
@@ -1655,10 +1665,19 @@ def execute_plan(
                 matched = bool(raw) and not findings and all(
                     observation["matched"] for observation in raw[0]["observations"]
                 )
+                native_status = _status(native_report['status']) if isinstance(native_report, dict) and 'status' in native_report else None
+                verdict = 'PASS' if matched and record.get('exit_code') == 0 else 'ISSUES'
+                if record.get('execution') != 'exited':
+                    verdict = 'BLOCKED'
+                elif native_status in {'BLOCKED', 'SKIP', 'NOT_RUN', 'UNKNOWN'}:
+                    verdict = native_status
+                elif native_status == 'NOT_REQUIRED':
+                    verdict = 'BLOCKED'  # Only plan selection can exclude a required check.
                 _write_json(
                     assessment_path,
                     {
-                        "status": "PASS" if matched and record.get("execution") == "exited" and record.get("exit_code") == 0 else "ISSUES",
+                        "status": verdict,
+                        "native_report_status": native_status,
                         "feature": check["feature_id"],
                         "check": check["id"],
                         "run_id": run_id,

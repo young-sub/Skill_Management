@@ -21,6 +21,48 @@ def _digest(data: bytes) -> str:
 
 
 class VerificationExecutionTests(unittest.TestCase):
+    def test_native_unobserved_or_skipped_cases_are_not_product_assertion_failures(self):
+        (self.project / '.gitignore').write_text('result.json\n.work/\n')
+        self._git('add', '.gitignore')
+        self._git('commit', '-qm', 'isolated native reports')
+        for index, status in enumerate(('BLOCKED', 'SKIP', 'NOT_RUN', 'ERROR')):
+            with self.subTest(status=status):
+                child = self.root / f'unobserved-{index}.py'
+                report = f'.work/native-{index}.json'
+                child.write_text("import json\nfrom pathlib import Path\n"
+                    "p=Path(" + repr(report) + ");p.parent.mkdir(parents=True,exist_ok=True)\n"
+                    "p.write_text(json.dumps({'status':" + repr(status) + ", 'checks':[{'count':0,'skipped':1}]}))\n")
+                plan = self._plan(child=child, report=report)
+                _, result = self._execute(plan, evidence_dir=self.root / f'evidence-{index}')
+                expected = status if status != 'ERROR' else 'UNKNOWN'
+                self.assertEqual(result['items'][0]['historical_status'], expected, result)
+                self.assertNotEqual(result['items'][0]['assessment']['status'], 'ISSUES',
+                                    'Missing/blocked observations cannot be labeled a business assertion failure')
+
+    def test_installed_runtime_files_are_measured_and_drift_invalidates_reuse(self):
+        installed = self.root / 'browser-runtime.bin'
+        installed.write_bytes(b'public installed runtime v1')
+        plan_path = self._plan()
+        plan = json.loads(plan_path.read_text())
+        plan['checks'][0]['conditions']['dependency']['installed_file_refs'] = [str(installed)]
+        plan_path.write_text(json.dumps(plan))
+        _, result = self._execute(plan_path)
+        self.assertEqual(result['status'], 'PASS', result)
+        hashes = result['items'][0]['conditions']['expected']['dependency']['file_hashes']
+        self.assertIn(str(installed), hashes, 'Installed browser/library inputs need live identity, not a historical label')
+        installed.write_bytes(b'public installed runtime v2')
+        module = self._viewer_module()
+        before = plan_path.read_bytes()
+        current = module.view_bundle(result['execution']['bundle_path'])
+        self.assertEqual(current['items'][0]['current_reuse'], 'STALE', current)
+        self.assertEqual(current['test_commands_executed'], 0)
+        self.assertEqual(before, plan_path.read_bytes())
+        for bad in ('relative.dll', str(self.root / 'auth.json'), str(self.root / 'missing.dll')):
+            with self.subTest(bad=bad):
+                plan['checks'][0]['conditions']['dependency']['installed_file_refs'] = [bad]
+                with self.assertRaises(module.ViewerInputError):
+                    module._execution_conditions(plan['checks'][0], self.project)
+
     def test_registered_task_selection_executes_only_pending_and_binds_without_semantic_pass(self, exclude=False, partial=False, replace_task=False, work_id=False):
         import copy
         import runpy

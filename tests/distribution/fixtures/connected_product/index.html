@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Add quantity · Connected Product</title>
+    <link rel="stylesheet" href="/shared.css">
+    <script src="/ui.js" defer></script>
+  </head>
+  <body>
+    <div class="site-shell">
+      <app-nav active="add"></app-nav>
+      <main class="content" id="main-content">
+        <p class="eyebrow">Inventory example</p>
+        <h1>Add a quantity</h1>
+        <p class="lede">Save a quantity through the product API and confirm it in history.</p>
+        <section class="panel" aria-labelledby="quantity-heading">
+          <h2 id="quantity-heading">New item</h2>
+          <form id="quantity-form">
+            <label for="quantity">Quantity</label>
+            <input id="quantity" name="quantity" type="number" step="1" inputmode="numeric" required>
+            <button id="save-quantity" type="submit">Save quantity</button>
+            <p class="hint">Zero is allowed. Negative values are rejected by the API.</p>
+            <p id="status-message" class="status" role="status" aria-live="polite"></p>
+          </form>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

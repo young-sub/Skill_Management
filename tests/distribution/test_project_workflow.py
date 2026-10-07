@@ -108,6 +108,18 @@ class ProjectWorkflowTests(unittest.TestCase):
         _, reused = self.invoke('prepare', context=followup['task_context'])
         self.assertEqual(reused['verification']['status'], 'NOT_REQUIRED', reused)
 
+    def test_connect_validates_explicit_state_before_issuing_context(self):
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        _, started = self.invoke('start', '--intent', 'change', '--target', 'api')
+        path = self.root / started['task']['state']
+        record = json.loads(path.read_text())
+        record['root'] = str(self.root / 'another-checkout')
+        path.write_text(json.dumps(record))
+        _, connected = self.invoke('connect', '--state', started['task']['state'])
+        self.assertEqual(connected['status'], 'BLOCKED', connected)
+        self.assertNotIn('task_context', connected)
+        self.assertIn('work_target_mismatch', str(connected['findings']))
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

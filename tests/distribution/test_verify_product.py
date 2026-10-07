@@ -182,7 +182,7 @@ class VerifyProductTests(unittest.TestCase):
         self.assertEqual(failed.returncode, 1, failed.stderr + failed.stdout)
         self.assertEqual(json.loads(failed.stdout)['status'], 'ISSUES')
 
-    def test_pending_work_selects_only_needed_checks_and_reuses_current_evidence(self):
+    def test_pending_work_selects_only_needed_checks_and_reuses_current_evidence(self, connected=False):
         runtime = runpy.run_path(str(ROOT / 'authoring/scripts/project_workflow.py'))
         self.root.joinpath('.gitignore').write_text('evidence/\n.work/\n__pycache__/\n')
         self.root.joinpath('.work').mkdir()
@@ -208,6 +208,10 @@ class VerifyProductTests(unittest.TestCase):
         path.write_text(json.dumps(state))
         command = [sys.executable, str(VERIFIER), '--root', str(self.root), '--pending-state', '.work/state.json',
                    '--all-checks', '--output', str(self.root / 'evidence/pending')]
+        if connected:
+            binding = runtime['task_context'](self.root, state, path)
+            at = command.index('--pending-state')
+            command[at:at + 2] = ['--context', binding]
         result = subprocess.run(command, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
         outcome = json.loads(result.stdout)
@@ -237,6 +241,9 @@ class VerifyProductTests(unittest.TestCase):
             result = subprocess.run(command, capture_output=True, text=True)
             self.assertNotEqual(result.returncode, 0, 'An empty record is not a zero-impact work baseline')
             self.assertFalse((self.root / 'evidence/not-needed').exists())
+
+    def test_native_unittest_adapter_uses_the_same_connected_request(self):
+        self.test_pending_work_selects_only_needed_checks_and_reuses_current_evidence(connected=True)
 
     def test_stale_source_and_wrong_binding_are_blocked(self):
         record = self.run_check()

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>History · Connected Product</title>
+    <link rel="stylesheet" href="/shared.css">
+    <script src="/ui.js" defer></script>
+  </head>
+  <body>
+    <div class="site-shell">
+      <app-nav active="history"></app-nav>
+      <main class="content" id="main-content">
+        <p class="eyebrow">Inventory example</p>
+        <h1>Saved quantities</h1>
+        <p class="lede">This list comes from a fresh API read of SQLite.</p>
+        <section class="panel" aria-labelledby="history-heading">
+          <h2 id="history-heading">History</h2>
+          <p id="history-state" class="hint" role="status" aria-live="polite">Loading saved items…</p>
+          <ul id="history-items" class="item-list" aria-live="polite" data-loaded="false"></ul>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

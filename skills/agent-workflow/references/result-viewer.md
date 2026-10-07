@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/result-viewer.md -->
-<!-- Source-SHA256: 3b0dec88509ff4e5814663d8f28d612da030b4e31cb2c201b931ad0a2e300773 -->
+<!-- Source-SHA256: be693d46236cc82c1b142e19e25dfce56568f2eeb25e1fe71ab873f52f8a3382 -->
 
 # Existing-result lookup
 
@@ -92,6 +92,23 @@ or argument cannot satisfy the check. Two fresh run directories therefore do not
 change source/configuration identity or stale the earlier result merely by
 choosing another output location. Use `--bundle` for lookup and the original plan
 with `--resume` for interrupted work; neither requires a new report directory.
+
+When a project uses an already installed browser or library outside its checkout,
+declare the actual public files in `dependency.installed_file_refs` as explicit
+absolute paths. Preparation, preflight and read-only lookup hash those files
+again. Relative, missing, private or aliased paths are refused; this option never
+installs a dependency, launches a discovery command or reads fixture/credential
+data outside the project. Bind the files that determine the selected runner's
+behavior. A version string or an old Doctor report alone is not current identity;
+unlisted transitive inputs remain outside the reuse claim.
+
+Native reports may retain top-level BLOCKED, SKIP or NOT_RUN. The execution
+assessment preserves those observation states, and unrecognized report statuses
+remain UNKNOWN; a missing assertion in an unobserved case is not classified as a
+product assertion failure. Incomplete capture execution is BLOCKED. Required
+zero/skipped cases still cannot PASS, and only the plan may exclude a check.
+Project runners own the actual case/count/skip/error classification and meaningful
+assertions; the common viewer is not a parser for every runner.
 
 ## Explicit execution
 

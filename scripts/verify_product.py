@@ -6,6 +6,7 @@ editable evidence, attest ignored runtime inputs, or verify external products.
 import argparse
 import json
 import math
+import os
 from pathlib import Path
 import re
 import runpy
@@ -100,10 +101,10 @@ def feature_checks(root, commands):
     return features
 
 
-def execute_pending(root, state, work_id, output, timeout):
+def execute_pending(root, state, work_id, output, timeout, context=None):
     """Ask the existing runtime to recompute obligations, never trust a saved verdict."""
     workflow = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'authoring/scripts/project_workflow.py'))
-    record, state_path = workflow['task_state'](root, state, work_id)
+    record, state_path, work_id = workflow['resolve_task'](root, state, work_id, context)
     project = json.loads((root / '.harness/project.yaml').read_text(encoding='utf-8'))
     audit = workflow['inspect_project'](root, project, record)
     context = workflow['pending_selection'](audit)
@@ -153,12 +154,13 @@ def check_target(root, feature, check):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[1])
-    features = parser.add_mutually_exclusive_group(required=True)
+    parser.add_argument('--root', type=Path)
+    features = parser.add_mutually_exclusive_group()
     features.add_argument('--feature')
     features.add_argument('--features', nargs='+', help='Share registered checks across these preselected Features')
     features.add_argument('--pending-state', help='Select outstanding verification from an existing .work record')
     features.add_argument('--work-id', help='Select outstanding verification from Harness start state')
+    features.add_argument('--context', help='Use the same explicit request context as the workflow CLI')
     selection = parser.add_mutually_exclusive_group(required=True)
     selection.add_argument('--check')
     selection.add_argument('--all-checks', action='store_true', help='Run all checks registered for this Feature into a new output directory')
@@ -172,14 +174,17 @@ def main():
     try:
         if not math.isfinite(args.timeout) or args.timeout <= 0:
             raise ValueError('Timeout must be finite and positive')
-        root = args.root.resolve()
-        if (args.features or args.pending_state or args.work_id) and not args.all_checks:
+        context = args.context or (os.environ.get('AGENT_WORKFLOW_CONTEXT') if not args.feature and not args.features else None)
+        root = (args.root or (Path(json.loads(context)['root']) if context else Path(__file__).resolve().parents[1])).resolve()
+        if not any((args.feature, args.features, args.pending_state, args.work_id, context)):
+            raise ValueError('Explicit Feature or task context required')
+        if (args.features or args.pending_state or args.work_id or context) and not args.all_checks:
             raise ValueError('Batch or pending selection requires --all-checks')
         if args.all_checks:
             if not args.output or args.bundle_output or args.run_id:
                 raise ValueError('--all-checks requires a new --output directory only')
-            if args.pending_state or args.work_id:
-                verdict = execute_pending(root, args.pending_state, args.work_id, args.output, args.timeout)
+            if args.pending_state or args.work_id or context:
+                verdict = execute_pending(root, args.pending_state, args.work_id, args.output, args.timeout, context)
             else:
                 verdict = (execute_features(root, args.features, args.output, args.timeout) if args.features else
                            execute_feature(root, args.feature, args.output, args.timeout))

@@ -44,6 +44,17 @@ tasks. Context validates project and immutable task identity; it neither assumes
 a host session ID nor changes global settings. See the
 [connection contract](../authoring/references/workflow-obligations.md#connect-the-current-request-once).
 
+The project-owned [connected product example](../tests/distribution/fixtures/connected_product/docs/index.md)
+drives two real browser screens through API/Domain/SQLite and restarts the service
+before fresh read. It reuses the packaged entrypoint and existing capture/viewer,
+with screenshots/trace retained after cleanup. Its explicit installed runtime
+file references are measured during prepare, execute and lookup; native SKIP,
+NOT_RUN, UNKNOWN and observation BLOCKED remain distinct from assertion ISSUES.
+See [current actual-use results](research/agent-workflow-implementation-results.md#connected-actual-product-use-2026-10-07)
+for task connection, feedback/UI repair, detector preservation and the bounded
+host evidence. A project selects the installed dependency files that constrain
+reuse; unlisted transitive runtime changes remain outside that declaration.
+
 ## Capabilities and current boundary
 
 `agent-workflow` routes natural-language tasks to implementation, verification and

@@ -9,6 +9,141 @@ Local user-function completion does not resolve protected-host acceptance or pro
 new native Agent quality/performance. Historical host-first limitations below are
 not prerequisites for this implementation.
 
+## Connected actual product use, 2026-10-07
+
+The user can now connect an ordinary request once, prepare/execute its required
+checks, restore its decisions, record feedback/review and inspect current results
+through the same task context. Agent meaning/causal/visual judgments remain
+explicit. The CLI never invents host session discovery or selects the newest task.
+
+The project-owned [connected product](../../tests/distribution/fixtures/connected_product/docs/index.md)
+uses the installed local Playwright/Chromium, stdlib HTTP and a fresh SQLite file.
+It owns Launch/Doctor/Drive/Evidence/Cleanup. The packaged workflow/capture/viewer
+does selection, execution binding, collection and current lookup. A real keyboard
+form submission produces POST/API/Domain/storage observations; zero remains valid,
+negative input is rejected, and a restarted service plus browser reload returns
+the persisted values. Native reports contain 14 distinct observations, screenshots
+of both 390px screens, trace, commands, target, IDs, API bodies and SQLite rows.
+Service/temporary storage cleanup retains those observations and artifact hashes.
+
+Actual usage was performed in a new independent Git project under
+`.work/connected-acceptance/project`, using only new source files and fresh data.
+The package entrypoint was `.work/packages/agentic-coding-0.1.42-connected/skills/agent-workflow/scripts/project_workflow.py`.
+The final local package is `.work/packages/agentic-coding-0.1.42-final`; executable
+workflow/viewer/capture bytes are unchanged between these builds. These are local
+packages, not installation updates.
+
+| Actual case | Observed result and retained limit |
+| --- | --- |
+| Two ordinary tasks and exact resume | No selector returned BLOCKED plus both candidates. Explicit context restored only task `9dc32824-1a48-46d5-a4e0-ddec50ae735d`; the independent task's bytes were unchanged. |
+| Real defect and owner repair | Two independent registered RED executions detected the absent Domain negative guard and small shared UI token. Restoring the shared Domain boundary and CSS owner produced PASS; unchanged negative and valid-zero assertions were preserved. |
+| PASS and semantic gaps | Tests passed while architecture rows were NOT_RUN and six task cells UNDECIDED. A later missing type-case connection was MISSING. Its unchanged, out-of-request branch was explicitly NOT_REQUIRED, with reason; no type-case test PASS is claimed. |
+| Feedback and UI follow-up | Two feedback entries became RESOLVED with changed owner bytes, original RED/current GREEN and nearby normal assertions. The next UI task carried feedback/prevention/results and the same guide/token/component links; prepare reused the valid check with zero launches, while new semantic decisions remained pending. |
+| Verification maintenance | The real trial exposed missing ownership for runner/config/assertion/test/guide assets despite COMPLETE registered coverage. Mapping was repaired, stale evidence was rejected and the changed conditions were executed once. The original task then reached READY_FOR_REVIEW with scoped COMPLETE coverage. |
+| Detector consolidation | The old and replacement RED runs detected the identical negative criterion; replacement GREEN accepted zero. The obsolete registered detector/command/assertion was removed, the stale guide instruction repaired and retirement reported PRESERVED. The remaining full-stack check was retained because no independent equivalent evidence covered all its behavior. This bounded proof does not justify unrelated test deletion. |
+| Observation failure | A separate source-only project ran with a process-local PATH lacking Node. It reported BLOCKED, zero observations, skipped browser drive and the actual prerequisite error. Its command ran; the browser action did not. This differs from the observed product assertion ISSUES. |
+| Read-only and reuse | lookup, task resume and completed `execute --resume` launched zero commands and left source/task/evidence bytes unchanged. Follow-up prepare was NOT_REQUIRED. No service is started by a lookup request. |
+
+Original raw/transcript evidence remains under `.work/connected-acceptance/`:
+`summary.json`, `transcripts/01-*` through `transcripts/39-*`, project task runs
+and the independent observation-blocked project. `use_cases.py` and
+`maintain_and_blocked.py` and `repair_artifact_scope.py` are this request's fixed usage sequences, not shipped
+workflow engines. They call the existing packaged CLI. The tracked project runner,
+configuration and assertion sources are reusable; `.work` evidence follows the
+repository retention policy. Historical October 6 evidence below belongs to the
+previous worktree and was not copied into this one.
+
+Final artifact comparison found an actual project-runner defect: two differently named
+JSON reports used the same parent for trace/log files, so the first report's artifact
+hashes no longer matched after the second command. That focused RED is retained
+in `artifact-scope-red.json`; the initial raw observations survive, but those early
+shared-path traces are incomplete proof. The source runner now gives each report
+a new stem-named artifact/storage directory and refuses existing directories.
+New two-detector RED and one-detector GREEN were executed for that changed owner;
+all trace/log/screenshot hashes and disjoint paths were checked after cleanup.
+Only the corrected runs back the final feedback/preservation links; historical
+failures were retained. `artifact-scope-green.json` names the corrected raw reports.
+
+A fresh Agent in the existing collaboration host received a natural-language
+request for one exact task's results and the final package location, without CLI
+or Skill ordering. It discovered agent-workflow and chose connect then lookup.
+It reported the correct task, current reusable PASS, resolved feedback, preserved
+detector and explicit exclusion with zero check/service launches. Independent
+before/after hashes confirmed source/task/evidence bytes unchanged. This is one
+package-path-routed natural lookup, not native plugin auto-registration, installed
+acceptance, implementation/repair effectiveness or a general Agent benchmark.
+Its retained observation is `agent-lookup.json`; it preceded the project's artifact
+layout repair, while the package executable bytes remained identical.
+
+Current runtime changes additionally measure explicitly registered public installed
+dependency files during preparation, execution and lookup. Changed bytes invalidate
+reuse; labels do not establish validity. This declaration does not cover every
+transitive library, environment variable or remote dependency. Native SKIP, NOT_RUN,
+UNKNOWN and observation BLOCKED are retained instead of becoming ordinary assertion
+ISSUES. A native NOT_REQUIRED cannot silently exclude a selected required check.
+The existing repository unittest adapter also consumes the same task context.
+
+### Current maturity across seven user capabilities
+
+Status **verified** means implemented and actually used in the bounded local
+cases above. **Agent** identifies work supported by existing Skills and humanlike
+judgment, not automatic code. General success/quality across projects remains
+unverified; absent host context transport is an incomplete connection.
+
+| View / status | User can do | Implemented code/CLI | Existing Skill / Agent responsibility | Actual evidence and scope | Remaining gap |
+| --- | --- | --- | --- | --- | --- |
+| 1. Delegate and inspect / verified + Agent | Connect one request, execute needed checks, resume and query gaps | Task identity/context, candidates, selected plan pointer, capture/bundle/current lookup and reuse | agent-workflow selects procedure and judges sufficient completion | Multiple tasks; actual packaged browser flow; zero-launch lookup/resume | Native installed-host discovery and automatic context transport unverified; no general completion-rate study |
+| 2. Business and architecture × FE/API/Domain / verified + Agent | View six applicability/evidence cells and separate test PASS from review | Matrix, UNDECIDED/MISSING/NOT_REQUIRED/NOT_RUN/ISSUES/BLOCKED/STALE and structured architecture findings | Requirements, causal flows, ownership and semantic sufficiency | Real FE→API→Domain→SQLite→fresh read; per-owner reviews; tests PASS with review pending | One small quantity model; arbitrary JSON types excluded; concurrency/auth/production not tested |
+| 3. Feedback improvement / verified + Agent | Attach complaint, trace owner repair, keep original defect and nearby normal case | Existing feedback record, changed owner baseline, bound RED/GREEN, unresolved chain and follow-up consumption | diagnose traces cause and chooses the actual repair | Domain error failure, shared boundary repair, negative RED and zero GREEN; two RESOLVED entries | Diagnosis quality and all prevention classes remain Agent work; broader user-impact evidence absent |
+| 4. UI standards / verified + Agent | Reuse a guide and shared CSS/component, see affected consumers | Guide/token/component/consumer links and reopened obligations | impeccable/accessibility choose criteria and judge actual screens | Shared token repair, both 390px screenshots/DOM/focus/targets; 1280px keyboard drive and follow-up reuse | No frozen screenshot diff, broad screen-state inventory or full accessibility audit |
+| 5. Verification maintenance / verified + Agent | Repair stale command/guide/observations and rerun only affected checks | Current definitions/conditions, source/runtime drift, capture binding and read-only maintenance | setup/maintain-project-verification own adapters, map and assertions; Agent judges missing routes | Browser input/order, duplicate report observations and Windows SQLite lifecycle were repaired; asset ownership gap and stale guide corrected | First connection still requires project analysis; only this project/runner demonstrated |
+| 6. Structural guardrails / verified + Agent | Keep root-cause prevention active across related tasks | Active prevention/check joins, feedback carry-forward, revalidation and scope selection | Agent chooses type, boundary, shared state/constraint or check appropriate to the cause | Shared Domain function plus SQLite constraint; shared UI owner and unchanged regression/normal assertions; next-task reuse | No automatic guardrail invention; unlisted runtime drift and protected enforcement remain outside proof |
+| 7. Remove unnecessary checks / verified + Agent | Inspect overlap/cost, consolidate with proof or retain | Historical execution joins and old/replacement RED + current GREEN retirement gate | Agent judges detector meaning and normal cases; counts never authorize deletion | Actual two-command RED to one-command GREEN; PRESERVED retirement, remaining detector retained | One equivalent-command case; no broad heterogeneous-suite deletion or efficiency comparison |
+
+### Pinned pstack comparison
+
+Compare against `cursor/plugins` **23e4138daa01c42d4969f7a5465f82704e64f798**,
+pstack **0.15.6**, as fixed in [pstack analysis](pstack-analysis.md).
+The pinned manifest/router/create/maintain/bug-fix and visual-parity/session-pickup/
+hillclimb primary source bytes were checked again on October 7. No latest-version
+claim, pstack execution or same-task/model/host head-to-head experiment was performed.
+External instructions were read as evidence and were not adopted as authorization.
+
+| Item | Our current provision | Useful pstack design | Our remaining gap / experiment needed |
+| --- | --- | --- | --- |
+| Entry and composition | Existing agent-workflow plus identity-bound current task | [poteto router](https://github.com/cursor/plugins/blob/23e4138daa01c42d4969f7a5465f82704e64f798/pstack/skills/poteto-mode/SKILL.md) has explicit task playbooks | One bounded natural lookup is separate from general installed discovery; compare real multi-task outcomes before ranking |
+| Initial project verification and upkeep | Existing setup/maintain, registered native command/assertion and project-owned lifecycle | [create](https://github.com/cursor/plugins/blob/23e4138daa01c42d4969f7a5465f82704e64f798/pstack/skills/create-verification-skill/SKILL.md) proves its generated path and retained evidence; [maintain](https://github.com/cursor/plugins/blob/23e4138daa01c42d4969f7a5465f82704e64f798/pstack/skills/maintain-verification-skill/SKILL.md) requires live feature driving | Other project/platform first connections are unverified; setup/upkeep quality not compared |
+| Full-stack results and gaps | Explicit business/architecture matrix, raw joins, selection and STALE reuse rules | Project feature maps and real control/evidence recipes | Semantic completeness remains Agent judgment; no equivalent pstack result experiment |
+| Cause repair and prevention | Owner repair, unchanged failure + normal evidence, active prevention links | [bug fix](https://github.com/cursor/plugins/blob/23e4138daa01c42d4969f7a5465f82704e64f798/pstack/skills/poteto-mode/playbooks/bug-fix.md) insists on same-surface cause and revalidation | Broader cause/prevention accuracy is unmeasured |
+| UI and verification standards | Linked shared owners, actual DOM/screenshots and maintained driver | [visual parity](https://github.com/cursor/plugins/blob/23e4138daa01c42d4969f7a5465f82704e64f798/pstack/skills/poteto-mode/playbooks/visual-parity.md) fixes a baseline and uses image diff | Pixel equivalence is not implemented by this example; generic visual quality not compared |
+| Keep useful verification | Bound detector preservation and reasoned retention | [hillclimb](https://github.com/cursor/plugins/blob/23e4138daa01c42d4969f7a5465f82704e64f798/pstack/skills/poteto-mode/playbooks/hillclimb.md) freezes a sensitive metric and preserves regression gates | This detector proof is not a pstack pruning experiment or a measured overall cost win |
+| Interruption and follow-up | Exact state/context restores decisions, results, feedback and remaining obligations | [session pickup](https://github.com/cursor/plugins/blob/23e4138daa01c42d4969f7a5465f82704e64f798/pstack/skills/poteto-mode/playbooks/session-pickup.md) reconstructs operational context before routing remaining work | Conversation/tool context transport depends on host/Agent; richer transcript recovery is not automatic |
+| Packaging and actual completion | Local 0.1.42 package, real packaged CLI use; native install/protected acceptance separate | Pinned Cursor manifest and routed control/shipping ecosystem | No current pstack host run, current plugin installation or comparative completion/cost/quality study |
+
+**Installable plugin:** local packaging/distribution checks and actual packaged CLI
+use are confirmed; this task did not install the new version.
+**Reliably delegated plugin:** bounded project execution/repair/lookup is confirmed
+with explicit connection and Agent judgments. General native-host task completion,
+context forwarding and protected acceptance remain unverified. Protected-host
+absence does not block the implemented local user functions.
+
+The next three priorities are host-owned explicit context transport/discovery,
+additional real project runners/cases with environment/data conditions, and frozen
+UI state baselines plus broader detector sensitivity evidence. No generic runner,
+dashboard or duplicated task ledger was introduced.
+
+Verification retained both the actual usage and focused implementation checks:
+the A workflow/hook/viewer/docs/package modules ran 108 tests successfully; the B
+execution/unittest modules reported 65 tests OK, with a PowerShell wrapper exit 1
+from redirected stderr diagnostics (native exit was not separately retained).
+New focused B tests returned exit 0 directly. The new actual two-report browser
+regression ran one case without skips (12.114s), and configured-project cutover
+ran nine tests successfully. Resource drift, distribution and formatting checks
+passed. These groups overlap and are not summed as independent coverage; a full
+repository suite and general native Agent evaluation were not run. See
+`.work/delivery/unit-A-verification.json` and `unit-B-verification.json` for the
+actual commands and wrapper limitation, rather than treating test counts as proof.
+
 ## Explicit request connection, 2026-10-07
 
 The existing workflow CLI now starts ordinary task state or connects an exact
@@ -59,7 +194,8 @@ and maintenance consume the same scope, prevention and result links. Existing UI
 consumer and retirement/detection preservation behavior is reused.
 
 Actual local CLI evidence is retained at
-`.work/fullstack-task-20261006/project-final/.work/transcripts` in this worktree.
+`.work/fullstack-task-20261006/project-final/.work/transcripts` in the previous
+`wp-20261006-full-stack-workflow` worktree; those files were not copied here.
 The small project-owned HTTP adapter performs Launch, health Doctor, real POST/
 GET Drive, disk persistence, server restart and fresh read, native Evidence and
 owned-process Cleanup. Negative input produced ISSUES; the Domain owner repair

@@ -89,6 +89,23 @@ change source/configuration identity or stale the earlier result merely by
 choosing another output location. Use `--bundle` for lookup and the original plan
 with `--resume` for interrupted work; neither requires a new report directory.
 
+When a project uses an already installed browser or library outside its checkout,
+declare the actual public files in `dependency.installed_file_refs` as explicit
+absolute paths. Preparation, preflight and read-only lookup hash those files
+again. Relative, missing, private or aliased paths are refused; this option never
+installs a dependency, launches a discovery command or reads fixture/credential
+data outside the project. Bind the files that determine the selected runner's
+behavior. A version string or an old Doctor report alone is not current identity;
+unlisted transitive inputs remain outside the reuse claim.
+
+Native reports may retain top-level BLOCKED, SKIP or NOT_RUN. The execution
+assessment preserves those observation states, and unrecognized report statuses
+remain UNKNOWN; a missing assertion in an unobserved case is not classified as a
+product assertion failure. Incomplete capture execution is BLOCKED. Required
+zero/skipped cases still cannot PASS, and only the plan may exclude a check.
+Project runners own the actual case/count/skip/error classification and meaningful
+assertions; the common viewer is not a parser for every runner.
+
 ## Explicit execution
 
 For a retained execution, `python <agent-workflow>/scripts/verification_results.py --bundle .work/verification/run-1/bundle.json` performs read-only lookup. It remeasures all current inputs, including those an earlier or later check might have changed. Bound requirements, selection, command, and raw assertions must still match the original plan; editable files are consistency evidence, not protected attestation.

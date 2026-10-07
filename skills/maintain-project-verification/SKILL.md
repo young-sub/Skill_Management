@@ -4,7 +4,7 @@ description: Audit and repair drift in a project's Feature Map, executable verif
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/maintain-project-verification/SKILL.md -->
-<!-- Source-SHA256: fae2a9fd5cf5e843a51c2e77471a2dc5d8e67a0c6569ab34b1fe38cd2c898297 -->
+<!-- Source-SHA256: 72335d8e63f28f2a584bf1e73f66890921129b7f50263d24d3a37f5131192923 -->
 
 
 # Maintain Project Verification
@@ -25,4 +25,4 @@ Keep feature additions/changes/removals and their map/guide/active selectors in 
 
 Review redundant, implementation-coupled or costly checks by the failure each detects. Consolidate only when the remaining mechanism demonstrably rejects the same defect and permits nearby valid behavior. Without that evidence retain the checks and explain why. Counts and coverage alone do not establish value. Do not create a separate test-pruning framework.
 
-Use the existing workflow CLI's read-only `maintain` action with the current work record and explicit `--history-bundle` paths for measured cost/native error/raw detection links; it also consumes already linked feedback/review runs. Treat `declared_overlap` as a review candidate and measured outcome variation as an investigation input. Record reasoned `check_decisions` in the same semantic review for scoped consolidation/removal, then satisfy every `check_retirements` preservation obligation with old/replacement defect detection and a current nearby normal case. See the shared verification reference for fields. Keep unique or unproven detectors.
+Use the existing workflow CLI's read-only `maintain` action with the current request context returned by `start`/`connect`; inherit `AGENT_WORKFLOW_CONTEXT` or pass `--context`, without rebuilding task paths. Explicit `--history-bundle` paths add measured cost/native error/raw detection links; the action already consumes linked feedback/review runs. Treat `declared_overlap` as a review candidate and measured outcome variation as an investigation input. Record reasoned `check_decisions` in the same semantic review for scoped consolidation/removal, then satisfy every `check_retirements` preservation obligation with old/replacement defect detection and a current nearby normal case. See the shared verification reference for fields. Keep unique or unproven detectors.

@@ -88,6 +88,27 @@ The adapter refuses mismatched map/workflow check sets before execution.
 NOT_REQUIRED means no commands ran; unresolved semantic/product obligations remain visible.
 Returned workflow status is the pre-execution selection snapshot; current_workflow_status is recomputed after result attachment. Bundles attach to the task independently of semantic review; use read-only audit for current completion status.
 
+The existing unittest adapter also accepts the workflow's `--context` or inherited
+`AGENT_WORKFLOW_CONTEXT` with `--all-checks --output <new-directory>`. It resolves
+the same exact state/root/immutable task identity and never guesses a task. Explicit
+Feature selection remains independent. The workflow's connected `prepare` and
+`execute` compose the native-JSON viewer; project-specific unittest execution
+continues through this existing adapter.
+
+Native-JSON execution retains runner BLOCKED/SKIP/NOT_RUN/UNKNOWN separately from
+observed assertion ISSUES. Explicit installed public dependency files are measured
+through `dependency.installed_file_refs` during prepare/preflight/lookup; unlisted
+runtime inputs are outside the reuse claim. The connected-product fixture is a
+project-owned browser/HTTP/Domain/SQLite example, not a common runner engine.
+
+The `connected-product` selector runs `python -m unittest tests.distribution.test_connected_product`.
+It executes the actual project runner twice with different report names, verifies
+both flows and retained artifact hashes after cleanup, and confirms an existing
+report cannot be overwritten. Artifacts/storage use one new directory per report.
+An unavailable existing browser prerequisite is an explicit unittest skip, not a
+verified product pass; this task's Windows execution ran the case without skips.
+No dependency installation or shared user database is involved.
+
 Registered preparation supports subdirectory commands: keep local `file_refs` relative to command cwd and declare shared inputs as `repository_file_refs` relative to the observed Git root. Config/criteria/map/UI bindings are automatic; changed shared inputs block execution and invalidate lookup.
 
-Task-mode native JSON preparation uses the same pending selector, registered assertion path, immutable task binding and automatic result links. Scope matrix gaps and structured architecture review are tested with the workflow/result selectors. The local HTTP trial under `.work/fullstack-task-20261006` adds actual persistence/restart/cleanup evidence; it excludes FE explicitly and is separate from browser, installed Agent or protected-host acceptance.
+Task-mode native JSON preparation uses the same pending selector, registered assertion path, immutable task binding and automatic result links. Scope matrix gaps and structured architecture review are tested with the workflow/result selectors. The historical HTTP trial under `.work/fullstack-task-20261006` belongs to the previous worktree and excluded FE. The current `.work/connected-acceptance` trial adds real Chromium/FE/API/Domain/SQLite/restart evidence through the packaged CLI, including feedback/UI repair, preservation and follow-up reuse. Its natural-language result lookup is a separate bounded collaboration-host case; installed Agent and protected-host acceptance remain unverified.

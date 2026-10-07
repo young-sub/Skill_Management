@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "checks": [
+    {
+      "id": "connected-product-full-stack",
+      "feature_id": "connected-product-flow",
+      "expected": "The browser saves a positive quantity through the API and SQLite, rejects a negative through the shared Domain rule, accepts zero, and reloads both values after a service restart.",
+      "required": true,
+      "selection": {
+        "status": "selected",
+        "reason": "The changed product path crosses its FE form, API, Domain rule, SQLite storage, and history read."
+      },
+      "raw_observations": [
+        {
+          "path": "{report_dir}/browser.json",
+          "pointer": "$",
+          "assertions": [
+            {"pointer": "/status", "equals": "PASS"},
+            {"pointer": "/counts/assertions", "min": 14},
+            {"pointer": "/observed/assertions_by_id/new_database_is_empty/passed", "equals": true},
+            {"pointer": "/observed/assertions_by_id/keyboard_submit/observed/saved_by_keyboard", "equals": true},
+            {"pointer": "/observed/assertions_by_id/positive_quantity_api_save/observed/api_response/request_body", "equals": "{\"quantity\":2}"},
+            {"pointer": "/observed/assertions_by_id/positive_quantity_api_save/observed/api_response/status", "equals": 201},
+            {"pointer": "/observed/assertions_by_id/positive_quantity_api_save/observed/api_response/response_body/quantity", "equals": 2},
+            {"pointer": "/observed/assertions_by_id/negative_quantity_rejected_by_domain/observed/api_response/status", "equals": 422},
+            {"pointer": "/observed/assertions_by_id/negative_quantity_rejected_by_domain/observed/api_response/response_body/error", "equals": "Quantity cannot be negative"},
+            {"pointer": "/observed/assertions_by_id/zero_quantity_api_save/observed/api_response/request_body", "equals": "{\"quantity\":0}"},
+            {"pointer": "/observed/assertions_by_id/zero_quantity_api_save/observed/api_response/response_body/quantity", "equals": 0},
+            {"pointer": "/observed/assertions_by_id/history_fresh_read_before_restart/observed", "equals": [2, 0]},
+            {"pointer": "/observed/assertions_by_id/sqlite_values_before_restart/observed", "equals": [2, 0]},
+            {"pointer": "/observed/assertions_by_id/history_fresh_read_after_service_restart/observed", "equals": [2, 0]},
+            {"pointer": "/observed/assertions_by_id/mobile_history_layout/observed/no_horizontal_overflow", "equals": true},
+            {"pointer": "/observed/assertions_by_id/shared_ui_mobile_acceptance/passed", "equals": true},
+            {"pointer": "/observed/assertions_by_id/sqlite_values_after_restart/observed", "equals": [2, 0]},
+            {"pointer": "/observed/assertions_by_id/service_restart_preserved_storage/passed", "equals": true}
+          ]
+        }
+      ],
+      "dependency": {
+        "file_refs": ["run_project.py", "app.py", "domain.py", "browser_drive.cjs", "ui.js", "shared.css", "index.html", "history.html"],
+        "installed_file_refs": [
+          "C:\\Program Files\\nodejs\\node.exe",
+          "C:\\Users\\YS\\AppData\\Roaming\\npm\\node_modules\\playwright\\package.json",
+          "C:\\Users\\YS\\AppData\\Roaming\\npm\\node_modules\\playwright\\index.js",
+          "C:\\Users\\YS\\AppData\\Roaming\\npm\\node_modules\\playwright\\lib\\index.js",
+          "C:\\Users\\YS\\AppData\\Roaming\\npm\\node_modules\\playwright\\node_modules\\playwright-core\\package.json",
+          "C:\\Users\\YS\\AppData\\Roaming\\npm\\node_modules\\playwright\\node_modules\\playwright-core\\index.js",
+          "C:\\Users\\YS\\AppData\\Roaming\\npm\\node_modules\\playwright\\node_modules\\playwright-core\\lib\\server\\chromium\\chromium.js",
+          "C:\\Users\\YS\\AppData\\Roaming\\npm\\node_modules\\playwright\\node_modules\\playwright-core\\browsers.json",
+          "C:\\Users\\YS\\AppData\\Local\\ms-playwright\\chromium-1208\\chrome-win64\\chrome.exe"
+        ]
+      },
+      "fixture": {
+        "storage": "new SQLite file created per execution",
+        "initial_rows": 0,
+        "seed_data": "none"
+      }
+    }
+  ]
+}

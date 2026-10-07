@@ -10,6 +10,8 @@ pstack의 스킬, 작업 절차, 서브에이전트, 자동화 팩과 실행 도
 
 ## 조사 범위와 근거
 
+우리 체계의 2026-10-07 실제 구현·사용과 이 고정 소스의 비교는 [현재 구현 결과](agent-workflow-implementation-results.md#pinned-pstack-comparison)에 있다. 같은 커밋의 주요 1차 소스를 다시 확인했으며, pstack 실행이나 양쪽의 동일 과제 비교 실험을 한 것은 아니다.
+
 - 조사일은 2026-10-03이다.
 - 요청받은 대상은 [cursor/plugins의 pstack](https://github.com/cursor/plugins/tree/main/pstack)이다.
 - 조사 기준 커밋은 `23e4138daa01c42d4969f7a5465f82704e64f798`이다. 문서의 외부 소스 링크는 모두 이 커밋에 고정했다.
