@@ -1,10 +1,54 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: e1e68bcb1a29ab6e55578801ceec3a5c02e5e21e6aaf207d17c6f04be0b69e73 -->
+<!-- Source-SHA256: 82af3816a74b3c319c309e9bac504f41acf5596ebae33dd87f3dac564362d0ad -->
 
 # Project workflow obligations
 
 Existing project config owns `extensions.workflow`; a task record under `.work` retains review progress. The bundled `scripts/project_workflow.py` computes obligations from current bytes and registered connections without calling a model. Requirements, feature meanings, causes and visual judgments remain Agent work. Review records are Agent inputs, not authenticated proof.
+
+## Connect the current request once
+
+`start --root <project> --intent change --target <feature>` creates ordinary task
+state under `.work/tasks/<task-id>/state.json`; no Harness contract is required.
+For existing work, use `connect --root <project> --state <exact .work path>` or
+`--work-id <id>`. Both return `task_context`, an invocation selector containing
+the project, existing state pointer and immutable task identity. Connect is read-only.
+
+Pass that string through `--context` or the process-scoped `AGENT_WORKFLOW_CONTEXT`
+environment variable. It is not a global setting, session ID or separate state
+ledger. Within an inherited process environment, subsequent commands need only:
+
+```powershell
+$start = python <skill>/scripts/project_workflow.py start --root <project> --intent change --target <feature> | ConvertFrom-Json
+$env:AGENT_WORKFLOW_CONTEXT = $start.task_context
+python <skill>/scripts/project_workflow.py prepare
+python <skill>/scripts/project_workflow.py execute
+python <skill>/scripts/project_workflow.py lookup
+python <skill>/scripts/project_workflow.py resume
+```
+
+Preparation selects pending registered native-JSON assertions without launching
+commands and retains only the plan pointer in that same task state. Execution
+uses the existing viewer/capture/checkpoints and attaches results to that task.
+Standalone Skills may need `--run-check <project capture tool>`; the plugin and
+this source repository discover their existing capture tool. `execute --resume`
+continues never-started checks, refuses unknown launches and does no work for a
+completed run. `lookup` and task `resume` read decisions, reviews, feedback, linked
+results, current gaps and any completed checkpoint; they never execute or repair.
+Verification exit codes report the check operation; task status still reports
+unfinished semantic work independently.
+
+A later `start` with an explicitly retained context creates a fresh baseline and
+carries result/feedback/prevention links from that task. It does not reuse its
+task-specific scope decisions as new semantic judgments. Without context,
+`resume`/`lookup` return candidates and require an exact selector, even with one
+candidate. Standard task records, configured state and active Harness work are
+discoverable; custom `.work` paths require explicit `--state`. No timestamp picks
+a task. Conflicting selectors, another project, or replaced task identity block
+the operation. If a host does not inherit the environment, the Agent must retain
+and pass the context explicitly; transparent conversation binding is unverified.
+The prompt hook reads this same explicit context when available and remains
+read-only. Natural-language intent and procedure selection belong to the Agent.
 
 ```json
 {"extensions":{"workflow":{

@@ -2,6 +2,12 @@
 
 Use the bundled `scripts/verification_results.py` for compatible project records. The default lookup path reads files and runs fixed read-only Git identity queries; it never executes captured argv, tests or services, or writes inputs. Direct CLI/CI remains independent of Skills.
 
+The existing workflow entrypoint also offers connected `prepare`, `execute`,
+read-only `lookup` and task `resume`, composing this viewer without a new runner.
+See [request context](workflow-obligations.md#connect-the-current-request-once).
+Its plan pointer belongs to the existing task; the original viewer commands and
+project-specific adapters remain usable independently.
+
 ```
 python <agent-workflow>/scripts/verification_results.py --plan plan.json --record capture.json --assessment assessment.json --observation observed.json --current-context current.json --pretty
 ```

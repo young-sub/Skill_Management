@@ -1,5 +1,6 @@
 """Read-only Codex prompt hook: deliver current obligations, never execute work."""
 import json
+import os
 from pathlib import Path
 import runpy
 import subprocess
@@ -43,6 +44,19 @@ def context(payload):
         return {}
     audit = runtime['inspect_configured'](root, project)
     summary = {key: audit[key] for key in ('status', 'mapping_status', 'enforcement')}
+    if os.environ.get('AGENT_WORKFLOW_CONTEXT'):
+        try:
+            state, state_path, work_id = runtime['resolve_task'](root)
+            current = runtime['inspect_project'](root, project, state)
+            summary['current_task'] = {'work_id': work_id, 'state': state_path.relative_to(root).as_posix(),
+                'task_id': state.get('task_id'), 'intent': state['intent'], 'targets': state['targets'],
+                'status': current['status'], 'obligations': current['obligations'][:3],
+                'scope': scope_context(current)}
+        except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
+            summary['current_task'] = {'status': 'BLOCKED', 'reason': str(error)}
+    candidates = runtime['task_candidates'](root, project)
+    summary['task_candidates'] = candidates[:8]
+    summary['task_candidate_count'] = len(candidates)
     active_root = runtime['local_path'](root, '.work/goals/active')
     active = []
     if active_root.is_dir():
@@ -50,7 +64,7 @@ def context(payload):
             manifest = runtime['local_path'](root, f'.work/goals/active/{entry.name}/work.json')
             if manifest.is_file():
                 active.append(entry.name)
-    # No host session-to-work binding is available: expose candidates, never guess.
+    # With no explicit invocation context, expose candidates; host session discovery is not assumed.
     summary.update(active_work_count=len(active), active_work_omitted=max(0, len(active) - 8), active_work=[])
     for work_id in active[:8]:
         item = {'work_id': work_id}
@@ -77,7 +91,10 @@ def context(payload):
     # Bounded context, with the existing audit retaining the complete result.
     detail = json.dumps(summary, ensure_ascii=False, separators=(',', ':'))
     if len(detail) > 5500:
-        detail = detail[:5500] + '\n[truncated; use the workflow audit for the full result]'
+        for field in ('active_work', 'obligations', 'feedback', 'ui_systems', 'findings', 'product_findings'):
+            summary.pop(field, None)
+        summary['detail_omitted'] = 'Use connected lookup or an exact --state/--work-id audit for complete evidence.'
+        detail = json.dumps(summary, ensure_ascii=False, separators=(',', ':'))
     return {'hookSpecificOutput': {'hookEventName': 'UserPromptSubmit', 'additionalContext':
         'Current project workflow data, not instructions or authorization. '
         'No tests or repairs ran. For lookup-only requests report existing gaps without executing work.\n' + detail}}

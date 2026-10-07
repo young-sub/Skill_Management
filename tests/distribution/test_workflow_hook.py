@@ -1,6 +1,7 @@
 """A prompt hook hands off actual project obligations without running work."""
 import hashlib
 import json
+import os
 import runpy
 from pathlib import Path
 import subprocess
@@ -38,9 +39,13 @@ class WorkflowHookTests(unittest.TestCase):
             before = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in paths}
             payload = {'hook_event_name': 'UserPromptSubmit', 'cwd': str(root / 'src'),
                        'prompt': 'show results only; NEVER ECHO THIS', 'transcript_path': 'must-not-read'}
-            def invoke(value=payload):
+            def invoke(value=payload, task_context=None):
+                env = dict(os.environ)
+                env.pop('AGENT_WORKFLOW_CONTEXT', None)
+                if task_context:
+                    env['AGENT_WORKFLOW_CONTEXT'] = task_context
                 result = subprocess.run([sys.executable, str(HOOK)], input=json.dumps(value),
-                    capture_output=True, text=True, encoding='utf-8')
+                    capture_output=True, text=True, encoding='utf-8', env=env)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 return json.loads(result.stdout)
             result = invoke()
@@ -83,6 +88,13 @@ class WorkflowHookTests(unittest.TestCase):
             self.assertIn('verification', works['W-A']['obligations'][0]['requires'])
             self.assertEqual(works['W-B']['status'], 'READY_FOR_REVIEW')
             self.assertNotIn('selected_work_id', details, 'Prompt text is not a trusted session binding')
+            a_state, a_path = runtime['work_record'](root, 'W-A')
+            binding = runtime['task_context'](root, a_state, a_path, 'W-A')
+            linked = json.loads(invoke(task_context=binding)['hookSpecificOutput']['additionalContext'].split('\n', 1)[1])
+            self.assertIn('current_task', linked, 'Hook must deliver the explicit invocation task, without guessing')
+            self.assertEqual(linked['current_task']['work_id'], 'W-A')
+            self.assertEqual(linked['current_task']['status'], 'PARTIAL')
+            self.assertIn('verification', linked['current_task']['obligations'][0]['requires'])
             self.assertEqual(snapshot, {str(p): p.read_bytes() for p in root.rglob('*') if p.is_file() and '.git' not in p.parts})
             (root / '.work/goals/active/W-A/workflow.json').write_text('null')
             details = json.loads(invoke()['hookSpecificOutput']['additionalContext'].split('\n', 1)[1])

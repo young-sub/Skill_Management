@@ -1,10 +1,16 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/repair-and-reuse.md -->
-<!-- Source-SHA256: a7f7786540380e12b3c2c0b3334674482773f0897a02e781d073fc0ca3e96190 -->
+<!-- Source-SHA256: 65c01b733b44acadfff08ed5565f2bac24c83198fb806fd5009e25888ed4a50e -->
 
 # Repair and subsequent reuse
 
 ## Persist the feedback chain in existing work state
+
+With a connected invocation, `feedback --feedback <entry.json>` updates that
+task directly; `review`, `maintain`, `lookup` and `resume` use the same selector.
+For a subsequent related request, `start` with that context carries the existing
+feedback/results into fresh work. Read-only `resume` restores the prior decision
+and remaining stages without executing reproduction text or repairing code.
 
 Use `project_workflow.py begin --root <project> --intent feedback --target <feature>
 --state .work/task.json`, then `feedback --root <project> --state .work/task.json

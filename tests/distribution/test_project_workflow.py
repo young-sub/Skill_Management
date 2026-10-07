@@ -1,6 +1,7 @@
 """Real repository changes drive resumable obligations, never submitted PASS flags."""
 import importlib.util
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -13,6 +14,100 @@ SCRIPT = ROOT / 'authoring/scripts/project_workflow.py'
 
 
 class ProjectWorkflowTests(unittest.TestCase):
+    def invoke(self, action, *args, context=None):
+        env = dict(os.environ)
+        env.pop('AGENT_WORKFLOW_CONTEXT', None)
+        if context is not None:
+            env['AGENT_WORKFLOW_CONTEXT'] = context
+        process = subprocess.run([sys.executable, str(SCRIPT), action, '--root', str(self.root), *args],
+                                 capture_output=True, text=True, encoding='utf-8', env=env)
+        self.assertTrue(process.stdout.strip(), 'Workflow entrypoint cannot handle ' + action + ': ' + process.stderr)
+        return process, json.loads(process.stdout)
+
+    def test_explicit_context_restores_one_of_multiple_tasks_and_refuses_replacement(self):
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        _, a = self.invoke('start', '--intent', 'feedback', '--target', 'api')
+        self.assertIn('task_context', a, 'Starting ordinary work must return a reusable invocation context')
+        _, b = self.invoke('start', '--intent', 'change', '--target', 'cli')
+        self.assertNotEqual(a['task_context'], b['task_context'])
+        _, ambiguous = self.invoke('resume')
+        self.assertEqual(ambiguous['status'], 'BLOCKED')
+        self.assertEqual(len(ambiguous['task_candidates']), 2)
+        context = a['task_context']
+        _, audit = self.invoke('resume', context=context)
+        state_path = self.root / audit['task']['state']
+        other_path = self.root / b['task']['state']
+        other = other_path.read_bytes()
+        basis = next(f['basis'] for f in audit['features'] if f['id'] == 'api')
+        review = self.write('.work/review.json', json.dumps({'feature': 'api', 'basis': basis,
+            'analysis': 'API owner traced; semantic evidence remains pending',
+            'references': ['src/api.py'], 'findings': ['Need actual readback']}))
+        self.invoke('review', '--review', str(review), context=context)
+        feedback = self.write('.work/feedback.json', json.dumps({'id': 'F1', 'feature': 'api',
+            'expected': 'Ten', 'observed': 'Eleven', 'reproduction': 'Read the API'}))
+        self.invoke('feedback', '--feedback', str(feedback), context=context)
+        snapshot = {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()}
+        for action in ('resume', 'lookup'):
+            _, restored = self.invoke(action, context=context)
+            self.assertEqual(restored['task']['task_id'], a['task']['task_id'])
+            self.assertIn('api', restored['task']['reviews'])
+            self.assertIn('F1', restored['task']['feedback'])
+            self.assertEqual(restored['test_commands_executed'], 0)
+        self.assertEqual(snapshot, {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()})
+        self.assertEqual(other, other_path.read_bytes())
+        _, followup = self.invoke('start', '--intent', 'change', '--target', 'api', context=context)
+        self.assertNotEqual(followup['task']['task_id'], a['task']['task_id'])
+        self.assertIn('F1', followup['task']['feedback'])
+        self.assertEqual(state_path.read_bytes(), snapshot[str(state_path)])
+        _, conflict = self.invoke('feedback', '--state', b['task']['state'], '--feedback', str(feedback), context=context)
+        self.assertEqual(conflict['status'], 'BLOCKED')
+        self.assertIn('context_selector_conflict', str(conflict['findings']))
+        record = json.loads(state_path.read_text())
+        record['task_id'] = 'replacement'
+        state_path.write_text(json.dumps(record))
+        _, replaced = self.invoke('resume', context=context)
+        self.assertEqual(replaced['status'], 'BLOCKED')
+        self.assertIn('context_task_identity_changed', str(replaced['findings']))
+
+    def test_connected_prepare_execute_lookup_and_completed_execution_resume(self):
+        self.project['commands']['check'] = [sys.executable, 'src/run.py', '{report_dir}/native.json']
+        self.project['extensions']['workflow']['assertions'] = 'assertions.json'
+        self.write('src/run.py', "import json,sys\nfrom pathlib import Path\n"
+            "result=10+1\nPath(sys.argv[1]).parent.mkdir(parents=True,exist_ok=True)\n"
+            "Path(sys.argv[1]).write_text(json.dumps({'checks':[{'actual':result}]}))\n"
+            "p=Path('.work/calls');p.write_text(str(int(p.read_text())+1) if p.exists() else '1')\n")
+        self.project['extensions']['workflow']['features'][0]['sources'].append('src/run.py')
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        self.write('assertions.json', json.dumps({'schema_version': 1, 'checks': [{
+            'id': 'check', 'feature_id': 'api', 'expected': 'Eleven', 'required': True,
+            'selection': {'status': 'selected', 'reason': 'Changed arithmetic'},
+            'raw_observations': [{'path': '{report_dir}/native.json', 'pointer': '/checks',
+                                  'assertions': [{'pointer': '/checks/0/actual', 'equals': 11}]}],
+            'dependency': {'file_refs': ['src/api.py']}, 'fixture': {'file_refs': ['docs/requirement.md']}}]}))
+        _, started = self.invoke('start', '--intent', 'change', '--target', 'api')
+        self.assertIn('task_context', started)
+        context = started['task_context']
+        _, prepared = self.invoke('prepare', context=context)
+        self.assertEqual(prepared['verification']['status'], 'PREPARED', prepared)
+        self.assertFalse((self.root / '.work/calls').exists())
+        _, executed = self.invoke('execute', '--run-check', str(ROOT / 'scripts/run_check.py'), context=context)
+        self.assertEqual(executed['verification']['status'], 'PASS', executed)
+        self.assertEqual(executed['test_commands_executed'], 1)
+        self.assertEqual((self.root / '.work/calls').read_text(), '1')
+        self.assertEqual(executed['features'][0]['verification_status'], 'PASS')
+        self.assertFalse(executed['features'][0]['reviewed'])
+        before = {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()}
+        for action, extra in [('lookup', []), ('resume', []), ('execute', ['--resume'])]:
+            _, result = self.invoke(action, *extra, '--run-check', str(ROOT / 'scripts/run_check.py'), context=context)
+            self.assertEqual(result['test_commands_executed'], 0, result)
+        self.assertEqual(before, {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()})
+        _, again = self.invoke('prepare', context=context)
+        self.assertEqual(again['verification']['status'], 'NOT_REQUIRED', again)
+        _, followup = self.invoke('start', '--intent', 'change', '--target', 'api', context=context)
+        self.assertTrue(followup['task']['results']['api'])
+        _, reused = self.invoke('prepare', context=followup['task_context'])
+        self.assertEqual(reused['verification']['status'], 'NOT_REQUIRED', reused)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

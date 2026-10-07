@@ -2,6 +2,12 @@
 
 ## Persist the feedback chain in existing work state
 
+With a connected invocation, `feedback --feedback <entry.json>` updates that
+task directly; `review`, `maintain`, `lookup` and `resume` use the same selector.
+For a subsequent related request, `start` with that context carries the existing
+feedback/results into fresh work. Read-only `resume` restores the prior decision
+and remaining stages without executing reproduction text or repairing code.
+
 Use `project_workflow.py begin --root <project> --intent feedback --target <feature>
 --state .work/task.json`, then `feedback --root <project> --state .work/task.json
 --feedback <entry.json>`. Register `id`, `feature`, `observed`, `expected` and

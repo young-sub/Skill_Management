@@ -4,7 +4,7 @@ description: Coordinate a coding task from a natural-language request through re
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: 68f01011dd1eb8dd31a35105bde16cf9cb8a7cb04f50eaafcdbeebd549d8ede1 -->
+<!-- Source-SHA256: 4d44b9c7befe2b6e8c46d423b79fefd3fd1e9bf4c3de34dcbdcd716e8ef4ca91 -->
 
 
 # Agent Workflow
@@ -24,6 +24,17 @@ Read the project AGENTS/index, current checkout and dirty baseline, requirement 
 Load [verification responsibilities](references/project-verification.md) for setup, verification, maintenance or feedback. For feedback/UI work also read [repair and reuse](references/repair-and-reuse.md). If a named capability is unavailable, perform its bounded responsibility using project commands; do not silently treat missing checks as passed or install a new framework.
 
 For configured projects, [workflow obligations](references/workflow-obligations.md) provides the direct audit/resume CLI. Consume its affected references and perform the required semantic work. Local consistency and host-protected acceptance are distinct; the CLI reports the unsupported enforcement boundary explicitly.
+
+Connect the selected request once through the same CLI: `start --intent <intent>
+--target <feature>` creates ordinary task state, or `connect --state <exact path>` /
+`--work-id <id>` selects existing work. Retain its `task_context` in the invocation's
+`AGENT_WORKFLOW_CONTEXT` or pass `--context` when the host does not inherit it.
+Then use `prepare`, explicit `execute`, `review`, `feedback`, read-only `lookup` or
+read-only task `resume` without rebuilding state/run paths. `execute --resume` is
+a separate effect and never replays unknown launches. A new `start` carrying the
+old context retains feedback/results for a related follow-up with a new baseline.
+Do not guess among candidates or imply that a host supplies session identity.
+For lookup-only requests, connect/read existing work; never start a new task.
 
 When the project already provides the native unittest adapter described in its guide, reuse its `--work-id <id> --all-checks --output <new-directory>` (or `--pending-state` for an existing non-Harness record) to execute recomputed pending checks; use explicit Feature selection when no task record exists or bind an existing capture with `--evidence` and `--bundle-output`. The workflow audit consumes that bundle directly without rerunning tests. This producer belongs to the project and is not bundled as a universal product adapter. If absent, setup must connect the project's actual runner first. Do not fabricate native JSON observations to make unittest output fit the browser/API viewer.
 

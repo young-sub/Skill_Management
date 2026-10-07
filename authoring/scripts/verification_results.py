@@ -2006,6 +2006,24 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def capture_tool() -> Path | None:
+    """Use the package's capture tool or the source repository's existing tool."""
+    source = Path(__file__).resolve()
+    repository = source.parents[2] / 'scripts/run_check.py'
+    if source.parent.parent.name == 'authoring' and repository.is_file():
+        return repository
+    if len(source.parents) > 3:
+        plugin = source.parents[3]
+        try:
+            identity = json.loads((plugin / 'plugin.json').read_text(encoding='utf-8'))
+            capture = plugin / 'scripts/run_check.py'
+            if identity.get('name') == 'agentic-coding' and capture.is_file():
+                return capture
+        except (OSError, ValueError, AttributeError):
+            pass
+    return None
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     if args.summary and (args.execute or args.prepare):
@@ -2035,15 +2053,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2 if args.pretty else None))
         return {"PASS": 0, "ISSUES": 1, "BLOCKED": 2}.get(result.get("status"), 2)
     if args.execute:
-        if args.run_check is None and len(Path(__file__).resolve().parents) > 3:
-            plugin = Path(__file__).resolve().parents[3]
-            try:
-                identity = json.loads((plugin / "plugin.json").read_text(encoding="utf-8"))
-                capture = plugin / "scripts/run_check.py"
-                if isinstance(identity, dict) and identity.get("name") == "agentic-coding" and capture.is_file():
-                    args.run_check = capture
-            except (OSError, ValueError):
-                pass  # Standalone Skills still require their project's explicit capture tool.
+        if args.run_check is None:
+            args.run_check = capture_tool()
         if args.records or args.assessments or args.observations or args.current_context or args.workflow_state:
             result = _blocked_execution("--execute cannot combine with lookup evidence arguments", plan_path=args.plan, run_check_path=args.run_check)
         elif args.run_check is None or args.evidence_dir is None:

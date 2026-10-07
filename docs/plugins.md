@@ -8,7 +8,7 @@ The package identity and version are owned by `distribution/plugin.json`.
 ## Build
 
 ```powershell
-python scripts/build_plugin.py --output .work/packages/agentic-coding-0.1.41
+python scripts/build_plugin.py --output .work/packages/agentic-coding-0.1.42
 ```
 
 The builder first runs the existing generated-resource check. It selects tracked
@@ -31,7 +31,18 @@ execute into fresh paths, then inspect the bundle and read-only task audit.
 Execution retains result links independently of unfinished semantic review.
 The [task input contract](../authoring/references/result-viewer.md#task-scope-and-required-execution)
 defines the scope matrix, selection/reuse and architecture evidence. Building
-0.1.41 does not update an existing installation or establish host task acceptance.
+0.1.42 does not update an existing installation or establish host task acceptance.
+
+Version 0.1.42 adds explicit request context on the same workflow entrypoint:
+`start` creates small-task state, `connect` selects existing state/work ID,
+`prepare` retains its selected plan pointer, and `execute` uses the existing
+capture/viewer. `lookup` and task `resume` restore decisions/evidence without
+execution; `execute --resume` is the distinct opt-in continuation. Retain the
+returned `task_context` in process-scoped `AGENT_WORKFLOW_CONTEXT` or pass
+`--context` explicitly. The hook reads that selector and never guesses among
+tasks. Context validates project and immutable task identity; it neither assumes
+a host session ID nor changes global settings. See the
+[connection contract](../authoring/references/workflow-obligations.md#connect-the-current-request-once).
 
 ## Capabilities and current boundary
 
@@ -239,9 +250,10 @@ The read-only context includes separate summaries for up to eight existing activ
 Harness work records, using the same baseline reader as close. Project-wide status
 does not replace those per-work obligations. Invalid work records remain visible
 as BLOCKED, and omitted work counts are explicit. There is no trusted host
-session-to-work binding: these are identified candidates, not an automatically
-selected task. The hook neither reads the prompt to guess a work ID nor executes
-the pending checks.
+session-to-work discovery. With an explicit `AGENT_WORKFLOW_CONTEXT`, the hook
+validates and exposes that task separately. Otherwise these remain candidates;
+standard non-Harness task states are listed too. The hook neither reads the prompt
+to guess a work ID nor executes pending checks.
 
 For an isolated Codex host, place the built package at
 `<marketplace>/plugins/agentic-coding` and create

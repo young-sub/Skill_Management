@@ -1,13 +1,34 @@
 # Agent workflow implementation and acceptance
 
-Current user-function source is plugin **0.1.41** in the isolated
-`wp-20261006-full-stack-workflow` worktree, based on `172dfa3b8087b3c2de57b547165dbb46d0bbe263`.
+Current user-function source is plugin **0.1.42** in the isolated
+`wp-20261007-connected-workflows` worktree, based on `67e06d3eaedda203156b932bf1ac7e62be63df8a`.
 The A/B/C/D sections below distinguish deterministic CLI behavior from reused
 Agent diagnosis/design/semantic review. The package was not installed or published;
 ordinary/global installs, original Labeler and protected branches were unchanged.
 Local user-function completion does not resolve protected-host acceptance or prove
 new native Agent quality/performance. Historical host-first limitations below are
 not prerequisites for this implementation.
+
+## Explicit request connection, 2026-10-07
+
+The existing workflow CLI now starts ordinary task state or connects an exact
+state/work ID, returning a project/immutable-identity-bound invocation context.
+It composes existing native-JSON preparation and execution, retaining only the
+prepared plan pointer in that same task. Review, feedback, maintenance, lookup
+and task resume use that context. Multiple candidates never select by timestamp;
+conflicting selectors or replaced task identity block attachment. The read-only
+hook consumes the explicit environment selector when inherited, and otherwise
+returns candidates. No host session ID, global setting or new task ledger is assumed.
+
+Focused RED observed the missing `start` entrypoint and missing hook current-task
+delivery. GREEN verified two independent tasks, restored decisions/feedback,
+target conflicts, replaced identity, prepare without command launch, execute with
+semantic review unfinished, read-only lookup/task resume, completed execution
+resume with zero launches, and related-task result/feedback reuse. The existing
+interruption case caught a staging regression; Harness staging again remains
+outside the validated work directory, preserving its prior interruption behavior.
+These are actual CLI subprocess checks, not installed-host natural-language
+acceptance. Whole-system actual product evidence is recorded separately below.
 
 ## Task delegation connection, 2026-10-06
 

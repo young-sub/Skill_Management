@@ -11,6 +11,7 @@ from fnmatch import fnmatchcase
 import hashlib
 import json
 import math
+import os
 from pathlib import Path
 import re
 import runpy
@@ -304,7 +305,7 @@ def coverage_summary(rows, matrix=()):
                       for axis in ('FE', 'BE/API', 'Domain')}}
 
 
-def begin(root, project, intent, targets=()):
+def begin(root, project, intent, targets=(), *, prior_state=None):
     if intent not in {'init', 'change', 'feedback', 'ui', 'maintain'}:
         raise ValueError('unsupported_work_intent')
     if intent in {'feedback', 'ui'} and not targets:
@@ -319,12 +320,12 @@ def begin(root, project, intent, targets=()):
     results = {}
     check_links = {f['id']: {'checks': list(f['checks']), 'prevention': deepcopy(f.get('prevention', []))}
                    for f in config['features']}
-    if config.get('state'):
-        prior = local_path(root, config['state'])
-        if not prior.resolve().is_relative_to(root.resolve() / '.work'):
+    if prior_state is not None or config.get('state'):
+        prior = local_path(root, config['state']) if prior_state is None else None
+        if prior is not None and not prior.resolve().is_relative_to(root.resolve() / '.work'):
             raise ValueError('state_must_be_task_local_under_work')
-        if prior.is_file():
-            saved = json.loads(prior.read_text(encoding='utf-8'))
+        if prior_state is not None or prior.is_file():
+            saved = prior_state if prior_state is not None else json.loads(prior.read_text(encoding='utf-8'))
             if not isinstance(saved, dict) or saved.get('root') != str(root.resolve()) or saved.get('schema_version') != 1:
                 raise ValueError('work_target_mismatch')
             feedback = deepcopy(saved.get('feedback', {}))
@@ -391,7 +392,7 @@ def work_record(root, work_id):
     if not isinstance(state, dict):
         raise ValueError('invalid_work_workflow_record')
     for key, value in baseline.items():
-        if key not in {'reviews', 'retired_reviews', 'feedback', 'results'} and state.get(key) != value:
+        if key not in {'reviews', 'retired_reviews', 'feedback', 'results', 'execution_plan'} and state.get(key) != value:
             raise ValueError(f'work_workflow_baseline_changed:{key}')
     return state, directory / 'workflow.json'
 
@@ -409,6 +410,95 @@ def task_state(root, state=None, work_id=None):
             or record.get('root') != str(root.resolve()) or not isinstance(record.get('baseline'), dict)):
         raise ValueError('work_target_mismatch')
     return record, path
+
+
+def task_candidates(root, project):
+    """Bounded discovery of existing owned records, without choosing a task."""
+    paths = {p.relative_to(root).as_posix() for p in local_path(root, '.work/tasks').glob('*/state.json')}
+    configured = (configuration(project) or {}).get('state')
+    if configured and local_path(root, configured).is_file():
+        paths.add(configured)
+    selectors = [{'state': name} for name in sorted(paths)]
+    selectors += [{'work_id': p.parent.name} for p in
+                  sorted(local_path(root, '.work/goals/active').glob('*/work.json'))]
+    candidates = []
+    for selector in selectors:
+        try:
+            state, path = task_state(root, **selector)
+            candidates.append({**selector, 'state': path.relative_to(root).as_posix(),
+                               'task_id': state.get('task_id'), 'intent': state['intent'], 'targets': state['targets']})
+        except (OSError, ValueError, TypeError, KeyError) as error:
+            candidates.append({**selector, 'status': 'BLOCKED', 'reason': str(error)})
+    return candidates
+
+
+def task_context(root, state, path, work_id=None):
+    return json.dumps({'root': str(root.resolve()), 'state': path.relative_to(root).as_posix(),
+                       'work_id': work_id, 'identity': task_identity(state)}, separators=(',', ':'))
+
+
+def resolve_task(root, state=None, work_id=None, context=None):
+    """An explicit invocation context points to existing state, never a second ledger."""
+    context = context if context is not None else os.environ.get('AGENT_WORKFLOW_CONTEXT')
+    if not context:
+        return task_state(root, state, work_id) + (work_id,)
+    binding = json.loads(context)
+    if not isinstance(binding, dict) or set(binding) != {'root', 'state', 'work_id', 'identity'}:
+        raise ValueError('invalid_task_context')
+    if binding['root'] != str(root.resolve()):
+        raise ValueError('context_project_mismatch')
+    bound_state = None if binding['work_id'] else binding['state']
+    if state is not None or work_id is not None:
+        if (work_id != binding['work_id'] or state is not None and
+                local_path(root, str(state)).resolve() != local_path(root, binding['state']).resolve()):
+            raise ValueError('context_selector_conflict')
+    record, path = task_state(root, bound_state, binding['work_id'])
+    if path.relative_to(root).as_posix() != binding['state'] or task_identity(record) != binding['identity']:
+        raise ValueError('context_task_identity_changed')
+    return record, path, binding['work_id']
+
+
+def connected_verification(root, project, state, path, work_id, action, *, output=None, run_check=None,
+                           timeout=300, resume=False):
+    """Compose the existing prepare/execute API, retaining only its plan pointer."""
+    viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
+    if action == 'prepare':
+        directory = local_path(root, output or f'.work/tasks/{state["task_id"]}/runs/{uuid.uuid4()}')
+        if not directory.resolve().is_relative_to(root / '.work') or directory.exists():
+            raise ValueError('new_task_local_output_required')
+        result = viewer['prepare_plan'](root, None, directory / 'plan.json', report_dir=directory / 'native',
+            pending_state=None if work_id else path.relative_to(root), work_id=work_id)
+        if result['status'] == 'PREPARED':
+            current, _ = task_state(root, None if work_id else path.relative_to(root), work_id)
+            if task_identity(current) != task_identity(state):
+                raise ValueError('task_identity_changed')
+            current['execution_plan'] = (directory / 'plan.json').relative_to(root).as_posix()
+            write_state(path, current, staging=root / '.work' if work_id else None)
+        return result
+    name = state.get('execution_plan')
+    if not isinstance(name, str) or not name:
+        raise ValueError('task_requires_prepare')
+    plan = local_path(root, name)
+    prepared = json.loads(plan.read_text(encoding='utf-8'))
+    scope = prepared.get('workflow_scope', {})
+    if (scope.get('root') != str(root) or scope.get('state') != path.relative_to(root).as_posix()
+            or scope.get('work_id') != work_id or scope.get('task_identity') != task_identity(state)):
+        raise ValueError('prepared_plan_task_mismatch')
+    if action in {'lookup', 'resume'}:
+        directory = plan.parent / 'evidence'
+        final = directory / 'bundle.json'
+        checkpoints = sorted(directory.glob('checkpoint-*-bundle.json'), key=lambda p: int(p.name.split('-')[1]))
+        if final.is_file() or checkpoints:
+            return viewer['view_bundle'](final if final.is_file() else checkpoints[-1],
+                                          workflow_state=path.relative_to(root))
+        launches = [p.name for p in directory.glob('command-*-started.json')]
+        return {'status': 'BLOCKED' if launches else 'NOT_RUN', 'plan': str(plan), 'unknown_launches': launches,
+                'test_commands_executed': 0, 'reason': 'Explicit execute/resume required; lookup never launches a command'}
+    capture = run_check or viewer['capture_tool']()
+    if capture is None:
+        raise ValueError('project_capture_tool_required')
+    return viewer['execute_plan'](plan, run_check_path=capture, evidence_dir=plan.parent / 'evidence',
+                                  timeout=timeout, resume=resume)
 
 
 def pending_selection(audit):
@@ -434,9 +524,9 @@ def pending_selection(audit):
             'check_retirements': audit['check_retirements']}
 
 
-def write_state(path, state):
+def write_state(path, state, *, staging=None):
     path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=path.parent,
+    with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=staging or path.parent,
                                      prefix=path.name + '.', suffix='.pending', delete=False) as output:
         json.dump(state, output, indent=2)
         temporary = Path(output.name)
@@ -444,7 +534,7 @@ def write_state(path, state):
 
 
 def task_identity(state):
-    return digest({key: value for key, value in state.items() if key not in {'reviews', 'retired_reviews', 'feedback', 'results'}})
+    return digest({key: value for key, value in state.items() if key not in {'reviews', 'retired_reviews', 'feedback', 'results', 'execution_plan'}})
 
 
 def bind_results(root, state_path, bundles, *, work_id=None, expected_identity=None):
@@ -461,7 +551,7 @@ def bind_results(root, state_path, bundles, *, work_id=None, expected_identity=N
         if name not in links:
             links.append(name)
     if updated != state:
-        write_state(path, updated)
+        write_state(path, updated, staging=root / '.work' if work_id else None)
     return updated
 
 
@@ -1230,61 +1320,87 @@ def record_review(root, project, state, review):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=['begin', 'audit', 'maintain', 'review', 'feedback', 'accept'])
-    parser.add_argument('--root', type=Path, required=True)
+    parser.add_argument('action', choices=['begin', 'start', 'connect', 'resume', 'prepare', 'execute', 'lookup',
+                                          'audit', 'maintain', 'review', 'feedback', 'accept'])
+    parser.add_argument('--root', type=Path, help='Project root; connected calls may omit it')
     parser.add_argument('--project', default='.harness/project.yaml')
     state_selection = parser.add_mutually_exclusive_group()
     state_selection.add_argument('--state', help='Task-owned record under .work; audit without it is read-only')
     state_selection.add_argument('--work-id', help='Use the workflow baseline captured by Harness start')
+    parser.add_argument('--context', help='Explicit context returned by start/connect; otherwise AGENT_WORKFLOW_CONTEXT')
+    parser.add_argument('--output', help='New .work directory for prepare; default is a unique task run')
+    parser.add_argument('--run-check', type=Path, help='Project capture tool; plugin discovers its bundled tool')
+    parser.add_argument('--timeout', type=float, default=300)
+    parser.add_argument('--resume', action='store_true', help='Execute only never-started checks of this prepared run')
     parser.add_argument('--intent', choices=['init', 'change', 'feedback', 'ui', 'maintain'], default='init')
     parser.add_argument('--target', action='append', default=[])
     parser.add_argument('--review', type=Path)
     parser.add_argument('--feedback', type=Path, help='Register/update a complaint and repair chain in the existing work state')
     parser.add_argument('--history-bundle', action='append', default=[], help='Project-relative retained bundle for read-only maintenance costs/detection review')
     args = parser.parse_args(argv)
+    root, project = None, None
     try:
-        root = args.root.resolve()
+        context = args.context if args.context is not None else os.environ.get('AGENT_WORKFLOW_CONTEXT')
+        root = (args.root.resolve() if args.root else Path(json.loads(context)['root']).resolve() if context else
+                Path(git(Path.cwd(), 'rev-parse', '--show-toplevel').decode().strip()).resolve())
         project = json.loads(local_path(root, args.project).read_text(encoding='utf-8'))
+        if args.resume and args.action != 'execute' or args.output and args.action != 'prepare':
+            raise ValueError('execution_options_require_matching_action')
         state_path = local_path(root, args.state) if args.state else None
         if state_path and not state_path.resolve().is_relative_to(root / '.work'):
             raise ValueError('state_must_be_task_local_under_work')
         state = json.loads(state_path.read_text(encoding='utf-8')) if state_path and state_path.exists() else None
         if state_path and state_path.exists() and state is None:
             raise ValueError('workflow_state_must_be_object')
-        if args.work_id:
+        if args.action == 'start':
+            if args.state or args.work_id:
+                raise ValueError('start_creates_a_new_task; use begin/connect for an existing record')
+            prior = resolve_task(root, context=context)[0] if context else None
+            state = begin(root, project, args.intent, args.target, prior_state=prior)
+            state_path = local_path(root, f'.work/tasks/{state["task_id"]}/state.json')
+            write_state(state_path, state)
+        elif args.action != 'begin' and (context or args.state or args.work_id) and not (
+                args.action == 'connect' and (args.state or args.work_id)):
+            state, state_path, args.work_id = resolve_task(root, args.state, args.work_id, context)
+        elif args.work_id:
             if args.action == 'begin':
                 raise ValueError('Harness start owns this baseline; use audit or review with --work-id')
             state, state_path = work_record(root, args.work_id)
+        if args.action in {'connect', 'resume', 'lookup', 'prepare', 'execute'} and state is None:
+            raise ValueError('explicit_task_selection_required; select --state/--work-id or use start/connect context')
         if args.action in {'begin', 'review', 'feedback'}:
             if not state_path:
                 raise ValueError('state_required')
-            write_state = False
+            changed = False
             if args.action == 'begin':
                 if state is None:
                     state = begin(root, project, args.intent, args.target)
                     state_path.parent.mkdir(parents=True, exist_ok=True)
-                    write_state = True
+                    changed = True
                 elif state.get('intent') != args.intent or state.get('targets') != sorted(set(args.target)):
                     raise ValueError('resume_request_mismatch')
             elif args.action == 'feedback':
                 if state is None or args.feedback is None:
                     raise ValueError('existing_state_and_feedback_required')
                 state = record_feedback(root, project, state, json.loads(args.feedback.read_text(encoding='utf-8')))
-                write_state = True
+                changed = True
             else:
                 if state is None or args.review is None:
                     raise ValueError('existing_state_and_review_required')
                 state = record_review(root, project, state, json.loads(args.review.read_text(encoding='utf-8')))
-                write_state = True
-            if write_state:
-                # An interrupted attempt must not block the next write or expose partial JSON.
-                staging = root / '.work' if args.work_id else state_path.parent
-                with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=staging,
-                                                 prefix=state_path.name + '.', suffix='.pending', delete=False) as output:
-                    json.dump(state, output, indent=2)
-                    temporary = Path(output.name)
-                temporary.replace(state_path)
+                changed = True
+            if changed:
+                write_state(state_path, state, staging=root / '.work' if args.work_id else None)
+        verification = None
+        if args.action in {'prepare', 'execute'} or args.action in {'lookup', 'resume'} and state.get('execution_plan'):
+            verification = connected_verification(root, project, state, state_path, args.work_id, args.action,
+                output=args.output, run_check=args.run_check, timeout=args.timeout, resume=args.resume)
+            state, state_path = task_state(root, None if args.work_id else state_path.relative_to(root), args.work_id)
         result = inspect_project(root, project, state)
+        result['test_commands_executed'] = (verification or {}).get('test_commands_executed', 0)
+        result['read_only'] = args.action in {'connect', 'resume', 'lookup', 'audit', 'maintain', 'accept'}
+        if verification is not None:
+            result['verification'] = verification
         if args.action == 'maintain':
             result['maintenance'] = maintenance_summary(root, project, state, args.history_bundle,
                                                         retirements=result['check_retirements'])
@@ -1296,9 +1412,21 @@ def main(argv=None):
         if state is not None:
             selection = pending_selection(result)
             result['execution_selection'] = {key: selection[key] for key in ('selected_checks', 'selection', 'unconnected_features')}
+            result['task_context'] = task_context(root, state, state_path, args.work_id)
+            result['task'] = {'state': state_path.relative_to(root).as_posix(), 'work_id': args.work_id,
+                              **{key: state.get(key) for key in ('task_id', 'intent', 'targets', 'base', 'dirty_baseline',
+                                                               'reviews', 'feedback', 'results', 'execution_plan')}}
     except (OSError, ValueError, TypeError, KeyError, subprocess.CalledProcessError) as error:
-        result = {'status': 'BLOCKED', 'findings': [str(error)]}
+        result = {'status': 'BLOCKED', 'findings': [str(error)], 'test_commands_executed': 0}
+        if root is not None and project is not None:
+            try:
+                result['task_candidates'] = task_candidates(root, project)
+                result['selection_hint'] = 'Select an exact --state/--work-id. Other custom .work paths require their explicit --state.'
+            except (OSError, ValueError, TypeError, KeyError):
+                pass
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+    if args.action in {'prepare', 'execute'} and result.get('verification'):
+        return {'PREPARED': 0, 'NOT_REQUIRED': 0, 'PASS': 0, 'ISSUES': 1}.get(result['verification']['status'], 2)
     return 0 if result['status'] in {'READY_FOR_REVIEW', 'NOT_CONFIGURED'} else 2
 
 
