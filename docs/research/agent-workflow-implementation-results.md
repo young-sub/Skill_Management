@@ -1,5 +1,20 @@
 # Agent workflow implementation and acceptance
 
+## Delivery scope, 2026-10-09
+
+G1-G6 are completed within the bounded local implementation, independent trials,
+package freeze, isolated product acceptance and product-discovered common repair
+recorded below. This does not claim native installed-host acceptance or universal
+Agent effectiveness. The final affected regressions passed; the 369-test full run
+belongs to the earlier commit explicitly named below, not the final source.
+
+Evidence and isolated project Git histories are retained before worktree removal at
+`C:/Users/YS/Desktop/python/Skill_Management/.work/generic-completion-delivery-20261009`.
+Regenerable node_modules directories are excluded. Relocated absolute-path-bound
+records are historical evidence, not a claim of current reuse at the archive path.
+The isolated Labeler source change is retained there and is not merged into the
+original Labeler repository. Only Skill_Management local main integration is in scope.
+
 ## Generic workflow acceptance before product trial, 2026-10-09
 
 The common implementation now preserves relevant reviews and unresolved findings,
@@ -81,9 +96,23 @@ Unicode, completed-execution zero-command resume and read-only state bytes.
 The affected workflow/hook/viewer regression passed 118 tests (353.311s),
 and the configured Harness regression passed 143 (54.182s). Documentation checks
 (3), resource drift and distribution validation also passed. Logs and actual exit
-codes are retained in `.work/generic-completion/console-*`. Version 0.1.44 will
-be frozen separately, then exercised against the retained product result and an
-independent project's normal path.
+codes are retained in `.work/generic-completion/console-*`.
+Version 0.1.44 was frozen from `a4edbb077b0f76e7c07876c48661f820615884d4`:
+245 payload files, 246 total files, strict inventory and ZIP comparison passed.
+ZIP SHA-256: `deabfe49e33cf73c5ab65b63fb828e8b1d4ddbdcf33462f8e90cbe034782748b`.
+A separate working copy recovered the original Labeler task under explicit cp949,
+without a UTF-8 override: execute-resume and lookup returned exit 0, PASS and zero
+commands, preserving run `41d9bbbb-9826-4d55-87f0-67fa47e3c7b6`.
+Follow-up prepare returned NOT_REQUIRED with zero commands; its fresh scope stays
+PARTIAL. Korean names and the en dash survived JSON parsing; all 29 protected
+task/evidence files retained their hashes. The original 0.1.43 failure is preserved.
+The capture wrapper's setup guard and SystemExit bookkeeping errors are separately
+recorded in wrapper-diagnostics.json and are not package failures.
+The independent API project's cp949 bundle summary also returned PASS with zero
+commands. Its successor lookup retained expected PARTIAL scope (exit 2); all 287
+work files and Git status remained unchanged. Raw captures are in
+`labeler-product-acceptance/.work/product-management-search-g6-package-0144-20261009`
+and `g6-api-console-0.1.44` beneath `.work/generic-completion/`.
 No installed distribution or global console setting changes.
 
 ## Actual product connection findings, 2026-10-09
@@ -132,8 +161,8 @@ Task `e32b7bff-274c-4fcf-8518-f2a74bd548a9` reached READY_FOR_REVIEW. Follow-up
 `5107d320-3988-458d-b6e6-14ff1acc8ddb` inherited its results/guide; prepare was
 NOT_REQUIRED with zero selected/executed checks. Its fresh scope decisions remain
 PARTIAL as intended, not a false completion. The 0.1.43 full task output required
-a process-local UTF-8 override because of the console defect above. New-package
-recovery is still pending. Resources and original failures remain under the
+a process-local UTF-8 override because of the console defect above. The 0.1.44
+recovery above now works under cp949 without rerunning the browser. Resources and original failures remain under the
 snapshot's `.work/product-management-search-*` paths. Owned services were stopped;
 the main Agent separately identified and stopped the initial snapshot Vite PID
 26048, which the later handoff had conservatively left untouched.
