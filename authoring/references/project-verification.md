@@ -82,6 +82,20 @@ The replacement prevention link must be active; missing prior detection scope or
 evidence blocks preservation. Existing older baselines cannot invent absent prior
 links. Feature retirement uses its separate semantic removal review.
 
+For a removed requirement inside a still-active Feature, `action: remove` with
+`reason: requirement_retired` takes a separate proof branch. Its `retirement`
+includes safe `authorization_refs`, changed `requirement_refs` captured before
+maintenance, nonempty `removed_entrypoints` and `removed_callers`, `remaining_impact`,
+`references` to the actual remaining owners, and `retired_failures` accounting for
+each prior prevention failure/scope. Source removal/change must be observed and
+active coverage/prevention must no longer reference the check. These references
+join the current semantic review hashes; revoked/stale evidence blocks removal.
+No replacement detector is demanded for an actually retired requirement. Missing
+proof or an active residual link remains BLOCKED. Older baselines without criteria
+hashes cannot infer a requirement change. Full Feature removal still uses its
+separate reconciliation. The Agent checks actual callers and semantic impact;
+path hashes and submitted removal descriptions cannot authenticate that judgment.
+
 The Agent decides whether the failures are equivalent and makes the actual scoped
 code/registry consolidation. The CLI verifies connected evidence and records
 PRESERVED or BLOCKED; it neither chooses checks to delete nor runs a pruning loop.

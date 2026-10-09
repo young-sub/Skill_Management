@@ -1,10 +1,45 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: 652c98ba9c493d1249f9e2bca41967517a9b1980bbc2eb95fa276851384cb656 -->
+<!-- Source-SHA256: 07cca6997f3275c99e935a35d24ade232412d0bec9669ed8891497ebbcc866ce -->
 
 # Project workflow obligations
 
 Existing project config owns `extensions.workflow`; a task record under `.work` retains review progress. The bundled `scripts/project_workflow.py` computes obligations from current bytes and registered connections without calling a model. Requirements, feature meanings, causes and visual judgments remain Agent work. Review records are Agent inputs, not authenticated proof.
+
+## Investigation without workflow setup
+
+`start --root <project> --intent diagnose --request-summary <request>
+--investigation <record.json>` uses the same `.work/tasks/<task-id>/state.json`
+and explicit context even when `.harness/project.yaml` or its workflow extension
+is absent. It creates no project config, execution plan or second task ledger.
+With an existing task, use `investigate --context <context> --investigation
+<record.json>`; that task's ID and baseline remain intact. `connect`, `lookup`
+and task `resume` read retained records and current hashes with zero launches.
+Verification/review/feedback still require configured project connections.
+
+The Agent supplies `scope` (`whole-project` or `targeted`), `inventory_status`
+(`partial` or `complete`), `inventory_refs`, `source_refs`, `allowed`, `forbidden`,
+`next_actions`, and `entries`. Each entry has a stable `id`, `location`, `access`,
+`conditions`, `expected`, `status` (`observed`, `unobserved`, `blocked`,
+`not_applicable`), `evidence` (safe project-relative files), and issue `owner`
+(`product`, `plugin`, `tool`, `environment`, `agent`, `unknown`). Observed entries
+also require `observed` text and direct evidence; blocked/excluded entries need
+a reason. Keep observation separate from optional `hypothesis` and user decisions.
+For UI, encode actual screen/viewport/state identities; do not generate imaginary
+combinations or count one capture as every substate. `location`/`access` may name
+a route/command; evidence paths must exist and remain within the project.
+
+An update may add entries and observations but cannot remove IDs, change their
+location/access/conditions/expectations or expand recorded permissions. A different
+scope/condition is new work. Unchanged observations keep their prior hash binding,
+so updating next actions cannot refresh stale evidence. Changed sources/evidence
+and unobserved/blocked entries keep the investigation PARTIAL. A complete inventory
+needs references; its semantic completeness remains Agent judgment. Full-project
+requests retain all discovered entrypoints and unknowns; small requests need only
+affected owners and consumers. READY_FOR_REVIEW means the declared investigation
+is ready for semantic review, never automatic proof that the product is correct.
+The hook gives bounded counts/previews; exact lookup retains every ID and detail.
+Each task has one writer; atomic replace does not provide concurrent update safety.
 
 ## Follow-up review and finding continuity
 

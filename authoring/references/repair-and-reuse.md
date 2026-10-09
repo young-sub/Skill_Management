@@ -16,7 +16,33 @@ retains missing stages and never executes reproduction text. The configured
 workflow `state` and Harness start carry these records into related subsequent work;
 the read-only prompt context exposes their causes/guardrails and pending work.
 
-After diagnosis add `trace`, `root_cause`, `failed_prevention`, `repair_paths` (the
+## Classify the feedback before choosing a repair
+
+`kind` defaults to `requirement_violation` for existing records. Optional
+`candidate_id`, safe `evidence_refs`/`owner_refs`, and `user_review` connect the
+original candidate and user response. `user_review` has `decision` (`agree`,
+`intentional_difference`, `defer`, `opinion`) and an existing `reference`; defer
+keeps non-repair dispositions open. Agreement is neither cause proof nor additional
+change authority. Classification and evidence sufficiency remain Agent judgments.
+
+| Kind | Evidence and disposition |
+| --- | --- |
+| `requirement_violation` | Existing fixed-oracle RED/GREEN/normal and active prevention chain below; source owner repair required. |
+| `requirement_change` | `scope`, `reason`, `evidence_refs`, `owner_refs`, `reconsider`, `authorization_refs`; criteria bytes must change from registration, with fresh prepared `green_bundle` and `confirmation` for new and retained contracts. No old-oracle RED is invented. |
+| `intentional_difference` | Scope/reason/evidence/owner/reconsider identify a common variant or explicit exception. A linked `user_review` of `agree` or `intentional_difference` plus current evidence yields ACCEPTED without a product-repair obligation; absent/deferred/opinion review stays OPEN. Changed references reopen it. |
+| `oracle_tool_error` | Independent `evidence_refs`, scope/reason/owner/reconsider, `trace`, `root_cause`, changed `repair_paths` at the declared source/criteria owner, and fresh green confirmation. Repair the runner/oracle; preserve the actual original failure separately. |
+| `environment_limit`, `unknown` | Preserve failure, conditions and next action. Always OPEN; agreement or a green file cannot manufacture a confirmed cause or resolution. |
+
+`confirmation` names active `check`, `expected_pointer`, and a distinct
+`normal_pointer`. Both must be matched assertions in a current PASS prepared
+native-JSON bundle bound to the current project Feature. Register the feedback
+before changing criteria/owners so the CLI can capture the original hashes.
+New related tasks inherit the same records and consume the current criteria and
+active prevention; stale/missing observations reopen required work. Unrelated work
+does not acquire a Full requirement. UI guide owns intent/variants/state/responsive
+and accessibility references; actual values and behavior remain in shared code.
+
+For a requirement violation, after diagnosis add `trace`, `root_cause`, `failed_prevention`, `repair_paths` (the
 actual existing source owner), `red_bundle`, `green_bundle`, and `guardrail`:
 
 ```json

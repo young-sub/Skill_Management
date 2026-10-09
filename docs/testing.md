@@ -1,5 +1,14 @@
 # Testing And Impact Selection
 
+`tests.distribution.test_workflow_refinement` covers investigation without setup,
+stable denominator/context/permissions, read-only fresh-process resume, stale
+observation preservation, bounded hook previews, feedback kinds and actual native
+requirement/tool confirmation with subsequent zero-execution reuse. It also covers
+reason-specific retirement, revoked proof and remaining active links. The existing
+connected-product suite now contrasts direct API/Domain/SQLite restart readback
+with a deliberately corrupted frontend payload; cell PASS cannot conceal that
+connected failure. These are isolated synthetic cases, not original Labeler edits.
+
 The workflow/result selectors also cover full-stack scope preparation and semantic
 review staleness, feedback owner repair with actual red/green/normal native JSON,
 shared UI consumer/input bindings, measured maintenance deduplication and real

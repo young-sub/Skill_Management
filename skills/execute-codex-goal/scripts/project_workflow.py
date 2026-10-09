@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: 92995e7d9886b4cf87620f29e723b28420ad86596f8c4ef29df25439884882d8
+# Source-SHA256: a729ad9ed50713eede5868a374ae9a270138b24c9f69a8ee65acfee7c8d7454e
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -322,13 +322,19 @@ def request_details(root, summary=None, outcome_refs=()):
 
 
 def begin(root, project, intent, targets=(), *, prior_state=None, request_summary=None, outcome_refs=()):
-    if intent not in {'init', 'change', 'feedback', 'ui', 'maintain'}:
+    if intent not in {'init', 'change', 'feedback', 'ui', 'maintain', 'diagnose'}:
         raise ValueError('unsupported_work_intent')
     if intent in {'feedback', 'ui'} and not targets:
         raise ValueError('target_required')
     request = request_details(root, request_summary, outcome_refs)
     config = configuration(project)
     if config is None:
+        if intent == 'diagnose' and request:
+            return {'schema_version': 1, 'task_id': str(uuid.uuid4()), 'root': str(root.resolve()),
+                    'intent': intent, 'request': request, 'targets': sorted(set(targets)),
+                    'base': git(root, 'rev-parse', 'HEAD').decode().strip(),
+                    'dirty_baseline': git(root, 'status', '--porcelain').decode('utf-8'),
+                    'baseline': {}, 'reviews': {}, 'feedback': {}, 'results': {}}
         raise ValueError('workflow_not_configured')
     if set(targets) - {f['id'] for f in config['features']}:
         raise ValueError('unknown_target')
@@ -337,7 +343,8 @@ def begin(root, project, intent, targets=(), *, prior_state=None, request_summar
     results = {}
     reviews = {}
     retired_reviews = {}
-    check_links = {f['id']: {'checks': list(f['checks']), 'prevention': deepcopy(f.get('prevention', []))}
+    check_links = {f['id']: {'checks': list(f['checks']), 'prevention': deepcopy(f.get('prevention', [])),
+                            'criteria_before': {name: file_hash(root, name) for name in f['criteria']}}
                    for f in config['features']}
     if prior_state is not None or config.get('state'):
         prior = local_path(root, config['state']) if prior_state is None else None
@@ -371,6 +378,7 @@ def begin(root, project, intent, targets=(), *, prior_state=None, request_summar
                         links['checks'].append(pending['check'])
                     links['prevention'].extend(p for p in prior_links.get('prevention', [])
                                                if p['check'] == pending['check'] and p not in links['prevention'])
+                    links['criteria_before'] = deepcopy(prior_links.get('criteria_before', {}))
     return {'schema_version': 1, 'task_id': str(uuid.uuid4()), 'root': str(root.resolve()), 'intent': intent, 'request': request,
             'targets': sorted(set(targets)), 'base': git(root, 'rev-parse', 'HEAD').decode().strip(),
             'dirty_baseline': git(root, 'status', '--porcelain').decode('utf-8'),
@@ -383,6 +391,79 @@ def begin(root, project, intent, targets=(), *, prior_state=None, request_summar
             'input_bases': {item['id']: item['basis'] for item in features},
             'verification_bases': {item['id']: item['verification_basis'] for item in features},
             'check_links': check_links}
+
+
+def record_investigation(root, state, investigation):
+    """Agent-owned observations in the existing task; no setup or execution."""
+    if not isinstance(investigation, dict) or investigation.get('scope') not in {'whole-project', 'targeted'}:
+        raise ValueError('investigation_scope_required')
+    if investigation.get('inventory_status') not in {'partial', 'complete'}:
+        raise ValueError('investigation_inventory_status_required')
+    for field in ('inventory_refs', 'source_refs', 'allowed', 'forbidden', 'next_actions'):
+        if not isinstance(investigation.get(field), list) or any(not isinstance(v, str) or not v.strip() for v in investigation[field]):
+            raise ValueError(f'investigation_requires_list:{field}')
+    previous = state.get('investigation', {})
+    for field in ('scope', 'allowed', 'forbidden'):
+        if previous and previous[field] != investigation[field]:
+            raise ValueError(f'investigation_scope_changed:{field}')
+    prior_entries = {e['id']: e for e in previous.get('entries', [])}
+    entries = investigation.get('entries')
+    if not isinstance(entries, list) or not entries:
+        raise ValueError('investigation_entries_required')
+    ids = []
+    for entry in entries:
+        if not isinstance(entry, dict) or any(not isinstance(entry.get(k), str) or not entry[k].strip()
+                for k in ('id', 'location', 'access', 'conditions', 'expected')):
+            raise ValueError('investigation_entry_identity_and_conditions_required')
+        ids.append(entry['id'])
+        if entry.get('status') not in {'observed', 'unobserved', 'blocked', 'not_applicable'}:
+            raise ValueError('invalid_investigation_entry_status')
+        if entry.get('owner') not in {'product', 'plugin', 'tool', 'environment', 'agent', 'unknown'}:
+            raise ValueError('investigation_issue_owner_required')
+        if not isinstance(entry.get('evidence'), list) or any(not isinstance(v, str) or not v for v in entry['evidence']):
+            raise ValueError('investigation_evidence_paths_required')
+        if entry['status'] == 'observed' and (not entry['evidence'] or not isinstance(entry.get('observed'), str) or not entry['observed'].strip()):
+            raise ValueError('observed_entry_requires_evidence_and_observation')
+        if entry['status'] in {'blocked', 'not_applicable'} and not entry.get('reason'):
+            raise ValueError('investigation_entry_reason_required')
+        if entry['id'] in prior_entries and any(entry[k] != prior_entries[entry['id']][k] for k in ('location', 'access', 'conditions', 'expected')):
+            raise ValueError('investigation_entry_identity_changed')
+    if len(set(ids)) != len(ids):
+        raise ValueError('duplicate_investigation_entry')
+    if set(prior_entries) - set(ids):
+        raise ValueError('investigation_entry_removed')
+    if investigation['inventory_status'] == 'complete' and not investigation['inventory_refs']:
+        raise ValueError('complete_inventory_requires_references')
+    updated = deepcopy(investigation)
+    references = list(dict.fromkeys(updated['inventory_refs'] + updated['source_refs'] +
+                                   [name for e in entries for name in e['evidence']]))
+    updated['reference_hashes'] = {name: file_hash(root, name) for name in references}
+    if any(value is None for value in updated['reference_hashes'].values()):
+        raise ValueError('investigation_reference_missing')
+    for entry in updated['entries']:
+        prior = prior_entries.get(entry['id'], {})
+        if prior and all(prior.get(k) == entry.get(k) for k in ('status', 'observed', 'evidence')):
+            entry['reference_hashes'] = deepcopy(prior['reference_hashes'])
+        else:
+            entry['reference_hashes'] = {name: updated['reference_hashes'][name] for name in
+                dict.fromkeys(updated['source_refs'] + updated['inventory_refs'] + entry['evidence'])}
+    result = deepcopy(state)
+    result['investigation'] = updated
+    return result
+
+
+def inspect_investigation(root, state):
+    investigation = state.get('investigation')
+    if investigation is None:
+        return None
+    hashes = investigation['reference_hashes']
+    changed = [name for name, value in hashes.items() if file_hash(root, name) != value]
+    stale = [e['id'] for e in investigation['entries'] if e['status'] == 'observed' and any(
+        file_hash(root, name) != value for name, value in e['reference_hashes'].items())]
+    unobserved = [e['id'] for e in investigation['entries'] if e['status'] in {'unobserved', 'blocked'}]
+    return dict(investigation, total=len(investigation['entries']), unobserved=unobserved, stale=stale,
+                status='PARTIAL' if unobserved or stale or changed or investigation['inventory_status'] != 'complete' else 'READY_FOR_REVIEW',
+                changed_references=changed, semantic_limit='Agent-declared inventory and observations; no automatic product verdict')
 
 
 def begin_work(root, project):
@@ -408,7 +489,7 @@ def work_record(root, work_id):
     if not isinstance(state, dict):
         raise ValueError('invalid_work_workflow_record')
     for key, value in baseline.items():
-        if key not in {'reviews', 'retired_reviews', 'feedback', 'results', 'execution_plan'} and state.get(key) != value:
+        if key not in {'reviews', 'retired_reviews', 'feedback', 'results', 'execution_plan', 'investigation'} and state.get(key) != value:
             raise ValueError(f'work_workflow_baseline_changed:{key}')
     return state, directory / 'workflow.json'
 
@@ -551,7 +632,7 @@ def write_state(path, state, *, staging=None):
 
 
 def task_identity(state):
-    return digest({key: value for key, value in state.items() if key not in {'reviews', 'retired_reviews', 'feedback', 'results', 'execution_plan'}})
+    return digest({key: value for key, value in state.items() if key not in {'reviews', 'retired_reviews', 'feedback', 'results', 'execution_plan', 'investigation'}})
 
 
 def bind_results(root, state_path, bundles, *, work_id=None, expected_identity=None):
@@ -599,7 +680,15 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
               'obligations': [], 'features': [], 'partitions': {}, 'unmapped': [],
               'unlinked': [], 'findings': [], 'product_findings': [], 'retired': [], 'coverage': coverage_summary([]),
               'feedback': [], 'ui_systems': [], 'check_retirements': []}
+    if state is not None:
+        if not isinstance(state, dict) or state.get('schema_version') != 1 or state.get('root') != str(root):
+            raise ValueError('work_target_mismatch')
+        investigation = inspect_investigation(root, state)
+        if investigation is not None:
+            result['investigation'] = investigation
     if config is None:
+        if result.get('investigation'):
+            result['status'] = result['investigation']['status']
         return result
     if state is not None and not isinstance(state, dict):
         raise ValueError('workflow_state_must_be_object')
@@ -711,7 +800,11 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
             requires.append('verification')
         if identity in state.get('targets', []):
             requires.append('verification')
-        if state.get('intent') == 'feedback' and identity in state.get('targets', []):
+        feature_feedback = [item for item in result['feedback'] if item['feature'] == identity]
+        repair_request = state.get('intent') == 'feedback' and identity in state.get('targets', []) and (
+            not feature_feedback or any(item.get('kind', 'requirement_violation') in
+                                       {'requirement_violation', 'oracle_tool_error'} for item in feature_feedback))
+        if repair_request:
             requires.extend(['repair', 'regression', 'normal_case'])
         ui_requested = state.get('intent') == 'ui' and identity in state.get('targets', [])
         if ui_requested:
@@ -724,9 +817,14 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
         mapping_pending = mapping_pending or not mapping_ready
         if product_findings:
             requires.append('product_resolution')
-        unresolved_feedback = [item for item in result['feedback'] if item['feature'] == identity and item['status'] != 'RESOLVED']
+        unresolved_feedback = [item for item in result['feedback'] if item['feature'] == identity and item['status'] not in {'RESOLVED', 'ACCEPTED'}]
         if unresolved_feedback:
-            requires.extend(['repair', 'regression', 'normal_case'])
+            for item in unresolved_feedback:
+                kind = item.get('kind', 'requirement_violation')
+                requires.extend(['diagnosis'] if kind in {'environment_limit', 'unknown'} else
+                                ['difference_review'] if kind == 'intentional_difference' else
+                                ['criterion_revision', 'verification', 'normal_case'] if kind == 'requirement_change' else
+                                ['repair', 'regression', 'normal_case'])
             findings.extend(f'feedback_pending:{item["id"]}:{part}' for item in unresolved_feedback for part in item['remaining'])
         retirements = inspect_check_retirements(root, feature, state, review, reviewed)
         result['check_retirements'].extend(retirements)
@@ -749,7 +847,7 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
                 behavior = {'status': 'NOT_REQUIRED', 'findings': [], 'items': []}
             if needs_behavior and behavior is not None and behavior['status'] not in {'PASS', 'NOT_REQUIRED'}:
                 findings.extend(behavior['findings'])
-        if state.get('intent') == 'feedback' and identity in state.get('targets', []) and state.get('input_bases', {}).get(identity) == basis:
+        if repair_request and state.get('input_bases', {}).get(identity) == basis:
             findings.append(f'repair_not_observed:{identity}')
         pending = not reviewed or findings or product_findings or (needs_behavior and (not behavior or behavior['status'] not in {'PASS', 'NOT_REQUIRED'}))
         rows = coverage_rows(feature, review, basis, behavior.get('items', []) if behavior else [],
@@ -831,7 +929,9 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
     result['mapping_status'] = 'PARTIAL' if mapping_pending or result['unmapped'] else 'READY_FOR_REVIEW'
     result['coverage'] = coverage_summary(result['coverage']['rows'], result['coverage']['matrix'])
     result['status'] = 'PARTIAL' if result['obligations'] or result['unmapped'] or result['findings'] else 'READY_FOR_REVIEW'
-    if any(item['status'] != 'RESOLVED' for item in result['feedback']):
+    if any(item['status'] not in {'RESOLVED', 'ACCEPTED'} for item in result['feedback']):
+        result['status'] = 'PARTIAL'
+    if result.get('investigation', {}).get('status') == 'PARTIAL':
         result['status'] = 'PARTIAL'
     return result
 
@@ -846,6 +946,37 @@ def inspect_check_retirements(root, feature, state, review, reviewed):
             remaining.append('current_semantic_review_required')
         if decision.get('action') not in {'remove', 'consolidate'} or not decision.get('reason'):
             remaining.append('preservation_decision_missing')
+        if decision.get('action') == 'remove' and decision.get('reason') == 'requirement_retired':
+            proof = decision.get('retirement', {})
+            for field in ('authorization_refs', 'requirement_refs', 'removed_entrypoints', 'removed_callers', 'references'):
+                if not isinstance(proof.get(field), list) or not proof[field] or any(
+                        not isinstance(v, str) or not v.strip() for v in proof[field]):
+                    remaining.append(f'retirement.{field}')
+            if not isinstance(proof.get('remaining_impact'), str) or not proof['remaining_impact'].strip():
+                remaining.append('retirement.remaining_impact')
+            failures = prior.get('prevention', [])
+            retired = proof.get('retired_failures', [])
+            if not isinstance(retired, list) or any(not any(isinstance(p, dict) and all(
+                    p.get(k) == failure.get(k) for k in ('failure', 'scope')) for p in retired)
+                    for failure in failures if failure.get('check') == check):
+                remaining.append('retired_failure_scope_unaccounted')
+            for field in ('authorization_refs', 'requirement_refs', 'references'):
+                for name in proof.get(field, []) if isinstance(proof.get(field, []), list) else []:
+                    if file_hash(root, name) is None:
+                        remaining.append('retirement_reference_missing')
+            requirements = proof.get('requirement_refs', [])
+            if not isinstance(requirements, list) or not requirements or any(
+                    name not in prior.get('criteria_before', {}) or
+                    file_hash(root, name) == prior['criteria_before'][name] for name in requirements):
+                remaining.append('requirement_change_not_observed')
+            if any(row.get('check') == check for row in feature.get('coverage', []) + feature.get('prevention', [])):
+                remaining.append('retired_check_still_linked')
+            if not any(file_hash(root, name) != value for name, value in state.get('baseline', {}).items()
+                       if any(fnmatchcase(name, pattern) for pattern in feature['sources'])):
+                remaining.append('entrypoint_removal_not_observed')
+            result.append({'feature': feature['id'], 'check': check, 'decision': decision,
+                           'status': 'BLOCKED' if remaining else 'PRESERVED', 'remaining': sorted(set(remaining))})
+            continue
         failures = [p for p in prior.get('prevention', []) if p['check'] == check]
         if not failures:
             remaining.append('prior_detection_scope_unknown')
@@ -960,7 +1091,8 @@ def maintenance_summary(root, project, state=None, history=(), *, retirements=()
         row['registered_command'] = commands.get(row['id'])
         row['retirements'] = [item for item in retirements if item['check'] == row['id']]
         if row['retirements'] and all(item['status'] == 'PRESERVED' for item in row['retirements']) and not row['active_features']:
-            row['disposition'] = 'removed_with_preserved_detection'
+            row['disposition'] = ('removed_with_retired_requirement' if all(
+                item['decision'].get('reason') == 'requirement_retired' for item in row['retirements']) else 'removed_with_preserved_detection')
             row['retain_reason'] = None
             row['candidate'] = 'completed_consolidation_or_removal'
         row['same_conditions_outcome_variation'] = [{'feature': feature, 'condition_id': signature,
@@ -981,6 +1113,20 @@ def record_feedback(root, project, state, entry):
     if previous and previous['feature'] != entry['feature']:
         raise ValueError('feedback_target_changed')
     updated = dict(previous, **deepcopy(entry))
+    kinds = {'requirement_violation', 'requirement_change', 'intentional_difference', 'oracle_tool_error',
+             'environment_limit', 'unknown'}
+    if updated.get('kind', 'requirement_violation') not in kinds:
+        raise ValueError('feedback_kind_invalid')
+    for field in ('evidence_refs', 'owner_refs', 'authorization_refs'):
+        if field in updated and (not isinstance(updated[field], list) or not updated[field] or
+                any(not isinstance(name, str) or file_hash(root, name) is None for name in updated[field])):
+            raise ValueError(f'feedback_reference_missing:{field}')
+    if 'user_review' in updated:
+        review = updated['user_review']
+        if not isinstance(review, dict) or review.get('decision') not in {'agree', 'intentional_difference', 'defer', 'opinion'}:
+            raise ValueError('feedback_user_review_decision_invalid')
+        if not isinstance(review.get('reference'), str) or not review['reference'] or file_hash(root, review['reference']) is None:
+            raise ValueError('feedback_user_review_reference_missing')
     for field in ('expected', 'observed', 'reproduction'):
         if not isinstance(updated.get(field), str) or not updated[field].strip():
             raise ValueError(f'feedback_requires:{field}')
@@ -994,6 +1140,11 @@ def record_feedback(root, project, state, entry):
     updated['source_before'] = previous.get('source_before', {
         name: value for name, value in state['baseline'].items()
         if any(fnmatchcase(name, pattern) for pattern in feature['sources'])})
+    updated['criteria_before'] = previous.get('criteria_before', {name: file_hash(root, name) for name in feature['criteria']})
+    references = [name for field in ('evidence_refs', 'owner_refs', 'authorization_refs') for name in updated.get(field, [])]
+    if updated.get('user_review'):
+        references.append(updated['user_review']['reference'])
+    updated['decision_hashes'] = {name: file_hash(root, name) for name in references}
     result = deepcopy(state)
     result.setdefault('feedback', {})[entry['id']] = updated
     return result
@@ -1054,6 +1205,47 @@ def inspect_feedback(root, config, state):
         if not isinstance(entry, dict) or entry.get('id') != identity:
             raise ValueError('feedback_record_identity_mismatch')
         feature = features.get(entry.get('feature'))
+        kind = entry.get('kind', 'requirement_violation')
+        if kind in {'intentional_difference', 'requirement_change', 'oracle_tool_error', 'environment_limit', 'unknown'}:
+            remaining = []
+            if feature is None:
+                remaining.append('feature_removed_needs_reconciliation')
+            for field in ('scope', 'reason', 'evidence_refs', 'owner_refs', 'reconsider'):
+                if not entry.get(field):
+                    remaining.append(field)
+            if any(file_hash(root, name) != value for name, value in entry.get('decision_hashes', {}).items()):
+                remaining.append('decision_evidence_stale')
+            if entry.get('user_review', {}).get('decision') == 'defer':
+                remaining.append('user_review_deferred')
+            if kind == 'intentional_difference' and entry.get('user_review', {}).get('decision') not in {'agree', 'intentional_difference'}:
+                remaining.append('user_difference_review_required')
+            if kind in {'environment_limit', 'unknown'}:
+                remaining.append('environment_resume_required' if kind == 'environment_limit' else 'cause_unconfirmed')
+            if kind in {'requirement_change', 'oracle_tool_error'} and feature is not None:
+                if kind == 'requirement_change' and not entry.get('authorization_refs'):
+                    remaining.append('requirement_change_authorization_required')
+                changed = [name for name in feature['criteria'] if file_hash(root, name) != entry.get('criteria_before', {}).get(name)]
+                if kind == 'requirement_change' and not changed:
+                    remaining.append('criterion_revision_not_observed')
+                if kind == 'oracle_tool_error':
+                    for field in ('trace', 'root_cause', 'repair_paths'):
+                        if not entry.get(field):
+                            remaining.append(field)
+                    before = dict(entry.get('source_before', {}), **entry.get('criteria_before', {}))
+                    if not entry.get('repair_paths') or any(name not in before or file_hash(root, name) == before[name]
+                                                           for name in entry.get('repair_paths', [])):
+                        remaining.append('oracle_or_tool_repair_not_observed')
+                proof = entry.get('confirmation', {})
+                if proof.get('check') not in feature['checks'] or not proof.get('expected_pointer') or not proof.get('normal_pointer') or not entry.get('green_bundle'):
+                    remaining.append('new_and_retained_contract_evidence_required')
+                else:
+                    try:
+                        remaining.extend(feedback_confirmation(root, feature, entry))
+                    except (OSError, ValueError, TypeError, KeyError):
+                        remaining.append('confirmation_evidence_unavailable')
+            result.append(dict(entry, status='OPEN' if remaining else 'ACCEPTED' if kind == 'intentional_difference' else 'RESOLVED',
+                               remaining=sorted(set(remaining))))
+            continue
         remaining = [key for key in ('trace', 'root_cause', 'failed_prevention', 'repair_paths', 'guardrail', 'red_bundle', 'green_bundle')
                      if not entry.get(key)]
         if feature is None:
@@ -1080,6 +1272,28 @@ def inspect_feedback(root, config, state):
                     remaining.append('repair_evidence_unavailable')
         result.append(dict(entry, status='OPEN' if remaining else 'RESOLVED', remaining=sorted(set(remaining))))
     return result
+
+
+def feedback_confirmation(root, feature, entry):
+    """A changed requirement needs fresh native evidence, not an old RED oracle."""
+    viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
+    path = local_path(root, entry['green_bundle'])
+    green = viewer['view_bundle'](path)
+    proof = entry['confirmation']
+    item = next((i for i in green.get('items', []) if i['feature'] == feature['id'] and i['id'] == proof['check']), None)
+    remaining = []
+    if not item or item['current_status'] != 'PASS':
+        remaining.append('changed_requirement_revalidation_required')
+    observations = [obs for raw in (item or {}).get('raw', []) for obs in raw.get('observations', [])]
+    pointers = (proof['expected_pointer'], proof['normal_pointer'])
+    if pointers[0] == pointers[1] or any(not any(obs['assertion']['pointer'] == pointer and obs['matched']
+            for obs in observations) for pointer in pointers):
+        remaining.append('new_and_retained_contract_evidence_required')
+    bound = viewer['_read_json'](viewer['_bundle_file'](green['bundle']['plan'], base=path.parent, label='feedback plan'))[0]
+    scope = bound.get('workflow_scope', {})
+    if scope.get('root') != str(root.resolve()) or feature not in scope.get('features', []):
+        remaining.append('prepared_project_binding_required')
+    return remaining
 
 
 def inspect_evidence(root, feature, commands, bundle):
@@ -1228,6 +1442,14 @@ def validate_review(root, review):
             raise ValueError('check_decision_requires_action_reason')
         if not isinstance(entry.get('preservation', []), list) or any(not isinstance(p, dict) for p in entry.get('preservation', [])):
             raise ValueError('check_preservation_must_be_list')
+        if 'retirement' in entry:
+            proof = entry['retirement']
+            if not isinstance(proof, dict):
+                raise ValueError('check_retirement_must_be_object')
+            for field in ('authorization_refs', 'requirement_refs', 'references'):
+                if field in proof and (not isinstance(proof[field], list) or any(
+                        not isinstance(name, str) or not name or file_hash(root, name) is None for name in proof[field])):
+                    raise ValueError('check_retirement_reference_missing')
 
 
 def architecture_references(architecture):
@@ -1349,7 +1571,10 @@ def record_review(root, project, state, review):
         updated[key][review['feature']]['product_findings'] = list(dict.fromkeys(
             finding for entry in prior_records for finding in entry.get('product_findings', [])))
     updated[key][review['feature']]['reference_hashes'] = {
-        name: file_hash(root, name) for name in review['references']}
+        name: file_hash(root, name) for name in dict.fromkeys(review['references'] + [name
+            for decision in review.get('check_decisions', {}).values()
+            for field in ('authorization_refs', 'requirement_refs', 'references')
+            for name in decision.get('retirement', {}).get(field, [])])}
     for entry in updated[key][review['feature']].get('scope_reviews', {}).values():
         entry['reference_hashes'] = {name: file_hash(root, name) for name in dict.fromkeys(
             entry['references'] + architecture_references(entry.get('architecture', {})))}
@@ -1359,7 +1584,7 @@ def record_review(root, project, state, review):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', choices=['begin', 'start', 'connect', 'resume', 'prepare', 'execute', 'lookup',
-                                          'audit', 'maintain', 'review', 'feedback', 'accept'])
+                                          'audit', 'maintain', 'review', 'feedback', 'investigate', 'accept'])
     parser.add_argument('--root', type=Path, help='Project root; connected calls may omit it')
     parser.add_argument('--project', default='.harness/project.yaml')
     state_selection = parser.add_mutually_exclusive_group()
@@ -1370,11 +1595,12 @@ def main(argv=None):
     parser.add_argument('--run-check', type=Path, help='Project capture tool; plugin discovers its bundled tool')
     parser.add_argument('--timeout', type=float, default=300)
     parser.add_argument('--resume', action='store_true', help='Execute only never-started checks of this prepared run')
-    parser.add_argument('--intent', choices=['init', 'change', 'feedback', 'ui', 'maintain'], default='init')
+    parser.add_argument('--intent', choices=['init', 'change', 'feedback', 'ui', 'maintain', 'diagnose'], default='init')
     parser.add_argument('--request-summary', help='Ordinary task request; Harness work keeps its existing contract reference')
     parser.add_argument('--outcome-ref', action='append', default=[], help='Existing project-relative expected-outcome document')
     parser.add_argument('--target', action='append', default=[])
     parser.add_argument('--review', type=Path)
+    parser.add_argument('--investigation', type=Path, help='Agent observations and remaining scope in the existing task')
     parser.add_argument('--feedback', type=Path, help='Register/update a complaint and repair chain in the existing work state')
     parser.add_argument('--history-bundle', action='append', default=[], help='Project-relative retained bundle for read-only maintenance costs/detection review')
     args = parser.parse_args(argv)
@@ -1383,11 +1609,16 @@ def main(argv=None):
         context = args.context if args.context is not None else os.environ.get('AGENT_WORKFLOW_CONTEXT')
         root = (args.root.resolve() if args.root else Path(json.loads(context)['root']).resolve() if context else
                 Path(git(Path.cwd(), 'rev-parse', '--show-toplevel').decode().strip()).resolve())
-        project = json.loads(local_path(root, args.project).read_text(encoding='utf-8'))
+        project_path = local_path(root, args.project)
+        project = json.loads(project_path.read_text(encoding='utf-8')) if project_path.is_file() else {}
+        if not project_path.is_file() and args.project != '.harness/project.yaml':
+            raise ValueError('explicit_project_file_missing')
         if args.resume and args.action != 'execute' or args.output and args.action != 'prepare':
             raise ValueError('execution_options_require_matching_action')
         if (args.request_summary is not None or args.outcome_ref) and args.action not in {'begin', 'start'}:
             raise ValueError('request_metadata_requires_task_start')
+        if args.investigation and args.action not in {'start', 'begin', 'investigate'}:
+            raise ValueError('investigation_requires_start_begin_or_investigate')
         state_path = local_path(root, args.state) if args.state else None
         if state_path and not state_path.resolve().is_relative_to(root / '.work'):
             raise ValueError('state_must_be_task_local_under_work')
@@ -1400,6 +1631,8 @@ def main(argv=None):
             prior = resolve_task(root, context=context)[0] if context else None
             state = begin(root, project, args.intent, args.target, prior_state=prior,
                           request_summary=args.request_summary, outcome_refs=args.outcome_ref)
+            if args.investigation:
+                state = record_investigation(root, state, json.loads(args.investigation.read_text(encoding='utf-8')))
             state_path = local_path(root, f'.work/tasks/{state["task_id"]}/state.json')
             write_state(state_path, state)
         elif args.action != 'begin' and (context or args.state or args.work_id) and not (
@@ -1411,7 +1644,7 @@ def main(argv=None):
             state, state_path = work_record(root, args.work_id)
         if args.action in {'connect', 'resume', 'lookup', 'prepare', 'execute'} and state is None:
             raise ValueError('explicit_task_selection_required; select --state/--work-id or use start/connect context')
-        if args.action in {'begin', 'review', 'feedback'}:
+        if args.action in {'begin', 'review', 'feedback', 'investigate'}:
             if not state_path:
                 raise ValueError('state_required')
             changed = False
@@ -1426,6 +1659,14 @@ def main(argv=None):
                     raise ValueError('resume_request_mismatch')
                 elif state.get('intent') != args.intent or state.get('targets') != sorted(set(args.target)):
                     raise ValueError('resume_request_mismatch')
+                if args.investigation:
+                    state = record_investigation(root, state, json.loads(args.investigation.read_text(encoding='utf-8')))
+                    changed = True
+            elif args.action == 'investigate':
+                if state is None or args.investigation is None:
+                    raise ValueError('existing_state_and_investigation_required')
+                state = record_investigation(root, state, json.loads(args.investigation.read_text(encoding='utf-8')))
+                changed = True
             elif args.action == 'feedback':
                 if state is None or args.feedback is None:
                     raise ValueError('existing_state_and_feedback_required')
@@ -1439,6 +1680,8 @@ def main(argv=None):
             if changed:
                 write_state(state_path, state, staging=root / '.work' if args.work_id else None)
         verification = None
+        if args.action in {'prepare', 'execute', 'review', 'feedback'} and configuration(project) is None:
+            raise ValueError('workflow_not_configured; diagnosis supports investigate/connect/lookup/resume only')
         if args.action in {'prepare', 'execute'} or args.action in {'lookup', 'resume'} and state.get('execution_plan'):
             verification = connected_verification(root, project, state, state_path, args.work_id, args.action,
                 output=args.output, run_check=args.run_check, timeout=args.timeout, resume=args.resume)
@@ -1462,7 +1705,7 @@ def main(argv=None):
             result['task_context'] = task_context(root, state, state_path, args.work_id)
             result['task'] = {'state': state_path.relative_to(root).as_posix(), 'work_id': args.work_id,
                               **{key: state.get(key) for key in ('task_id', 'intent', 'targets', 'request', 'base', 'dirty_baseline',
-                                                               'reviews', 'feedback', 'results', 'execution_plan')}}
+                                                               'reviews', 'feedback', 'results', 'execution_plan', 'investigation')}}
     except (OSError, ValueError, TypeError, KeyError, subprocess.CalledProcessError) as error:
         result = {'status': 'BLOCKED', 'findings': [str(error)], 'test_commands_executed': 0}
         if root is not None and project is not None:

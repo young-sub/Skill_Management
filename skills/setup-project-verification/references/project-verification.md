@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/project-verification.md -->
-<!-- Source-SHA256: e7a0cd379c8975899381775dc90ba4f1896f190976ca817a1ca39225d50c71cb -->
+<!-- Source-SHA256: dd2bdeb1abbfae1bd8d0c33f57e15bb194329a6e8053a02e090093a20927bdf3 -->
 
 # Project verification responsibilities
 
@@ -85,6 +85,20 @@ different bundle. The same oracle and distinct nearby normal assertion must rema
 The replacement prevention link must be active; missing prior detection scope or
 evidence blocks preservation. Existing older baselines cannot invent absent prior
 links. Feature retirement uses its separate semantic removal review.
+
+For a removed requirement inside a still-active Feature, `action: remove` with
+`reason: requirement_retired` takes a separate proof branch. Its `retirement`
+includes safe `authorization_refs`, changed `requirement_refs` captured before
+maintenance, nonempty `removed_entrypoints` and `removed_callers`, `remaining_impact`,
+`references` to the actual remaining owners, and `retired_failures` accounting for
+each prior prevention failure/scope. Source removal/change must be observed and
+active coverage/prevention must no longer reference the check. These references
+join the current semantic review hashes; revoked/stale evidence blocks removal.
+No replacement detector is demanded for an actually retired requirement. Missing
+proof or an active residual link remains BLOCKED. Older baselines without criteria
+hashes cannot infer a requirement change. Full Feature removal still uses its
+separate reconciliation. The Agent checks actual callers and semantic impact;
+path hashes and submitted removal descriptions cannot authenticate that judgment.
 
 The Agent decides whether the failures are equivalent and makes the actual scoped
 code/registry consolidation. The CLI verifies connected evidence and records

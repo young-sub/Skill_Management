@@ -4,12 +4,28 @@ description: Investigate a reproducible implementation or verification failure, 
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/diagnose/SKILL.md -->
-<!-- Source-SHA256: 7ddc086ef25f270ad3580d1f0ee7d7622e809457cedfb38c2804ebb1b6ba1e67 -->
+<!-- Source-SHA256: c3f166407e91880454c29ae7f20bb46f9901e04034529e7c9a06d237be41a270 -->
 
 
 # Diagnose
 
 Use existing repository checks and diagnostics. Consult [execution policy](references/goal-execution-policy.md) when the failure belongs to an active Harness contract.
+
+A read-only investigation does not require project workflow setup. When useful,
+use the available agent-workflow task's diagnostic record to retain the request,
+allowed/forbidden actions, source identity, entrypoint/state IDs, observations and
+unknowns. Update existing work instead of creating another ledger. Lookup and
+task resume read retained evidence; fresh investigation/execution is a separate
+action. Distinguish observation from hypothesis and product/plugin/tool/environment
+or Agent judgment ownership. Full surveys retain their denominator; a small
+request stays with affected owners and consumers.
+
+Classify feedback before repair: existing requirement violation, authorized
+requirement change, intentional variant/exception, independently justified
+oracle/tool error, environment limit or unknown cause. User agreement does not
+prove a cause or authorize more changes. Keep deferred reviews and unknown causes
+open; retain candidate IDs and evidence. Reuse the available feedback record's
+reason-specific completion and subsequent-consumption checks.
 
 1. Reproduce the reported input/entry point and failing output with the smallest relevant check. Confirm the current checkout, runtime, and endpoint when using existing logs or a running server.
 2. Trace the failing behavior through its callers and state owner. Form a falsifiable hypothesis; instrument only what distinguishes likely causes. Separate code failure, missing evidence, and environment failure.

@@ -4,7 +4,7 @@ description: Audit and repair drift in a project's Feature Map, executable verif
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/maintain-project-verification/SKILL.md -->
-<!-- Source-SHA256: 72335d8e63f28f2a584bf1e73f66890921129b7f50263d24d3a37f5131192923 -->
+<!-- Source-SHA256: 073761ae4c275427581930bb84f65a136515fa35fd5f1ff42419817bace2e016 -->
 
 
 # Maintain Project Verification
@@ -17,7 +17,14 @@ When `.harness/project.yaml` exists and mapping/cohort/retention is affected, us
 
 Audit-only ends with findings and their evidence, without writes, launches or side-effecting tests. Authorized improvement continues through the actual owner repair: code for product defects, adapter/driver for observation errors, map/command/guide for drift, shared component/token for repeated UI inconsistency. Reuse `diagnose` and the relevant UI capability. Read [repair and reuse](references/repair-and-reuse.md) when those paths apply.
 
-Use [workflow obligations](references/workflow-obligations.md) for configured project links and resumable review. Its audit computes omissions and changed consumers without executing tests; Harness maintenance consumes the same calculation. Unconfigured projects remain read-only findings until setup is authorized.
+Use [workflow obligations](references/workflow-obligations.md) for configured project links and resumable review. Its audit computes omissions and changed consumers without executing tests; Harness maintenance consumes the same calculation. Unconfigured projects can retain read-only investigations in that same task/context without setup.
+
+Distinguish consolidation from an authorized requirement retirement inside a
+living Feature. The latter proves changed requirements, removed entrypoints/callers,
+remaining impact and inactive check links without inventing a replacement detector.
+Keep unknown or unique detection; stale proof remains open. See the reason-specific
+proof in the shared verification reference. Feature-wide retirement remains its
+existing reconciliation.
 
 Consume `coverage.gaps` and `ui_systems` from the same audit. Repair affected requirement/check/review connections and shared UI consumer references at their existing owners. A missing guide needs project-specific intent/state/responsive/accessibility writing with the existing UI capability; keep token values in the linked code. Preserve declared UI exceptions and inspect whether their reason still applies. Re-audit the actual shared change to find consumer obligations rather than maintaining a second screen list.
 

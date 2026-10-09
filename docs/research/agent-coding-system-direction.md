@@ -2,6 +2,8 @@
 
 최신 방향 합의: **2026-10-09 후속 검토 — 0.1.44의 기존 기능을 재사용하고, 수정 없는 조사·조회·재개, 검수/피드백의 올바른 분기와 후속 소비, 사유별 검사 정리의 실제 공백을 구현·검증한다.** [보완 검토](agent-workflow-refinement-review.md), [R0–R4 완료 기준](agent-workflow-completion-design.md#review-driven-refinement), [다음 세션 프롬프트](agent-workflow-next-session.md)가 현재 범위와 최신 main 동기화·작업 브랜치 구현·검증 후 로컬 main 병합을 구체화한다. 원격 push나 기존 설치 변경은 포함하지 않는다.
 
+2026-10-09 실행 결과: R0–R4의 재현된 공백을 0.1.45에서 구현·검증했다. 현재 동작·근거·패키지와 host 미확인 범위는 [구현 결과](agent-workflow-implementation-results.md#r0r4-implementation-2026-10-09)가 소유하며 아래 방향 합의는 실행 설계의 기록으로 유지한다.
+
 범용 구현·독립 검증 후 실제 제품 인수라는 순서는 유지한다. 기존 [G1–G6](agent-workflow-completion-design.md#generic-plugin-first)는 범위 한정 구현·시험의 기록이며 미완료 목록으로 통째로 다시 실행하지 않는다. 아래 과거 설계·파일럿 기록은 최신 범위·권한을 대신하지 않는다. 이번 문서 보완은 새 기능 구현이나 효과 검증이 아니다.
 
 결정일: 2026-10-05. PStack 조사, 10/3~4 후보 Skill, 독립 Labeler 파일럿 및 이후 사용자 논의의 **현재 설계 결론**이다. 후속 합의의 전체 Feature init·환경 집행·성과 기준·구현 단위는 [완성 기준과 후속 구현](agent-workflow-completion-design.md)이 구체화한다. 구현과 실제 업무 수용 상태는 아래 결과 문서에서 구분한다. 현재 실행·권한·Git 정책은 [Agent workflow](../agents/workflow.md), 구현된 검증 도구는 [Testing](../testing.md)을 따른다. [기존 실행 프롬프트](agent-coding-next-session.md)는 수행 범위의 기록이다.

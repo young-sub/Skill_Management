@@ -60,7 +60,15 @@ The cohort installer preserves replaced trees at its returned `preserved_previou
 
 Task-native preparation and repository unittest execution share the existing
 workflow obligation selector. The task's immutable identity/baseline is separate
-from mutable review/feedback/result links; the same record owns the latter.
+from mutable review/feedback/result/investigation links; the same record owns the latter.
+Without configured workflow, a diagnosis task uses that same identity/context and
+record, creating no project config or execution workflow. Observations retain stable
+entrypoint/state IDs and source/evidence hashes. Exact-context lookup/resume and the
+bounded prompt hook remain read-only; an unknown or stale observation keeps scope
+partial. Semantic inventory/cause/retirement judgments remain Agent responsibilities.
+Reason-specific feedback and requirement retirement consume existing native bundles
+and review hashes rather than adding another result store. Task records support one
+writer each; atomic replacement prevents partial JSON, not concurrent lost updates.
 Execution may attach verified captures while semantic review is unfinished.
 The result viewer projects declared task applicability and per-scope freshness
 without executing commands; architecture structure is validated while meaning

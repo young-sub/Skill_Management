@@ -4,7 +4,7 @@ description: Coordinate a coding task from a natural-language request through re
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: ba7eab72b68238d84ba5279e5c72bde88f9a6845bb0232c03a54797ba60981cf -->
+<!-- Source-SHA256: 56e4ad7363303c1dcf7d30350ddca9483f340dc8302e81a66d28a1db5850990c -->
 
 
 # Agent Workflow
@@ -16,6 +16,7 @@ Read the project AGENTS/index, current checkout and dirty baseline, requirement 
 | Initial project verification | Available `setup-project-verification`; reconcile the complete function map, partition/resume large surveys, then connect actual checks. Map completeness and execution coverage are separate. |
 | Implement a feature | Existing development workflow; requirements and touched callers first. If the affected Feature lacks a runnable verification connection, use the setup responsibility for that missing path, then implement, verify and update affected map/guide/active selectors in the same functional commit. Small work needs no contract. |
 | Verify a feature | Project verification guide/adapter; select checks from changed behavior, run the real native and affected user flow, inspect raw outcomes. |
+| Investigate without changes | Retain request, permissions, full entrypoint denominator or affected scope, observations, unknowns and next action in the existing task. Workflow setup is optional. |
 | Show existing results | Read existing plan, capture and raw observations only. Separate original judgment from current reuse. Do not run tests, repair files or start services. |
 | Inspect/improve the development workflow | Available `maintain-project-verification` plus `maintain-agent-harness` when actual Harness mapping/cohort/retention is involved. Inspect shared facts once and retain both areas' findings. Audit-only stays read-only; authorized improvements include repair and recheck. |
 | Feedback or recurrence | Available `diagnose`; trace expected behavior through callers, state and data to its owner, fix and prevent the concrete failure. |
@@ -24,6 +25,17 @@ Read the project AGENTS/index, current checkout and dirty baseline, requirement 
 Load [verification responsibilities](references/project-verification.md) for setup, verification, maintenance or feedback. For feedback/UI work also read [repair and reuse](references/repair-and-reuse.md). If a named capability is unavailable, perform its bounded responsibility using project commands; do not silently treat missing checks as passed or install a new framework.
 
 For configured projects, [workflow obligations](references/workflow-obligations.md) provides the direct audit/resume CLI. Consume its affected references and perform the required semantic work. Local consistency and host-protected acceptance are distinct; the CLI reports the unsupported enforcement boundary explicitly.
+
+Without configured workflow, use that same CLI's `start --intent diagnose
+--request-summary <request> --investigation <observations.json>`, as defined in
+[investigation without setup](references/workflow-obligations.md#investigation-without-workflow-setup).
+With existing work, `investigate --investigation <observations.json>` updates its
+record using the exact context. Keep one writer per task, source/permission bounds,
+stable screen/viewport/state IDs and directly observed evidence. `lookup`/task
+`resume` restore the same unknowns without launching commands or creating setup.
+Observe new scope through separately authorized execution; a representative
+capture never completes unobserved states. Full inspection keeps the entrypoint
+denominator; a small investigation need not initialize the entire project.
 
 Connect the selected request once through the same CLI: `start --intent <intent>
 --target <feature> --request-summary <user-outcome> --outcome-ref <existing-requirement-file>`

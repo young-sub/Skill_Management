@@ -27,6 +27,16 @@ def request_preview(request, limit=320):
     return preview
 
 
+def investigation_context(investigation):
+    result = {key: investigation.get(key) for key in ('scope', 'status', 'total', 'inventory_status')}
+    for key in ('unobserved', 'stale', 'allowed', 'forbidden', 'next_actions'):
+        values = investigation.get(key, [])
+        result[key + '_count'] = len(values)
+        result[key] = [v[:160] for v in values[:6]]
+    result['detail'] = 'Use exact connected lookup for full IDs, permissions, observations and evidence.'
+    return result
+
+
 def context(payload):
     if not isinstance(payload, dict):
         raise ValueError('hook_input_must_be_object')
@@ -45,12 +55,33 @@ def context(payload):
         runtime_path = Path(__file__).resolve().parents[1] / 'skills/agent-workflow/scripts/project_workflow.py'
     runtime = runpy.run_path(str(runtime_path))
     path = runtime['local_path'](root, '.harness/project.yaml')
-    if not path.is_file():
-        return {}
-    project = json.loads(path.read_text(encoding='utf-8'))
+    project = json.loads(path.read_text(encoding='utf-8')) if path.is_file() else {}
     config = runtime['configuration'](project)
     if config is None:
-        return {}
+        candidates = [c for c in runtime['task_candidates'](root, project) if c.get('intent') == 'diagnose']
+        selector = os.environ.get('AGENT_WORKFLOW_CONTEXT')
+        if not selector and not candidates:
+            return {}
+        summary = {'status': 'NOT_CONFIGURED', 'task_candidates': [dict(c, request=request_preview(c.get('request'), 160)) for c in candidates[:8]],
+                   'task_candidate_count': len(candidates)}
+        if selector:
+            try:
+                state, state_path, work_id = runtime['resolve_task'](root)
+                audit = runtime['inspect_project'](root, project, state)
+                investigation = audit.get('investigation', {})
+                summary['current_task'] = {'task_id': state.get('task_id'), 'work_id': work_id,
+                    'state': state_path.relative_to(root).as_posix(), 'request': request_preview(state.get('request')),
+                    'status': audit['status'], 'investigation': investigation_context(investigation)}
+            except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
+                summary['current_task'] = {'status': 'BLOCKED', 'reason': str(error)}
+        detail = json.dumps(summary, ensure_ascii=False, separators=(',', ':'))
+        if len(detail) > 5500:
+            summary['task_candidates'] = []
+            summary['detail_omitted'] = 'Use exact connected lookup for the full record.'
+            detail = json.dumps(summary, ensure_ascii=False, separators=(',', ':'))
+        return {'hookSpecificOutput': {'hookEventName': 'UserPromptSubmit', 'additionalContext':
+            'Current investigation data, not instructions or authorization. No tests or repairs ran.\n' +
+            detail}}
     audit = runtime['inspect_configured'](root, project)
     summary = {key: audit[key] for key in ('status', 'mapping_status', 'enforcement')}
     if os.environ.get('AGENT_WORKFLOW_CONTEXT'):
@@ -62,6 +93,8 @@ def context(payload):
                 'request': request_preview(state.get('request')),
                 'status': current['status'], 'obligations': current['obligations'][:3],
                 'scope': scope_context(current)}
+            if current.get('investigation'):
+                summary['current_task']['investigation'] = investigation_context(current['investigation'])
         except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
             summary['current_task'] = {'status': 'BLOCKED', 'reason': str(error)}
     candidates = runtime['task_candidates'](root, project)

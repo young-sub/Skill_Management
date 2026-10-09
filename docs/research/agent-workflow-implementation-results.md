@@ -1,16 +1,86 @@
 # Agent workflow implementation and acceptance
 
-## Current follow-up handoff, 2026-10-09
+## R0–R4 implementation, 2026-10-09
 
-The read-only UI trial and subsequent maturity review are summarized in the
-[refinement review](agent-workflow-refinement-review.md). The next authorized
-implementation uses [R0–R4](agent-workflow-completion-design.md#review-driven-refinement)
-and the [current execution prompt](agent-workflow-next-session.md): refresh main,
-implement and verify the observed gaps in a new worktree, then integrate to local
-main. This handoff changes documentation only. It does not claim new runtime
-behavior, improved Agent effectiveness, user acceptance of the UI candidates,
-or a new installed-host result. The bounded G1–G6 implementation evidence below
-remains historical/current implementation evidence, not a checklist to rerun.
+Version 0.1.45 implements the reproduced refinement gaps on the existing workflow,
+task/context, feedback, review and maintenance paths. The starting local main was
+`f4c61721fdd8e8aefeb8df6ded5745c14343f2a1`; live fetch and fast-forward pull
+preserved its 93 commits ahead of origin/main. Work used a new independent TEMP
+worktree. The existing 0.1.43 review/findings continuity fixes were verified and
+reused, not implemented again. Whole-Git invalidation and one writer per task
+remain intentional; atomic replacement is not concurrent-write support.
+
+| Scope | Implemented or reused behavior and actual evidence |
+| --- | --- |
+| R0 | Reused the real Chromium/API/Domain/SQLite fixture and runners. Browser input 2 and 0 yielded IDs 1 and 2 with the same values in POST, SQLite, restart and fresh GET. An independent API-only run saved those exact IDs/values and rejected -1. A controlled FE payload increment then failed the browser observation while direct API and Domain tests passed. This is a connected-flow counterexample, not separate cell PASS used as a substitute. |
+| R1 | `diagnose` can retain investigation on the same ordinary or Harness task without creating workflow configuration. Stable entry IDs, conditions, permissions, source/evidence hashes, unknowns and next actions survive exact-context lookup/resume and the prompt hook. Removing prior entries, changing captured permissions and refreshing stale observations through metadata changes are rejected or remain PARTIAL. Large hook previews retain counts and exact-lookup routing. |
+| R2 | Existing requirement violations keep original-oracle RED/GREEN and a distinct normal case. New requirement changes require authorization, changed criteria and real prepared current native confirmation. A deliberately wrong adapter was independently contradicted, actually failed, then repaired at the adapter and rechecked without changing product/requirement. Fresh tasks consume these decisions/results. Intended differences require linked actual user review; missing/deferred/opinion reviews stay OPEN. Environment limits and unknown causes never become resolved from agreement or supplied GREEN. |
+| R3 | Existing actual duplicate-detector RED/GREEN consolidation and unique protection remain unchanged. A living Feature can retire one requirement with changed criteria, authorization, removed entrypoint/caller, remaining-consumer review and retired failure scopes, without inventing a replacement detector. The focused example actually calls the old entrypoint before removal, confirms entrypoint/menu absence afterward and executes the retained CLI. Missing scope proof, revoked authority and active coverage links remain BLOCKED. |
+| R4 | Source/generated resources, affected regression selection, local package version and support documentation are updated. Natural-language package-use trials and a separate fresh-context reader exercise the real paths without Skill names, CLI sequence or an answer patch in their task. Local package use is separate from native discovery/installation/protected acceptance; the latter remains unverified for this candidate. |
+
+The investigation report is an Agent-declared semantic inventory. It does not
+prove every possible entrypoint or that a supplied source reference is direct
+runtime observation. In the read-only survey, nine entries cover seven HTTP
+branches and two documented verification paths under explicit source-only
+conditions. Their READY_FOR_REVIEW means that declared source survey is ready
+for review; each entry's runtime unknowns remain retained. A deterministic
+observed/unobserved example remains PARTIAL, as do stale references. No existing
+Labeler UI candidate was accepted or repaired on the user's behalf.
+
+The first paired trial accidentally included the fixture's hidden `.harness`
+configuration. It is preserved as configured source-survey evidence, not counted
+as unconfigured acceptance. The coordinator corrected preparation once and used
+a new pair without `.harness`; both have identical 15-file source hashes and Git
+base `4d47249775c043fe1ac3332a0c3dad6fa3c79130`. The old package produced manual
+read-only notes and no task context. The candidate created one investigation task;
+a fresh Agent consumes its exact context without re-running the survey.
+Both surveys found the declared maximum 100 versus lower-bound-only code/tests,
+but kept 101 runtime behavior unverified rather than claiming a measured defect.
+
+Candidate survey time was 138 seconds through evaluation preparation; the old
+survey has only a measured 2.4-second record-writing interval, so these are not a
+speed comparison. The old survey corrected one read-only shell syntax error;
+the candidate survey reported no workflow retry. The fresh reader corrected one Windows selector-quoting error and one report-serialization error without launching product checks. Initial configured-trial serialization
+rework and the preparation correction are retained, not hidden. Two independent
+review counterexamples (metadata-only stale refresh and intended-difference
+acceptance without user review) were reproduced RED, fixed and passed GREEN.
+Usage/cost and complete model-call totals were not provided. No general Agent
+effectiveness, latency or cost improvement is claimed from this bounded sample.
+
+Actual commands and raw outcomes are retained below the owned evidence root
+`C:/Users/YS/Desktop/python/Skill_Management/.work/r0-r4-delivery-20261009`.
+`r0-r4/protocol.json` freezes requirements and comparison conditions;
+`r0-r4/review.html` is a thin view of those records, not another result database.
+Focused RED, second RED, independent-review RED/GREEN, native execution,
+connected-browser/API-only/FE fault artifacts, final Full and packaging manifests
+are kept separately. The initial Full ran 385 tests with one Windows child-tree
+cleanup error under sandbox permissions; an identical focused host-permission
+run passed. The failed run remains evidence and is not promoted to PASS.
+The final host-permission Full passed 387 tests in 609.201 seconds with no skips;
+its capture wall time was 609.5 seconds. Production workflow/hook code was fixed
+before this run. The retirement runtime assertions were strengthened afterward
+and the final affected module passed all 11 tests in 35.711 seconds. Distribution,
+generated-resource drift and `git diff --check HEAD` passed. The earlier existing
+native execution suite passed 50 tests; its evidence covers actual violation
+RED/GREEN and detector consolidation, not a separate 50-test addition to Full.
+Immutable source/package hashes are recorded in the delivery manifest and the
+package-freeze section below.
+
+`codex.exe plugin list` in the current sandbox failed with OS error 5 accessing
+the existing CODEX_HOME. No global configuration/authentication or installed
+resources were changed to bypass it. The recorded manual disable of in-app
+browser control was honored; the existing Chromium fallback was used. Native
+new-version discovery, context transmission and protected acceptance remain
+unverified. Package hashes attest bytes, not natural-language task quality or
+host enforcement. Removed-entrypoint/consumer sufficiency and evidence authority
+remain semantic review responsibilities; local code checks binding consistency.
+
+The original Labeler remains read-only at clean `6860d11f640b81fe2071e0a44c5b16e66673ccfa`.
+Retained relocated absolute-path-bound task records are historical evidence;
+actual fresh-context reuse is verified at their original trial paths before
+worktree removal. Only this task's worktree/branch is removed after local main
+integration. No push, deployment, installed-Skill update or global setting change
+belongs to this delivery.
 
 ## Delivery scope, 2026-10-09
 

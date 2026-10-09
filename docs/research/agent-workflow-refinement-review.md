@@ -2,6 +2,8 @@
 
 2026-10-09. [현재 설계](agent-coding-system-direction.md), [완료 기준](agent-workflow-completion-design.md), 고정 [pstack 조사](pstack-analysis.md), local main `95c4f9e`와 패키지 `0.1.44`, 기존 실행 기록 및 수정 없는 연두라벨 UI 시험을 대조했다. 현재 문서는 설계·실행 인계이며 다음 개선을 구현하거나 그 효과를 검증한 결과가 아니다.
 
+후속 R0–R4는 0.1.45에서 구현·검증됐으며 [현재 구현 결과](agent-workflow-implementation-results.md#r0r4-implementation-2026-10-09)를 참조한다. 이 문서의 0.1.44 판단은 그 시점의 검토 근거로 보존한다.
+
 다음 실제 구현은 [R0–R4](agent-workflow-completion-design.md#review-driven-refinement)와 [현재 실행 프롬프트](agent-workflow-next-session.md)를 따른다. G1–G6의 과거 실행 상태는 [구현 결과](agent-workflow-implementation-results.md)가 소유한다. 이미 수리한 0.1.43 review/findings 승계 문제를 현재 결함으로 다시 올리지 않는다.
 
 ## 판단과 현재 근거

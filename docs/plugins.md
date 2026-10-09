@@ -8,7 +8,7 @@ The package identity and version are owned by `distribution/plugin.json`.
 ## Build
 
 ```powershell
-python scripts/build_plugin.py --output .work/packages/agentic-coding-0.1.44
+python scripts/build_plugin.py --output .work/packages/agentic-coding-0.1.45
 ```
 
 The builder first runs the existing generated-resource check. It selects tracked
@@ -56,6 +56,14 @@ host evidence. A project selects the installed dependency files that constrain
 reuse; unlisted transitive runtime changes remain outside that declaration.
 
 ## Capabilities and current boundary
+
+Version 0.1.45 adds investigation records on the existing task/context without
+workflow setup, reason-specific feedback dispositions and partial-requirement
+retirement proof. Lookup/resume stay read-only; evidence and permission boundaries
+remain explicit. See the [investigation contract](../authoring/references/workflow-obligations.md#investigation-without-workflow-setup),
+[feedback kinds](../authoring/references/repair-and-reuse.md#classify-the-feedback-before-choosing-a-repair)
+and [retirement proof](../authoring/references/project-verification.md#detection-value-and-measured-maintenance).
+Native installation and protected acceptance remain separate from local package use.
 
 Version 0.1.44 fixes JSON terminal output on legacy console encodings. Unicode
 values survive JSON parsing, while stdout/stderr use ASCII escapes so a successful
