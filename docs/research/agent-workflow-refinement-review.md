@@ -1,5 +1,10 @@
 # 0.1.45 이후 위임 신뢰성 검토와 보완 우선순위
 
+이 문서는 0.1.45에서 재현한 변경 전 결과를 보존한다. 이후 0.1.46은 아래
+결정 유효성·규칙 폐기·관측 범위 공백을 실제 코드에서 보완했다. 변경 전 재현을
+지우거나 제품 전체 false PASS로 확대하지 않는다. 현재 실행/재사용 근거와 한계는
+[후속 구현 결과](agent-workflow-implementation-results.md#post-review-reliability-2026-10-09)를 따른다.
+
 2026-10-09 재검토. 기준은 clean main `f8db21ebf14d276a3e6d78a891b67786b9dd7836`와 패키지 0.1.45다. [현재 설계](agent-coding-system-direction.md), [구현 결과](agent-workflow-implementation-results.md), canonical 코드·호출자·기존 회귀와 [고정 pstack 조사](pstack-analysis.md)를 대조했다. 이전 0.1.44 검토는 Git `f8db21e:docs/research/agent-workflow-refinement-review.md`에 보존돼 있다. R0–R4는 수행된 범위이며 다시 실행할 미완료 목록이 아니다.
 
 **방향은 유지한다. 다음 개선은 더 많은 Skill·검사·상태 파일을 만드는 것보다, 결정의 유효성·미확인 표시·정당한 검사 폐기와 실제 후속 소비를 정확하게 만드는 데 우선한다.** 이번 변경은 설계 보완이다. 아래 재현된 코드 문제는 아직 수리하지 않았으며, 기존 387개 Full 통과가 이 추가 사례의 통과를 뜻하지 않는다.

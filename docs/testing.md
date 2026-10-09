@@ -5,6 +5,13 @@ stable denominator/context/permissions, read-only fresh-process resume, stale
 observation preservation, bounded hook previews, feedback kinds and actual native
 requirement/tool confirmation with subsequent zero-execution reuse. It also covers
 reason-specific retirement, revoked proof and remaining active links. The existing
+focused cases now cover withdrawn-decision metadata/same-ID updates, explicit
+approval subjects and relevant criteria revisions, retained quote/caller retirement,
+unrelated-source rejection, and legacy/scoped investigation unknowns. Approval inputs
+are synthetic fixtures, not user UI reviews. Exact package CLI/hook lookup and
+fresh-task reuse retain hashes and execute zero checks. Whole-Git stale identity
+is unchanged; these feedback dispositions never imply a complete product PASS.
+The existing
 connected-product suite now contrasts direct API/Domain/SQLite restart readback
 with a deliberately corrupted frontend payload; cell PASS cannot conceal that
 connected failure. These are isolated synthetic cases, not original Labeler edits.

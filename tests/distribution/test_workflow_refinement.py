@@ -16,6 +16,113 @@ class WorkflowRefinementTests(unittest.TestCase):
     review = existing.ProjectWorkflowTests.review
     invoke = existing.ProjectWorkflowTests.invoke
 
+    def difference(self):
+        # Synthetic approval fixture, never an actual user's UI review.
+        self.write('docs/decision.md', 'Fixture: explicitly allow candidate terminal-price.\n')
+        return {'id': 'variant', 'candidate_id': 'terminal-price', 'feature': 'api',
+                'kind': 'intentional_difference', 'expected': 'Common output', 'observed': 'Terminal variant',
+                'reproduction': 'Compare source', 'scope': 'Terminal price', 'reason': 'Terminal variant',
+                'evidence_refs': ['docs/decision.md'], 'owner_refs': ['src/cli.py'],
+                'reconsider': 'Related requirement or guide changes',
+                'user_review': {'id': 'fixture-review-1', 'decision': 'intentional_difference',
+                    'reference': 'docs/decision.md', 'candidate_id': 'terminal-price',
+                    'disposition': 'intentional_difference', 'scope': 'Terminal price',
+                    'criteria_refs': ['docs/requirement.md']}}
+
+    def test_revoked_decision_cannot_be_reapproved_by_metadata_or_same_review(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'feedback', ['api'])
+        entry = self.difference()
+        state = runtime.record_feedback(self.root, self.project, state, entry)
+        self.assertEqual(runtime.inspect_project(self.root, self.project, state)['feedback'][0]['status'], 'ACCEPTED')
+        original_hashes = deepcopy(state['feedback']['variant']['decision_hashes'])
+        self.write('docs/decision.md', 'Fixture: approval withdrawn.\n')
+        self.assertEqual(runtime.inspect_project(self.root, self.project, state)['feedback'][0]['status'], 'OPEN')
+        for update in ({'reason': 'Owner explanation'}, {'owner_refs': ['src/api.py']},
+                       {'user_review': entry['user_review']}):
+            state = runtime.record_feedback(self.root, self.project, state, dict(id='variant', feature='api', **update))
+            self.assertEqual(state['feedback']['variant']['decision_hashes'], original_hashes)
+            self.assertEqual(runtime.inspect_project(self.root, self.project, state)['feedback'][0]['status'], 'OPEN')
+        followup = runtime.begin(self.root, self.project, 'change', ['api'], prior_state=state)
+        self.assertEqual(runtime.inspect_project(self.root, self.project, followup)['feedback'][0]['status'], 'OPEN')
+        self.write('docs/decision-2.md', 'Fixture: new explicit approval of terminal-price.\n')
+        new = dict(entry['user_review'], id='fixture-review-2', reference='docs/decision-2.md')
+        renewed = runtime.record_feedback(self.root, self.project, followup,
+            {'id': 'variant', 'feature': 'api', 'evidence_refs': ['docs/decision-2.md'], 'user_review': new})
+        self.assertEqual(runtime.inspect_project(self.root, self.project, renewed)['feedback'][0]['status'], 'ACCEPTED')
+        self.assertEqual(renewed['feedback']['variant']['decision_history'][0]['user_review'], entry['user_review'])
+        self.assertEqual(renewed['feedback']['variant']['decision_history'][0]['decision_hashes'], original_hashes)
+        later = runtime.begin(self.root, self.project, 'change', ['api'], prior_state=renewed)
+        self.assertEqual(runtime.inspect_project(self.root, self.project, later)['feedback'][0]['status'], 'ACCEPTED')
+
+    def test_problem_agreement_and_mismatched_subject_cannot_approve_difference(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'feedback', ['api'])
+        entry = self.difference()
+        self.write('docs/problem.md', 'Fixture: this is a bug; I agree it must be fixed.\n')
+        cases = [{'decision': 'agree', 'reference': 'docs/problem.md'},
+                 dict(entry['user_review'], candidate_id='other-candidate'),
+                 dict(entry['user_review'], disposition='fix'),
+                 dict(entry['user_review'], scope='Other screen'),
+                 dict(entry['user_review'], criteria_refs=[])]
+        for review in cases:
+            with self.subTest(review=review):
+                recorded = runtime.record_feedback(self.root, self.project, state, dict(entry, user_review=review))
+                self.assertEqual(runtime.inspect_project(self.root, self.project, recorded)['feedback'][0]['status'], 'OPEN')
+        valid = runtime.record_feedback(self.root, self.project, state,
+                                        dict(entry, user_review=dict(entry['user_review'], decision='agree')))
+        self.assertEqual(runtime.inspect_project(self.root, self.project, valid)['feedback'][0]['status'], 'ACCEPTED')
+
+    def test_related_criterion_reopens_decision_but_unrelated_criterion_does_not(self):
+        runtime = self.runtime()
+        self.write('docs/unrelated.md', 'Separate CLI documentation.\n')
+        self.project['extensions']['workflow']['features'][1]['criteria'] = ['docs/unrelated.md']
+        self.write('docs/requirement.md', 'Terminal variant allowed.\n')
+        state = runtime.begin(self.root, self.project, 'feedback', ['api'])
+        state = runtime.record_feedback(self.root, self.project, state, self.difference())
+        self.write('docs/unrelated.md', 'Separate CLI documentation changed.\n')
+        self.assertEqual(runtime.inspect_project(self.root, self.project, state)['feedback'][0]['status'], 'ACCEPTED')
+        before = deepcopy(state)
+        self.write('docs/requirement.md', 'Terminal variant forbidden.\n')
+        audit = runtime.inspect_project(self.root, self.project, state)
+        self.assertEqual(audit['feedback'][0]['status'], 'OPEN')
+        self.assertIn('decision_criteria_stale', audit['feedback'][0]['remaining'])
+        self.assertNotEqual(audit['status'], 'PASS')
+        self.assertEqual(state, before, 'Inspection must not rebind criteria')
+        later = runtime.begin(self.root, self.project, 'change', ['api'], prior_state=state)
+        self.assertEqual(runtime.inspect_project(self.root, self.project, later)['feedback'][0]['status'], 'OPEN')
+
+    def test_legacy_decision_requires_rebinding_and_target_edit_cannot_inherit_approval(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'feedback', ['api'])
+        entry = self.difference()
+        state = runtime.record_feedback(self.root, self.project, state, entry)
+        legacy = deepcopy(state)
+        legacy['feedback']['variant'].pop('decision_binding', None)
+        self.assertEqual(runtime.inspect_project(self.root, self.project, legacy)['feedback'][0]['status'], 'OPEN')
+        changed = runtime.record_feedback(self.root, self.project, state,
+                                          {'id': 'variant', 'feature': 'api', 'candidate_id': 'different'})
+        self.assertEqual(runtime.inspect_project(self.root, self.project, changed)['feedback'][0]['status'], 'OPEN')
+
+    def test_consumed_ui_guide_is_required_and_reopens_the_explicit_variant(self):
+        runtime = self.runtime()
+        self.write('docs/ui.md', 'Terminal variant allowed by shared guide.\n')
+        self.write('src/tokens.css', ':root { --gap: 8px; }\n')
+        self.project['extensions']['workflow']['ui_systems'] = {'shared': {
+            'guide': 'docs/ui.md', 'tokens': ['src/tokens.css'], 'components': ['src/cli.py'],
+            'consumers': ['api'], 'exceptions': []}}
+        state = runtime.begin(self.root, self.project, 'feedback', ['api'])
+        entry = self.difference()
+        missing = runtime.record_feedback(self.root, self.project, state, entry)
+        self.assertEqual(runtime.inspect_project(self.root, self.project, missing)['feedback'][0]['status'], 'OPEN')
+        entry['user_review']['criteria_refs'].append('docs/ui.md')
+        approved = runtime.record_feedback(self.root, self.project, state, entry)
+        self.assertEqual(runtime.inspect_project(self.root, self.project, approved)['feedback'][0]['status'], 'ACCEPTED')
+        self.write('docs/ui.md', 'Terminal variant forbidden.\n')
+        self.assertEqual(runtime.inspect_project(self.root, self.project, approved)['feedback'][0]['status'], 'OPEN')
+        later = runtime.begin(self.root, self.project, 'change', ['api'], prior_state=approved)
+        self.assertEqual(runtime.inspect_project(self.root, self.project, later)['feedback'][0]['status'], 'OPEN')
+
     def investigation(self):
         return {'scope': 'whole-project', 'inventory_status': 'complete',
                 'inventory_refs': ['docs/map.md'], 'source_refs': ['src/api.py', 'src/cli.py'],
@@ -122,8 +229,10 @@ class WorkflowRefinementTests(unittest.TestCase):
                      'expected': 'Same layout', 'observed': 'CLI is different', 'reproduction': 'Compare guide',
                      'kind': 'intentional_difference', 'scope': 'CLI output', 'reason': 'Terminal variant',
                      'evidence_refs': ['docs/map.md'], 'owner_refs': ['src/cli.py'],
-                     'reconsider': 'A GUI is introduced', 'user_review': {'decision': 'intentional_difference',
-                         'reference': 'docs/map.md'}}
+                     'reconsider': 'A GUI is introduced', 'user_review': {'id': 'fixture-variant-review',
+                         'decision': 'intentional_difference', 'reference': 'docs/map.md',
+                         'candidate_id': 'api-price', 'disposition': 'intentional_difference',
+                         'scope': 'CLI output', 'criteria_refs': ['docs/requirement.md']}}
         state = runtime.record_feedback(self.root, self.project, state, complaint)
         result = runtime.inspect_project(self.root, self.project, state)
         self.assertEqual(result['feedback'][0]['status'], 'ACCEPTED', result['feedback'])
@@ -306,6 +415,180 @@ class WorkflowRefinementTests(unittest.TestCase):
         row = runtime.inspect_project(self.root, self.project, state)['check_retirements'][0]
         self.assertEqual(row['status'], 'BLOCKED')
         self.assertIn('retired_check_still_linked', row['remaining'])
+
+    def test_rule_retirement_keeps_quote_and_caller_with_accounted_impact(self):
+        runtime = self.runtime()
+        feature = self.project['extensions']['workflow']['features'][0]
+        feature['sources'].extend(['src/menu.py', 'src/unrelated.py'])
+        feature['prevention'] = [{'failure': 'Cap exceeded', 'scope': 'Quote amount', 'check': 'check',
+                                 'normal_exception': 'Zero allowed', 'reconsider': 'Cap retired',
+                                 'owner_refs': ['src/api.py']}]
+        self.write('src/api.py', 'def quote(amount):\n    return min(amount, 10)\n')
+        self.write('src/menu.py', 'from api import quote\ndef select(amount):\n    return quote(amount)\n')
+        self.write('src/unrelated.py', 'unrelated = 1\n')
+        self.write('docs/requirement.md', 'Quote cap ten; zero valid.\n')
+        state = runtime.begin(self.root, self.project, 'maintain')
+        self.write('docs/change.md', 'Fixture authorization: remove cap, retain quote and callers.\n')
+        self.write('docs/requirement.md', 'No quote cap; zero and callers remain valid.\n')
+        self.write('src/api.py', 'def quote(amount):\n    return amount\n')
+        actual = subprocess.run([sys.executable, '-c',
+            'import json,api,menu; print(json.dumps([api.quote(12),api.quote(0),menu.select(12),menu.select(0)]))'],
+            cwd=self.root / 'src', capture_output=True, text=True, check=True)
+        self.assertEqual(json.loads(actual.stdout), [12, 0, 12, 0])
+        self.write('.work/retirement-runtime.json', actual.stdout)
+        feature['checks'] = []
+        feature['prevention'] = []
+        state = self.review(runtime, state, 'api')
+        review = deepcopy(state['reviews']['api'])
+        proof = {'authorization_refs': ['docs/change.md'], 'requirement_refs': ['docs/requirement.md'],
+                 'removed_entrypoints': [], 'removed_callers': [],
+                 'entrypoints': [{'name': 'quote(amount)', 'disposition': 'retained', 'reason': 'Only cap removed',
+                                  'references': ['src/api.py']}],
+                 'callers': [{'name': 'menu.select(amount)', 'disposition': 'retained', 'reason': 'Same contract',
+                              'references': ['src/menu.py']}],
+                 'retired_failures': [{'failure': 'Cap exceeded', 'scope': 'Quote amount'}],
+                 'remaining_impact': 'Twelve now allowed; zero and quote consumers retained.',
+                 'references': ['src/api.py', 'src/menu.py', 'docs/change.md', '.work/retirement-runtime.json']}
+        review['check_decisions'] = {'check': {'action': 'remove', 'reason': 'requirement_retired', 'retirement': proof}}
+        accepted = runtime.record_review(self.root, self.project, state, review)
+        row = runtime.inspect_project(self.root, self.project, accepted)['check_retirements'][0]
+        self.assertEqual(row['status'], 'PRESERVED', row)
+        later = runtime.begin(self.root, self.project, 'change', ['api'], prior_state=accepted)
+        self.assertEqual(later['check_links']['api']['checks'], [])
+        for field, value in [('authorization_refs', []), ('retired_failures', []), ('entrypoints', []),
+                             ('callers', [{'name': 'none', 'disposition': 'not_applicable'}])]:
+            with self.subTest(field=field):
+                invalid = deepcopy(review)
+                invalid['check_decisions']['check']['retirement'][field] = value
+                bad = runtime.record_review(self.root, self.project, state, invalid)
+                self.assertEqual(runtime.inspect_project(self.root, self.project, bad)['check_retirements'][0]['status'], 'BLOCKED')
+        self.write('src/api.py', 'def quote(amount):\n    return min(amount, 10)\n')
+        self.write('src/unrelated.py', 'unrelated = 2\n')
+        state = self.review(runtime, state, 'api')
+        review['basis'] = state['reviews']['api']['basis']
+        bad = runtime.record_review(self.root, self.project, state, review)
+        row = runtime.inspect_project(self.root, self.project, bad)['check_retirements'][0]
+        self.assertEqual(row['status'], 'BLOCKED', row)
+        self.assertIn('retired_rule_source_change_not_observed', row['remaining'])
+        forged = deepcopy(review)
+        forged['check_decisions']['check']['retirement']['entrypoints'][0]['references'] = ['src/unrelated.py']
+        bad = runtime.record_review(self.root, self.project, state, forged)
+        self.assertEqual(runtime.inspect_project(self.root, self.project, bad)['check_retirements'][0]['status'], 'BLOCKED')
+
+    def test_source_observation_preserves_runtime_unknowns_and_request_scope_in_hook(self):
+        import runpy
+        runtime = self.runtime()
+        survey = self.investigation()
+        survey['entries'] = survey['entries'][:1]
+        survey['requested_methods'] = ['source', 'runtime']
+        survey['entries'][0]['observation_method'] = 'source'
+        survey['entries'][0]['unverified'] = [{'id': 'api-price-runtime', 'method': 'runtime',
+                                              'reason': 'API runtime has not run'}]
+        state = runtime.begin(self.root, {}, 'diagnose', request_summary='Inspect source and runtime')
+        state = runtime.record_investigation(self.root, state, survey)
+        before = deepcopy(state)
+        audit = runtime.inspect_project(self.root, {}, state)['investigation']
+        self.assertEqual(audit['total'], 1)
+        self.assertEqual(audit['unobserved'], ['api-price-runtime'])
+        self.assertEqual(audit['status'], 'PARTIAL')
+        preview = runpy.run_path(str(existing.SCRIPT.with_name('workflow_context.py')))['investigation_context'](audit)
+        self.assertEqual(preview['unobserved_count'], 1)
+        self.assertEqual(preview['requested_methods'], ['source', 'runtime'])
+        self.assertEqual(state, before)
+        source = deepcopy(survey)
+        source['requested_methods'] = ['source']
+        separate = runtime.begin(self.root, {}, 'diagnose', request_summary='Source only')
+        separate = runtime.record_investigation(self.root, separate, source)
+        audit = runtime.inspect_project(self.root, {}, separate)['investigation']
+        self.assertEqual(audit['status'], 'READY_FOR_REVIEW')
+        self.assertEqual(audit['unobserved'], [])
+        self.assertEqual(audit['out_of_scope'], ['api-price-runtime'])
+        self.assertEqual(audit['observed_methods'], {'api-price': 'source'})
+
+    def test_legacy_unverified_has_stable_ids_and_never_implies_runtime_observation(self):
+        runtime = self.runtime()
+        survey = self.investigation()
+        survey['entries'] = survey['entries'][:1]
+        survey['entries'][0]['unverified'] = ['Runtime API behavior not observed']
+        state = runtime.begin(self.root, {}, 'diagnose', request_summary='Legacy source inspection')
+        state = runtime.record_investigation(self.root, state, survey)
+        audit = runtime.inspect_project(self.root, {}, state)['investigation']
+        self.assertEqual(len(audit['unobserved']), 1)
+        self.assertEqual(audit['observed_methods'], {'api-price': 'unspecified'})
+        update = deepcopy(survey)
+        update['next_actions'] = ['Inspect retained observations only']
+        updated = runtime.record_investigation(self.root, state, update)
+        self.assertEqual(runtime.inspect_project(self.root, {}, updated)['investigation']['unobserved'], audit['unobserved'])
+        self.assertEqual(audit['total'], 1)
+
+    def test_unknown_id_cannot_disappear_through_collision_or_wrong_observation_method(self):
+        runtime = self.runtime()
+        survey = self.investigation()
+        survey['entries'] = survey['entries'][:1]
+        survey['requested_methods'] = ['source', 'runtime']
+        survey['entries'][0]['observation_method'] = 'source'
+        survey['entries'][0]['unverified'] = [{'id': 'api-runtime', 'method': 'runtime', 'reason': 'Not executed'}]
+        state = runtime.begin(self.root, {}, 'diagnose', request_summary='Source and runtime')
+        state = runtime.record_investigation(self.root, state, survey)
+        collision = deepcopy(survey)
+        collision['entries'][0]['unverified'][0]['id'] = 'api-price'
+        with self.assertRaisesRegex(ValueError, 'unverified.*collision'):
+            runtime.record_investigation(self.root, runtime.begin(self.root, {}, 'diagnose', request_summary='Collision'), collision)
+        replaced = deepcopy(survey)
+        replaced['entries'][0]['unverified'] = []
+        replaced['entries'].append(dict(survey['entries'][0], id='api-runtime', unverified=[], observation_method='source'))
+        with self.assertRaisesRegex(ValueError, 'unverified.*method'):
+            runtime.record_investigation(self.root, state, replaced)
+        missing = deepcopy(survey)
+        missing['entries'][0]['unverified'] = []
+        with self.assertRaisesRegex(ValueError, 'unverified_removed'):
+            runtime.record_investigation(self.root, state, missing)
+
+    def test_related_followup_carries_unknowns_and_original_stale_observation_without_rebinding(self):
+        runtime = self.runtime()
+        survey = self.investigation()
+        survey['entries'] = survey['entries'][:1]
+        survey['requested_methods'] = ['source', 'runtime']
+        survey['entries'][0]['observation_method'] = 'source'
+        survey['entries'][0]['unverified'] = [{'id': 'api-runtime', 'method': 'runtime', 'reason': 'Not executed'}]
+        state = runtime.begin(self.root, self.project, 'diagnose', ['api'], request_summary='Inspect API')
+        state = runtime.record_investigation(self.root, state, survey)
+        self.write('src/api.py', 'price = 11\n')
+        later = runtime.begin(self.root, self.project, 'change', ['api'], prior_state=state)
+        audit = runtime.inspect_project(self.root, self.project, later)
+        self.assertIn('investigation', audit, 'Related follow-up must retain pending observations')
+        self.assertEqual(audit['investigation']['unobserved'], ['api-runtime'])
+        self.assertEqual(audit['investigation']['stale'], ['api-price'])
+        self.assertEqual(later['investigation'], state['investigation'])
+        unconfigured = runtime.begin(self.root, {}, 'diagnose', request_summary='Source and runtime')
+        unconfigured = runtime.record_investigation(self.root, unconfigured, survey)
+        next_survey = runtime.begin(self.root, {}, 'diagnose', prior_state=unconfigured, request_summary='Continue same survey')
+        self.assertEqual(next_survey['investigation'], unconfigured['investigation'])
+
+    def test_scoped_unknown_preview_stays_bounded_with_long_permissions_and_stale_ids(self):
+        survey = self.investigation()
+        survey['requested_methods'] = ['source']
+        source = dict(survey['entries'][0], observation_method='source')
+        survey['entries'] = [dict(source, id='observed-' + 'x' * 150 + str(i)) for i in range(6)]
+        survey['entries'] += [dict(source, id='unknown-' + 'x' * 150 + str(i), status='unobserved') for i in range(6)]
+        survey['entries'] += [dict(source, id='outside-' + 'x' * 150 + str(i), status='unobserved',
+                                   observation_method='runtime') for i in range(6)]
+        for field in ('allowed', 'forbidden', 'next_actions'):
+            survey[field] = [field + 'x' * 1000 for _ in range(6)]
+        path = self.write('.work/input.json', json.dumps(survey))
+        _, started = self.invoke('start', '--intent', 'diagnose', '--request-summary', 'Source only ' + 'x' * 1000,
+                                 '--investigation', str(path))
+        self.write('src/api.py', 'price = 11\n')
+        hook = subprocess.run([sys.executable, str(existing.SCRIPT.with_name('workflow_context.py'))],
+            input=json.dumps({'cwd': str(self.root), 'hook_event_name': 'UserPromptSubmit'}),
+            capture_output=True, text=True, encoding='utf-8',
+            env=dict(os.environ, AGENT_WORKFLOW_CONTEXT=started['task_context']))
+        content = json.loads(hook.stdout)['hookSpecificOutput']['additionalContext']
+        self.assertLess(len(content), 6000)
+        current = json.loads(content.split('\n', 1)[1])['current_task']
+        self.assertEqual(current['task_id'], started['task']['task_id'])
+        for key in ('unobserved_count', 'out_of_scope_count', 'stale_count'):
+            self.assertEqual(current['investigation'][key], 6)
 
 
 if __name__ == '__main__':

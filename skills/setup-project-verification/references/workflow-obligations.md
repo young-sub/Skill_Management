@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: 07cca6997f3275c99e935a35d24ade232412d0bec9669ed8891497ebbcc866ce -->
+<!-- Source-SHA256: 3bdd1690a82f68b8ec2eedf2ee69facd51d7724e41d0dc4d6946ba256064c154 -->
 
 # Project workflow obligations
 
@@ -40,6 +40,26 @@ affected owners and consumers. READY_FOR_REVIEW means the declared investigation
 is ready for semantic review, never automatic proof that the product is correct.
 The hook gives bounded counts/previews; exact lookup retains every ID and detail.
 Each task has one writer; atomic replace does not provide concurrent update safety.
+
+Declare `requested_methods` (`source`, `runtime`, `retained_evidence`) on the same
+investigation and `observation_method` on each entry. Method absence is reported as
+`unspecified`, never inferred as runtime observation. `unverified` on an entry
+accepts stable `{id, method, reason}` items; legacy text items get deterministic IDs.
+`total` remains the entry denominator. Derived `unobserved` includes requested
+unknown IDs; `out_of_scope` lists unrequested methods as outside scope/not executed.
+Thus a source-only survey can be READY_FOR_REVIEW with runtime explicitly outside
+scope, while a request including unobserved runtime remains PARTIAL. Legacy missing
+request scope keeps unknowns visible conservatively. Exact CLI and the bounded hook
+expose request methods, observed method counts, unknowns and outside-scope counts.
+Existing unknown IDs cannot disappear without a corresponding observation entry;
+that entry still carries normal evidence/status/stale rules. Lookup changes no files
+and refreshes no hashes. No additional investigation ledger or setup is involved.
+Method-unspecified legacy unknowns remain explicitly unspecified; an explicit
+source-only request does not infer they are runtime observations. Related follow-ups
+with an explicit prior context retain the investigation's original scope, permissions,
+IDs and observation hashes. They do not recapture stale observations at the new task
+baseline; unrelated targeted Features do not inherit the survey. A different survey
+scope requires a new unlinked task rather than rewriting the retained scope.
 
 ## Follow-up review and finding continuity
 

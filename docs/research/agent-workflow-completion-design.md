@@ -1,5 +1,10 @@
 # Agent 업무 위임 체계의 완성 기준과 후속 구현
 
+0.1.46은 R0–R4 뒤 최신 검토에서 재현한 결정 유효성, API 유지·규칙 폐기,
+관측 범위 요약을 기존 소유 코드에서 보완한다. [후속 구현 결과](agent-workflow-implementation-results.md#post-review-reliability-2026-10-09)가
+실제 RED/GREEN·패키지 실행·후속 소비와 남은 한계를 소유한다. 아래 수행된 범위와
+역사적 설계는 보존하며 G1–G6/R0–R4를 새 구현 목록으로 다시 열지 않는다.
+
 수행된 실행 범위는 [2026-10-09의 R0–R4](#review-driven-refinement)다. 0.1.45 이후 재현된 공백과 다음 보완 우선순위는 [최신 검토](agent-workflow-refinement-review.md)와 [현재 방향 §10](agent-coding-system-direction.md#10-다음-개선의-순서와-인수)를 따른다. [기존 §0의 범용 우선 순서](#generic-plugin-first)와 책임 구분은 유지하지만, 이미 수행한 G1–G6를 통째로 재실행하지 않는다. 초기 설계일은 2026-10-05이며 당시 검토 기준은 `wp-20261004-agent-coding-foundation` / `ea21282196c8e8be73a97c7acd1356c609e7d4a9`, dirty 없음이었다. 설계 갱신 당시에는 문서만 바꿨다. 이후 R0–R4의 구현·검증과 host 한계는 [현재 구현 결과](agent-workflow-implementation-results.md#r0r4-implementation-2026-10-09)에 기록했다.
 
 책임 분리 추가 검토는 `59f5492dcaff3e6a96637f719ac6ff16232525ee`, 적용 범위 교정은 `a268d39ddb3c3bacf33940a54bcd6e1456fe9e99`, 각각 dirty 없음에서 수행했다. **의무의 발생·유지·누락 차단은 환경, 의미를 판단하여 실제로 작성·수리하는 것은 Agent, 정형 실행·계산은 코드**라는 구분은 플러그인 전체에 적용한다. Feature Map은 이 원칙의 한 예이며 범위를 지도 작업으로 좁혔던 다음 세션 지시는 대체한다. 실행된 전체 범위는 [역할 분리·고도화 프롬프트 기록](agent-workflow-next-session.md)에 보존한다.

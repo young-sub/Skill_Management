@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: a729ad9ed50713eede5868a374ae9a270138b24c9f69a8ee65acfee7c8d7454e
+# Source-SHA256: 2ab455fdeb0332dcbf243aac57d39d0519bd7ef60002c7f9b539cf67a40336af
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -330,11 +330,15 @@ def begin(root, project, intent, targets=(), *, prior_state=None, request_summar
     config = configuration(project)
     if config is None:
         if intent == 'diagnose' and request:
+            if prior_state is not None and (prior_state.get('root') != str(root.resolve()) or prior_state.get('schema_version') != 1):
+                raise ValueError('work_target_mismatch')
             return {'schema_version': 1, 'task_id': str(uuid.uuid4()), 'root': str(root.resolve()),
                     'intent': intent, 'request': request, 'targets': sorted(set(targets)),
                     'base': git(root, 'rev-parse', 'HEAD').decode().strip(),
                     'dirty_baseline': git(root, 'status', '--porcelain').decode('utf-8'),
-                    'baseline': {}, 'reviews': {}, 'feedback': {}, 'results': {}}
+                    'baseline': {}, 'reviews': {}, 'feedback': {}, 'results': {},
+                    **({'investigation': deepcopy(prior_state['investigation'])}
+                       if prior_state and prior_state.get('investigation') else {})}
         raise ValueError('workflow_not_configured')
     if set(targets) - {f['id'] for f in config['features']}:
         raise ValueError('unknown_target')
@@ -343,6 +347,7 @@ def begin(root, project, intent, targets=(), *, prior_state=None, request_summar
     results = {}
     reviews = {}
     retired_reviews = {}
+    investigation = {}
     check_links = {f['id']: {'checks': list(f['checks']), 'prevention': deepcopy(f.get('prevention', [])),
                             'criteria_before': {name: file_hash(root, name) for name in f['criteria']}}
                    for f in config['features']}
@@ -355,6 +360,10 @@ def begin(root, project, intent, targets=(), *, prior_state=None, request_summar
             if not isinstance(saved, dict) or saved.get('root') != str(root.resolve()) or saved.get('schema_version') != 1:
                 raise ValueError('work_target_mismatch')
             feedback = deepcopy(saved.get('feedback', {}))
+            observed = saved.get('investigation', {})
+            if observed and (not targets or any(fnmatchcase(name, pattern) for name in observed['source_refs']
+                    for feature in config['features'] if feature['id'] in targets for pattern in feature['sources'])):
+                investigation = deepcopy(observed)
             current = inspect_project(root, project, saved)
             reusable = {item['id'] for item in current['features'] if item['reviewed']}
             for key, review in saved.get('reviews', {}).items():
@@ -390,7 +399,18 @@ def begin(root, project, intent, targets=(), *, prior_state=None, request_summar
             'documentation_only': {f['id']: dict(f.get('documentation_only', {})) for f in config['features']},
             'input_bases': {item['id']: item['basis'] for item in features},
             'verification_bases': {item['id']: item['verification_basis'] for item in features},
-            'check_links': check_links}
+            'check_links': check_links, **({'investigation': investigation} if investigation else {})}
+
+
+def investigation_unknowns(investigation):
+    result = []
+    for entry in investigation['entries']:
+        for unknown in entry.get('unverified', []):
+            if isinstance(unknown, str):
+                unknown = {'id': entry['id'] + ':unverified:' + digest(unknown)[:12],
+                           'method': 'unspecified', 'reason': unknown}
+            result.append(dict(unknown, entry_id=entry['id']))
+    return result
 
 
 def record_investigation(root, state, investigation):
@@ -403,6 +423,11 @@ def record_investigation(root, state, investigation):
         if not isinstance(investigation.get(field), list) or any(not isinstance(v, str) or not v.strip() for v in investigation[field]):
             raise ValueError(f'investigation_requires_list:{field}')
     previous = state.get('investigation', {})
+    methods = investigation.get('requested_methods', ['unspecified'])
+    if not isinstance(methods, list) or not methods or any(m not in {'source', 'runtime', 'retained_evidence', 'unspecified'} for m in methods):
+        raise ValueError('investigation_requested_methods_invalid')
+    if previous and previous.get('requested_methods', ['unspecified']) != methods:
+        raise ValueError('investigation_scope_changed:requested_methods')
     for field in ('scope', 'allowed', 'forbidden'):
         if previous and previous[field] != investigation[field]:
             raise ValueError(f'investigation_scope_changed:{field}')
@@ -416,6 +441,13 @@ def record_investigation(root, state, investigation):
                 for k in ('id', 'location', 'access', 'conditions', 'expected')):
             raise ValueError('investigation_entry_identity_and_conditions_required')
         ids.append(entry['id'])
+        if entry.get('observation_method', 'unspecified') not in {'source', 'runtime', 'retained_evidence', 'unspecified'}:
+            raise ValueError('investigation_observation_method_invalid')
+        if not isinstance(entry.get('unverified', []), list) or any(
+                not (isinstance(v, str) and v.strip() or isinstance(v, dict) and
+                     all(isinstance(v.get(k), str) and v[k].strip() for k in ('id', 'method', 'reason')) and
+                     v['method'] in {'source', 'runtime', 'retained_evidence', 'unspecified'}) for v in entry.get('unverified', [])):
+            raise ValueError('investigation_unverified_invalid')
         if entry.get('status') not in {'observed', 'unobserved', 'blocked', 'not_applicable'}:
             raise ValueError('invalid_investigation_entry_status')
         if entry.get('owner') not in {'product', 'plugin', 'tool', 'environment', 'agent', 'unknown'}:
@@ -432,6 +464,26 @@ def record_investigation(root, state, investigation):
         raise ValueError('duplicate_investigation_entry')
     if set(prior_entries) - set(ids):
         raise ValueError('investigation_entry_removed')
+    unknowns = investigation_unknowns(investigation)
+    by_id = {entry['id']: entry for entry in entries}
+    if len({v['id'] for v in unknowns}) != len(unknowns):
+        raise ValueError('duplicate_investigation_unverified')
+    for unknown in unknowns:
+        replacement = by_id.get(unknown['id'])
+        if replacement is not None and (unknown['id'] == unknown['entry_id'] or
+                replacement.get('observation_method', 'unspecified') != unknown['method']):
+            raise ValueError('investigation_unverified_entry_collision')
+    prior_unknowns = investigation_unknowns(previous) if previous else []
+    if {v['id'] for v in prior_unknowns} - ({v['id'] for v in unknowns} | set(ids)):
+        raise ValueError('investigation_unverified_removed_without_observation_entry')
+    for unknown in prior_unknowns:
+        current = next((v for v in unknowns if v['id'] == unknown['id']), None)
+        if current is not None and current != unknown:
+            raise ValueError('investigation_unverified_identity_changed')
+        if current is None:
+            method = by_id[unknown['id']].get('observation_method', 'unspecified')
+            if method == 'unspecified' or unknown['method'] != 'unspecified' and method != unknown['method']:
+                raise ValueError('investigation_unverified_observation_method_mismatch')
     if investigation['inventory_status'] == 'complete' and not investigation['inventory_refs']:
         raise ValueError('complete_inventory_requires_references')
     updated = deepcopy(investigation)
@@ -460,8 +512,21 @@ def inspect_investigation(root, state):
     changed = [name for name, value in hashes.items() if file_hash(root, name) != value]
     stale = [e['id'] for e in investigation['entries'] if e['status'] == 'observed' and any(
         file_hash(root, name) != value for name, value in e['reference_hashes'].items())]
-    unobserved = [e['id'] for e in investigation['entries'] if e['status'] in {'unobserved', 'blocked'}]
-    return dict(investigation, total=len(investigation['entries']), unobserved=unobserved, stale=stale,
+    methods = investigation.get('requested_methods', ['unspecified'])
+    def in_scope(method):
+        return 'unspecified' in methods or method in methods
+    unknowns = investigation_unknowns(investigation)
+    entries = {e['id']: e for e in investigation['entries']}
+    unknowns = [v for v in unknowns if v['id'] not in entries]
+    unobserved = [e['id'] for e in entries.values() if e['status'] in {'unobserved', 'blocked'} and
+                  in_scope(e.get('observation_method', 'unspecified'))]
+    unobserved.extend(v['id'] for v in unknowns if in_scope(v['method']))
+    out_of_scope = [e['id'] for e in entries.values() if not in_scope(e.get('observation_method', 'unspecified'))]
+    out_of_scope.extend(v['id'] for v in unknowns if not in_scope(v['method']))
+    return dict(investigation, total=len(entries), unobserved=unobserved, stale=stale,
+                requested_methods=methods, unverified=unknowns, out_of_scope=out_of_scope,
+                observed_methods={e['id']: e.get('observation_method', 'unspecified') for e in entries.values()
+                                  if e['status'] == 'observed'},
                 status='PARTIAL' if unobserved or stale or changed or investigation['inventory_status'] != 'complete' else 'READY_FOR_REVIEW',
                 changed_references=changed, semantic_limit='Agent-declared inventory and observations; no automatic product verdict')
 
@@ -936,6 +1001,11 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
     return result
 
 
+def retirement_references(proof):
+    return [name for field in ('authorization_refs', 'requirement_refs', 'references') for name in proof.get(field, [])] + [
+        name for field in ('entrypoints', 'callers') for item in proof.get(field, []) for name in item.get('references', [])]
+
+
 def inspect_check_retirements(root, feature, state, review, reviewed):
     prior = state.get('check_links', {}).get(feature['id'], {})
     result = []
@@ -948,15 +1018,33 @@ def inspect_check_retirements(root, feature, state, review, reviewed):
             remaining.append('preservation_decision_missing')
         if decision.get('action') == 'remove' and decision.get('reason') == 'requirement_retired':
             proof = decision.get('retirement', {})
-            for field in ('authorization_refs', 'requirement_refs', 'removed_entrypoints', 'removed_callers', 'references'):
+            for field in ('authorization_refs', 'requirement_refs', 'references'):
                 if not isinstance(proof.get(field), list) or not proof[field] or any(
                         not isinstance(v, str) or not v.strip() for v in proof[field]):
                     remaining.append(f'retirement.{field}')
+            detailed = 'entrypoints' in proof or 'callers' in proof
+            for field in ('entrypoints', 'callers') if detailed else ('removed_entrypoints', 'removed_callers'):
+                items = proof.get(field)
+                if not isinstance(items, list) or not items:
+                    remaining.append(f'retirement.{field}')
+                    continue
+                for item in items:
+                    if detailed:
+                        if (not isinstance(item, dict) or not isinstance(item.get('name'), str) or not item['name'].strip() or
+                                item.get('disposition') not in {'removed', 'changed', 'retained', 'not_applicable'} or
+                                not isinstance(item.get('reason'), str) or not item['reason'].strip() or
+                                not isinstance(item.get('references'), list) or not item['references']):
+                            remaining.append(f'retirement.{field}.disposition_required')
+                        elif any(file_hash(root, name) is None for name in item['references']):
+                            remaining.append('retirement_reference_missing')
+                    elif not isinstance(item, str) or not item.strip():
+                        remaining.append(f'retirement.{field}')
             if not isinstance(proof.get('remaining_impact'), str) or not proof['remaining_impact'].strip():
                 remaining.append('retirement.remaining_impact')
             failures = prior.get('prevention', [])
             retired = proof.get('retired_failures', [])
-            if not isinstance(retired, list) or any(not any(isinstance(p, dict) and all(
+            if not isinstance(retired, list) or not retired or any(not isinstance(p, dict) or any(
+                    not isinstance(p.get(k), str) or not p[k].strip() for k in ('failure', 'scope')) for p in retired) or any(not any(isinstance(p, dict) and all(
                     p.get(k) == failure.get(k) for k in ('failure', 'scope')) for p in retired)
                     for failure in failures if failure.get('check') == check):
                 remaining.append('retired_failure_scope_unaccounted')
@@ -971,9 +1059,20 @@ def inspect_check_retirements(root, feature, state, review, reviewed):
                 remaining.append('requirement_change_not_observed')
             if any(row.get('check') == check for row in feature.get('coverage', []) + feature.get('prevention', [])):
                 remaining.append('retired_check_still_linked')
+            source_refs = {name for item in proof.get('entrypoints', []) if isinstance(item, dict)
+                           for name in item.get('references', [])} if detailed else set(state.get('baseline', {}))
+            if detailed:
+                owners = [p.get('owner_refs', []) for p in failures if p.get('check') == check]
+                if not owners or any(not isinstance(refs, list) or not refs or any(
+                        not isinstance(name, str) or name not in state.get('baseline', {}) or
+                        not any(fnmatchcase(name, pattern) for pattern in feature['sources']) for name in refs) for refs in owners):
+                    remaining.append('retired_rule_owner_binding_required')
+                    source_refs = set()
+                else:
+                    source_refs &= {name for refs in owners for name in refs}
             if not any(file_hash(root, name) != value for name, value in state.get('baseline', {}).items()
-                       if any(fnmatchcase(name, pattern) for pattern in feature['sources'])):
-                remaining.append('entrypoint_removal_not_observed')
+                       if name in source_refs and any(fnmatchcase(name, pattern) for pattern in feature['sources'])):
+                remaining.append('retired_rule_source_change_not_observed' if detailed else 'entrypoint_removal_not_observed')
             result.append({'feature': feature['id'], 'check': check, 'decision': decision,
                            'status': 'BLOCKED' if remaining else 'PRESERVED', 'remaining': sorted(set(remaining))})
             continue
@@ -1103,6 +1202,28 @@ def maintenance_summary(root, project, state=None, history=(), *, retirements=()
             'meaning': 'Declared overlap and outcome variation require Agent judgment; counts/cost never authorize deletion'}
 
 
+def difference_subject(entry):
+    return {key: entry.get(key) for key in ('id', 'candidate_id', 'feature', 'kind', 'scope', 'expected', 'observed')}
+
+
+def difference_criteria(config, feature):
+    return set(feature['criteria']) | {system['guide'] for system in config.get('ui_systems', {}).values()
+                                       if feature['id'] in system['consumers']}
+
+
+def difference_review_matches(entry, config, feature):
+    review = entry.get('user_review', {})
+    refs = review.get('criteria_refs')
+    return (isinstance(review.get('id'), str) and bool(review['id'].strip()) and
+            bool(entry.get('candidate_id')) and review.get('candidate_id') == entry['candidate_id'] and
+            review.get('decision') in {'agree', 'intentional_difference'} and
+            review.get('disposition') == 'intentional_difference' and review.get('scope') == entry.get('scope') and
+            isinstance(refs, list) and bool(refs) and all(isinstance(name, str) and
+                name in difference_criteria(config, feature) for name in refs) and
+            {system['guide'] for system in config.get('ui_systems', {}).values()
+             if feature['id'] in system['consumers']}.issubset(refs))
+
+
 def record_feedback(root, project, state, entry):
     if not isinstance(entry, dict) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,127}', str(entry.get('id', ''))):
         raise ValueError('feedback_identity_required')
@@ -1113,6 +1234,9 @@ def record_feedback(root, project, state, entry):
     if previous and previous['feature'] != entry['feature']:
         raise ValueError('feedback_target_changed')
     updated = dict(previous, **deepcopy(entry))
+    for field in ('decision_hashes', 'decision_binding', 'decision_history'):
+        if field in entry:
+            raise ValueError('feedback_decision_basis_is_read_only')
     kinds = {'requirement_violation', 'requirement_change', 'intentional_difference', 'oracle_tool_error',
              'environment_limit', 'unknown'}
     if updated.get('kind', 'requirement_violation') not in kinds:
@@ -1144,7 +1268,27 @@ def record_feedback(root, project, state, entry):
     references = [name for field in ('evidence_refs', 'owner_refs', 'authorization_refs') for name in updated.get(field, [])]
     if updated.get('user_review'):
         references.append(updated['user_review']['reference'])
-    updated['decision_hashes'] = {name: file_hash(root, name) for name in references}
+    if updated.get('kind') == 'intentional_difference':
+        old_review = previous.get('user_review', {})
+        new_review = entry.get('user_review', {})
+        history = deepcopy(previous.get('decision_history', []))
+        used = [item['user_review'].get('id') for item in history] + [old_review.get('id')]
+        if new_review and new_review != old_review and new_review.get('id') in used and new_review.get('id'):
+            raise ValueError('feedback_user_review_identity_reused')
+        updated['decision_hashes'] = deepcopy(previous.get('decision_hashes', {}))
+        updated['decision_binding'] = deepcopy(previous.get('decision_binding', {}))
+        if new_review and new_review != old_review:
+            if old_review:
+                history.append({key: deepcopy(previous.get(key, {})) for key in
+                                ('user_review', 'decision_hashes', 'decision_binding')})
+            updated['decision_binding'] = {}
+            if difference_review_matches(updated, configuration(project), feature):
+                updated['decision_hashes'] = {name: file_hash(root, name) for name in references}
+                updated['decision_binding'] = {'subject': difference_subject(updated), 'review': deepcopy(new_review),
+                    'criteria': {name: file_hash(root, name) for name in new_review['criteria_refs']}}
+        updated['decision_history'] = history
+    else:
+        updated['decision_hashes'] = {name: file_hash(root, name) for name in references}
     result = deepcopy(state)
     result.setdefault('feedback', {})[entry['id']] = updated
     return result
@@ -1217,8 +1361,18 @@ def inspect_feedback(root, config, state):
                 remaining.append('decision_evidence_stale')
             if entry.get('user_review', {}).get('decision') == 'defer':
                 remaining.append('user_review_deferred')
-            if kind == 'intentional_difference' and entry.get('user_review', {}).get('decision') not in {'agree', 'intentional_difference'}:
-                remaining.append('user_difference_review_required')
+            if kind == 'intentional_difference':
+                binding = entry.get('decision_binding', {})
+                if (feature is None or not difference_review_matches(entry, config, feature) or
+                        binding.get('subject') != difference_subject(entry) or
+                        binding.get('review') != entry.get('user_review')):
+                    remaining.append('user_difference_review_required')
+                criteria = binding.get('criteria', {})
+                if not criteria:
+                    remaining.append('decision_criteria_binding_required')
+                elif feature is None or any(name not in difference_criteria(config, feature) or value is None or
+                        file_hash(root, name) != value for name, value in criteria.items()):
+                    remaining.append('decision_criteria_stale')
             if kind in {'environment_limit', 'unknown'}:
                 remaining.append('environment_resume_required' if kind == 'environment_limit' else 'cause_unconfirmed')
             if kind in {'requirement_change', 'oracle_tool_error'} and feature is not None:
@@ -1450,6 +1604,11 @@ def validate_review(root, review):
                 if field in proof and (not isinstance(proof[field], list) or any(
                         not isinstance(name, str) or not name or file_hash(root, name) is None for name in proof[field])):
                     raise ValueError('check_retirement_reference_missing')
+            for field in ('entrypoints', 'callers'):
+                if field in proof and (not isinstance(proof[field], list) or any(not isinstance(item, dict) or
+                        not isinstance(item.get('references', []), list) or any(not isinstance(name, str) or
+                            file_hash(root, name) is None for name in item.get('references', [])) for item in proof[field])):
+                    raise ValueError('check_retirement_disposition_reference_invalid')
 
 
 def architecture_references(architecture):
@@ -1573,8 +1732,7 @@ def record_review(root, project, state, review):
     updated[key][review['feature']]['reference_hashes'] = {
         name: file_hash(root, name) for name in dict.fromkeys(review['references'] + [name
             for decision in review.get('check_decisions', {}).values()
-            for field in ('authorization_refs', 'requirement_refs', 'references')
-            for name in decision.get('retirement', {}).get(field, [])])}
+            for name in retirement_references(decision.get('retirement', {}))])}
     for entry in updated[key][review['feature']].get('scope_reviews', {}).values():
         entry['reference_hashes'] = {name: file_hash(root, name) for name in dict.fromkeys(
             entry['references'] + architecture_references(entry.get('architecture', {})))}

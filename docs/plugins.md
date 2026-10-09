@@ -8,7 +8,7 @@ The package identity and version are owned by `distribution/plugin.json`.
 ## Build
 
 ```powershell
-python scripts/build_plugin.py --output .work/packages/agentic-coding-0.1.45
+python scripts/build_plugin.py --output .work/packages/agentic-coding-0.1.46
 ```
 
 The builder first runs the existing generated-resource check. It selects tracked
@@ -56,6 +56,14 @@ host evidence. A project selects the installed dependency files that constrain
 reuse; unlisted transitive runtime changes remain outside that declaration.
 
 ## Capabilities and current boundary
+
+Version 0.1.46 binds exception decisions to explicit candidate/disposition/scope
+and selected requirement/UI revisions, preserves withdrawn approval through metadata
+updates, allows justified rule retirement with retained API/callers, and exposes
+source/runtime observation scope and unknowns in the existing investigation/hook.
+Legacy incomplete decisions remain OPEN for review; read-only inspection does not
+upgrade them. Whole-Git evidence invalidation remains conservative and unchanged.
+Package execution is distinct from installed-host discovery and protected acceptance.
 
 Version 0.1.45 adds investigation records on the existing task/context without
 workflow setup, reason-specific feedback dispositions and partial-requirement

@@ -1,5 +1,14 @@
 # Harness Architecture
 
+Workflow 0.1.46 keeps decision revisions, investigation scope and retirement proof
+in the existing task state. `project_workflow.py` owns those derived statuses;
+`workflow_context.py` supplies bounded read-only projections; the result viewer
+continues to own execution evidence rather than an investigation ledger. Exception
+approvals bind subjects and consumed guide revisions, rule-only retirement binds
+prior prevention owners, and related tasks retain investigation hashes without
+recapturing observations. Local consistency does not authenticate review authors
+or prove semantic sufficiency. Whole-Git execution staleness remains unchanged.
+
 Project workflow Features can declare `coverage` without changing their partition.
 Business/architecture perspectives and FE/BE/API/Domain responsibilities are
 independent axes; cross-layer/E2E is a method. The existing workflow owner validates

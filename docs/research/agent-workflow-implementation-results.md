@@ -1,5 +1,87 @@
 # Agent workflow implementation and acceptance
 
+## Post-review reliability, 2026-10-09
+
+Version 0.1.46 implements the additional 0.1.45 counterexamples from the latest
+refinement review. Live fetch found origin/main `e19134358141f901bb22c4af1aea17d7a9e2898c`;
+local main retained 95 existing commits ahead of it. The clean review checkout
+`3f6a2177ee6c08f1a9359804abac735a644ebe71` was fast-forwarded into local main,
+then the implementation used a new dedicated worktree/branch. Existing branches,
+the original Labeler, installed resources and global settings remain outside the change.
+
+| Gap | Existing ownership, actual correction and verification |
+| --- | --- |
+| A1 | `record_feedback` preserves the captured decision hashes/binding on metadata and same-review writes. A fresh linked decision ID alone can bind a new revision; old review/hash/binding history and candidate IDs survive. Focused RED changed a revoked hash on reason-only update; GREEN keeps OPEN through metadata and related work, then accepts a new synthetic explicit approval. |
+| A2 | `inspect_feedback` requires candidate, disposition, matching scope and explicit selected criteria revisions. Generic problem agreement, mismatched candidate/disposition/scope, missing legacy binding and target edits remain OPEN. Fixtures are explicitly synthetic; no unseen real UI candidate is recorded as user-approved. |
+| A3 | Relevant selected requirements and all consumed UI guides bind the decision. Changing them reopens feedback and subsequent tasks; an unrelated Feature criterion preserves approval. Inspection rewrites neither records nor hashes. Feedback disposition is separate from the still-partial Feature/product result. |
+| B | `inspect_check_retirements`, review validation and hash capture accept truthful entrypoint/caller dispositions. The quote cap is removed while `quote(amount)` and its caller remain: actual calls yield 12 and 0 through both paths. Prior prevention `owner_refs` bind the changed rule source, blocking unrelated or falsely referenced changes. Missing authority/failure/owner/disposition proof and active residual coverage remain BLOCKED. Legacy whole-path retirement and distinct-detector consolidation stay intact. |
+| C | The existing investigation and hook expose requested/observed methods, stable unknown IDs, and outside-scope runtime. Source-only completion does not imply runtime observation. In-scope runtime unknowns and original stale hashes survive related tasks; legacy missing methods remain unspecified. Unknown/entry collisions and wrong-method substitutions cannot clear them. The original entry denominator and exact task selection are retained. |
+
+The existing six-cell scope, prepare/execute/viewer, feedback confirmation,
+shared UI guide/code ownership, active prevention selection and connected-product
+runner are reused. No separate decision database, survey ledger, setup, natural-language
+authority model, orchestration engine or narrower Git reuse identity was introduced.
+Rule-only legacy records without a prior rule-owner connection remain BLOCKED
+pending review, rather than inventing one at retirement. Submitted proof/hash
+consistency does not authenticate authority or establish semantic sufficiency.
+
+Changed deterministic branches were observed RED before implementation. Additional
+independent review exposed a missing consumed-guide binding, unknown-ID collision
+and misleading source reference; their focused RED/GREEN is retained separately.
+The initial affected workflow/refinement/hook/viewer/execution regression passed
+136 tests in 302.993s; the completed focused refinement suite passed 21 in 42.031s.
+These counts identify executions, not a general reliability score. Full passed
+397 tests in 618.007s with no skips after moving the owned worktree to TEMP and
+allowing cleanup of test-owned child processes. The initial sandbox Full retained
+two environment/path failures: Windows cleanup denied and a nested-worktree
+ancestor misclassified by the existing inventory. Neither is a product GREEN.
+The later hook-only correction observed a 7,145-character preview RED and bounded
+its lists while preserving complete counts and exact task identity. The final
+refinement/hook run passed 23 tests in 44.651s; Full predates only this final
+preview correction and its added test.
+
+The final local 0.1.46 candidate uses the existing builder (19 Skills, 246 files).
+`acceptance-final/commands.json` retains 32 actual package subprocesses with exact
+argv/cwd, outputs and native exits. Quote cap retirement executed the existing
+normal contract, retained negative-input rejection, and made the next related
+task require zero new checks. No replacement cap detector was added. Feedback
+reopened after revoked decisions/related criteria and stayed open on followup;
+new explicit synthetic approval and unrelated criteria remained accepted. These
+feedback states do not promote the incomplete whole product to PASS.
+Investigation lookup/resume/hook launched zero runtime checks and preserved
+all project file hashes. Requested runtime unknown `api-runtime` and stale
+source observation `api-price` survived a related task; source-only completion
+retained runtime as outside scope, not observed. Native quote execution count
+remained two across read-only consumption.
+
+The Full connected-product tests also reused real Chromium/API/Domain/SQLite
+evidence: inputs 2 and 0 retained IDs 1 and 2 across POST, storage, restart and
+fresh GET; a controlled FE payload error failed browser observation while direct
+API/Domain checks passed. Business/architecture FE/API/Domain applicability,
+reasoned exclusions and semantic review remain separate from check execution.
+The API-only quote fixture requires no FE browser; source-only investigation
+requires no runtime launch. Raw records, owned-server exit evidence and matrix
+results remain under the worktree evidence archive, rather than new guides.
+
+A fresh reader received only the natural-language task, package and record
+pointers: 18 read-only shell calls, two tool composition errors, no product CLI
+or test execution. Before/after hashes matched for 41 project/task files. It
+misread the descriptor as lacking runtime evidence and inferred the wrapper cwd
+incorrectly; the coordinator checked the actual raw native report and retained
+both corrections in `fresh-reader-audit.json`. This is bounded record handoff,
+not proof of autonomous package discovery or semantic correctness. Four earlier
+acceptance harness failures (missing fixture field, expected-exit handling and
+summary-only lookup) are retained; the corrected final package run passed.
+
+Evidence is retained outside the created worktree under
+`.work/post-review-implementation-20261009/`: baseline/plan, RED/GREEN captures,
+native-host BLOCKED, exact argv/cwd/stdout/stderr and package acceptance artifacts.
+The new native `codex.exe plugin list` failed to resolve existing CODEX_HOME with
+access denied / OS error 5 in the current sandbox. No host/security, credentials,
+existing installation or global setting changes were used to bypass it. Direct
+package execution remains distinct from native discovery/context/protected acceptance.
+Long-running multi-writer or general Agent cost/quality remains unverified.
+
 ## R0–R4 implementation, 2026-10-09
 
 Version 0.1.45 implements the reproduced refinement gaps on the existing workflow,

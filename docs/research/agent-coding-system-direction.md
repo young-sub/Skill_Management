@@ -1,5 +1,12 @@
 # Agent Coding 업무 위임·검증·지속 개선 체계
 
+현재 구현은 0.1.46이다. 아래 0.1.45 검토의 A–C 공백은 기존 feedback,
+retirement, investigation/CLI/hook 소유 위치에서 보완했다. 명시적 결정 대상과
+기준 revision, 유지되는 API/호출자와 폐기 규칙 owner, 요청별 관측 방법과 안정적인
+미확인 ID를 연결한다. 실제 인수와 남은 host/의미 검토 경계는
+[구현 결과](agent-workflow-implementation-results.md#post-review-reliability-2026-10-09)가 소유한다.
+R0–R4 재실행이나 별도 승인/조사 장부, 전체 Git stale 정책 축소는 하지 않는다.
+
 현재 기준: **2026-10-09 / 0.1.45 / main `f8db21e` 재검토**. 목표는 많은 업무를 위임하면서 요구·실행·근거·미확인·후속 개선을 확인하는 것이다. 기존 task/context, 6셀 scope, 실제 runner, feedback/prevention, UI guide와 maintenance를 유지한다. [최신 보완 검토](agent-workflow-refinement-review.md)에서 재현한 **결정의 유효성, 규칙만 폐기하는 경우, 관찰 범위 요약**을 다음 개선의 우선순위로 삼는다.
 
 [R0–R4](agent-workflow-completion-design.md#review-driven-refinement)와 [실행된 요청](agent-workflow-next-session.md)은 수행 범위의 기록이다. [구현 결과](agent-workflow-implementation-results.md#r0r4-implementation-2026-10-09)는 실제 동작과 host 한계를 소유한다. 이번 문서 보완은 추가 런타임 수리·설치·일반 위임 효과의 입증이 아니다. 아래 제안과 현재 구현을 구분한다.

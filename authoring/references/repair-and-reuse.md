@@ -25,11 +25,24 @@ original candidate and user response. `user_review` has `decision` (`agree`,
 keeps non-repair dispositions open. Agreement is neither cause proof nor additional
 change authority. Classification and evidence sufficiency remain Agent judgments.
 
+For an intentional difference, an approval additionally needs a unique review `id`,
+the exact `candidate_id`, `disposition: intentional_difference`, matching `scope`,
+and nonempty `criteria_refs` selecting relevant Feature criteria and every consumed UI guide.
+The Agent owns the semantic selection; unrelated criteria need not be selected.
+The CLI captures that subject and those revisions in `decision_binding`. General
+problem agreement cannot approve a difference. Metadata edits and resubmitting the
+same review preserve the original hashes; only a new linked approval ID binds a new
+revision. Prior decisions remain in `decision_history`. These captured fields are
+read-only input. Missing legacy binding stays OPEN pending explicit review, with no
+lookup migration. File existence/hashes do not authenticate user identity, authority,
+or actual semantic review; label synthetic approvals as fixtures and never record
+an unseen UI candidate as user-approved.
+
 | Kind | Evidence and disposition |
 | --- | --- |
 | `requirement_violation` | Existing fixed-oracle RED/GREEN/normal and active prevention chain below; source owner repair required. |
 | `requirement_change` | `scope`, `reason`, `evidence_refs`, `owner_refs`, `reconsider`, `authorization_refs`; criteria bytes must change from registration, with fresh prepared `green_bundle` and `confirmation` for new and retained contracts. No old-oracle RED is invented. |
-| `intentional_difference` | Scope/reason/evidence/owner/reconsider identify a common variant or explicit exception. A linked `user_review` of `agree` or `intentional_difference` plus current evidence yields ACCEPTED without a product-repair obligation; absent/deferred/opinion review stays OPEN. Changed references reopen it. |
+| `intentional_difference` | Scope/reason/evidence/owner/reconsider identify a common variant or explicit exception. The explicit subject/disposition/revision binding above plus current decision evidence yields ACCEPTED; generic agreement, absent/deferred/opinion/legacy review stays OPEN. Related criteria or decision changes reopen it in current and subsequent tasks. Feedback ACCEPTED is separate from Feature/product verification. |
 | `oracle_tool_error` | Independent `evidence_refs`, scope/reason/owner/reconsider, `trace`, `root_cause`, changed `repair_paths` at the declared source/criteria owner, and fresh green confirmation. Repair the runner/oracle; preserve the actual original failure separately. |
 | `environment_limit`, `unknown` | Preserve failure, conditions and next action. Always OPEN; agreement or a green file cannot manufacture a confirmed cause or resolution. |
 

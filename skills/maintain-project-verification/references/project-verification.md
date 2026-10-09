@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/project-verification.md -->
-<!-- Source-SHA256: dd2bdeb1abbfae1bd8d0c33f57e15bb194329a6e8053a02e090093a20927bdf3 -->
+<!-- Source-SHA256: 6196c5d9f238fcd5774e13f0d041da25aaa2fcf40c73c6102cc28a9f844f5110 -->
 
 # Project verification responsibilities
 
@@ -89,7 +89,7 @@ links. Feature retirement uses its separate semantic removal review.
 For a removed requirement inside a still-active Feature, `action: remove` with
 `reason: requirement_retired` takes a separate proof branch. Its `retirement`
 includes safe `authorization_refs`, changed `requirement_refs` captured before
-maintenance, nonempty `removed_entrypoints` and `removed_callers`, `remaining_impact`,
+maintenance, `remaining_impact`,
 `references` to the actual remaining owners, and `retired_failures` accounting for
 each prior prevention failure/scope. Source removal/change must be observed and
 active coverage/prevention must no longer reference the check. These references
@@ -99,6 +99,22 @@ proof or an active residual link remains BLOCKED. Older baselines without criter
 hashes cannot infer a requirement change. Full Feature removal still uses its
 separate reconciliation. The Agent checks actual callers and semantic impact;
 path hashes and submitted removal descriptions cannot authenticate that judgment.
+
+Whole-path removal can retain the legacy nonempty `removed_entrypoints` and
+`removed_callers`. For a rule-only change, use nonempty `entrypoints` and `callers`
+lists instead. Each item names `name`, `disposition` (`removed`, `changed`,
+`retained`, `not_applicable`), a truthful `reason` and safe existing `references`.
+Empty removal lists alone are insufficient. Entry-point references must identify
+an actual changed Feature source owner previously linked by `owner_refs` on the
+retired check's prevention failure/scope. A change to unrelated source cannot satisfy
+the rule's retirement. Caller references and their impact join the review hashes.
+Execute the new behavior and retained normal contracts, preserving raw output in
+the references. The local record validates bindings; actual behavior and authority
+still require review. A retired rule needs no replacement detector, while missing
+authority/changed criteria/prior failure scope or active residual coverage blocks it.
+Legacy records without this rule-owner connection cannot infer it during retirement;
+retain the check pending a separately reviewed ownership connection. Whole-path
+legacy removal retains its existing proof contract.
 
 The Agent decides whether the failures are equivalent and makes the actual scoped
 code/registry consolidation. The CLI verifies connected evidence and records
