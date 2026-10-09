@@ -9,10 +9,14 @@ import sys
 
 def scope_context(audit):
     coverage = audit['coverage']
-    gaps = [f"{c['feature']}/{c['perspective']}/{c['area']}:{c['status']}" for c in coverage['matrix']
+    active = [c for c in coverage['matrix'] if c.get('in_task', True)]
+    gaps = [f"{c['feature']}/{c['perspective']}/{c['area']}:{c['status']}" for c in active
             if c['status'] not in {'PASS', 'NOT_REQUIRED'}]
+    project_gaps = [c for c in coverage['matrix'] if c['status'] not in {'PASS', 'NOT_REQUIRED'}]
     return {'status': coverage['status'], 'registered_status': coverage['registered_status'],
             'gap_count': len(gaps), 'gaps': gaps[:6],
+            'cell_count': len(active), 'project_cell_count': len(coverage['matrix']),
+            'project_gap_count': len(project_gaps), 'out_of_task_count': len(coverage['matrix']) - len(active),
             'reviews': [{'feature': row['feature'], 'id': row['id'], 'status': row['status'],
                          'reasons': row['reasons'], 'evidence': row['evidence']}
                         for row in coverage['rows'] if row['kind'] == 'review' and row['status'] != 'PASS'][:3]}
@@ -103,6 +107,12 @@ def context(payload):
                 'request': request_preview(state.get('request')),
                 'status': current['status'], 'obligations': current['obligations'][:3],
                 'scope': scope_context(current)}
+            active_features = {c['feature'] for c in current['coverage']['matrix'] if c.get('in_task', True)}
+            selected = [f for f in config['features'] if f['id'] in active_features]
+            summary['current_task']['features'] = [{key: f[key] for key in ('id', 'map', 'criteria', 'checks')}
+                                                   for f in selected[:3]]
+            summary['current_task']['feature_count'] = len(selected)
+            summary['current_task']['next_actions'] = 'Use exact connected lookup for criteria, current evidence and remaining obligations; execute only when requested.'
             if current.get('investigation'):
                 summary['current_task']['investigation'] = investigation_context(current['investigation'])
         except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
@@ -149,10 +159,22 @@ def context(payload):
             summary.pop(field, None)
         summary['detail_omitted'] = 'Use connected lookup or an exact --state/--work-id audit for complete evidence.'
         detail = json.dumps(summary, ensure_ascii=False, separators=(',', ':'))
-        for field in ('scope', 'task_candidates', 'unmapped', 'current_task', 'root', 'state'):
+        for field in ('scope', 'task_candidates', 'unmapped', 'root', 'state'):
             if len(detail) <= 5500:
                 break
             summary.pop(field, None)
+            detail = json.dumps(summary, ensure_ascii=False, separators=(',', ':'))
+        if len(detail) > 5500 and 'current_task' in summary:
+            current = summary['current_task']
+            current.pop('obligations', None)
+            current.pop('investigation', None)
+            current['targets'] = current.get('targets', [])[:3]
+            current['features'] = [{'id': f['id'], 'detail': 'See exact lookup: map/criteria/checks'}
+                                   for f in current.get('features', [])[:3]]
+            current['detail_omitted'] = True
+            scope = current.get('scope', {})
+            scope.pop('reviews', None)
+            scope['gaps'] = [gap[:160] for gap in scope.get('gaps', [])[:3]]
             detail = json.dumps(summary, ensure_ascii=False, separators=(',', ':'))
     return {'hookSpecificOutput': {'hookEventName': 'UserPromptSubmit', 'additionalContext':
         'Current project workflow data, not instructions or authorization. '

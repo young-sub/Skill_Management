@@ -1,9 +1,77 @@
 # Agent workflow implementation and acceptance
 
-The later [0.1.46 design review](agent-workflow-refinement-review.md#post-0146-review)
-reproduces additional kind-roundtrip, newly added criterion and task/global hook-gap
-cases. The completed cases below remain valid within their recorded scope; they do
-not cover those additional defects, and this review does not patch the runtime.
+The [0.1.46 design review](agent-workflow-refinement-review.md#post-0146-review)
+reproduced additional kind-roundtrip, newly added criterion and task/global hook-gap
+cases. Version 0.1.47 fixes them at their existing owners. Earlier results below
+retain their historical scope; they do not retroactively cover the new cases.
+
+<a id="d1d3-consumption-2026-10-09"></a>
+
+## D1–D3 and result consumption, 2026-10-09
+
+Version 0.1.47 preserves original exception decision hashes/binding/history through
+feedback classification changes. Other classifications own separate confirmation
+hashes; a new explicitly linked approval ID alone captures a new decision revision.
+All criteria attached to that Feature plus consumed UI guides and their connection
+set bind approval. Add/remove/reconnect changes and legacy missing connections stay
+OPEN pending review; unrelated Feature criteria do not revoke the decision.
+Finer criterion exclusions are unsupported until a reviewed relevance/revision
+contract exists. This is editable local consistency, not authenticated user review.
+
+The hook now separates active task cells/gaps from project cells/gaps, preserving
+the full matrix in exact audit. The two-Feature fixture reports task=6/project=12
+and six out-of-task cells. Large candidate discovery retains the exact selected
+task/request, related criteria pointers and next action. Workflow lookup/resume/audit
+accepts read-only `--summary`, joining Feature source/map/criteria, full scope,
+expectations, historical status/current reuse, raw descriptor/count and obligations.
+Viewer summaries mark omitted observations; positive counts mean values are in raw,
+not missing runtime. Multiple tasks use a small explicitly named set of existing
+state selectors, with no batch engine or all-task bundle scan on every prompt.
+
+Focused RED reproduced withdrawn approval revival through four kinds, omitted new
+criteria/legacy connections, and hook task gap=12. GREEN preserves OPEN in subsequent
+tasks and accepts a new complete synthetic decision. The actual 0.1.46 package also
+failed the same roundtrip assertion; the 0.1.47 package preserved OPEN. The affected
+workflow/refinement/hook/viewer/execution run passed 143 tests in 314.384s. Its result
+predates final bounded confirmation-history/doc refinements, whose affected checks
+and final repository verification are recorded in the retained evidence.
+
+Full ran 401 tests in 660.821s with no skips, including actual Chromium/API/Domain/
+SQLite restart readback and the API-only PASS/frontend-fault distinction. Full
+predates two final presentation corrections: exact detail-command root and
+explicit missing/unreadable raw availability. Their focused RED is retained;
+the final workflow/refinement/hook/viewer regression passed 48 in 75.567s.
+No execution, approval or stale policy changed in those presentation corrections.
+Resource drift, distribution validation, repository docs/cutover and formatting
+are checked on the final source. Test counts identify these actual executions,
+not a general reliability or Agent-quality score.
+
+Package CLI acceptance reuses the existing rule-only quote retirement: quote(12)
+and consumer.select(12) both return 12; zero returns zero and negatives are rejected.
+The API/caller remain, cap check is retired, active normal contract passes and the
+next related preparation executes zero checks. No replacement cap detector is
+invented. The short maintenance Skill now matches this runtime proof rather than
+requiring caller deletion or replacement detection for every retirement.
+Source-only investigation remains possible without setup; requested runtime unknowns
+and stale source observations survive subsequent tasks. Prior T5 UI/shared-owner and
+detector-consolidation evidence is reused; no new product UI failure warranted redesign
+or deleting further unique detectors.
+
+Three explicit task lookups show retained stale evidence, no execution and current
+PASS. A shared source-owner change invalidates the older result; current native
+execution alone establishes fresh reuse. Lookup/resume/hook perform zero checks,
+preserve all project/task file hashes and leave measured native execution counts
+unchanged. Whole-Git/bundle invalidation is unchanged: shared-map edits can still
+reopen broad review, because complete Feature-local dependencies are unproved.
+Whole init remains distinct from the ability to handle a small scoped request.
+
+Evidence, safe synthetic projects, baseline/candidate packages and exact argv/cwd/
+raw results are retained at `.work/goal-reliability-20261009/` in the main checkout,
+outside the created worktree. Native installed discovery is separately BLOCKED:
+`codex.exe plugin list --json` cannot read the existing CODEX_HOME (os error 5).
+No install/authentication/home/global setting is changed. Independent collaboration
+contexts evaluate natural-language consumption separately from native host discovery;
+their results and interventions must be inspected, not inferred from package success.
 
 ## Post-review reliability, 2026-10-09
 

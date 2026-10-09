@@ -2,6 +2,10 @@
 
 <a id="post-0146-review"></a>
 
+현재 후속 상태: 아래 D1–D3는 0.1.46에서 재현한 역사적 반례다. 0.1.47의
+실제 수정·CLI/패키지 소비·검증과 남은 한계는
+[후속 구현 결과](agent-workflow-implementation-results.md#d1d3-consumption-2026-10-09)가 소유한다.
+
 2026-10-09, clean local main `ef25cf2cf0795f3af69aafb2a03fe0f95c24c550`, 패키지 0.1.46을 기준으로 검토했다. [현재 설계](agent-coding-system-direction.md), canonical runtime/호출자/기존 회귀, [실제 구현 결과](agent-workflow-implementation-results.md#post-review-reliability-2026-10-09), [고정 pstack 조사](pstack-analysis.md)를 대조했다. 두 독립 검토는 읽기 전용이었고, 핵심 발견은 주 Agent가 코드와 실제 CLI/hook으로 확인했다.
 
 **방향은 유지하되, 현재 구현의 남은 상태 전이와 조회 범위 오류를 먼저 고친다.** 이미 완료한 R0–R4와 원래 A–C를 다시 만들지 않는다. 이 변경은 설계 보완이며 아래 새 runtime 결함의 구현은 아니다. 직전 0.1.45 검토 전문은 Git `ef25cf2:docs/research/agent-workflow-refinement-review.md`에 보존된다.

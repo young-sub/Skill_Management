@@ -1993,8 +1993,13 @@ def summarize_results(result: dict[str, Any]) -> dict[str, Any]:
     result = copy.deepcopy(result)
     for item in result.get('items', []):
         item.pop('conditions', None)
+        item['raw_availability'] = ('UNAVAILABLE' if any(reason.startswith(('raw_missing:', 'raw_unreadable:'))
+            for reason in item.get('reasons', [])) else 'AVAILABLE' if item.get('raw') else 'NOT_ATTACHED')
         for raw in item.get('raw', []):
+            raw['observation_count'] = len(raw.get('observations', []))
+            raw['observations_omitted'] = bool(raw.get('observations'))
             raw.pop('observations', None)
+    result['detail_hint'] = 'Summary omits assertion values after validation; use the same lookup without --summary for observed values, or open raw path/pointer.'
     return result
 
 

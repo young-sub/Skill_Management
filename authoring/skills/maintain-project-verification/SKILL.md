@@ -16,8 +16,9 @@ Audit-only ends with findings and their evidence, without writes, launches or si
 Use [workflow obligations](references/workflow-obligations.md) for configured project links and resumable review. Its audit computes omissions and changed consumers without executing tests; Harness maintenance consumes the same calculation. Unconfigured projects can retain read-only investigations in that same task/context without setup.
 
 Distinguish consolidation from an authorized requirement retirement inside a
-living Feature. The latter proves changed requirements, removed entrypoints/callers,
-remaining impact and inactive check links without inventing a replacement detector.
+living Feature. The latter proves changed requirements and the actual changed or
+retained entrypoints/callers, remaining contracts and inactive check links without
+inventing a replacement detector. A rule-only retirement may retain its API/callers.
 Keep unknown or unique detection; stale proof remains open. See the reason-specific
 proof in the shared verification reference. Feature-wide retirement remains its
 existing reconciliation.
@@ -28,4 +29,4 @@ Keep feature additions/changes/removals and their map/guide/active selectors in 
 
 Review redundant, implementation-coupled or costly checks by the failure each detects. Consolidate only when the remaining mechanism demonstrably rejects the same defect and permits nearby valid behavior. Without that evidence retain the checks and explain why. Counts and coverage alone do not establish value. Do not create a separate test-pruning framework.
 
-Use the existing workflow CLI's read-only `maintain` action with the current request context returned by `start`/`connect`; inherit `AGENT_WORKFLOW_CONTEXT` or pass `--context`, without rebuilding task paths. Explicit `--history-bundle` paths add measured cost/native error/raw detection links; the action already consumes linked feedback/review runs. Treat `declared_overlap` as a review candidate and measured outcome variation as an investigation input. Record reasoned `check_decisions` in the same semantic review for scoped consolidation/removal, then satisfy every `check_retirements` preservation obligation with old/replacement defect detection and a current nearby normal case. See the shared verification reference for fields. Keep unique or unproven detectors.
+Use the existing workflow CLI's read-only `maintain` action with the current request context returned by `start`/`connect`; inherit `AGENT_WORKFLOW_CONTEXT` or pass `--context`, without rebuilding task paths. Explicit `--history-bundle` paths add measured cost/native error/raw detection links; the action already consumes linked feedback/review runs. Treat `declared_overlap` as a review candidate and measured outcome variation as an investigation input. Record reasoned `check_decisions` in the same semantic review. Consolidation needs old/replacement defect detection and a current nearby normal case; authorized requirement retirement instead needs its reason-specific ownership/criteria/remaining-contract proof and no replacement for the retired rule. See the shared verification reference for fields. Keep unique or unproven detectors.

@@ -1,5 +1,11 @@
 # Agent Coding 업무 위임·검증·지속 개선 체계
 
+현재 구현은 **0.1.47**이다. 아래 0.1.46 검토에서 남긴 D1–D3는 기존 결정·hook
+소유 코드에서 수리했고, task 조회 요약과 raw 발견 경로를 연결했다.
+[후속 실제 결과](agent-workflow-implementation-results.md#d1d3-consumption-2026-10-09)가
+검증·패키지 소비·자연어 평가와 남은 한계를 소유한다. 아래 표의 0.1.46
+미흡점은 당시 출발점이며 현재 미구현 목록으로 재실행하지 않는다.
+
 현재 검토 기준: **2026-10-09 / 0.1.46 / local main `ef25cf2`**. 목표는 많은 업무를 위임하면서 요구·실행·근거·미확인·후속 개선을 확인하는 것이다. 기존 task/context, 6셀 scope, 실제 runner, feedback/prevention, UI guide와 maintenance를 유지한다.
 
 0.1.45 검토의 A–C는 구현됐다. 명시적 승인 연결, 메타데이터 갱신 방어, 규칙만 폐기하고 API/호출자 유지, 요청별 관측 방법·미확인 ID·후속 승계를 신규 작업으로 다시 만들지 않는다. 실제 인수와 host 한계는 [구현 결과](agent-workflow-implementation-results.md#post-review-reliability-2026-10-09)가 소유한다.

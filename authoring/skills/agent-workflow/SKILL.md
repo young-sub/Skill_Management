@@ -54,6 +54,18 @@ For registered native JSON checks, the bundled [verification CLI](scripts/verifi
 
 For lookup-only requests use `--bundle` (optionally `--summary`) or read existing raw evidence. Lookup runs no recorded command. If compatible bindings are missing, report that limit; do not manufacture a successful plan or backfill evidence through execution. A native pass without a bundle remains bounded native evidence, not current reusable workflow acceptance.
 
+For task history, use workflow `lookup --summary --state <exact task path>` (or the
+exact context/work ID). Compare a small explicitly named set by repeating this
+read-only lookup; never audit all candidate bundles on every prompt. The summary
+joins Feature source/map/criteria, the full scope matrix, expected checks, historical
+status, current reuse, raw descriptors and next obligations. `current_status:
+UNKNOWN` with `current_reuse: STALE` means retained results need revalidation.
+`observations_omitted` with a positive `observation_count` means values are in raw,
+not unobserved; repeat the same lookup without `--summary` or open raw path/pointer.
+Missing/expired bundles remain unavailable. Hook task gaps cover active cells;
+project gaps include out-of-task cells. A compact hook retains the selected task
+and exact lookup pointer. Without host context it exposes candidates, not a guess.
+
 For a connected task, use `--prepare --root <project> --pending-state .work/task.json`
 (`--work-id` for Harness work), with new plan/report paths. The registry's
 `extensions.workflow.assertions` supplies reviewed assertions; the CLI selects

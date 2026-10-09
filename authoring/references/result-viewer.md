@@ -8,6 +8,18 @@ See [request context](workflow-obligations.md#connect-the-current-request-once).
 Its plan pointer belongs to the existing task; the original viewer commands and
 project-specific adapters remain usable independently.
 
+Both workflow task `lookup --summary` and viewer `--summary` retain raw
+path/hash/pointer/producer descriptors. A positive `observation_count` with
+`observations_omitted: true` means validated values were omitted from presentation,
+not that runtime was unobserved. Repeat the same lookup without `--summary` to
+see assertions and actual values. Summary `raw_availability: UNAVAILABLE`
+identifies missing/unreadable raw, while
+`NOT_ATTACHED` distinguishes a capture-only native adapter without a JSON descriptor.
+Retained historical PASS with `current_reuse: STALE` and `current_status: UNKNOWN` requires
+revalidation. NOT_RUN denotes no execution. Native runner BLOCKED is distinct from
+an observed product assertion ISSUES. Neither summary launches a check or repairs
+an evidence record.
+
 Workflow, result-viewer, prompt-hook and Harness terminal JSON uses ASCII escapes
 for non-ASCII characters, preserving decoded values on legacy console encodings.
 This does not change UTF-8 state/evidence files, digests, or the hook context after

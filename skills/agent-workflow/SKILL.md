@@ -4,7 +4,7 @@ description: Coordinate a coding task from a natural-language request through re
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: 56e4ad7363303c1dcf7d30350ddca9483f340dc8302e81a66d28a1db5850990c -->
+<!-- Source-SHA256: 6608e50a0191e17457334db1b6c99955e711d897ed42bdf4bc7a2eb381b9a5dd -->
 
 
 # Agent Workflow
@@ -57,6 +57,18 @@ When the project already provides the native unittest adapter described in its g
 For registered native JSON checks, the bundled [verification CLI](scripts/verification_results.py) prepares measured bindings with `--prepare`, runs selected checks once with `--execute`, and joins their captures, assessments and raw observations into a reusable bundle. Read its [input and reuse contract](references/result-viewer.md). Reuse the project's reviewed assertion specification and execution connection; if missing, use the setup responsibility to connect them within the authorized scope. In an installed plugin the CLI discovers its bundled capture script automatically. Keep criterion selection and visual judgment with the Agent; let the CLI collect identities, run commands and build the bundle instead of recreating that work in shell snippets.
 
 For lookup-only requests use `--bundle` (optionally `--summary`) or read existing raw evidence. Lookup runs no recorded command. If compatible bindings are missing, report that limit; do not manufacture a successful plan or backfill evidence through execution. A native pass without a bundle remains bounded native evidence, not current reusable workflow acceptance.
+
+For task history, use workflow `lookup --summary --state <exact task path>` (or the
+exact context/work ID). Compare a small explicitly named set by repeating this
+read-only lookup; never audit all candidate bundles on every prompt. The summary
+joins Feature source/map/criteria, the full scope matrix, expected checks, historical
+status, current reuse, raw descriptors and next obligations. `current_status:
+UNKNOWN` with `current_reuse: STALE` means retained results need revalidation.
+`observations_omitted` with a positive `observation_count` means values are in raw,
+not unobserved; repeat the same lookup without `--summary` or open raw path/pointer.
+Missing/expired bundles remain unavailable. Hook task gaps cover active cells;
+project gaps include out-of-task cells. A compact hook retains the selected task
+and exact lookup pointer. Without host context it exposes candidates, not a guess.
 
 For a connected task, use `--prepare --root <project> --pending-state .work/task.json`
 (`--work-id` for Harness work), with new plan/report paths. The registry's

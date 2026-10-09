@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/result-viewer.md -->
-<!-- Source-SHA256: 7e92df653b988fd64fb5e21927c4d55016f9c94c2a5132c46c78dbdd926f05f5 -->
+<!-- Source-SHA256: 08d27d4fe2a897323a48050cbe109249eab4286c3e19983d4e1942bf0cddf3bc -->
 
 # Existing-result lookup
 
@@ -11,6 +11,18 @@ read-only `lookup` and task `resume`, composing this viewer without a new runner
 See [request context](workflow-obligations.md#connect-the-current-request-once).
 Its plan pointer belongs to the existing task; the original viewer commands and
 project-specific adapters remain usable independently.
+
+Both workflow task `lookup --summary` and viewer `--summary` retain raw
+path/hash/pointer/producer descriptors. A positive `observation_count` with
+`observations_omitted: true` means validated values were omitted from presentation,
+not that runtime was unobserved. Repeat the same lookup without `--summary` to
+see assertions and actual values. Summary `raw_availability: UNAVAILABLE`
+identifies missing/unreadable raw, while
+`NOT_ATTACHED` distinguishes a capture-only native adapter without a JSON descriptor.
+Retained historical PASS with `current_reuse: STALE` and `current_status: UNKNOWN` requires
+revalidation. NOT_RUN denotes no execution. Native runner BLOCKED is distinct from
+an observed product assertion ISSUES. Neither summary launches a check or repairs
+an evidence record.
 
 Workflow, result-viewer, prompt-hook and Harness terminal JSON uses ASCII escapes
 for non-ASCII characters, preserving decoded values on legacy console encodings.

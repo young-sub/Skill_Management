@@ -8,7 +8,7 @@ The package identity and version are owned by `distribution/plugin.json`.
 ## Build
 
 ```powershell
-python scripts/build_plugin.py --output .work/packages/agentic-coding-0.1.46
+python scripts/build_plugin.py --output .work/packages/agentic-coding-0.1.47
 ```
 
 The builder first runs the existing generated-resource check. It selects tracked
@@ -56,6 +56,17 @@ host evidence. A project selects the installed dependency files that constrain
 reuse; unlisted transitive runtime changes remain outside that declaration.
 
 ## Capabilities and current boundary
+
+Version 0.1.47 preserves exception decision hashes across feedback classification
+roundtrips and binds the applicable Feature/criterion/UI-guide connection set.
+New/remapped requirements and legacy missing bindings remain OPEN until a new
+explicit linked decision. Other feedback kinds own separate confirmation hashes.
+The hook distinguishes task/project cell gaps and retains the selected task when
+trimming context. Workflow `lookup --summary --state <exact path>` supports small,
+explicit task comparisons with criteria, historical/current reuse, raw descriptors
+and next obligations; viewer summaries identify omitted observations. Lookup remains
+read-only. Whole-Git stale protection, project assertions and native-host boundaries
+are unchanged. See [current results](research/agent-workflow-implementation-results.md#d1d3-consumption-2026-10-09).
 
 Version 0.1.46 binds exception decisions to explicit candidate/disposition/scope
 and selected requirement/UI revisions, preserves withdrawn approval through metadata

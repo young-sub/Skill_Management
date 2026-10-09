@@ -73,6 +73,64 @@ class WorkflowRefinementTests(unittest.TestCase):
                                         dict(entry, user_review=dict(entry['user_review'], decision='agree')))
         self.assertEqual(runtime.inspect_project(self.root, self.project, valid)['feedback'][0]['status'], 'ACCEPTED')
 
+    def test_classification_roundtrip_preserves_withdrawn_decision_basis(self):
+        runtime = self.runtime()
+        entry = self.difference()
+        state = runtime.record_feedback(self.root, self.project,
+            runtime.begin(self.root, self.project, 'feedback', ['api']), entry)
+        original = deepcopy(state['feedback']['variant'])
+        self.write('docs/decision.md', 'Fixture: approval withdrawn.\n')
+        for kind in ('unknown', 'environment_limit', 'requirement_change', 'oracle_tool_error'):
+            with self.subTest(kind=kind):
+                changed = runtime.record_feedback(self.root, self.project, state,
+                    {'id': 'variant', 'feature': 'api', 'kind': kind, 'reason': 'Investigating'})
+                returned = runtime.record_feedback(self.root, self.project, changed,
+                    {'id': 'variant', 'feature': 'api', 'kind': 'intentional_difference'})
+                self.assertEqual(runtime.inspect_project(self.root, self.project, returned)['feedback'][0]['status'], 'OPEN')
+                self.assertEqual(returned['feedback']['variant']['decision_hashes'], original['decision_hashes'])
+                self.assertEqual(returned['feedback']['variant']['decision_binding'], original['decision_binding'])
+                later = runtime.begin(self.root, self.project, 'change', ['api'], prior_state=returned)
+                self.assertEqual(runtime.inspect_project(self.root, self.project, later)['feedback'][0]['status'], 'OPEN')
+        self.write('docs/new-decision.md', 'Fixture: new explicit approval.\n')
+        renewed = runtime.record_feedback(self.root, self.project, returned, dict(id='variant', feature='api',
+            evidence_refs=['docs/new-decision.md'], user_review=dict(entry['user_review'],
+                id='fixture-review-2', reference='docs/new-decision.md')))
+        self.assertEqual(runtime.inspect_project(self.root, self.project, renewed)['feedback'][0]['status'], 'ACCEPTED')
+        self.assertEqual(renewed['feedback']['variant']['decision_history'][0]['decision_hashes'], original['decision_hashes'])
+
+    def test_applicable_criteria_connections_and_legacy_require_new_review(self):
+        runtime = self.runtime()
+        entry = self.difference()
+        state = runtime.record_feedback(self.root, self.project,
+            runtime.begin(self.root, self.project, 'feedback', ['api']), entry)
+        before = deepcopy(state)
+        self.write('docs/new-rule.md', 'Fixture: terminal difference forbidden.\n')
+        for criteria in (['docs/requirement.md', 'docs/new-rule.md'], ['docs/new-rule.md']):
+            with self.subTest(criteria=criteria):
+                project = deepcopy(self.project)
+                project['extensions']['workflow']['features'][0]['criteria'] = criteria
+                audit = runtime.inspect_project(self.root, project, state)
+                self.assertEqual(audit['feedback'][0]['status'], 'OPEN')
+                self.assertIn('decision_criteria_connections_changed', audit['feedback'][0]['remaining'])
+                later = runtime.begin(self.root, project, 'change', ['api'], prior_state=state)
+                self.assertEqual(runtime.inspect_project(self.root, project, later)['feedback'][0]['status'], 'OPEN')
+        self.assertEqual(state, before, 'Lookup must not migrate or refresh hashes')
+        unrelated = deepcopy(self.project)
+        unrelated['extensions']['workflow']['features'][1]['criteria'].append('docs/new-rule.md')
+        self.assertEqual(runtime.inspect_project(self.root, unrelated, state)['feedback'][0]['status'], 'ACCEPTED')
+        legacy = deepcopy(state)
+        legacy['feedback']['variant']['decision_binding'].pop('criteria_connections', None)
+        audit = runtime.inspect_project(self.root, self.project, legacy)
+        self.assertEqual(audit['feedback'][0]['status'], 'OPEN')
+        self.assertIn('decision_criteria_connections_required', audit['feedback'][0]['remaining'])
+        project = deepcopy(self.project)
+        project['extensions']['workflow']['features'][0]['criteria'].append('docs/new-rule.md')
+        self.write('docs/new-decision.md', 'Fixture: explicitly reviewed both criteria.\n')
+        renewed = runtime.record_feedback(self.root, project, state, dict(id='variant', feature='api',
+            evidence_refs=['docs/new-decision.md'], user_review=dict(entry['user_review'], id='fixture-review-2',
+                reference='docs/new-decision.md', criteria_refs=['docs/requirement.md', 'docs/new-rule.md'])))
+        self.assertEqual(runtime.inspect_project(self.root, project, renewed)['feedback'][0]['status'], 'ACCEPTED')
+
     def test_related_criterion_reopens_decision_but_unrelated_criterion_does_not(self):
         runtime = self.runtime()
         self.write('docs/unrelated.md', 'Separate CLI documentation.\n')
@@ -136,6 +194,40 @@ class WorkflowRefinementTests(unittest.TestCase):
                     {'id': 'cli-price', 'location': 'src/cli.py', 'access': 'CLI price',
                      'conditions': 'CLI has not run', 'expected': 'Ten', 'status': 'unobserved',
                      'evidence': [], 'owner': 'unknown'}]}
+
+    def test_hook_distinguishes_task_project_gaps_and_retains_exact_task_under_pressure(self):
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        _, started = self.invoke('start', '--intent', 'change', '--target', 'api',
+            '--request-summary', 'Keep API output', '--outcome-ref', 'docs/requirement.md')
+        def hook():
+            result = subprocess.run([sys.executable, str(existing.SCRIPT.with_name('workflow_context.py'))],
+                input=json.dumps({'cwd': str(self.root), 'hook_event_name': 'UserPromptSubmit'}),
+                capture_output=True, text=True, encoding='utf-8',
+                env=dict(os.environ, AGENT_WORKFLOW_CONTEXT=started['task_context']))
+            output = json.loads(result.stdout)['hookSpecificOutput']['additionalContext']
+            self.assertLess(len(output), 6000)
+            return json.loads(output.split('\n', 1)[1])
+        detail = hook()
+        self.assertEqual(detail['current_task']['scope']['gap_count'], 6)
+        self.assertEqual(detail['current_task']['scope']['project_gap_count'], 12)
+        self.assertEqual(detail['current_task']['scope']['out_of_task_count'], 6)
+        self.assertEqual(detail['current_task']['scope']['cell_count'], 6)
+        snapshot = {str(p): p.read_bytes() for p in self.root.rglob('*') if p.is_file()}
+        # Large unrelated candidate discovery must never eject the explicitly selected task.
+        for i in range(10):
+            self.invoke('start', '--intent', 'change', '--target', 'cli', '--request-summary', 'x' * 10000)
+        detail = hook()
+        self.assertEqual(detail['current_task']['task_id'], started['task']['task_id'])
+        self.assertEqual(detail['current_task']['targets'], ['api'])
+        self.assertEqual(detail['current_task']['request']['summary'], 'Keep API output')
+        self.assertEqual(detail['current_task']['features'][0]['criteria'], ['docs/requirement.md'])
+        self.assertTrue(detail['current_task']['next_actions'])
+        after = {str(p): p.read_bytes() for p in self.root.rglob('*') if p.is_file()}
+        self.invoke('lookup', context=started['task_context'])
+        self.invoke('resume', context=started['task_context'])
+        hook()
+        self.assertEqual(after, {str(p): p.read_bytes() for p in self.root.rglob('*') if p.is_file()})
+        self.assertTrue(all(existing.Path(p).read_bytes() == value for p, value in snapshot.items()))
 
     def test_unconfigured_investigation_survives_fresh_context_without_setup_or_execution(self):
         investigation = self.write('.work/input.json', json.dumps(self.investigation()))

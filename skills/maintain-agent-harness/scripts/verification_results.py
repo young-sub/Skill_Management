@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/verification_results.py
-# Source-SHA256: bd7526d6f4d9a690429580fec5ba6f1cf843fba666336e7fd8891f246d1ee813
+# Source-SHA256: 85829471996d745539f83deb222806fdb6965f28ee37d3a4d6548b89ea18767c
 
 """Read-only viewer for plan-bound verification captures and observations.
 
@@ -1997,8 +1997,13 @@ def summarize_results(result: dict[str, Any]) -> dict[str, Any]:
     result = copy.deepcopy(result)
     for item in result.get('items', []):
         item.pop('conditions', None)
+        item['raw_availability'] = ('UNAVAILABLE' if any(reason.startswith(('raw_missing:', 'raw_unreadable:'))
+            for reason in item.get('reasons', [])) else 'AVAILABLE' if item.get('raw') else 'NOT_ATTACHED')
         for raw in item.get('raw', []):
+            raw['observation_count'] = len(raw.get('observations', []))
+            raw['observations_omitted'] = bool(raw.get('observations'))
             raw.pop('observations', None)
+    result['detail_hint'] = 'Summary omits assertion values after validation; use the same lookup without --summary for observed values, or open raw path/pointer.'
     return result
 
 

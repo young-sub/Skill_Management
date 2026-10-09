@@ -2,6 +2,10 @@
 
 Load ignored repository-local `.harness/environment-exceptions.json` once per task when present; refresh after relevant environment changes. `skip_until_manual_reenable` selects the recorded fallback without retrying the unavailable capability.
 
+Current plugin runtime: 0.1.47. [D1–D3 and consumption results](research/agent-workflow-implementation-results.md#d1d3-consumption-2026-10-09)
+owns the classification/criterion-set/context corrections, explicit task summaries
+and package/fresh-context evidence. Linked 0.1.46 reviews retain their historical scope.
+
 - [System](system.md) — end-to-end Core-First Harness flow and state ownership.
 - [Harness architecture](architecture/harness.md) — project, contract, execution, environment, retention, and distribution boundaries.
 - [Testing](testing.md) — source-to-test impact rules and local/CI verification selectors.

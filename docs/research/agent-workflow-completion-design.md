@@ -1,5 +1,9 @@
 # Agent 업무 위임 체계의 완성 기준과 후속 구현
 
+현재 후속 구현은 0.1.47의 D1–D3 수리와 조회/context 소비 보완이다.
+[실제 결과](agent-workflow-implementation-results.md#d1d3-consumption-2026-10-09)를 따른다.
+아래 R0–R4/U1–U7의 역사적 설계·수행 범위는 다시 실행할 목록이 아니다.
+
 0.1.46은 R0–R4 뒤 최신 검토에서 재현한 결정 유효성, API 유지·규칙 폐기,
 관측 범위 요약을 기존 소유 코드에서 보완한다. [후속 구현 결과](agent-workflow-implementation-results.md#post-review-reliability-2026-10-09)가
 실제 RED/GREEN·패키지 실행·후속 소비와 남은 한계를 소유한다. 아래 수행된 범위와

@@ -27,14 +27,20 @@ change authority. Classification and evidence sufficiency remain Agent judgments
 
 For an intentional difference, an approval additionally needs a unique review `id`,
 the exact `candidate_id`, `disposition: intentional_difference`, matching `scope`,
-and nonempty `criteria_refs` selecting relevant Feature criteria and every consumed UI guide.
-The Agent owns the semantic selection; unrelated criteria need not be selected.
-The CLI captures that subject and those revisions in `decision_binding`. General
+and nonempty `criteria_refs` covering all criteria linked to that Feature and every
+consumed UI guide. The Agent owns the semantic Feature/criterion connections;
+unrelated Features need not be selected. The CLI captures that subject, the complete
+Feature/guide connection set and those revisions in `decision_binding`. A newly
+added, removed or reconnected applicable criterion requires a new decision; partial
+criterion selection cannot exclude an unreviewed requirement. Finer semantic
+exclusions are not supported by this binding. General
 problem agreement cannot approve a difference. Metadata edits and resubmitting the
-same review preserve the original hashes; only a new linked approval ID binds a new
+same review and classification roundtrips preserve the original decision hashes;
+other feedback kinds capture separate `confirmation_hashes`. Only a new linked approval ID binds a new
 revision. Prior decisions remain in `decision_history`. These captured fields are
 read-only input. Missing legacy binding stays OPEN pending explicit review, with no
-lookup migration. File existence/hashes do not authenticate user identity, authority,
+lookup migration, including legacy decisions missing criterion-set connections.
+File existence/hashes do not authenticate user identity, authority,
 or actual semantic review; label synthetic approvals as fixtures and never record
 an unseen UI candidate as user-approved.
 

@@ -174,8 +174,13 @@ class VerificationResultViewerTests(unittest.TestCase):
                 self.assertEqual(short_process.returncode, full_process.returncode)
                 for item in full['items']:
                     item.pop('conditions')
+                    item['raw_availability'] = 'AVAILABLE'
                     for raw in item['raw']:
+                        raw['observation_count'] = len(raw['observations'])
+                        raw['observations_omitted'] = bool(raw['observations'])
                         raw.pop('observations')
+                self.assertIn('without --summary', short['detail_hint'])
+                full['detail_hint'] = short['detail_hint']
                 self.assertEqual(short, full)
                 self.assertEqual(short['test_commands_executed'], 0)
         self.assertFalse(marker.exists())
@@ -187,6 +192,23 @@ class VerificationResultViewerTests(unittest.TestCase):
             result = subprocess.run([sys.executable, str(VIEWER), *args, '--summary'], capture_output=True, text=True)
             self.assertEqual(result.returncode, 2)
             self.assertIn('--summary requires read-only lookup', result.stderr)
+
+    def test_summary_distinguishes_missing_raw_from_omitted_observations(self) -> None:
+        self.make_raw()
+        self.make_plan({'id': 'save-flow', 'expected': 'saved price'}, raw_for=self.raw)
+        self.make_capture()
+        self.make_assessment()
+        self.make_observation()
+        self.make_current()
+        _, available = self.check('--summary')
+        self.assertEqual(available['items'][0]['raw_availability'], 'AVAILABLE')
+        self.raw.unlink()
+        before = {p: p.read_bytes() for p in self.root.glob('*.json')}
+        _, missing = self.check('--summary')
+        self.assertEqual(missing['items'][0]['raw_availability'], 'UNAVAILABLE')
+        self.assertNotEqual(missing['items'][0]['current_status'], 'PASS')
+        self.assertEqual(missing['test_commands_executed'], 0)
+        self.assertEqual(before, {p: p.read_bytes() for p in before})
 
     def test_pass_requires_linked_raw_assertion_and_reports_reusable_history(self) -> None:
         check = {"id": "save-flow", "expected": "entered price survives save and reload"}

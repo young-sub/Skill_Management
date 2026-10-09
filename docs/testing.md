@@ -1,5 +1,15 @@
 # Testing And Impact Selection
 
+The workflow/refinement/hook selectors cover classification-roundtrip revocation,
+complete applicable criterion/guide connection bindings (including legacy review),
+task/project gap denominators and selected-task retention under payload pressure.
+The viewer/execution selectors cover omitted observation counts and exact task
+`lookup --summary`: historical PASS/current STALE, NOT_RUN and current reusable
+evidence remain distinct. Existing native captures prove shared-owner invalidation;
+all lookup/resume/hash checks execute zero tests. The same explicit state selectors
+support small task comparisons. See the [0.1.47 results](research/agent-workflow-implementation-results.md#d1d3-consumption-2026-10-09)
+for package consumption and independent natural-language evaluation limits.
+
 `tests.distribution.test_workflow_refinement` covers investigation without setup,
 stable denominator/context/permissions, read-only fresh-process resume, stale
 observation preservation, bounded hook previews, feedback kinds and actual native

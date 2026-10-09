@@ -1,10 +1,29 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: 3bdd1690a82f68b8ec2eedf2ee69facd51d7724e41d0dc4d6946ba256064c154 -->
+<!-- Source-SHA256: e013054d555271691f4fff094693f3f95af3262cce46a61255ee0b04d2ab9aac -->
 
 # Project workflow obligations
 
 Existing project config owns `extensions.workflow`; a task record under `.work` retains review progress. The bundled `scripts/project_workflow.py` computes obligations from current bytes and registered connections without calling a model. Requirements, feature meanings, causes and visual judgments remain Agent work. Review records are Agent inputs, not authenticated proof.
+
+`lookup --summary` (also `resume`/`audit`) reduces presentation after the same
+current evidence inspection. It retains exact task identity/request, Feature
+source/map/criterion references, complete scope matrix, excluded checks, original
+results/current reuse, raw pointers and next obligations. For several tasks, name
+a small set of exact states and invoke this lookup once per state. Candidate
+discovery reads identity metadata only; it does not validate every bundle. No new
+task registry or automatic batch execution is involved. Use the same exact lookup
+without `--summary` for observed assertion values and complete retained records.
+
+The prompt hook's `scope.gap_count` and `cell_count` cover `in_task` cells;
+`project_gap_count`/`project_cell_count` include the full matrix and
+`out_of_task_count` describes the difference. PASS and reasoned NOT_REQUIRED are
+not gaps; UNDECIDED, NOT_RUN, STALE and unavailable evidence stay visible. Expanded
+scope follows the current audit, including changed shared owners. Bounded context
+keeps an explicitly selected task and its detail pointer ahead of other candidates.
+Without a host-provided context, candidates are discovery only, not selection or
+proof of automatic host delivery. Whole-map/Git changes remain conservatively stale;
+complete Feature-local dependency coverage has not been established.
 
 ## Investigation without workflow setup
 

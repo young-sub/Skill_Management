@@ -98,6 +98,18 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertEqual(executed['features'][0]['verification_status'], 'PASS')
         self.assertFalse(executed['features'][0]['reviewed'])
         before = {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()}
+        _, summary = self.invoke('lookup', '--summary', context=context)
+        selected = next(f for f in summary['features'] if f['id'] == 'api')
+        self.assertEqual(summary['task']['task_id'], started['task']['task_id'])
+        self.assertEqual(selected['criteria'], ['docs/requirement.md'])
+        self.assertEqual(selected['evidence_status'], 'AVAILABLE')
+        self.assertEqual(selected['check_results'][0]['current_status'], 'PASS')
+        raw = selected['check_results'][0]['raw'][0]
+        self.assertTrue(raw['observations_omitted'])
+        self.assertGreater(raw['observation_count'], 0)
+        self.assertTrue(raw['path'])
+        self.assertTrue(summary['detail_command'])
+        self.assertEqual(summary['detail_command']['root'], str(self.root))
         for action, extra in [('lookup', []), ('resume', []), ('execute', ['--resume'])]:
             _, result = self.invoke(action, *extra, '--run-check', str(ROOT / 'scripts/run_check.py'), context=context)
             self.assertEqual(result['test_commands_executed'], 0, result)
@@ -108,6 +120,16 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertTrue(followup['task']['results']['api'])
         _, reused = self.invoke('prepare', context=followup['task_context'])
         self.assertEqual(reused['verification']['status'], 'NOT_REQUIRED', reused)
+        _, independent = self.invoke('start', '--intent', 'change', '--target', 'cli')
+        self.assertEqual(independent['task']['base'], started['task']['base'])
+        self.write('src/api.py', 'price = 12\n')
+        stale_before = {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()}
+        _, stale = self.invoke('lookup', '--summary', context=context)
+        self.assertEqual(stale['features'][0]['check_results'][0]['current_status'], 'UNKNOWN')
+        self.assertEqual(stale['features'][0]['check_results'][0]['current_reuse'], 'STALE')
+        self.assertEqual(stale['test_commands_executed'], 0)
+        self.assertEqual(stale_before, {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()})
+        self.assertEqual((self.root / '.work/calls').read_text(), '1')
 
     def test_legacy_console_execute_and_completed_resume_preserve_unicode(self):
         with patch.dict(os.environ, {'PYTHONIOENCODING': 'cp949'}):

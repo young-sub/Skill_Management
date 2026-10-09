@@ -1207,6 +1207,12 @@ def difference_criteria(config, feature):
                                        if feature['id'] in system['consumers']}
 
 
+def difference_criteria_connections(config, feature):
+    return {'feature': feature['id'], 'criteria': sorted(feature['criteria']),
+            'ui_guides': {identity: system['guide'] for identity, system in config.get('ui_systems', {}).items()
+                         if feature['id'] in system['consumers']}}
+
+
 def difference_review_matches(entry, config, feature):
     review = entry.get('user_review', {})
     refs = review.get('criteria_refs')
@@ -1216,8 +1222,7 @@ def difference_review_matches(entry, config, feature):
             review.get('disposition') == 'intentional_difference' and review.get('scope') == entry.get('scope') and
             isinstance(refs, list) and bool(refs) and all(isinstance(name, str) and
                 name in difference_criteria(config, feature) for name in refs) and
-            {system['guide'] for system in config.get('ui_systems', {}).values()
-             if feature['id'] in system['consumers']}.issubset(refs))
+            difference_criteria(config, feature).issubset(refs))
 
 
 def record_feedback(root, project, state, entry):
@@ -1230,7 +1235,7 @@ def record_feedback(root, project, state, entry):
     if previous and previous['feature'] != entry['feature']:
         raise ValueError('feedback_target_changed')
     updated = dict(previous, **deepcopy(entry))
-    for field in ('decision_hashes', 'decision_binding', 'decision_history'):
+    for field in ('decision_hashes', 'decision_binding', 'decision_history', 'confirmation_hashes'):
         if field in entry:
             raise ValueError('feedback_decision_basis_is_read_only')
     kinds = {'requirement_violation', 'requirement_change', 'intentional_difference', 'oracle_tool_error',
@@ -1265,7 +1270,7 @@ def record_feedback(root, project, state, entry):
     if updated.get('user_review'):
         references.append(updated['user_review']['reference'])
     if updated.get('kind') == 'intentional_difference':
-        old_review = previous.get('user_review', {})
+        old_review = previous.get('decision_binding', {}).get('review', previous.get('user_review', {}))
         new_review = entry.get('user_review', {})
         history = deepcopy(previous.get('decision_history', []))
         used = [item['user_review'].get('id') for item in history] + [old_review.get('id')]
@@ -1275,16 +1280,18 @@ def record_feedback(root, project, state, entry):
         updated['decision_binding'] = deepcopy(previous.get('decision_binding', {}))
         if new_review and new_review != old_review:
             if old_review:
-                history.append({key: deepcopy(previous.get(key, {})) for key in
-                                ('user_review', 'decision_hashes', 'decision_binding')})
+                history.append({'user_review': deepcopy(old_review), **{key: deepcopy(previous.get(key, {})) for key in
+                                ('decision_hashes', 'decision_binding')}})
             updated['decision_binding'] = {}
             if difference_review_matches(updated, configuration(project), feature):
                 updated['decision_hashes'] = {name: file_hash(root, name) for name in references}
                 updated['decision_binding'] = {'subject': difference_subject(updated), 'review': deepcopy(new_review),
-                    'criteria': {name: file_hash(root, name) for name in new_review['criteria_refs']}}
+                    'criteria': {name: file_hash(root, name) for name in new_review['criteria_refs']},
+                    'criteria_connections': difference_criteria_connections(configuration(project), feature)}
         updated['decision_history'] = history
     else:
-        updated['decision_hashes'] = {name: file_hash(root, name) for name in references}
+        # Classification confirmation cannot rewrite an existing exception decision.
+        updated['confirmation_hashes'] = {name: file_hash(root, name) for name in references}
     result = deepcopy(state)
     result.setdefault('feedback', {})[entry['id']] = updated
     return result
@@ -1353,12 +1360,18 @@ def inspect_feedback(root, config, state):
             for field in ('scope', 'reason', 'evidence_refs', 'owner_refs', 'reconsider'):
                 if not entry.get(field):
                     remaining.append(field)
-            if any(file_hash(root, name) != value for name, value in entry.get('decision_hashes', {}).items()):
+            hashes = (entry.get('decision_hashes', {}) if kind == 'intentional_difference' else
+                      entry.get('confirmation_hashes', entry.get('decision_hashes', {})))
+            if any(file_hash(root, name) != value for name, value in hashes.items()):
                 remaining.append('decision_evidence_stale')
             if entry.get('user_review', {}).get('decision') == 'defer':
                 remaining.append('user_review_deferred')
             if kind == 'intentional_difference':
                 binding = entry.get('decision_binding', {})
+                if not binding.get('criteria_connections'):
+                    remaining.append('decision_criteria_connections_required')
+                elif feature is None or binding['criteria_connections'] != difference_criteria_connections(config, feature):
+                    remaining.append('decision_criteria_connections_changed')
                 if (feature is None or not difference_review_matches(entry, config, feature) or
                         binding.get('subject') != difference_subject(entry) or
                         binding.get('review') != entry.get('user_review')):
@@ -1735,6 +1748,33 @@ def record_review(root, project, state, review):
     return updated
 
 
+def summarize_lookup(result, project, root):
+    """Present already inspected facts; discovery never audits other task bundles."""
+    summary = {key: deepcopy(result[key]) for key in ('status', 'mapping_status', 'coverage', 'read_only',
+        'test_commands_executed', 'findings', 'product_findings', 'feedback', 'investigation',
+        'execution_selection', 'task_context') if key in result}
+    task = result.get('task', {})
+    summary['task'] = {key: task.get(key) for key in ('state', 'work_id', 'task_id', 'intent', 'targets', 'request', 'base')}
+    summary['detail_command'] = {'action': 'lookup', 'root': str(root),
+        'state': task.get('state'), 'work_id': task.get('work_id'), 'summary': False}
+    viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
+    config = {f['id']: f for f in (configuration(project) or {}).get('features', [])}
+    active = {c['feature'] for c in result.get('coverage', {}).get('matrix', []) if c.get('in_task', True)}
+    summary['features'] = []
+    for feature in result.get('features', []):
+        row = {key: deepcopy(feature[key]) for key in ('id', 'partition', 'verification_status', 'checks', 'excluded_checks', 'reviewed')}
+        row.update({key: config[feature['id']][key] for key in ('sources', 'map', 'criteria')})
+        row['in_task'] = feature['id'] in active
+        row['bundles'] = task.get('results', {}).get(feature['id'], [])
+        row['evidence_status'] = ('AVAILABLE' if feature['check_results'] else
+            'UNAVAILABLE' if row['bundles'] else 'NOT_RUN' if feature['verification_status'] == 'REQUIRED' else 'NOT_REQUIRED')
+        row['check_results'] = viewer['summarize_results']({'items': feature['check_results']})['items']
+        summary['features'].append(row)
+    summary['next_actions'] = result.get('obligations', [])
+    summary['detail_hint'] = 'Observed values are omitted after validation, not missing. Follow bundles/raw path/pointer or repeat exact lookup without --summary. Historical results do not imply current reuse or task completion.'
+    return summary
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', choices=['begin', 'start', 'connect', 'resume', 'prepare', 'execute', 'lookup',
@@ -1749,6 +1789,7 @@ def main(argv=None):
     parser.add_argument('--run-check', type=Path, help='Project capture tool; plugin discovers its bundled tool')
     parser.add_argument('--timeout', type=float, default=300)
     parser.add_argument('--resume', action='store_true', help='Execute only never-started checks of this prepared run')
+    parser.add_argument('--summary', action='store_true', help='Read-only lookup/resume/audit summary with criteria, current reuse and raw pointers')
     parser.add_argument('--intent', choices=['init', 'change', 'feedback', 'ui', 'maintain', 'diagnose'], default='init')
     parser.add_argument('--request-summary', help='Ordinary task request; Harness work keeps its existing contract reference')
     parser.add_argument('--outcome-ref', action='append', default=[], help='Existing project-relative expected-outcome document')
@@ -1769,6 +1810,8 @@ def main(argv=None):
             raise ValueError('explicit_project_file_missing')
         if args.resume and args.action != 'execute' or args.output and args.action != 'prepare':
             raise ValueError('execution_options_require_matching_action')
+        if args.summary and args.action not in {'lookup', 'resume', 'audit'}:
+            raise ValueError('summary_requires_read_only_lookup')
         if (args.request_summary is not None or args.outcome_ref) and args.action not in {'begin', 'start'}:
             raise ValueError('request_metadata_requires_task_start')
         if args.investigation and args.action not in {'start', 'begin', 'investigate'}:
@@ -1868,6 +1911,8 @@ def main(argv=None):
                 result['selection_hint'] = 'Select an exact --state/--work-id. Other custom .work paths require their explicit --state.'
             except (OSError, ValueError, TypeError, KeyError):
                 pass
+    if args.summary and result.get('features') is not None:
+        result = summarize_lookup(result, project, root)
     print(json.dumps(result, sort_keys=True))
     if args.action in {'prepare', 'execute'} and result.get('verification'):
         return {'PREPARED': 0, 'NOT_REQUIRED': 0, 'PASS': 0, 'ISSUES': 1}.get(result['verification']['status'], 2)
