@@ -1,5 +1,29 @@
 # Agent workflow implementation and acceptance
 
+## Independent trial findings before package freeze, 2026-10-09
+
+The clean `0aa96ae` source passed the full repository suite: 369 tests in 537.359s,
+including actual browser artifacts retained under `.work/connected-product-artifacts/81986db5-66dd-4d36-8e19-5af817866832`.
+This full run predates the two focused corrections below; do not attribute it to
+the later source. The existing installed distributions remain untouched.
+
+An independent code review found unbounded request context. A 6,013-character
+request generated 14,262 characters of hook JSON; eight long task requests produced
+57,847. The hook now previews requests and marks omitted detail while the task
+record and exact lookup retain the complete content. Its fallback enforces the
+5,500-character JSON budget. Focused RED/GREEN checks retain exact current-task
+identity, eight candidates, unchanged state bytes and normal short requests.
+
+The API first-connection Agent independently encountered `roots: ["."]` producing
+zero inventoried sources. `Path` normalization removed dot segments before the
+validation check. The canonical guard now rejects raw dot segments instead of
+silently accepting an empty inventory. Dot, trailing-dot-root, prefixed-dot and
+nested-dot cases failed before the fix; an ordinary `src` root still surveys both
+source files. The original experimental package is unchanged and its failure is
+retained separately from this correction. The final affected workflow/hook/docs
+regression passed 49 tests (`.work/generic-completion/context-regression.log`);
+generated drift, distribution and diff checks passed.
+
 ## Generic completion G1 request binding, 2026-10-09
 
 Ordinary `start`/`begin` accept `--request-summary` and repeatable `--outcome-ref`

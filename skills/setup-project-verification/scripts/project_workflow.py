@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: a243a9ac4fa16ade52990aaae9d2f707992828eabb94cc98b2e312e207b1a094
+# Source-SHA256: 57a99313d28ee46e0ee3702ca064519e72e8ea6ed5c8ec567ff927e357311130
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -98,7 +98,7 @@ def configuration(project):
         raise ValueError('workflow_roots_and_features_must_be_lists')
     for prefix in config['roots']:
         if (not isinstance(prefix, str) or not prefix or Path(prefix).is_absolute()
-                or any(part in {'.', '..', '.git', '.work'} for part in Path(prefix).parts)):
+                or any(part in {'.', '..', '.git', '.work'} for part in prefix.replace(chr(92), '/').split('/'))):
             raise ValueError('invalid_inventory_root')
     ids = []
     for feature in config['features']:

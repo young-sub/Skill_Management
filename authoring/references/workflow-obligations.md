@@ -21,6 +21,9 @@ state under `.work/tasks/<task-id>/state.json`; no Harness contract is required.
 Use `--request-summary <text>` and repeatable `--outcome-ref <existing-project-file>`
 to bind the ordinary request to this record. Candidates, lookup and the read-only
 prompt hook expose that request; ambiguous candidates are never selected by time.
+The hook uses bounded request previews with an omission marker; exact lookup keeps
+the complete request and references. Inventory roots must name explicit files or
+directories without dot segments; `.` is rejected rather than treated as an empty survey.
 References must be safe existing project files. The summary is part of immutable
 task identity, not a completion claim. New follow-ups record their own summary.
 These options belong only to `start`/`begin`; lookup cannot rewrite them. Harness

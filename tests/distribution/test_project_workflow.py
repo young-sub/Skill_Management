@@ -138,6 +138,39 @@ class ProjectWorkflowTests(unittest.TestCase):
         _, bad = self.invoke('lookup', '--request-summary', 'Rewrite old request', context=second['task_context'])
         self.assertEqual(bad['status'], 'BLOCKED')
 
+    def test_long_request_hook_is_bounded_and_preserves_exact_task(self):
+        runtime = self.runtime()
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        summary = 'Long request for retained context: ' + 'x' * 6000
+        for index in range(8):
+            state = runtime.begin(self.root, self.project, 'change', ['api'],
+                                  request_summary=summary, outcome_refs=['docs/requirement.md'])
+            path = self.write(f'.work/tasks/{index}/state.json', json.dumps(state))
+        snapshot = {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()}
+        context = runtime.task_context(self.root, state, path)
+        hook = subprocess.run([sys.executable, str(SCRIPT.with_name('workflow_context.py'))],
+            input=json.dumps({'hook_event_name': 'UserPromptSubmit', 'cwd': str(self.root)}),
+            capture_output=True, text=True, encoding='utf-8',
+            env=dict(os.environ, AGENT_WORKFLOW_CONTEXT=context))
+        detail = json.loads(hook.stdout)['hookSpecificOutput']['additionalContext'].split('\n', 1)[1]
+        self.assertLessEqual(len(detail), 5500)
+        parsed = json.loads(detail)
+        self.assertEqual(parsed['current_task']['task_id'], state['task_id'])
+        self.assertTrue(parsed['current_task']['request']['summary'].startswith('Long request for retained context:'))
+        self.assertTrue(parsed['current_task']['request']['detail_omitted'])
+        self.assertEqual(snapshot, {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()})
+        self.assertEqual(json.loads(path.read_text())['request']['summary'], summary)
+
+    def test_dot_inventory_roots_are_rejected_before_empty_inventory(self):
+        runtime = self.runtime()
+        for root in ('.', './', './src', 'src/./nested'):
+            with self.subTest(root=root):
+                self.project['extensions']['workflow']['roots'] = [root]
+                with self.assertRaisesRegex(ValueError, 'invalid_inventory_root'):
+                    runtime.inspect_project(self.root, self.project)
+        self.project['extensions']['workflow']['roots'] = ['src']
+        self.assertEqual([f['source_count'] for f in runtime.inspect_project(self.root, self.project)['features']], [1, 1])
+
     def test_connect_validates_explicit_state_before_issuing_context(self):
         self.write('.harness/project.yaml', json.dumps(self.project))
         _, started = self.invoke('start', '--intent', 'change', '--target', 'api')

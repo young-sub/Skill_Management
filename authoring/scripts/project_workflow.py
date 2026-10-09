@@ -94,7 +94,7 @@ def configuration(project):
         raise ValueError('workflow_roots_and_features_must_be_lists')
     for prefix in config['roots']:
         if (not isinstance(prefix, str) or not prefix or Path(prefix).is_absolute()
-                or any(part in {'.', '..', '.git', '.work'} for part in Path(prefix).parts)):
+                or any(part in {'.', '..', '.git', '.work'} for part in prefix.replace(chr(92), '/').split('/'))):
             raise ValueError('invalid_inventory_root')
     ids = []
     for feature in config['features']:
