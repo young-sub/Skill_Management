@@ -121,7 +121,7 @@ def main():
         result = context(json.load(sys.stdin))
     except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
         result = {'systemMessage': 'Workflow context unavailable; completion is unverified: ' + str(error)}
-    print(json.dumps(result, ensure_ascii=False))
+    print(json.dumps(result))
     return 0
 
 

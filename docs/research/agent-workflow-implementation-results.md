@@ -60,10 +60,83 @@ Only after this G1-G4 acceptance and freeze, Labeler main was inspected. Its cle
 main was `000ffd1a868c84abe4657785f1e8c7813a9df749`, 69 commits ahead of the clean
 original checkout `6860d11`. A new independent Git snapshot contains 437 tracked
 source files; `.dev.vars.example` was excluded along with all untracked data,
-credentials and original Git state. Product acceptance is now in progress in
+credentials and original Git state. Product acceptance ran in
 `.work/generic-completion/labeler-product-acceptance`, initial snapshot `ab9766f`.
 The bounded request covers product entry/management/search and Escape/IME behavior;
 no Labeler-specific map, adapter or answer patch was supplied.
+
+## Product-discovered common console repair, 2026-10-09
+
+The 0.1.43 Labeler task completed its browser capture successfully (13 registered
+assertions, native exit 0), saved its bundle and state, then failed while printing
+JSON containing an en dash under Windows cp949. The browser was not rerun.
+A UTF-8 read-only view confirmed the retained PASS. The same D1 was subsequently
+read through a new Worker process and browser context.
+
+Four focused REDs reproduced the same defect in workflow execute, result-viewer
+execute, the prompt hook and Harness inventory. The nine terminal JSON print sites
+now use ASCII-safe JSON serialization. Decoded values, state/evidence files,
+digests and the hook's inner context are unchanged. Focused GREEN preserves
+Unicode, completed-execution zero-command resume and read-only state bytes.
+The affected workflow/hook/viewer regression passed 118 tests (353.311s),
+and the configured Harness regression passed 143 (54.182s). Documentation checks
+(3), resource drift and distribution validation also passed. Logs and actual exit
+codes are retained in `.work/generic-completion/console-*`. Version 0.1.44 will
+be frozen separately, then exercised against the retained product result and an
+independent project's normal path.
+No installed distribution or global console setting changes.
+
+## Actual product connection findings, 2026-10-09
+
+The Labeler trial exposed project-owned observation and environment assumptions.
+The original broad browser runner expected two quantity inputs simultaneously,
+but the current print queue expands one row at a time. Its repair preserves both
+saved quantities (2 and 3), click order and asynchronous restoration, and checks
+the detail inputs one at a time. A later pamphlet-pagination timeout remains
+unresolved and is outside the bounded product-search request; the broad runner
+is not reported as passing.
+
+The same Wrangler/local SELECT 1 failed with a fresh deep storage path and passed
+with a shorter path in the same project (actual SQLite path length 248), as well
+as a separate fresh TEMP path. This is evidence of a local path-length constraint,
+not a proved operating-system threshold or a product SQL defect. No global path,
+permission, provider or original data setting changed.
+
+Live attempts created a category and two products through the actual UI and
+Worker API. Repeated observation failures included the displayed range format,
+selectors reaching a hidden PhraseManager, a leftover local variable, and a
+network expectation that ignored the existing 10-second query cache. These are
+retained rework, not product REDs. The main Agent independently checked the live
+API observations and screenshot. A focused same-instance comparison then showed
+an alpha result returning from cache in 1.219 seconds with no second alpha GET,
+while a previously unqueried beta name produced one GET and the correct row.
+The early input-event mismatch hypothesis was superseded by that observation.
+
+Coordination included an independent print-runner review, local path probes,
+review of selector/expected-value mistakes, the cache hypothesis, and final
+commit/capture sequencing. This is supervised package use, not an unassisted
+native-host success. Project-owned guides and assertions carry the resulting
+prevention rules; no Labeler-specific rule belongs in the common plugin runtime.
+The product commit is `bfeb622c7dbd85564d74e26c916bcc437fbb8eaf` (clean).
+TypeScript and focused lint passed. Official browser run
+`41d9bbbb-9826-4d55-87f0-67fa47e3c7b6` matched all 13 native assertions:
+UI-created category/products, actual POST/GET IDs, search, immediate Escape
+requests (23/53ms), and composition-event draft preservation with no intermediate
+search. After owned Worker PID 19576 stopped, a new PID 17600/browser read the
+same two IDs from the same fresh D1. The main Agent independently inspected both
+raw reports, the final screenshot, and a read-only SQL query of the test database.
+These timings measure request initiation, not API performance; synthetic composition
+events do not establish physical OS IME behavior.
+
+Task `e32b7bff-274c-4fcf-8518-f2a74bd548a9` reached READY_FOR_REVIEW. Follow-up
+`5107d320-3988-458d-b6e6-14ff1acc8ddb` inherited its results/guide; prepare was
+NOT_REQUIRED with zero selected/executed checks. Its fresh scope decisions remain
+PARTIAL as intended, not a false completion. The 0.1.43 full task output required
+a process-local UTF-8 override because of the console defect above. New-package
+recovery is still pending. Resources and original failures remain under the
+snapshot's `.work/product-management-search-*` paths. Owned services were stopped;
+the main Agent separately identified and stopped the initial snapshot Vite PID
+26048, which the later handoff had conservatively left untouched.
 
 ## Independent cleanup observation repair, 2026-10-09
 

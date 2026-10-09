@@ -8,7 +8,7 @@ The package identity and version are owned by `distribution/plugin.json`.
 ## Build
 
 ```powershell
-python scripts/build_plugin.py --output .work/packages/agentic-coding-0.1.43
+python scripts/build_plugin.py --output .work/packages/agentic-coding-0.1.44
 ```
 
 The builder first runs the existing generated-resource check. It selects tracked
@@ -56,6 +56,12 @@ host evidence. A project selects the installed dependency files that constrain
 reuse; unlisted transitive runtime changes remain outside that declaration.
 
 ## Capabilities and current boundary
+
+Version 0.1.44 fixes JSON terminal output on legacy console encodings. Unicode
+values survive JSON parsing, while stdout/stderr use ASCII escapes so a successful
+execution cannot fail merely when printing its result. Saved UTF-8 evidence and
+state hashes are unchanged. The original 0.1.43 product trial remains separate
+from the corrected package and its subsequent checks.
 
 Version 0.1.43 adds ordinary/Harness follow-up review and unresolved-finding
 continuity, request summaries and outcome references, bounded prompt previews,

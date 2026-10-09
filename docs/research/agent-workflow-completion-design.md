@@ -25,9 +25,11 @@
 
 범용 최초 연결도 구현 범위다. 처음 보는 프로젝트의 기존 문서·코드·검사에서 기능과 실행 방법을 조사하고, 부족한 지도·가이드·연결을 작성한 뒤 실제 실행으로 확인한다. 필요한 최소 adapter는 프로젝트에 두고 공통 capture/선택/수집을 재구현하지 않는다. 작은 작업에 Harness 계약이나 설치를 강제하지 않는다. 지원 범위는 실제 실행·관찰 능력으로 명시하며 FE가 없는 프로젝트의 이유 있는 제외를 허용한다.
 
-### 현재 출발점과 확인된 공백
+### 실행 전 출발점과 확인된 공백
 
-2026-10-09 확인한 최신 구현 기준은 `wp-20261007-connected-workflows`, `23e5d152038abf30765a019729c02bc05f640b5d`, 소스 버전 `0.1.42`다. 원본 checkout은 `172dfa3`였으므로 경로 이름만으로 최신 여부를 판단하지 않는다. 다음 세션에서는 main·작업 브랜치·설치본의 현재 상태를 각각 다시 확인한다.
+다음 항목은 2026-10-09 실행 전 기준이다. 후속 검토·미해결 문제 승계, 요청 연결, hook 길이 및 inventory root 결함은 0.1.43에서 수리·검증했다. 재사용의 전체 Git 무효화는 완전한 의존 범위 증명이 없어 유지한다. [현재 구현 결과](agent-workflow-implementation-results.md)가 실행 상태를 소유한다.
+
+당시 확인한 구현 기준은 `wp-20261007-connected-workflows`, `23e5d152038abf30765a019729c02bc05f640b5d`, 소스 버전 `0.1.42`다. 원본 checkout은 `172dfa3`였으므로 경로 이름만으로 최신 여부를 판단하지 않는다. 다음 세션에서는 main·작업 브랜치·설치본의 현재 상태를 각각 다시 확인한다.
 
 - 이미 구현된 작업 context, prepare/execute/bundle/lookup, scope matrix, 실제 브라우저 시험 runner, 피드백·UI·검사 유지보수 연결을 재사용한다. 범위별 실제 근거는 [구현 결과](agent-workflow-implementation-results.md#connected-actual-product-use-2026-10-07)를 따른다.
 - `project_workflow.begin()`의 일반 후속 작업은 `reviews`를 비운다. 두 Feature의 유효 검토를 만든 읽기 전용 메모리 재현에서 하나만 대상으로 새 작업을 시작해도 무관한 Feature의 `map_review`가 다시 생겼다. Harness `begin_work()`에는 유효 검토를 승계하는 별도 경로가 있다.

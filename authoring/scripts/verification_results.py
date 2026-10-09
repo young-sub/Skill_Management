@@ -2056,7 +2056,7 @@ def main(argv: list[str] | None = None) -> int:
                                   pending_state=args.pending_state, work_id=args.work_id)
         except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
             result = {'status': 'BLOCKED', 'reason': str(error), 'test_commands_executed': 0}
-        print(json.dumps(result, ensure_ascii=False, indent=2 if args.pretty else None))
+        print(json.dumps(result, indent=2 if args.pretty else None))
         return 0 if result['status'] in {'PREPARED', 'NOT_REQUIRED'} else 2
     if args.root or args.plan_output or args.report_dir or args.pending_state or args.work_id:
         _parser().error('--root, --plan-output and --report-dir require --prepare')
@@ -2069,7 +2069,7 @@ def main(argv: list[str] | None = None) -> int:
             result = view_bundle(args.bundle, workflow_state=args.workflow_state)
         if args.summary:
             result = summarize_results(result)
-        print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2 if args.pretty else None))
+        print(json.dumps(result, sort_keys=True, indent=2 if args.pretty else None))
         return {"PASS": 0, "ISSUES": 1, "BLOCKED": 2}.get(result.get("status"), 2)
     if args.execute:
         if args.run_check is None:
@@ -2089,7 +2089,7 @@ def main(argv: list[str] | None = None) -> int:
                 )
             except (OSError, ValueError, TypeError, KeyError) as error:
                 result = _blocked_execution(str(error), plan_path=args.plan, run_check_path=args.run_check)
-        print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2 if args.pretty else None))
+        print(json.dumps(result, sort_keys=True, indent=2 if args.pretty else None))
         return {"PASS": 0, "ISSUES": 1, "BLOCKED": 2}.get(result.get("status"), 2)
     try:
         result = view_results(
@@ -2114,7 +2114,7 @@ def main(argv: list[str] | None = None) -> int:
         }
     if args.summary:
         result = summarize_results(result)
-    print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2 if args.pretty else None))
+    print(json.dumps(result, sort_keys=True, indent=2 if args.pretty else None))
     return {"PASS": 0, "ISSUES": 1, "BLOCKED": 2}.get(result.get("status"), 2)
 
 

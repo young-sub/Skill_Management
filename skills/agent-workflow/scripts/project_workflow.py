@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: 57a99313d28ee46e0ee3702ca064519e72e8ea6ed5c8ec567ff927e357311130
+# Source-SHA256: 92995e7d9886b4cf87620f29e723b28420ad86596f8c4ef29df25439884882d8
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -1471,7 +1471,7 @@ def main(argv=None):
                 result['selection_hint'] = 'Select an exact --state/--work-id. Other custom .work paths require their explicit --state.'
             except (OSError, ValueError, TypeError, KeyError):
                 pass
-    print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+    print(json.dumps(result, sort_keys=True))
     if args.action in {'prepare', 'execute'} and result.get('verification'):
         return {'PREPARED': 0, 'NOT_REQUIRED': 0, 'PASS': 0, 'ISSUES': 1}.get(result['verification']['status'], 2)
     return 0 if result['status'] in {'READY_FOR_REVIEW', 'NOT_CONFIGURED'} else 2

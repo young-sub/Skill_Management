@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -220,6 +221,25 @@ class CoreFirstCutoverTests(unittest.TestCase):
         )
         self.assertTrue(discovery["full_required"])
         self.assertIn("test_discovery", [warning["trigger_id"] for warning in discovery["full_warnings"]])
+
+    def test_legacy_console_inventory_and_errors_preserve_unicode(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'src').mkdir()
+            name = 'price-\u2013.py'
+            (root / 'src' / name).write_text('PRICE = 1\n', encoding='utf-8')
+            mapping = root / 'mapping.json'
+            mapping.write_text(json.dumps({'source_roots': ['src']}), encoding='utf-8')
+            env = dict(os.environ, PYTHONIOENCODING='cp949')
+            result = subprocess.run([sys.executable, str(CORE_PATH), 'inventory', '--root', str(root),
+                '--mapping', str(mapping)], capture_output=True, text=True, encoding='utf-8', env=env)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(name, json.dumps(json.loads(result.stdout), ensure_ascii=False))
+            missing = root / 'missing-\u2013.json'
+            failed = subprocess.run([sys.executable, str(CORE_PATH), 'inventory', '--root', str(root),
+                '--mapping', str(missing)], capture_output=True, text=True, encoding='utf-8', env=env)
+            self.assertEqual(failed.returncode, 2, failed.stderr)
+            self.assertIn(missing.name, json.loads(failed.stderr)['errors'][0])
 
     def test_public_core_script_exposes_inventory_and_json_design_cli(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

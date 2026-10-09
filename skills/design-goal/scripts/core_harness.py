@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/core_harness.py
-# Source-SHA256: ea1184023b2959c54018f06eaa633fcf7cb4754ca00c509b3d5db7a4d64bc52c
+# Source-SHA256: 7930a2e66a5df559c74a4d2fd0c9cd6388ec80e7d6305d9dd826623425b45552
 
 #!/usr/bin/env python3
 """Deterministic Core-First Agent Harness contracts and compatibility checks."""
@@ -3955,7 +3955,7 @@ def _cli_parser(owner: str | None = None) -> argparse.ArgumentParser:
 def main() -> int:
     guidance = _wrong_skill_command_guidance(sys.argv)
     if guidance is not None:
-        print(json.dumps(guidance, ensure_ascii=False, sort_keys=True), file=sys.stderr)
+        print(json.dumps(guidance, sort_keys=True), file=sys.stderr)
         return 2
     args = _cli_parser().parse_args()
     try:
@@ -4066,7 +4066,7 @@ def main() -> int:
             )
         else:
             raise ValueError(f"unsupported_command:{args.command}")
-        print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+        print(json.dumps(payload, sort_keys=True))
         return 0 if payload.get("status") not in {
             "cutover_blocked", "invalid", "invalid_contract", "authorization_failed",
             "approval_required", "precondition_failed", "incomplete", "conflict",
@@ -4082,7 +4082,7 @@ def main() -> int:
             "not_found", "retention_active",
         } else 2
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
-        print(json.dumps({"status": "invalid", "errors": [str(error)]}, ensure_ascii=False), file=sys.stderr)
+        print(json.dumps({"status": "invalid", "errors": [str(error)]}), file=sys.stderr)
         return 2
 
 

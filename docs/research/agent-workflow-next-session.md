@@ -1,5 +1,9 @@
 # 다음 세션: 범용 플러그인 완성 후 실제 제품 인수
 
+## 실행 상태 (2026-10-09)
+
+이 프롬프트의 G1–G4는 구현·독립 프로젝트 검증·0.1.43 패키지 고정을 마쳤다. G5 실제 제품 인수와 G6 소유 위치 개선의 최종 상태는 [현재 구현 결과](agent-workflow-implementation-results.md)를 따른다. 아래 블록은 실행에 사용한 범위·수용 기준의 기록이며, 이 문서를 읽는 것만으로 같은 작업을 다시 시작하거나 설치·배포할 권한이 생기지 않는다.
+
 갱신일: 2026-10-09. [방향 합의](agent-coding-system-direction.md)와 [완성 설계 §0의 G1–G6](agent-workflow-completion-design.md#generic-plugin-first)를 실행하는 프롬프트다. 기존 U1–U7의 책임·업무 기준은 유지한다. 과거 실행 지시의 Labeler 선행 연결·임시 설치·관리자 환경 구축을 재개하지 않는다. 이 문서 작성은 아래 기능의 구현 완료가 아니다.
 
 문서 작성 시 확인한 최신 구현은 23e5d152038abf30765a019729c02bc05f640b5d, 소스 버전 0.1.42다. main과 설치본의 현재 상태는 다음 세션에서 다시 확인한다. [현재 구현 결과](agent-workflow-implementation-results.md#connected-actual-product-use-2026-10-07)와 §0의 알려진 결함을 출발점으로 사용하며 전체 과거 이력을 다시 조사하지 않는다.

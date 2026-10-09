@@ -1467,7 +1467,7 @@ def main(argv=None):
                 result['selection_hint'] = 'Select an exact --state/--work-id. Other custom .work paths require their explicit --state.'
             except (OSError, ValueError, TypeError, KeyError):
                 pass
-    print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+    print(json.dumps(result, sort_keys=True))
     if args.action in {'prepare', 'execute'} and result.get('verification'):
         return {'PREPARED': 0, 'NOT_REQUIRED': 0, 'PASS': 0, 'ISSUES': 1}.get(result['verification']['status'], 2)
     return 0 if result['status'] in {'READY_FOR_REVIEW', 'NOT_CONFIGURED'} else 2

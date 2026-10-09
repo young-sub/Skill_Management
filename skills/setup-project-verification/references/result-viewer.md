@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/result-viewer.md -->
-<!-- Source-SHA256: be693d46236cc82c1b142e19e25dfce56568f2eeb25e1fe71ab873f52f8a3382 -->
+<!-- Source-SHA256: 7e92df653b988fd64fb5e21927c4d55016f9c94c2a5132c46c78dbdd926f05f5 -->
 
 # Existing-result lookup
 
@@ -11,6 +11,12 @@ read-only `lookup` and task `resume`, composing this viewer without a new runner
 See [request context](workflow-obligations.md#connect-the-current-request-once).
 Its plan pointer belongs to the existing task; the original viewer commands and
 project-specific adapters remain usable independently.
+
+Workflow, result-viewer, prompt-hook and Harness terminal JSON uses ASCII escapes
+for non-ASCII characters, preserving decoded values on legacy console encodings.
+This does not change UTF-8 state/evidence files, digests, or the hook context after
+JSON decoding. A completed execution can be inspected or resumed without rerunning
+its checks even if an older CLI failed while printing the completed result.
 
 ```
 python <agent-workflow>/scripts/verification_results.py --plan plan.json --record capture.json --assessment assessment.json --observation observed.json --current-context current.json --pretty

@@ -69,7 +69,7 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertEqual(replaced['status'], 'BLOCKED')
         self.assertIn('context_task_identity_changed', str(replaced['findings']))
 
-    def test_connected_prepare_execute_lookup_and_completed_execution_resume(self):
+    def test_connected_prepare_execute_lookup_and_completed_execution_resume(self, expected_label="Eleven"):
         self.project['commands']['check'] = [sys.executable, 'src/run.py', '{report_dir}/native.json']
         self.project['extensions']['workflow']['assertions'] = 'assertions.json'
         self.write('src/run.py', "import json,sys\nfrom pathlib import Path\n"
@@ -79,7 +79,7 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.project['extensions']['workflow']['features'][0]['sources'].append('src/run.py')
         self.write('.harness/project.yaml', json.dumps(self.project))
         self.write('assertions.json', json.dumps({'schema_version': 1, 'checks': [{
-            'id': 'check', 'feature_id': 'api', 'expected': 'Eleven', 'required': True,
+            'id': 'check', 'feature_id': 'api', 'expected': expected_label, 'required': True,
             'selection': {'status': 'selected', 'reason': 'Changed arithmetic'},
             'raw_observations': [{'path': '{report_dir}/native.json', 'pointer': '/checks',
                                   'assertions': [{'pointer': '/checks/0/actual', 'equals': 11}]}],
@@ -92,6 +92,7 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertFalse((self.root / '.work/calls').exists())
         _, executed = self.invoke('execute', '--run-check', str(ROOT / 'scripts/run_check.py'), context=context)
         self.assertEqual(executed['verification']['status'], 'PASS', executed)
+        self.assertIn(expected_label, json.dumps(executed, ensure_ascii=False))
         self.assertEqual(executed['test_commands_executed'], 1)
         self.assertEqual((self.root / '.work/calls').read_text(), '1')
         self.assertEqual(executed['features'][0]['verification_status'], 'PASS')
@@ -107,6 +108,26 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertTrue(followup['task']['results']['api'])
         _, reused = self.invoke('prepare', context=followup['task_context'])
         self.assertEqual(reused['verification']['status'], 'NOT_REQUIRED', reused)
+
+    def test_legacy_console_execute_and_completed_resume_preserve_unicode(self):
+        with patch.dict(os.environ, {'PYTHONIOENCODING': 'cp949'}):
+            self.test_connected_prepare_execute_lookup_and_completed_execution_resume(
+                expected_label='Eleven \u2013 \U0001f642')
+
+    def test_legacy_console_hook_keeps_unicode_request_and_is_read_only(self):
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        label = 'Keep \u2013 \U0001f642'
+        with patch.dict(os.environ, {'PYTHONIOENCODING': 'utf-8'}):
+            _, started = self.invoke('start', '--request-summary', label)
+        before = {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()}
+        hook = subprocess.run([sys.executable, str(SCRIPT.with_name('workflow_context.py'))],
+            input=json.dumps({'cwd': str(self.root), 'hook_event_name': 'UserPromptSubmit'}),
+            capture_output=True, text=True, encoding='utf-8',
+            env=dict(os.environ, PYTHONIOENCODING='cp949', AGENT_WORKFLOW_CONTEXT=started['task_context']))
+        self.assertEqual(hook.returncode, 0, hook.stderr)
+        detail = json.loads(json.loads(hook.stdout)['hookSpecificOutput']['additionalContext'].split('\n', 1)[1])
+        self.assertEqual(detail['current_task']['request']['summary'], label)
+        self.assertEqual(before, {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()})
 
     def test_request_context_distinguishes_candidates_and_is_not_inherited(self):
         self.write('.harness/project.yaml', json.dumps(self.project))

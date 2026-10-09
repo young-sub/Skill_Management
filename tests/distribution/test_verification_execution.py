@@ -773,6 +773,23 @@ class VerificationExecutionTests(unittest.TestCase):
         spec.loader.exec_module(module)
         return module
 
+    def test_legacy_console_execute_and_lookup_keep_unicode_evidence(self):
+        plan = self._plan()
+        data = json.loads(plan.read_text(encoding='utf-8'))
+        label = 'Readback \u2013 \U0001f642'
+        data['checks'][0]['expected'] = label
+        plan.write_text(json.dumps(data), encoding='utf-8')
+        with patch.dict(os.environ, {'PYTHONIOENCODING': 'cp949'}):
+            result, payload = self._execute(plan)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(payload['items'][0]['expected'], label)
+            snapshot = {str(p): p.read_bytes() for p in self.evidence.rglob('*') if p.is_file()}
+            resumed, same = self._execute(plan, resume=True)
+            self.assertEqual(resumed.returncode, 0, resumed.stderr)
+            self.assertEqual(same['test_commands_executed'], 0)
+            self.assertEqual(same['items'][0]['expected'], label)
+            self.assertEqual(snapshot, {str(p): p.read_bytes() for p in self.evidence.rglob('*') if p.is_file()})
+
     def test_execute_child_report_binds_facts_and_current_passes(self) -> None:
         result, payload = self._execute(self._plan())
 
