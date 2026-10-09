@@ -11,6 +11,10 @@ unrelated-source rejection, and legacy/scoped investigation unknowns. Approval i
 are synthetic fixtures, not user UI reviews. Exact package CLI/hook lookup and
 fresh-task reuse retain hashes and execute zero checks. Whole-Git stale identity
 is unchanged; these feedback dispositions never imply a complete product PASS.
+For an immutable local package trial, set `PYTHONDONTWRITEBYTECODE=1` only on
+the child-process environment and compare the complete package inventory before
+and after execution. A Python cache is a changed artifact even when shipped source
+bytes match; preserve the failed attempt and use a fresh build destination.
 The existing
 connected-product suite now contrasts direct API/Domain/SQLite restart readback
 with a deliberately corrupted frontend payload; cell PASS cannot conceal that

@@ -41,7 +41,7 @@ refinement/hook run passed 23 tests in 44.651s; Full predates only this final
 preview correction and its added test.
 
 The final local 0.1.46 candidate uses the existing builder (19 Skills, 246 files).
-`acceptance-final/commands.json` retains 32 actual package subprocesses with exact
+`acceptance-frozen/commands.json` retains 32 actual acceptance subprocesses with exact
 argv/cwd, outputs and native exits. Quote cap retirement executed the existing
 normal contract, retained negative-input rejection, and made the next related
 task require zero new checks. No replacement cap detector was added. Feedback
@@ -72,6 +72,35 @@ both corrections in `fresh-reader-audit.json`. This is bounded record handoff,
 not proof of autonomous package discovery or semantic correctness. Four earlier
 acceptance harness failures (missing fixture field, expected-exit handling and
 summary-only lookup) are retained; the corrected final package run passed.
+
+Final source commit is `1875be96f23e38a1dd211c78dc2f8d800d56d92a`.
+The final project-workflow regression passed 47 tests in 54.365s; repository
+docs/cutover passed 13 in 3.067s. Resource drift, distribution validation and
+`git diff --check` passed. The frozen package's nine additional CLI/viewer
+readbacks preserved exact task IDs, OPEN feedback, current normal-contract PASS,
+unknown/stale observations, all project file hashes and the execution count of
+two. No tests ran during readback; every package file and ZIP byte remained
+unchanged. The existing viewer consumed the actual raw assertion result.
+
+The first freeze refused an extra Python bytecode cache created during candidate
+execution; shipped file bytes were identical. The final trial used process-scoped
+`PYTHONDONTWRITEBYTECODE=1` with a fresh builder output and exact inventory equality,
+without changing global configuration. An initial readback assertion selected
+the independent maintenance context for feedback; the corrected reader uses the
+retained feedback context separately. Both harness failures remain evidence.
+
+| Frozen artifact | Binding |
+| --- | --- |
+| `.work/post-review-implementation-20261009/agentic-coding-0.1.46-frozen/` | Byte-identical to the final executed candidate; each distributed source is checked against the source commit with CRLF normalization. |
+| `agentic-coding-0.1.46.zip` | SHA-256 `91c5a29b9234715ad896d842cbf57bb7f4b5b8125fdb6b3061fa2c086447139d` |
+| `package-files.json` | SHA-256 `2e457c5ecc664b3534abb2e251582519c9e927e5a6b8b54c07f15ec57b8ae5bd` |
+| `frozen-provenance.json`, `frozen-readonly-readback.json` | Complete per-file/source hashes, actual commands and before/after evidence. |
+
+Archived worktree captures retain their original absolute paths as historical
+evidence; those paths are not runnable after worktree cleanup. The retained
+acceptance projects and frozen package have separate preserved paths. Package
+source bytes remain bound to the source commit even when later delivery docs
+advance local main.
 
 Evidence is retained outside the created worktree under
 `.work/post-review-implementation-20261009/`: baseline/plan, RED/GREEN captures,
