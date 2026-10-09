@@ -1,5 +1,10 @@
 # Agent workflow implementation and acceptance
 
+The later [0.1.46 design review](agent-workflow-refinement-review.md#post-0146-review)
+reproduces additional kind-roundtrip, newly added criterion and task/global hook-gap
+cases. The completed cases below remain valid within their recorded scope; they do
+not cover those additional defects, and this review does not patch the runtime.
+
 ## Post-review reliability, 2026-10-09
 
 Version 0.1.46 implements the additional 0.1.45 counterexamples from the latest
