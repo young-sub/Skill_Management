@@ -1,6 +1,8 @@
 # Agent Coding 설계·실행 프롬프트 아카이브
 
-2026-10-05 사용자 논의로 대체된 방향 또는 수행 완료 지시를 보존한다. 아래 문서는 역사적 근거이며 현재 구현 지시가 아니다. 현재 결정은 [업무 위임·검증·지속 개선 체계](../agent-coding-system-direction.md), 다음 작업은 [실행 프롬프트](../agent-coding-next-session.md)를 따른다.
+2026-10-05 이후 사용자 논의로 대체된 방향 또는 수행 완료 지시를 보존한다. 아래 문서는 역사적 근거이며 현재 구현 지시가 아니다. 현재 결정은 [업무 위임·검증·지속 개선 체계](../agent-coding-system-direction.md), 다음 작업은 [현재 실행 프롬프트](../agent-workflow-next-session.md)를 따른다.
+
+2026-10-09 G1–G6 실행 프롬프트는 Git `95c4f9e:docs/research/agent-workflow-next-session.md`에 원문이 보존돼 있다. 현재 프롬프트는 [0.1.44 이후 보완 검토](../agent-workflow-refinement-review.md)를 반영한 R0–R4와 최신 main 동기화·로컬 통합 요청이며, 이전 완료 과업을 다시 구현하라는 지시가 아니다.
 
 | 보존 문서 | 아카이브 이유 |
 | --- | --- |

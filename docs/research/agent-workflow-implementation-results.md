@@ -1,5 +1,17 @@
 # Agent workflow implementation and acceptance
 
+## Current follow-up handoff, 2026-10-09
+
+The read-only UI trial and subsequent maturity review are summarized in the
+[refinement review](agent-workflow-refinement-review.md). The next authorized
+implementation uses [R0–R4](agent-workflow-completion-design.md#review-driven-refinement)
+and the [current execution prompt](agent-workflow-next-session.md): refresh main,
+implement and verify the observed gaps in a new worktree, then integrate to local
+main. This handoff changes documentation only. It does not claim new runtime
+behavior, improved Agent effectiveness, user acceptance of the UI candidates,
+or a new installed-host result. The bounded G1–G6 implementation evidence below
+remains historical/current implementation evidence, not a checklist to rerun.
+
 ## Delivery scope, 2026-10-09
 
 G1-G6 are completed within the bounded local implementation, independent trials,

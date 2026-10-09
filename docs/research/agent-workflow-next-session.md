@@ -1,149 +1,179 @@
-# 다음 세션: 범용 플러그인 완성 후 실제 제품 인수
+# 다음 세션: 검토된 공백 구현·검증 후 로컬 main 병합
 
-## 실행 상태 (2026-10-09)
+갱신일: 2026-10-09. 이 문서는 0.1.44 검토 이후의 **현재 실행 프롬프트**다. 사용자가 이 프롬프트를 다음 세션의 요청으로 전달하면 아래 구현·로컬 Git 통합 범위를 승인한 것이다. 문서를 우연히 읽은 것만으로 실행 권한이 생기지는 않는다.
 
-이 프롬프트의 G1–G4는 구현·독립 프로젝트 검증·0.1.43 패키지 고정을 마쳤다. G5 실제 제품 인수와 G6 소유 위치 개선의 최종 상태는 [현재 구현 결과](agent-workflow-implementation-results.md)를 따른다. 아래 블록은 실행에 사용한 범위·수용 기준의 기록이며, 이 문서를 읽는 것만으로 같은 작업을 다시 시작하거나 설치·배포할 권한이 생기지 않는다.
+기존 G1–G6의 범위 한정 구현·시험은 [구현 결과](agent-workflow-implementation-results.md)에 있다. 이전 실행 프롬프트는 Git `95c4f9e:docs/research/agent-workflow-next-session.md`에서 확인할 수 있으며 다시 수행할 미완료 목록이 아니다. 현재 범위는 [보완 검토](agent-workflow-refinement-review.md)와 [R0–R4 완료 기준](agent-workflow-completion-design.md#review-driven-refinement)을 따른다.
 
-갱신일: 2026-10-09. [방향 합의](agent-coding-system-direction.md)와 [완성 설계 §0의 G1–G6](agent-workflow-completion-design.md#generic-plugin-first)를 실행하는 프롬프트다. 기존 U1–U7의 책임·업무 기준은 유지한다. 과거 실행 지시의 Labeler 선행 연결·임시 설치·관리자 환경 구축을 재개하지 않는다. 이 문서 작성은 아래 기능의 구현 완료가 아니다.
-
-문서 작성 시 확인한 최신 구현은 23e5d152038abf30765a019729c02bc05f640b5d, 소스 버전 0.1.42다. main과 설치본의 현재 상태는 다음 세션에서 다시 확인한다. [현재 구현 결과](agent-workflow-implementation-results.md#connected-actual-product-use-2026-10-07)와 §0의 알려진 결함을 출발점으로 사용하며 전체 과거 이력을 다시 조사하지 않는다.
-
-아래 블록을 다음 세션의 사용자 요청으로 전달한다. 문서만 열었다는 이유로 실행 권한을 추정하지 않는다. 현재 사용자의 추가 범위·권한 지시가 우선한다.
+아래 블록 전체를 다음 세션에 전달한다.
 
 ```text
-/goal 범용 agentic-coding 플러그인을 실제 사용자 업무가 완결되도록 고도화하고,
-제품 독립 검증과 패키지 고정을 마친 뒤 연두라벨에서 실제 인수 시험을 수행하라.
+agentic-coding 플러그인의 최신 고도화 보완안을 실제로 구현·검증하고,
+완료한 변경을 Skill_Management 로컬 main에 병합해줘.
+짧은 계획 후 실제 구현을 진행하고, 계획·문서·스키마·시험 자료만으로 끝내지 마.
 
 저장소: C:\Users\YS\Desktop\python\Skill_Management
-새 worktree 부모: C:\Users\YS\Desktop\python\Skill_Management-worktrees
+연두라벨 참고 대상: C:\Users\YS\Desktop\python\labeler
 
-먼저 다음 문서를 읽고 승인된 방향을 이어가라.
-- AGENTS.md, docs/index.md, .harness/project.yaml
+이 요청은 Skill_Management의 source/tests/docs/저장소 generated 리소스 수정,
+격리된 로컬 시험·새 로컬 패키지 생성, 기능 단위 커밋, 최신 main 반영,
+검증된 작업의 로컬 main 병합과 이번에 만든 작업 공간 정리를 승인한다.
+저장소의 main 보호 정책에 대한 이번 작업의 명시적 로컬 통합 승인이다.
+push/publish/deploy, 기존 설치 Skill/Plugin·전역 설정·인증·권한 변경은 승인하지 않는다.
+플러그인 고도화가 대상이며 연두라벨 제품 UI 후보를 수정하는 요청이 아니다.
+
+1. 최신 Git 기준과 보존
+- AGENTS.md, docs/index.md, .harness/project.yaml, docs/agents/workflow.md와
+  적용 경로의 nested AGENTS.md, 환경 capability 예외를 먼저 읽어라.
+- 현재 branch/HEAD/staged/unstaged/untracked, local main, upstream/remote,
+  worktree 목록과 main 포함 관계를 확인하고 dirty baseline을 보존하라.
+- git fetch origin으로 실제 원격을 확인하고, main 작업 공간에서
+  git pull --ff-only origin main으로 동기화하라. upstream 이름이 다르면 실제 설정을 따르라.
+  작성 당시 local main은 0.1.44 구현을 포함한 95c4f9e에서 문서 보완이 추가되는 상태였고,
+  origin/main보다 92커밋 앞서 있었다. 이 값은 참고이며 현재 상태를 다시 확인하라.
+- 로컬이 앞서 있으면 그 커밋을 보존한다. 양쪽이 갈라졌다면 서로의 변경을 검토해
+  필요한 병합·충돌 해결을 하며 hard reset/force push/사용자 변경 덮어쓰기는 하지 마라.
+  fetch/pull이 환경 때문에 실패하면 오류와 원격 최신성 미확인을 기록하고,
+  확인 가능한 로컬 작업은 진행하되 동기화 성공으로 보고하지 마라.
+- 뒤처진 기존 작업 브랜치에서 구현하지 말고 최신 로컬 main에서 고유한 새 branch/worktree를 만든다.
+  원본 저장소 하위에 중첩하지 않는 허용된 작업 소유 경로(TEMP 또는 별도 worktree 부모)를 우선하라.
+  이번 인계의 router/config 검사는 중첩 worktree에서 상위 저장소 경로 처리 오류가 났고,
+  독립 TEMP 경로로 이동한 동일 내용에서는 통과했다. 기존 worktree나 .work를 재사용·삭제하지 마라.
+- 여러 Agent가 같은 task 기록·공통 파일에 동시에 쓰지 않게 하라.
+  태스크별 기록을 분리하고 공통 source/state 통합 작성자는 한 명으로 둬라.
+
+2. 최신 설계와 이미 구현된 기능
+다음 문서의 최신 구간과 관련 코드·호출자·테스트를 읽어라.
 - docs/research/agent-coding-system-direction.md
-- docs/research/agent-workflow-completion-design.md의 §0 및 관련 U1–U7
-- docs/research/agent-workflow-implementation-results.md의 현재 구현·한계
-- docs/plugins.md, authoring/resource-map.json
-필요한 소유 코드·호출자·테스트를 확인하되 전체 이력 재조사로 시작하지 마라.
+- docs/research/agent-workflow-refinement-review.md
+- docs/research/agent-workflow-completion-design.md#review-driven-refinement
+- docs/research/agent-workflow-implementation-results.md의 최신 결과와 한계
+- docs/research/pstack-analysis.md (고정 소스 비교이며 실행 정책 아님)
+- docs/testing.md, docs/feature-map.md, docs/plugins.md, authoring/resource-map.json
 
-1. 범위와 작업 기준
-- 목적은 범용 플러그인의 완성이다. 연두라벨은 이후 사용할 실제 제품 인수 대상이다.
-- 범용 기능 완성 → 제품 독립 기능 검증 → 패키지 고정 → 연두라벨 인수 → 공통 결함 개선 순서를 지켜라.
-- G1–G4 전에 연두라벨 전용 Skill/지도/adapter/정답 패치를 준비하거나
-  연두라벨의 가격·인쇄·프레임워크를 공통 설계에 하드코딩하지 마라.
-- 현재 branch/HEAD/staged/unstaged/untracked, main, worktree 목록, Git 보호 정책과
-  적용되는 환경 예외를 확인하라. 원본 경로나 main이 최신 구현을 포함한다고 가정하지 마라.
-- 알려진 구현 기준 23e5d152038abf30765a019729c02bc05f640b5d의 포함 관계와 현재 변경을 확인하고,
-  최신 구현이 포함된 검증된 커밋에서 정책에 맞는 새 branch와 새 worktree를 만들어라.
-- 기존 checkout/branch/dirty/.work를 보존하고 기존 경로를 재사용·삭제·덮어쓰지 마라.
-  미커밋 파일·DB·인증 정보·과거 .work를 새 worktree로 복사하지 마라.
-- 실제 기능 구현 요청이다. 짧은 계획 뒤 구현을 시작하고 문서·스키마·시험 자료만으로 끝내지 마라.
+0.1.44에는 task/context, 요청 연결, 6셀 범위, prepare/execute/lookup/resume,
+feedback·RED/GREEN/정상 사례, ui_systems, maintain/check_retirements가 이미 있다.
+0.1.43에서 수리한 review/findings 승계 결함을 미구현으로 다시 다루지 마라.
+현재 동작을 확인하고, 유지할 기능과 재현한 공백·이번 구현을 짧은 작업 계획에 구분하라.
+기존 G1–G6를 통째로 다시 수행하거나 W1–W7을 일곱 신규 시스템으로 만들지 마라.
 
-2. 기존 소유 위치와 역할
-- authoring/scripts/project_workflow.py: 작업 연결, 상태, 의무, 피드백·검토·유지보수
-- authoring/scripts/verification_results.py: 선택, prepare/execute, 결과 유효성·재사용·조회
-- authoring/scripts/workflow_context.py: 읽기 전용 진입 맥락
-- scripts/run_check.py, scripts/verify_product.py: 기존 capture와 저장소용 adapter
-- authoring/skills/agent-workflow, setup-project-verification, maintain-project-verification
-- 기존 diagnose/UI 능력, authoring/references의 workflow-obligations, project-verification,
-  result-viewer, repair-and-reuse와 tests/distribution의 관련 시험
-- Agent는 의미·범위·원인·설계·시각적 충분성·검사 가치를 판단하고 수정한다.
-  CLI는 결정된 작업·선택·실행·수집·누락·유효성·재사용·조회를 일관되게 처리한다.
-  프로젝트는 업무 정답·runner·환경·자원·UI 기준을, 플러그인은 발견·조합·패키징을 소유한다.
-- 새 범용 runner/workflow 엔진/dashboard/중복 장부/절차별 Skill 묶음을 만들지 마라.
-  작은 작업에 Harness 계약이나 설치를 강제하지 마라.
+3. R0 — 기준과 최소 수용 사례 고정
+- 기존 독립 시험 프로젝트·실제 runner를 재사용해 API-only와 실제 Web+저장 경로,
+  workflow 미설정 조사 과업을 다룰 최소 조건을 준비하라.
+- 요구 출처·기대 결과·source/fixture/명령/runtime 조건을 기록하고
+  현재 버전과 후보의 비교 기준을 먼저 고정하라. 정답 패치를 평가 Agent에게 주지 마라.
+- business/architecture는 관점, FE·BE/API·Domain은 책임 영역이다. 6셀을 유지하고
+  필요한 셀만 검증하되 비적용 이유·미판단·미연결·미확인을 숨기지 마라.
+- 중요한 저장 흐름은 실제 입력→API→Domain→저장→fresh read의 ID와 값을 대조하라.
+  합성 API 화면, 실제 API/DB, 정적 아키텍처 근거를 구분하고 셀별 PASS로 연결 성공을 대신하지 마라.
+- 요구 문서와 코드/테스트가 충돌하는 사례, 정당한 요구 변경,
+  FE 전달 오류지만 BE/Domain PASS인 사례와 FE 없는 정상 과업을 포함하라.
+- 이미 충족한 항목은 실제 근거로 유지하고 부족한 동작만 구현하라.
 
-3. G1 — 공통 작업 상태와 후속 연결 수리
-- begin()의 일반 후속 작업에서 유효 검토가 모두 사라지고 무관한 map_review가 다시 생기는 문제와
-  미해결 product_findings가 현재 후속 조회에서 빠지는 문제를 focused RED로 확인하고 수리하라.
-- 기준이 유효한 검토는 재사용하되 새 요청의 적용·범위 판단을 과거 scope_reviews로 대체하지 마라.
-  미해결 문제는 검토 STALE 여부와 별개로 명시적 해결/처리까지 이어가라.
-- 일반 작업에 요청 요약·기대 결과 참조를 연결하라. Harness 계약이 있으면 참조해 중복하지 마라.
-- 복수 작업은 명시적 식별로 연결하고 모호하면 후보와 필요한 식별 정보를 보여라.
-  최신 시각·정렬 순서로 선택하거나 제공되지 않은 호스트 session ID를 가정하지 마라.
-- 전체 저장소 변경에 묶인 결과 재사용을 검토하라. 검사 의존 범위가 확인된 경우만 좁히고,
-  명령·기준·런타임·의존성·fixture·공통 입력의 변경은 계속 무효화하라.
-- lookup/task resume는 읽기 전용, 완료된 execute resume는 불필요한 재실행 없이 유지하라.
+4. R1 — 수정 없는 조사 → 조회 → 재개 연결 구현
+- 정식 workflow가 미설정인 프로젝트에서도 진단 요청·허용/금지 범위·source 기준·
+  조사 목록·증거 위치·미확인·다음 행동을 보존하고 이어갈 수 있게 하라.
+- 기존 task가 있으면 연결하고, 없으면 .work의 최소 진단 기록을 사용하라.
+  정식 검증 설정을 자동 생성하거나 실행 workflow/두 번째 task 장부를 복제하지 마라.
+- 전체 조사 요청은 route/menu/API/CLI/job/role/flag 등 해당 프로젝트의 전체 진입점 분모를 유지한다.
+  작은 요청은 영향 Feature/공유 owner/직접 소비자만 다루며 전체 setup을 선행 강제하지 않는다.
+- UI는 적용 가능한 화면·viewport·하위 상태를 안정적인 ID로 구분하고 직접 관찰 근거를 연결한다.
+  존재하지 않는 모든 조합을 생성하지 말고, 대표 캡처 하나로 미관찰 상태를 확인 완료 처리하지 마라.
+- 관찰 사실/원인 추정, 제품/플러그인/도구/환경/Agent 판단 문제를 구분하라.
+- lookup과 읽기 전용 resume는 기존 근거를 읽으며 테스트·브라우저·서버를 다시 실행하지 않는다.
+  새 미관찰 범위의 조사는 별도 실행으로 구분하고 모호한 task를 최신 시각으로 추측하지 마라.
+- 사용자가 검수할 수 있도록 위치·접근 경로·조건·기대/관찰·비교 근거·미확인을 보여라.
+  HTML이 필요하면 기존 기록/결과의 얇은 파생 표현으로 만들고 결과 DB/dashboard를 새로 만들지 마라.
+- 완료 근거: 미설정 상태에서 진단 생성→중단→새 context 조회/재개,
+  원본 코드/설정/데이터 불변, 동일 ID·미확인 보존, 조회 시 실행 0회,
+  일부 조사만으로 전체 완료가 되지 않는 반례.
 
-4. G2 — 범용 프로젝트 최초 연결 완성
-- 처음 보는 프로젝트의 기존 문서·코드·명령·테스트에서 사용자 기능과 소유 경계를 조사하고 연결하라.
-  UI/routes 외 API/CLI/jobs/roles/flags 등 합의한 범위의 누락을 확인하라.
-- 큰 지도는 기존 작업 상태로 분할·재개·통합한다. 미조사/미분류/미연결을 남기고,
-  등록된 파일만 빠짐없다는 사실을 전체 기능 발견의 증명으로 삼지 마라.
-- 기존 runner/도구로 Launch → Doctor → Drive → Evidence → Cleanup을 연결하고 실제 실행하라.
-  프로젝트가 자원 수명주기를 소유하고 공통 CLI는 기존 capture/선택/실행/수집/조회를 재사용한다.
-- 필요한 최소 adapter는 해당 프로젝트에 둬라. 명령과 assertion을 다음 작업에서도 재사용하라.
-- 실행 가능한 instance/source/새 데이터와 실제 사용자 동작·저장·fresh read를 연결하라.
-  HTTP 200, stdout 성공 문자열, 자체 PASS 파일만으로 성공 처리하지 마라.
-- 지원 가능한 실행·관찰 수단과 미지원 범위를 명시하라. 무설정 모든 스택 지원을 가정하지 마라.
+5. R2 — 사용자 검수·피드백의 올바른 분기와 후속 소비
+- 기존 diagnose/feedback/review/prevention/ui_systems를 사용해 다음을 구분하라.
+  a) 기존 요구 위반: 원래 기준의 실패 검출→소유자 수리→같은 기준 통과·정상 반례.
+  b) 요구 변경/새 선호: 요청 권한·근거와 기준 revision 갱신→새 요구와 유지 계약 검증.
+  c) 의도된 차이: 공통 variant 또는 범위/사유/근거/재검토 조건이 있는 예외.
+  d) 기준/도구 오류: 독립 근거로 확인 후 기준/runner/adapter 소유 위치 수리·실제 재확인.
+  e) 환경 제약/원인 미확인: 실패·조건·재개 범위를 남기고 해결로 승격하지 않음.
+- 후보 ID와 근거에 사용자 동의/의도된 차이/보류·의견을 연결하라.
+  검수 동의만으로 원인을 확정하거나 기존 수정 권한을 확대하지 마라.
+- 예방은 validation/type/schema/transaction/DB constraint/단일 상태 owner/
+  공유 component/token/실제 회귀 검사 중 원인에 맞는 최소 수단을 사용한다.
+  같은 지침을 추가하거나 가드레일을 등록했다는 사실만으로 완료하지 마라.
+- UI guide는 의도·용어·variant·상태·반응형·접근성·예외와 코드 참조를 소유한다.
+  실제 값·동작은 코드가 소유한다. 가이드 없는 경우도 다루되 현재 구현을 무조건 정답으로 추출하지 마라.
+- 검증 가이드는 실제 명령·기준·fixture·Launch/Doctor/Drive/Evidence/Cleanup을 연결하고
+  기능·도구·환경의 실제 변화가 있을 때 영향 부분을 갱신한다. 문서만으로 제품 결함을 덮지 마라.
+- 상세 feedback/retirement 자동 근거 결합의 prepared native-JSON 제한을 확인하라.
+  필요한 실제 runner는 기존 프로젝트 adapter로 연결하고 재현된 공통 계약 공백만 확장한다.
+  결과 형식이 다른 것을 임의 PASS JSON이나 새 범용 parser로 감추지 마라.
+- 완료 근거: 위 분류가 뒤섞이지 않고, 수리/기준 변경/예외가 해당 owner와 근거에 연결되며,
+  새 관련 요청에서 기준·예방 검사가 실제 소비된다. 무관한 변경에 불필요한 Full을 강제하지 않는다.
+  수동 Domain 검사가 있다는 이유만으로 selector 결함이라고 단정하지 마라.
 
-5. G3 — 여섯 업무 흐름을 실제 수정과 후속 소비까지 완성
-- 기능 구현: 요구·영향 → 구현 → 필요한 실제 검사 → 의미 검토 → 결과·공백 조회.
-- 검증/조회: business/architecture × FE/BE/API/Domain의 적용·미판단·미연결·제외·실패·차단·STALE 구분.
-  검사 PASS와 의미 검토 미완료가 함께 보일 수 있어야 한다. FE 없는 프로젝트는 이유 있게 제외한다.
-- 피드백: 기대 동작 → 재현 → caller/state/data 흐름 → 근본 원인과 소유 코드 수정 → 적절한 예방책.
-  원래 실패 RED/GREEN과 가까운 정상 사례를 확인하고 다음 관련 작업에서 예방책/검사를 실제 소비한다.
-  타입·경계 검증·상태 구조·제약·공유 구현·검사 중 원인에 맞게 선택하라.
-- UI: 기존 기준을 찾거나 의도·상태·반응형·접근성 기준을 작성하고 공유 token/component를 수정한다.
-  영향 화면과 다음 화면 작업의 재사용을 확인한다. token 값을 이중 관리하지 마라.
-  연결 정보의 존재, 수치 검사, 실제 시각적 일관성 판단을 구분하라.
-- 검증 유지보수: 낡은 명령·누락된 경로·잘못된 관찰을 소유 위치에서 수리하고 실제 재실행·후속 사용을 확인한다.
-- 검사 정리: 기존/대체 검사의 동일 결함 검출·정상 허용을 확인한 경우 통합/삭제한다.
-  비용·횟수·coverage만으로 삭제하지 말고 고유 검출력이나 근거 부족이면 유지하고 이유를 남겨라.
+6. R3 — 검사 유지·통합·폐기 사유 보완
+- 기존 maintain/check_decisions/check_retirements를 재사용한다.
+  새로운 pruning framework나 검사 점수 시스템을 만들지 마라.
+- 중복 통합은 남는 검사/구조가 해당 보호 책임·알려진 실패·경계·정상 사례를 보존해야 한다.
+- 요구/기능 폐기는 유효한 변경 근거, 제거된 진입점·호출자, 남은 요구/소비자 영향,
+  active 연결 정리와 이력 보존으로 판단한다. 폐기한 요구에 대체 검사를 억지로 만들지 마라.
+  Feature 전체 폐기의 기존 reconciliation과 살아 있는 Feature 내 요구 일부 폐기를 구분하라.
+- 타입/DB 제약 등으로 예방을 옮기면 실제 거부·정상 허용과 우회/호출 경로를 확인하라.
+- flaky/낡은 runner를 skip 또는 재시도 중 한 번의 PASS로 숨기지 마라.
+  비용·검사 수·오래 실패하지 않았다는 이유만으로 고유 방어를 제거하지 마라.
+- 코드 검토에서 발견한 '요구 일부 폐기 시 불필요한 대체 증명 차단'은 확정 버그가 아니다.
+  focused 사례로 재현한 뒤 필요한 사유 분기만 고치고, 정상 경계는 보존하라.
+- 완료 근거: 입증된 중복은 정리, 폐기된 요구는 정당하게 제거,
+  다른 실패를 잡는 검사는 유지, 근거 부족은 열린 상태, 실제 비용만 보고.
 
-6. G4 — 제품 독립 수용 시험과 패키지 고정
-- 기존 connected_product 등 독립 시험 프로젝트를 우선 재사용한다. 실제 웹 Full-stack과 FE 없는
-  CLI/API, 비-Harness, UI 기준 유무를 확인할 최소 차이를 둬라. 새 대형 시험 체계를 만들지 마라.
-- 실제 assertion 실패와 환경/관찰 차단, skip/0건을 구분하고 정리 후에도 run ID·명령·대상·raw와
-  필요한 screenshot/trace/report가 남는지 확인하라. 근거 파일 충돌·덮어쓰기도 방지하라.
-- G1–G3를 후속 작업까지 검증하라. 유효 결과, 완료된 실행, 읽기 전용 조회를 불필요하게 반복하지 마라.
-- canonical 수정에 대응하는 저장소 안 mapped generated 리소스를 재생성하고 영향 Feature Map/docs를 갱신하라.
-  관련 회귀 검사, resource drift, distribution, git diff --check를 수행하라.
-- 새 worktree의 새 출력 경로에 로컬 패키지를 만들고 소스 commit·버전·패키지 해시·지원 범위를 고정하라.
-- 가능한 기존 호스트에서 패키지 위치·자연어 업무·권한만 제공해 실제 발견·선택·사용을 확인하라.
-  Skill 이름·CLI 순서·정답 패치를 알려준 시험은 무개입 성공으로 보고하지 마라.
-  직접 CLI 시험과 Agent 시험, 패키지 사용과 native 설치·발견을 구분하라.
-- 기존 설치 갱신이나 전역 변경 없이는 사용할 수 없는 호스트 범위는 미검증으로 남겨라.
-  그 범위를 숨기거나 보호 호스트 미지원 때문에 일반 기능 개발 전체를 중단하지 마라.
-- G1–G4의 일반 사용자 기능이 미완료이면 수리하고, 연두라벨 선행 맞춤 작업으로 보충하지 마라.
+7. R4 — 실제 위임 수용·패키지·지원 범위
+- CI는 영향받는 결정적 회귀·상태/ID/참조·잘못된 완료·재개·조회 불변성을 검사한다.
+  자연어 업무 평가는 관련 동작 변경과 최종 후보에 제한하고 작은 수정마다 모두 실행하지 마라.
+- 자연어 과업은 Skill 이름/CLI 순서/정답 패치 없이 수행하게 하고,
+  실제 개입·재시도·재작업·잘못된 완료·정상 작업 오탐·중복 실행·경과 시간을 기록하라.
+  사용량/비용을 제공받지 못하면 추정값을 실측처럼 쓰지 마라.
+- 지원 host에서는 실제 발견/진입/context 전달/후속 요청을 확인하라.
+  패키지 직접 호출, Agent의 패키지 사용, native 설치 호스트 호출, 보호된 수락을 구분한다.
+  기존 설치·전역/인증 변경 없이는 불가능한 부분은 정확한 오류와 조건을 남기고 나머지 작업을 계속하라.
+- 별도 범용 doctor부터 만들지 말고 선택한 능력의 사전 조건·오류 안내를 기존 경로에 보완하라.
+- 현재는 task 기록 하나당 writer 한 명이다. atomic replace를 동시 갱신 보장으로 표현하지 마라.
+  같은 기록 동시 쓰기 기능은 이번 범위에서 새로 만들지 않으며 위임에서 단일 writer를 유지한다.
+- 이미 유효한 조회와 검증을 반복하지 마라. 전체 Git 무효화는 입력 의존 범위 증명 없이 완화하지 않는다.
+  기준·지도 수정과 최종 검증 순서를 정리해 동일 행동의 불필요한 재측정부터 줄여라.
+- canonical과 mapped generated를 동기화하고 관련 회귀·resource drift·distribution·git diff --check를 수행하라.
+  Full은 실제 cross-cutting 영향이나 명시적 필요에 맞춰 선택한다.
+- 배포 소스 변경에 맞는 버전 정책으로 새 로컬 패키지를 만들고 source commit/버전/해시를 고정하라.
+  기존 0.1.44와 새 결과를 구분하고 기존 패키지·설치본을 덮어쓰지 마라.
 
-7. G5 — 고정 패키지로 연두라벨 실제 제품 인수
-- 대상 후보는 C:\Users\YS\Desktop\python\labeler다. 현재 checkout/main/worktree와 합의한 제품 범위를
-  다시 확인하고 시험할 커밋을 명시하라. 경로 이름이나 과거 파일럿 기준을 최신 제품으로 가정하지 마라.
-- 새 작업 소유 공간에 안전한 tracked 소스와 새 시험 데이터를 사용하라.
-  기존 DB·인증·미커밋 파일·과거 .work·맞춤 시험 연결을 가져오지 마라.
-  원본 제품 checkout/Git refs/운영 환경을 변경하지 말고 소유하지 않은 프로세스를 종료하지 마라.
-- 고정 패키지에 프로젝트 위치·요청·허용 범위와 기존 제품 자료를 제공하라.
-  최초 연결 기능이 기존 자원을 조사하고 필요한 지도·가이드·최소 adapter를 생성·실행하게 하라.
-  사람이 사전 작성하거나 중간에 명령 순서를 알려줘야 진행되면 해당 공백/개입을 기록하라.
-- 최초 연결 → 실제 기능 변경/검증 → 읽기 전용 조회 → 피드백 수리 → UI·검증 기준 개선 → 재개/후속 작업을
-  대표 업무와 그 영향 범위에서 수행하라. 제품 전체 고도화나 운영 배포 사업으로 확장하지 마라.
-- 합성 API 화면 검사와 실제 API/Domain/저장/fresh read 근거, PDF와 물리 인쇄, 로컬과 외부 공급자를 구분하라.
+8. 연두라벨과 기존 시험 자료의 경계
+- 원본 연두라벨 코드·스타일·문서·Git refs·데이터·운영 서비스는 변경하지 마라.
+  실제 실행이 필요하면 새 격리 소스와 합성 데이터만 사용하고 소유 자원만 종료한다.
+- 기존 UI 후보는 사용자 검수 전이다. 동의/의도된 차이/보류 결과를 꾸며 넣거나 제품을 수리하지 마라.
+- 과거 UI 결과·스크린샷은 조회/재개/검수 연결의 입력으로 재사용할 수 있으나
+  새 버전의 최초 조사 능력이나 개선 효과를 증명한 것으로 계산하지 마라.
+- 새 기능의 제품 인수가 필요하면 범용 구현·독립 과업 검증·패키지 고정 후 수행한다.
+  연두라벨 전용 정답·지도·adapter를 미리 주입해 범용 성공으로 보고하지 마라.
+- 보존된 선택 자료(없어도 durable 설계와 현재 코드로 진행 가능):
+  .work/ui-consistency-trial-20261009/{plugin-trial.md,trial-state.json,review.html}
+  .work/plugin-maturity-review-20261009/{assessment.html,refinement.html}
+  .work/generic-completion-delivery-20261009/implementation-results.md
+  이 자료는 원본 저장소 아래에 있으며 새 worktree로 기존 DB/인증/.work 전체를 복사하지 마라.
 
-8. G6 — 원인 소유 위치의 개선과 재검증
-- 제품 결함은 프로젝트 코드·예방책, 연결 결함은 프로젝트 명령·가이드·adapter,
-  공통 결함은 플러그인 canonical 코드·기존 절차에서 고쳐라.
-- 장기 예방책을 코드·공유 구현·등록 검사·현재 가이드에 남기고 임시 기록에만 의존하지 마라.
-- 공통 수정은 원래 실패와 다른 프로젝트 정상 사례에서 확인하고 새 패키지로 구분하라.
-  변경 전 고정 패키지의 시험 결과를 변경 후 성공으로 덮어쓰지 마라.
-- 다음 관련 요청에서 개선을 실제 소비하는지 확인하라. 실패가 남으면 남은 범위로 보고하라.
-  기준/assertion/skip/권한 경계를 완화해 점수를 높이지 마라.
-
-9. 권한·검증·전달
-- 허용: 새 worktree의 source/tests/docs/저장소 generated 수정, 새 독립 시험 공간과 새 로컬 패키지,
-  범위 안의 실제 로컬 실행·수리, 검증된 기능 단위별 로컬 커밋.
-- 기존 설치 Skill/Plugin cache·전역 설정·인증·원본/운영 DB·원격 환경은 변경하지 마라.
-  push/publish/deploy, 관리자 sandbox 구축·권한 완화·반복 설치·광범위한 native Agent 평가는 하지 마라.
-  보호 브랜치 추가 병합은 이 프롬프트만으로 수행하지 말고 해당 세션의 명시적 권한을 따르라.
-- non-trivial 변경은 가능한 focused RED 후 GREEN·정상 반례를 확인하라.
-  영향 회귀·필수 저장소 확인이 통과하면 새 이유 없이 검사를 반복·확대하지 마라.
-- source/tests/docs/generated를 기능 단위로 함께 커밋하고 새 branch/worktree를 검토 가능하게 남겨라.
-- docs/research/agent-workflow-implementation-results.md의 현재 결과와 영향 문서/지도/프롬프트 상태를 갱신하라.
-  과거 결과와 이번 실행 결과를 분리하고 문서 작성이나 테스트 수를 업무 성공으로 삼지 마라.
-- 최종 보고: G1–G6 및 여섯 업무의 완료/미완료, 사용자가 할 수 있는 일, 실제 명령·근거 위치,
-  실행/Agent 판단/사람 개입, 재작업·잘못된 완료·불필요한 실행, 지원/미지원 범위,
-  기준·최종 HEAD/커밋/worktree, 기존 사용자 변경·설치 보존 여부, 남은 우선순위 최대 3개.
-- 설치 가능한 패키지와 안정적 업무 위임을 별도로 평가하라. 직접 CLI/일반 Agent/설치된 native host/
-  보호 수락/실제 제품 인수를 구분하고 제한된 성공을 모든 프로젝트나 장기 효과로 일반화하지 마라.
-- pstack 비교가 필요하면 docs/research/pstack-analysis.md의 0.15.6 / 23e4138daa01c42d4969f7a5465f82704e64f798
-  고정 소스를 사용하라. 실제 동일 과제 비교 없이 우열을 주장하지 마라.
+9. 문서·커밋·main 통합과 최종 전달
+- 영향 Feature/검증 연결·현재 guide와 docs/research/agent-workflow-implementation-results.md를 갱신하라.
+  새 결과를 최신 구간에 기록하고 과거 실행 결과·환경 한계를 성공으로 덮어쓰지 마라.
+- source/tests/docs/generated를 검증된 기능 단위로 커밋한다.
+  지침 문구 검사나 PASS 스키마만으로 Agent 업무의 구현 완료를 주장하지 마라.
+- 병합 직전 origin과 local main의 이동·dirty 상태를 재확인하고 최신 main을 작업 브랜치에 반영하라.
+  충돌은 main의 최신 내용과 이번 변경 의도를 모두 보존해 해결하고 영향받는 검사를 재검증하라.
+- 검증된 변경을 로컬 main에 병합하라. main 보호 정책 파일을 수정해서 우회하지 마라.
+  이번 요청이 명시적 로컬 병합 권한이므로 같은 허가를 다시 묻지 마라.
+  사용자 변경을 보존할 안전한 통합이 불가능하면 완료했다고 주장하지 말고 정확한 차단점과
+  검증된 branch/commit을 남겨라. 실패한 기능을 완료로 포장해 병합하지 마라.
+- 필요한 실행 증거를 원본 저장소의 작업 소유 .work에 보존한 뒤
+  이번에 만든 worktree/branch만 정리하라. 삭제 전 절대경로·소유권·병합 여부·dirty를 확인하라.
+  다른 작업 공간/branch/.work를 삭제하지 마라. 최종 주 작업 공간은 가능한 clean main으로 남겨라.
+- 최종 보고: R0–R4별 구현/기존 충족/미완료, 실제 사용자 업무와 정상·실패·반례,
+  코드와 근거 경로, 개입·재실행·비용 범위, 패키지 버전/해시, 시작·최종·main 커밋,
+  원격 동기화/로컬 병합 결과와 남은 한계. HTML 경로는 절대경로로 제공하라.
+- push·배포·기존 설치 업데이트는 하지 마라.
 ```
