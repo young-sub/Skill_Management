@@ -1,5 +1,54 @@
 # Agent workflow implementation and acceptance
 
+## Generic workflow acceptance before product trial, 2026-10-09
+
+The common implementation now preserves relevant reviews and unresolved findings,
+requires fresh scope decisions, binds ordinary request metadata, bounds prompt
+context, and rejects dot inventory roots. Dependency-scoped reuse was reviewed:
+the declared inputs do not attest a complete transitive dependency closure, so
+whole-Git invalidation remains intentional. No narrower reuse or speed improvement
+is claimed. Unchanged task/bundle lookup and completed execution resume remain
+read-only or zero-execution paths.
+
+Product-independent Agent trials used the local package and ordinary task requests.
+They created their own project connections from existing source and public local
+runners. The API variant has no frontend; the web variant uses the existing real
+Chromium/SQLite runner. Initial connection included both implementation ownership
+and explicit untested boundaries; registered-file coverage alone was not treated
+as complete functional discovery.
+
+| Flow | Observed result and limit |
+| --- | --- |
+| Feature implementation | API item-by-ID: original valid-ID lookups failed, then 64 assertions passed with exact POST-returned IDs, invalid-ID rejection and restart readback. |
+| Verification lookup | Main-agent read-only package views confirmed current PASS/REUSABLE with zero commands; stale historical runs and open semantic findings remain separate. |
+| Feedback repair | API storage overflow: confirmed RED failed only the two overflow response assertions; committed fix passed 75 assertions, preserves maximum valid quantity and existing rows. A subsequent task inherited RESOLVED feedback and the prevention rule without rerunning. |
+| Shared UI and next request | Guarded save/history reload passed 21 browser assertions; the subsequent saved-count change reused the guide and shared implementation, with RED/GREEN at 23 assertions. The final committed package run passed all 23; the main Agent independently confirmed current reuse and mobile/desktop screenshots. |
+| Verification maintenance | An isolated copy with a deliberately stale command was BLOCKED on the real missing-file error; repaired command passed 58 assertions, and the next request reused it without execution. |
+| Check value | In a disposable mutation, bypassing the Domain negative guard failed its unit test while the API test still passed through the SQLite constraint. Both checks were retained for distinct detection; the Domain command remains explicitly manual, not automatically selected. |
+
+API source commits are `edd5267` (item lookup and semantic findings) and `8133246`
+(storage-boundary repair). The separate maintenance trial ends at `a1d33e1`.
+Web commits are `8c981e5` (shared save/refresh) and `c843fac` (saved count).
+Their `.work/generic-completion/` projects retain original failures, fixed outcomes,
+process-exit observations and subsequent-request records. Actual product-semantic
+issues outside those bounded requests remain visible; PASS does not mean production
+security, concurrency or every startup failure was verified.
+
+The coordinating Agent supplied bounded requests and later review findings, clarified
+one Windows execution boundary, and corrected scope/final-evidence sequencing.
+This is package use by ordinary Agents with recorded coordination, not an unassisted
+native-installation trial. Web r1-r3 repeated the same 14-assertion behavior after
+late documentation edits; those recaptures added binding freshness rather than new
+product coverage. Other retained input/oracle corrections are not counted as valid
+RED evidence for product repair.
+
+The tested candidate is 0.1.43, source `c2c98b1`; its 245 payload hashes match.
+The independent audit found only an interpreter cache outside its manifest after
+use. Strict package validation correctly rejects that used candidate as a clean
+release input. A fresh build and fixed release hash are still pending; no installed
+Skill/Plugin, global configuration, original product, provider, push or deployment
+was changed. Product acceptance has not started.
+
 ## Independent cleanup observation repair, 2026-10-09
 
 The independent first-connection review found a project-runner observation defect:
@@ -82,10 +131,10 @@ The independent Agent review found the retirement shadowing boundary; its findin
 was reproduced and fixed by the main Agent. This is local deterministic behavior
 and independent code review, not package/native-host or product acceptance.
 
-G1 remains partial: dependency-scoped reuse still needs review/implementation.
-Ordinary request summary/outcome references were added in the following unit. G2-G4 still require first-connection, six-flow
-Agent work and independent package acceptance. G5-G6 have not started; no Labeler
-preparation, installation, provider call, push or deployment was performed.
+At the end of this initial unit, ordinary request binding and the reuse-boundary
+review were still pending; the following units above record their resolution.
+No Labeler preparation, installation, provider call, push or deployment occurred
+during this common-state repair.
 
 
 The prior 2026-10-07 user-function source was plugin **0.1.42** in the isolated
