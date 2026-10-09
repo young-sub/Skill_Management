@@ -45,9 +45,25 @@ RED evidence for product repair.
 The tested candidate is 0.1.43, source `c2c98b1`; its 245 payload hashes match.
 The independent audit found only an interpreter cache outside its manifest after
 use. Strict package validation correctly rejects that used candidate as a clean
-release input. A fresh build and fixed release hash are still pending; no installed
-Skill/Plugin, global configuration, original product, provider, push or deployment
-was changed. Product acceptance has not started.
+release input. A fresh build from `3901e2686e229d8634969be05ec5be37401abb7d`
+passed strict validation with 246 total files and exactly the same 245 payloads.
+The frozen `agentic-coding-0.1.43.zip` SHA-256 is
+`54c0ee464bec140a83fcda69f8acfe3bb38583f9f3439894a2aba3065a9fcf14`;
+its inventory SHA-256 is
+`c036cd4ab9209b6f96d02dea067ab2571480794eed49874bb95b15404e8dfb84`.
+`.work/generic-completion/frozen-provenance.json` records support boundaries.
+The frozen artifact is retained separately from the product trial's identical
+working package copy. No existing installation, global configuration, provider,
+push or deployment changed.
+
+Only after this G1-G4 acceptance and freeze, Labeler main was inspected. Its clean
+main was `000ffd1a868c84abe4657785f1e8c7813a9df749`, 69 commits ahead of the clean
+original checkout `6860d11`. A new independent Git snapshot contains 437 tracked
+source files; `.dev.vars.example` was excluded along with all untracked data,
+credentials and original Git state. Product acceptance is now in progress in
+`.work/generic-completion/labeler-product-acceptance`, initial snapshot `ab9766f`.
+The bounded request covers product entry/management/search and Escape/IME behavior;
+no Labeler-specific map, adapter or answer patch was supplied.
 
 ## Independent cleanup observation repair, 2026-10-09
 
@@ -61,8 +77,8 @@ real browser runs and retained, non-overwritten artifacts. Evidence is retained 
 `.work/generic-completion/cleanup-{red,green}.log` and
 `.work/connected-product-artifacts/5dbf6ceb-cad2-4c03-a6f1-40488cb4868e`.
 This fixes the project-owned acceptance runner, not the plugin runtime. Old package
-and project reports remain historical and unchanged. The web follow-up Agent is
-repairing the observation in its separately owned project as well.
+and project reports remain historical and unchanged. The web follow-up Agent also repaired the observation in its separately owned
+project and its final 23-assertion run observed both service exits.
 
 ## Independent trial findings before package freeze, 2026-10-09
 

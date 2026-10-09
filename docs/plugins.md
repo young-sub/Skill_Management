@@ -60,7 +60,7 @@ reuse; unlisted transitive runtime changes remain outside that declaration.
 Version 0.1.43 adds ordinary/Harness follow-up review and unresolved-finding
 continuity, request summaries and outcome references, bounded prompt previews,
 and explicit rejection of invalid dot-segment inventory roots. Experimental
-package trials are recorded separately from final package acceptance in the
+package trials, the clean frozen artifact and their support limits are recorded in the
 [implementation results](research/agent-workflow-implementation-results.md).
 This source version does not update any installed Skill or Plugin.
 
