@@ -1,91 +1,90 @@
-# 0.1.44 이후 고도화 검토와 보완 결론
+# 0.1.45 이후 위임 신뢰성 검토와 보완 우선순위
 
-2026-10-09. [현재 설계](agent-coding-system-direction.md), [완료 기준](agent-workflow-completion-design.md), 고정 [pstack 조사](pstack-analysis.md), local main `95c4f9e`와 패키지 `0.1.44`, 기존 실행 기록 및 수정 없는 연두라벨 UI 시험을 대조했다. 현재 문서는 설계·실행 인계이며 다음 개선을 구현하거나 그 효과를 검증한 결과가 아니다.
+2026-10-09 재검토. 기준은 clean main `f8db21ebf14d276a3e6d78a891b67786b9dd7836`와 패키지 0.1.45다. [현재 설계](agent-coding-system-direction.md), [구현 결과](agent-workflow-implementation-results.md), canonical 코드·호출자·기존 회귀와 [고정 pstack 조사](pstack-analysis.md)를 대조했다. 이전 0.1.44 검토는 Git `f8db21e:docs/research/agent-workflow-refinement-review.md`에 보존돼 있다. R0–R4는 수행된 범위이며 다시 실행할 미완료 목록이 아니다.
 
-후속 R0–R4는 0.1.45에서 구현·검증됐으며 [현재 구현 결과](agent-workflow-implementation-results.md#r0r4-implementation-2026-10-09)를 참조한다. 이 문서의 0.1.44 판단은 그 시점의 검토 근거로 보존한다.
+**방향은 유지한다. 다음 개선은 더 많은 Skill·검사·상태 파일을 만드는 것보다, 결정의 유효성·미확인 표시·정당한 검사 폐기와 실제 후속 소비를 정확하게 만드는 데 우선한다.** 이번 변경은 설계 보완이다. 아래 재현된 코드 문제는 아직 수리하지 않았으며, 기존 387개 Full 통과가 이 추가 사례의 통과를 뜻하지 않는다.
 
-다음 실제 구현은 [R0–R4](agent-workflow-completion-design.md#review-driven-refinement)와 [현재 실행 프롬프트](agent-workflow-next-session.md)를 따른다. G1–G6의 과거 실행 상태는 [구현 결과](agent-workflow-implementation-results.md)가 소유한다. 이미 수리한 0.1.43 review/findings 승계 문제를 현재 결함으로 다시 올리지 않는다.
+## 사용자 요구별 판단
 
-## 판단과 현재 근거
-
-핵심 방향은 옳다. Agent의 요구·원인·시각·검사 가치 판단, CLI의 상태·실행·근거 유효성 처리, 프로젝트의 정답·runner·UI 소유권을 유지한다. task/context, 요청 연결, 6셀 scope, prepare/execute/lookup/resume, feedback/prevention, ui_systems, maintain/check_retirements는 이미 구현돼 있다. 기능 존재와 일반적인 위임 신뢰성 입증은 구분한다.
-
-| 근거 | 관찰과 한계 |
-| --- | --- |
-| 기존 범용 과업 | 실제 API/Chromium/SQLite/재시작 조회, 피드백 수리·공유 UI 재사용, 읽기 전용 조회·완료 실행 재개 기록이 있다. 감독·개입을 포함한 범위 한정 사용이다 |
-| 수정 없는 UI 시험 | 29개 화면 그룹·172개 복합 상태 항목을 분모로 유지했다. 29개 그룹은 모두 부분 확인이며 전체 조사 완료가 아니다. 후보 3건과 정상/의도된 비교 9건은 사용자 검수 전이다 |
-| 미설정 연결 | 0.1.44 `start --intent ui`는 `workflow_not_configured`로 task context 생성 전에 차단됐다. 조사 목록·근거·재개·검수 HTML은 Agent가 별도 보완했다. 구성된 workflow의 고장을 재현한 결과는 아니다 |
-| host/도구 | `codex.exe plugin list`는 CODEX_HOME 접근 거부(os error 5). Impeccable engine은 바이너리 부재와 bootstrap 연결 실패로 실행되지 않았다. 환경 제약이며 플러그인 설치 부재나 엔진 품질 결함으로 단정하지 않는다 |
-| 기록 소유권 | [테스트 정책](../testing.md)은 같은 task 기록의 단일 writer만 검증했다. atomic replace는 부분 JSON 노출 방지이며 동시 읽기-수정-쓰기 보장이 아니다. 동시 lost update는 코드상 위험 검토이고 실행 재현은 하지 않았다 |
-| 자동 근거 결합 | [repair 계약](../../authoring/references/repair-and-reuse.md)의 상세 feedback/retirement 결합은 prepared native-JSON을 요구한다. 다른 runner는 필요한 프로젝트별 binding을 연결해야 하며 새 범용 parser가 답은 아니다 |
-| 검사 폐기 | active Feature 내 check 제거는 이전 prevention과 대체 검출 보존을 요구한다. Feature 전체 폐기는 reconciliation이 있다. 살아 있는 Feature 내 요구 일부 폐기의 불필요한 차단 여부는 실행 재현 전 후보다 |
-
-UI 시험은 실제 React 화면과 합성 API를 사용했다. 앞선 실제 Worker/D1 시험과 혼동하지 않는다. 잘못된 합성 응답·selector/튜토리얼 조작·캡처/정리 오류는 시험 도구 또는 Agent 판단으로 분리했다. 상태별 근거 과포함을 독립 검토에서 발견해 직접 관찰 하위 상태를 연결하고 3항목을 미확인으로 낮췄다. 링크가 있다는 사실만으로 근거의 충분성이 보장되지 않는다.
-
-원시 자료는 원본 저장소의 `.work/ui-consistency-trial-20261009`, `.work/plugin-maturity-review-20261009`, `.work/generic-completion-delivery-20261009`에 있다. HTML과 screenshot은 작업 기록이며 필수 durable 설계의 유일한 저장소로 삼지 않는다. 사용자 UI 검수 결과는 아직 없고 후보를 확정 결함이나 제품 수정 승인으로 승격하지 않는다.
-
-## 앞선 W1–W7 제안의 보정
-
-| 제안 | 보정 |
-| --- | --- |
-| W1 호스트·도구 doctor | 선택한 능력의 preflight/오류 안내를 기존 경로에 통합. 권한 오류 한 건으로 범용 진단 플랫폼을 먼저 만들지 않음. 최신 native 진입 인수는 별도로 유지 |
-| W2 조사·범위·재개 | 구체적인 공백이므로 유지. 요청 범위의 최소 진단 기록과 기존 context 연결로 제한하고 전체 설정·별도 장부를 강제하지 않음 |
-| W3 계획·결과 보기 | 기존 viewer 결과의 정확성과 실제 관찰 범위를 먼저 확인. HTML은 얇은 파생 표현이며 새 결과 상태 엔진이 아님 |
-| W4 UI 검수 | 후보 ID·근거·의견·결정을 기존 feedback/ui_systems에 연결. 새 후보 DB·자동 제품 수리 흐름은 불필요 |
-| W5 원인·가드레일 | 새 기능으로 재구현하지 말고 분류·원인·후속 선택의 실제 인수 공백을 수리 |
-| W6 검사 가치 | 기존 maintain 유지. 정리 사유별 필요한 근거를 구분하고 재현된 차단/누락만 보완 |
-| W7 자연어/CI | CI의 결정적 영향 회귀와 별도 자연어·host 인수를 구분. 모든 작은 작업에 Full/브라우저/Agent 평가를 강제하지 않음 |
-
-수동 Domain 검사라는 사실만으로 selector 결함이 되지 않는다. 선언한 요구·영향상 필요한 검사가 선택되지 않는지 먼저 확인한다. BE/API를 무조건 별도 셀로 늘리지 않고 기존 셀 안의 API 계약·서비스/저장 책임을 구분한다.
-
-## 의미·근거·범위의 보완
-
-- 사용자 요구·업무 규칙이 정답 출처다. 코드/테스트가 동일한 잘못된 기대값을 공유할 수 있다. 요구 충돌은 표시하고 제품 결정이 필요한 부분만 확인하며 모든 작업에 새 승인 단계를 만들지 않는다.
-- 6셀은 관점별 판단이다. 중요한 사용자 흐름은 실제 입력→API→Domain→저장→fresh read의 ID/값을 연결한다. mock UI·실제 API/DB·정적 구조 검토를 구분한다. API-only에는 이유 있는 FE 비적용을 허용한다.
-- 사업 성과 가설과 소프트웨어 업무 규칙을 구분한다. 단위 테스트가 실제 사용자 가치·수익 개선을 증명하지 않는다.
-- 전체 조사 요청은 전체 진입점 분모와 미확인을 유지한다. 작은 요청은 영향 기반으로 수행하며 전체 setup을 시작 조건으로 만들지 않는다. 화면×역할×viewport×상태의 무조건적인 조합 생성도 하지 않는다.
-- 검사 실행, 의미 검토, 요청 범위 충족, 현재 재사용, host 수락 수준을 하나의 PASS로 압축하지 않는다. 실제 비용 없는 점수·신뢰도 백분율도 만들지 않는다.
-- 같은 task의 단일 writer 정책을 지키고, 여러 태스크는 기록을 분리한다. 동시 동일 기록 쓰기를 새로 지원하려면 별도의 충돌 검출·보존 인수가 필요하다.
-
-## 피드백·UI·가이드의 개선 순환
-
-| 종류 | 처리와 완료 기준 |
-| --- | --- |
-| 기존 요구 위반 | 기대값을 고정하고 caller/state/data 흐름의 원인 owner 수리. 같은 실패 RED/GREEN, 정상 반례, 활성 예방과 후속 소비 |
-| 요구 변경/새 선호 | 요청 권한·근거와 기준 revision을 갱신. 새 기대와 유지해야 할 계약 검증. 이전 동작을 소급해 버그라고 부르지 않음 |
-| 의도된 차이 | 정상적인 공통 variant 또는 범위·사유·근거·재검토 조건이 있는 예외. 불필요한 수리·검사 추가 없음 |
-| 기준/도구 오류 | 독립 근거로 확인하고 기준·runner·adapter를 수리하여 실제 재확인. 제품 위반을 guide/expectation 완화로 숨기지 않음 |
-| 환경/원인 미확인 | 실제 실패·진입/재개 조건을 보존. 근거 없는 해결 처리 금지 |
-
-가드레일은 원인에 맞는 validation/type/schema/transaction/DB constraint/단일 상태 owner/shared component·token/회귀 검사에 둔다. 같은 지침 추가나 등록만으로 완료하지 않는다. 다음 관련 요청에서 실제 소비되는지 확인하며, 무관한 요청을 막는 예방책은 적용 범위를 줄인다. 알려진 실패와 미검증 조건을 명시하며 무조건적인 재발 불가를 보장하지 않는다.
-
-UI guide는 의도·용어·variant·상태·반응형·접근성·예외와 코드 참조를 소유하고 값·동작은 코드가 소유한다. 가이드 생성 시 현재 구현을 무조건 정답으로 추출하지 않는다. 반복되는 정상 차이를 화면별 예외로 늘리지 않는다. 사용자 검수 의견은 원 후보·근거에 연결하며 동의는 자동 수정 권한이나 원인 확정이 아니다. 승인된 개선은 공유 owner·소비 화면·가이드를 함께 갱신하고 fresh-context 후속 사용을 확인한다.
-
-검증 guide는 실제 명령·기준·fixture·Launch/Doctor/Drive/Evidence/Cleanup을 연결한다. 기능/runner/환경 변화에 영향 부분을 갱신한다. 같은 자료를 다시 조사·기록하거나 전체 문서를 매번 다시 쓰지 않는다. 검증 전에 기준·지도 변경을 정리해 불필요한 동일 행동 재측정부터 줄인다. 전체 Git 무효화는 의존 범위 증명 없이 좁히지 않는다.
-
-## 정리 사유에 맞는 증명
-
-| 사유 | 필요한 근거 |
-| --- | --- |
-| 중복 통합 | 남는 검사/구조가 해당 보호 책임·알려진 실패·경계·정상 사례를 보존 |
-| 요구/기능 폐기 | 유효한 요구 변경 근거, 사라진 진입점·호출자, 남은 요구/소비자 영향 확인, active 연결 정리와 이력 보존. 폐기한 요구의 대체 검사 강제 금지 |
-| 구조적 예방으로 이동 | 새 타입/제약/경계가 해당 잘못된 상태를 거부하고 정상 사용을 허용한다는 실제 근거. 우회·호출 경로 검토 |
-| flaky/낡은 runner | 제품/도구 실패 분리와 runner 수리. 임시 제외·skip은 검증 공백이며 PASS가 아님 |
-| 비용 대비 가치 불명확 | 보호 범위·독자 검출·정상 반례와 실측 비용 검토. 오래 실패하지 않았다는 이유만으로 제거하지 않음 |
-
-## 인수 사례와 판단 기준
-
-| ID | 검출할 실패 | 정상 반례 |
+| 요구 | 현재 토대와 판단 | 더 필요한 개선 |
 | --- | --- | --- |
-| E1 | 낡은 코드/테스트의 기대값을 요구보다 우선 | 명시적 요구 변경은 새 기준으로 처리 |
-| E2 | BE/Domain PASS가 FE 전달 오류를 숨김 | FE 없는 프로젝트의 비적용 |
-| E3 | 미설정 조사 중단 후 범위·미확인 소실 | 조회 원본/근거 불변, 검사 0회 |
-| E4 | 의도된 UI variant를 결함으로 수리 | 같은 의미·상태의 실제 차이는 검수 후보 |
-| E5 | 공유 owner 수리 후 다음 요청에서 예방 누락 | 무관한 변경에 불필요한 고비용 검사 없음 |
-| E6 | 독자 검사를 중복으로 삭제 | 입증된 중복·폐기된 요구의 정당한 정리 |
-| E7 | stale/raw 누락/skip을 현재 PASS로 표시 | 유효 결과의 읽기 전용 재사용 |
-| E8 | 직접 패키지 사용을 native 자동 호출로 보고 | 실제 host 진입/context 전달 별도 인정 |
+| 무엇을 검증했는지 확인 | Feature/check, 6셀 scope, 실제 capture/raw, 원래 판정과 현재 재사용, lookup/resume가 있다 | 요약에서도 요청 범위·관찰 방식·미확인을 보존한다. source 조사 완료와 runtime 완료가 섞이지 않게 한다 |
+| business/architecture × FE/BE/API/Domain | 두 관점과 세 책임 영역의 6셀은 적절하다. E2E는 셀 사이 연결 증명이며 별도 일곱 번째 셀이 아니다 | business는 사용자 결과·업무 규칙, architecture는 계약·의존·상태/실패 owner로 검증한다. 사업 성과 가설은 사용자/운영 관찰의 별도 주장이다 |
+| 사용자 불편·자가 개선 | feedback 종류, 원인 owner, RED/GREEN·정상 사례, 예방과 후속 task 승계가 있다 | 사용자 결정의 대상·기준 revision과 실제 후속 적용을 더 엄격하게 연결한다. 설명 변경으로 철회된 결정을 되살리지 않는다 |
+| UI/UX 기준 생성·지속 개선 | ui_systems가 guide·token·component·consumer·예외를 연결한다. 실제 공유 UI/후속 요청 시험도 있다 | 같은 의미/상태의 일관성과 의도된 variant를 구분하고, 기준 변경 시 예외를 재검토한다. 값의 원본은 코드에 둔다 |
+| 검증 guide 고도화 | 프로젝트가 명령·adapter·fixture·Launch/Doctor/Drive/Evidence/Cleanup을 소유한다 | 관찰 실패를 제품 결함으로 오인하지 않는 사례, 의미가 유지되는 실제 명령 교체, 새 context 소비를 인수한다 |
+| 실질적 가드레일·검사 정리 | 실제 위반 수리, detector 통합과 일부 요구 폐기 경로가 있다 | 규칙만 폐기하고 API/호출자는 유지하는 정상 경우를 허용한다. 고유 방어·정상 허용·우회 경로는 계속 확인한다 |
 
-기존과 후보에 같은 요구·source·fixture·host/모델 조건을 적용하고 평가 Agent에게 CLI 순서·정답 패치를 주지 않는다. 거짓 완료·결함 누락·정상 과업 오탐·개입·재작업·중복 실행·시간을 함께 기록한다. 측정하지 않은 비용과 사용자 검수 전 UI 오탐률은 산정하지 않는다. 작은 표본의 성공을 일반적 성능으로 확대하지 않는다. pstack은 고정 소스의 원칙 참고이며 동일 조건 비교 실행 없이 우열을 주장하지 않는다.
+가정한 규모는 한 프로젝트에 여러 독립 task를 위임하고 공통 source/설정의 작성자를 조정하는 운영이다. 같은 task의 동시 다중 writer, 대규모 무인 운영, native host 강제 수락까지 입증한 것으로 확대하지 않는다.
 
-이번 검토는 문서·코드·과거 실행 기록을 읽었으며 제품/플러그인 시험을 재실행하지 않았다. 현재 단계의 Feature 영향은 문서·인계(`documentation`)이며 런타임·배포 패키지의 동작 변경은 없다.
+## 재현된 문제와 가장 작은 보완
+
+### 1. 철회된 동의가 설명 수정만으로 다시 유효해진다 — 우선 수정
+
+[record_feedback](../../authoring/scripts/project_workflow.py)의 기존 항목 merge가 보존된 `user_review`를 그대로 가져오면서 `decision_hashes`를 현재 파일로 다시 만든다. 실제 격리 사례에서 `intentional_difference` 동의는 ACCEPTED였고 동의 파일을 철회 내용으로 바꾸자 OPEN이 됐다. 이어 새 user_review 없이 `reason`만 수정했는데 ACCEPTED로 복귀했다.
+
+최소 보완은 기존 task 안에서 결정 내용과 근거 revision을 고정하고, 설명·원인·owner 메모 갱신은 기존 결정의 hash를 유지하는 것이다. 새 사용자 결정이 들어온 경우에만 그 대상·근거 revision을 명시적으로 갱신한다. 별도 승인 DB나 자연어 권한 판독기를 만들지 않는다. 근거가 달라진 이전 결정은 새 동의로 간주하지 않는다.
+
+인수: 동의 철회 → OPEN → 설명/owner 갱신 후에도 OPEN; 새로 연결된 유효한 결정으로만 해소. 단순 조회는 파일과 판정을 갱신하지 않는다.
+
+### 2. 동의의 대상과 기준 revision이 충분히 묶이지 않는다 — 우선 수정
+
+두 사례를 확인했다. `kind=intentional_difference`에 일반 `decision=agree`를 주면, 참조 문서가 “이 차이는 버그이고 고쳐야 한다”여도 ACCEPTED다. CLI가 문장의 의미를 판단하지 않는 것은 의도된 경계이지만, `agree`만으로는 **문제 존재에 동의**했는지 **차이를 유지하는 처분에 동의**했는지 구별되지 않는다.
+
+또한 별도 동의 파일·owner가 그대로인 상태에서 Feature의 `criteria`를 “예외 금지”로 바꿔도 feedback은 ACCEPTED이고 다음 task에도 그대로 승계됐다. 전체 Feature 판정은 PARTIAL이므로 이를 제품 전체의 거짓 PASS로 확대하지 않는다. 문제는 feedback 자체가 현재 유효한 예외처럼 표시된다는 것이다. `criteria_before`는 저장하지만 이 분기에서는 기준 변경 판단에 쓰이지 않는다.
+
+최소 보완은 후보/주장 ID, 동의한 처분, 적용 범위, 요구·UI 기준 revision을 기존 feedback 결정에 결합하는 것이다. 일반적인 문제 동의는 예외 승인으로 해석하지 않는다. 결정의 의미에 필요한 참조가 바뀌면 재검토 상태로 돌린다. 영향 없는 결정은 유지하며 같은 동의를 매 작업마다 다시 요구하지 않는다. 구형 기록은 확인 가능한 결합만 재사용하고 빠진 권한/기준을 추정하지 않는다.
+
+인수: 문제 동의와 variant 승인을 구분; 관련 기준 변경 후 재검토; 기준과 결정이 그대로인 다음 관련 task에서는 유효 결정 재사용. 형식·hash 검증이 실제 사용자 신원/권한 인증은 아니라는 host 경계는 유지한다.
+
+### 3. 업무 규칙만 폐기하는 정상 변경이 막힌다 — 검사 정리 전에 수정
+
+[inspect_check_retirements](../../authoring/scripts/project_workflow.py)의 `requirement_retired` 분기는 `removed_entrypoints`와 `removed_callers`를 모두 비어 있지 않게 요구한다. 하지만 상한 규칙을 폐기하면서 같은 `quote(amount)`와 소비자를 유지하는 변경은 정상이다. 격리 실행에서 상한 제거 후 12와 0을 그대로 반환했고, 변경 권한·기준·source·실패 범위·남은 영향 근거가 있어도 두 제거 목록이 비었다는 이유만으로 BLOCKED였다.
+
+최소 보완은 **요구 폐기와 진입점 폐기를 구분**하는 것이다. 제거/변경/유지되는 진입점·호출자를 사실대로 설명하고 적용되지 않는 제거 목록에는 이유를 허용한다. 대신 남은 요구와 소비자 영향, 폐기된 실패 범위, 활성 연결 정리, 실제 새 동작과 정상 계약을 확인한다. 빈 목록을 무조건 허용하거나 삭제된 것처럼 꾸미게 해서는 안 된다.
+
+인수: endpoint 전체 폐기와 endpoint 유지·규칙 폐기 모두 정당하게 처리; 권한/기준/남은 소비자 근거가 없거나 활성 coverage가 남으면 계속 BLOCKED; 다른 실패를 잡는 검사는 유지. 존재하지 않는 대체 detector는 만들지 않는다.
+
+### 4. 소스 조사와 runtime 미확인이 요약에서 구별되지 않는다 — 조회 가시성 보완
+
+[inspect_investigation](../../authoring/scripts/project_workflow.py)과 [investigation_context](../../authoring/scripts/workflow_context.py)를 실제 호출했다. source-only 항목을 observed로 기록하고 부가 `unverified`에 runtime 미확인을 남기면 원문에는 보존되지만 요약은 READY_FOR_REVIEW / unobserved_count=0이다. 0.1.45 자연어 조사도 source-only 완료와 항목별 runtime 미확인을 사용했다.
+
+이는 source 조사가 완료됐다는 판정 자체의 오류가 아니다. 부가 필드가 정식 미확인 집계와 연결되지 않아 짧은 context에서 관찰 범위를 오해할 여지가 있다. 최소 보완은 관찰 방식과 요청 범위를 기존 조사/요약 계약에 명시하는 것이다. 요청에 포함된 미관찰 runtime은 안정적인 별도 항목으로 남기고, 요청 밖 runtime은 미실행/범위 밖임을 표시한다. source 조사만 요청했을 때 브라우저 실행을 강제하거나 작업을 미완료로 만들지 않는다.
+
+인수: 전체 원문·CLI 요약·hook에서 같은 분모와 필요한 미확인을 확인; source-only 완료는 허용하되 runtime 확인으로 표시되지 않음; 기존 observed/unobserved·stale·읽기 전용 재개 반례 유지.
+
+## 기능별 구체적인 개선 방법
+
+**Full-stack 검증:** 하나의 핵심 사용자 흐름에 요구 출처와 실제 expected/observed를 연결한다. FE 입력/실패 상태, BE 권한·transaction·실패 후 데이터, Domain 계산/전이/불변조건을 각각 본다. 공유 상태 owner·의존 방향·외부 경계는 실제 caller와 코드 근거로 검토하고, 결정적으로 검사 가능한 계약·금지 의존·중복 호출은 기존 test/lint에 둔다. 구조 설명의 존재만으로 architecture PASS를 만들지 않는다. 저장 흐름은 입력→API→Domain→저장→fresh read의 ID/값을 대조한다. API-only의 FE 비적용을 정상 허용한다.
+
+**사용자 피드백과 가드레일:** 증상, 기대 출처, 실제 관찰, 원인 가설, 확인된 owner를 구분한다. 제품 위반은 원래 기준 RED/GREEN·가까운 정상 사례, 요구 변경은 새 기준과 유지 계약, tool 오류는 독립 근거와 수정한 관찰 수단으로 확인한다. 가드레일은 validation/type/transaction/constraint/단일 owner/shared component 중 원인을 막는 가장 작은 위치에 둔다. 다음 관련 요청이 실제 예방을 소비하는지 확인한다. 재발 불가의 범위는 확인한 실패 유형·호출 경로·조건에 한정한다.
+
+**UI/UX guide:** 현재 화면을 그대로 표준으로 추출하지 않는다. 작업 목적·용어·정보 위계·component 상태·반응형·접근성·variant/예외를 필요한 수준으로 정하고 코드 참조를 연결한다. 공유 component 두 소비 화면에서 정상/오류·keyboard·관련 viewport를 실제 확인한다. 이후 새 context의 세 번째 화면 작업이 guide와 공유 owner를 재사용하는지 확인하되 이전 패치를 답안으로 주지 않는다. 의미가 다른 destructive action과 일반 action을 같은 스타일로 강제하지 않는다. screenshot 차이는 검토 후보이며 사용자 가치나 결함의 자동 판정이 아니다.
+
+**검증 guide:** 현행 명령/cwd·요구/assertion·fixture/runtime·raw producer·정리 방법을 한 경로로 연결한다. runner가 깨진 경우 원래 실패를 보존하고 관찰 수단을 수리한 뒤 실제 기능을 다시 확인한다. 명령을 바꿔 exit 0만 얻는 것으로 끝내지 않는다. 필요한 프로젝트 adapter 한 개를 연결하며 범용 parser나 doctor부터 만들지 않는다. 실행 전에 필요한 map/기준 수정을 마쳐 같은 동작의 불필요한 재측정을 줄인다.
+
+**많은 task 위임:** 기존 task/context·scope·results를 재사용하고, 선택한 task들의 완료/미확인/차단·근거·다음 행동을 읽기 전용 요약으로 보여주는 것을 우선한다. 공통 코드/설정은 한 owner가 통합한다. 독립 task 두 개가 같은 기반에서 시작한 뒤 공유 owner가 바뀌는 작은 병합 사례로 낡은 결과의 재사용 차단과 필요한 재검증을 확인한다. 같은 기록 다중 writer나 새 orchestration DB는 실제 수요·충돌 인수가 생길 때 별도 판단한다.
+
+**불필요한 검증 제거:** 각 검사가 막는 실패·정상 허용·고유 검출을 기존 prevention/maintenance에 연결한다. 중복 통합, 요구 폐기, 구조적 예방 이동, flaky 도구 수리를 서로 다른 이유로 다룬다. 알려진 실패 하나를 넣었을 때 실제로 검출하는지 필요에 따라 확인하고 비용은 실측한다. 전체 mutation framework·검사 점수·고정 검사 수·상시 Full은 도입하지 않는다. 높은 위험의 고유 방어는 드물게 실패한다는 이유로 삭제하지 않는다.
+
+## 작은 구현 순서와 채택 기준
+
+| 순서 | 기존 소유 위치 | 완료해야 할 실제 반례 |
+| --- | --- | --- |
+| 먼저 | `record_feedback` / `inspect_feedback` / repair 계약 / 관련 회귀 | 철회된 결정의 metadata 재승인 방지, 문제 동의와 예외 승인 구분, 기준 변경 뒤 유효성 재검토와 정상 승계 |
+| 다음 | `inspect_check_retirements` / maintenance 계약 / 관련 회귀 | API 유지·규칙만 폐기하는 정상 허용과 근거 부족·잔존 보호의 차단 |
+| 함께 영향 확인 | investigation/context/viewer의 기존 요약 | source 완료·요청 내 미관찰·요청 밖 미실행을 원문과 동일하게 표시, 조회 실행 0회 |
+| 그 후 작은 인수 | 기존 독립 프로젝트·실제 runner·패키지 | 요구/피드백→공유 owner 수리→UI/검증 guide 갱신→다른 context의 관련 요청→낡은 근거 차단 및 정상 재사용 |
+
+변경한 결정적 분기의 focused RED/GREEN과 기존 영향 회귀를 우선한다. 자연어 인수는 관련 동작이 바뀐 최종 후보에 수행한다. 거짓 완료·놓친 결함·정상 작업 오탐·개입·재작업·중복 실행·시간을 같은 조건에서 비교하되, 사용량/비용이 없으면 미측정으로 둔다. 이번의 코드 재현 수나 과거 387개 테스트를 일반 위임 신뢰도 점수로 바꾸지 않는다.
+
+## pstack에서 유지·제외할 점
+
+고정 조사 기준 `23e4138daa01c42d4969f7a5465f82704e64f798`의 실제 실행 경로, 측정 기준 고정, 원인 owner의 구조적 예방, 최종 revision에 연결된 독립 검토는 유지한다. orch 기록·Agent 합의는 실행 증명이나 host 권한 보장을 대신하지 않는다. 고정 10개 검증 경로·항상 다중 Agent·모든 PR 성능 검사·일률적 주석 삭제·patch-id만으로 현재 결과 재사용은 채택하지 않는다. pstack 최신 버전이나 동일 과제 실행 우열은 이번 검토 대상이 아니다.
+
+## 이번 확인의 범위
+
+- 실제 canonical 함수와 기존 테스트 fixture로 위 다섯 세부 사례를 실행했다. 제품 원본은 수정하지 않았고 HTTP/브라우저·외부 서비스·native 설치 host는 실행하지 않았다. 순수 Python quote 호출과 반환값은 직접 확인했다.
+- 재현 코드와 JSON은 `.work/post-r0-r4-review-20261009/{probe.py,probe_decision_refresh.py,probe_criteria_only.py,reproductions.json}`에 있다. 장기 판단에 필요한 관찰·조건·수정 방향은 본문에 남겼다.
+- 문서 정합성은 `python -m unittest tests.distribution.test_repository_docs` 3개 통과와 `git diff --check`로 확인했다. 이번 Feature 영향은 `documentation`; runtime·배포 리소스·버전은 바꾸지 않는다.
+- 0.1.45의 native host 접근 제약, 선언된 inventory의 완전성, 의미 검토의 충분성, 장기 무인 효과는 여전히 별도 한계다. 이 검토는 추가 구현·설치·main 통합 권한을 새로 만들지 않는다.

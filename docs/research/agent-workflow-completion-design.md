@@ -1,6 +1,6 @@
 # Agent 업무 위임 체계의 완성 기준과 후속 구현
 
-최신 실행 범위는 [2026-10-09 후속 검토의 R0–R4](#review-driven-refinement)다. [기존 §0의 범용 우선 순서](#generic-plugin-first)와 책임 구분은 유지하지만, 이미 수행한 G1–G6를 통째로 재실행하지 않는다. 초기 설계일은 2026-10-05이며 당시 검토 기준은 `wp-20261004-agent-coding-foundation` / `ea21282196c8e8be73a97c7acd1356c609e7d4a9`, dirty 없음이었다. 설계 갱신 당시에는 문서만 바꿨다. 이후 R0–R4의 구현·검증과 host 한계는 [현재 구현 결과](agent-workflow-implementation-results.md#r0r4-implementation-2026-10-09)에 기록했다.
+수행된 실행 범위는 [2026-10-09의 R0–R4](#review-driven-refinement)다. 0.1.45 이후 재현된 공백과 다음 보완 우선순위는 [최신 검토](agent-workflow-refinement-review.md)와 [현재 방향 §10](agent-coding-system-direction.md#10-다음-개선의-순서와-인수)를 따른다. [기존 §0의 범용 우선 순서](#generic-plugin-first)와 책임 구분은 유지하지만, 이미 수행한 G1–G6를 통째로 재실행하지 않는다. 초기 설계일은 2026-10-05이며 당시 검토 기준은 `wp-20261004-agent-coding-foundation` / `ea21282196c8e8be73a97c7acd1356c609e7d4a9`, dirty 없음이었다. 설계 갱신 당시에는 문서만 바꿨다. 이후 R0–R4의 구현·검증과 host 한계는 [현재 구현 결과](agent-workflow-implementation-results.md#r0r4-implementation-2026-10-09)에 기록했다.
 
 책임 분리 추가 검토는 `59f5492dcaff3e6a96637f719ac6ff16232525ee`, 적용 범위 교정은 `a268d39ddb3c3bacf33940a54bcd6e1456fe9e99`, 각각 dirty 없음에서 수행했다. **의무의 발생·유지·누락 차단은 환경, 의미를 판단하여 실제로 작성·수리하는 것은 Agent, 정형 실행·계산은 코드**라는 구분은 플러그인 전체에 적용한다. Feature Map은 이 원칙의 한 예이며 범위를 지도 작업으로 좁혔던 다음 세션 지시는 대체한다. 실행된 전체 범위는 [역할 분리·고도화 프롬프트 기록](agent-workflow-next-session.md)에 보존한다.
 
@@ -8,9 +8,9 @@
 
 <a id="review-driven-refinement"></a>
 
-## 최신 후속 범위: 0.1.44 검토 이후 R0–R4
+## 수행된 범위: 0.1.44 검토 이후 R0–R4
 
-2026-10-09의 실제 패키지 시험과 고도화 재검토를 [보완 검토](agent-workflow-refinement-review.md)에 반영했다. local main `95c4f9e`/0.1.44의 task·scope·feedback·UI·maintain 기반을 재사용한다. 다음 세션은 현재 main/remote/dirty를 다시 확인하고 새 작업 브랜치에서 구현·검증한 후 **로컬 main에 병합**한다. 사용자가 이번 인계에서 명시한 통합 권한이며 전역 Git 정책 수정·push·배포·설치 변경을 뜻하지 않는다. 실행 가능한 전체 요청은 [현재 프롬프트](agent-workflow-next-session.md)를 따른다.
+2026-10-09의 실제 패키지 시험과 고도화 재검토를 [보완 검토](agent-workflow-refinement-review.md)에 반영했다. local main `95c4f9e`/0.1.44의 task·scope·feedback·UI·maintain 기반을 재사용한다. 이 실행 요청은 당시 main/remote/dirty를 확인하고 새 작업 브랜치에서 구현·검증한 후 **로컬 main에 병합**하는 범위였으며 수행됐다. 당시 사용자가 그 실행 범위의 로컬 통합을 승인했으며 전역 Git 정책 수정·push·배포·설치 변경은 포함하지 않았다. 전체 요청은 [실행된 프롬프트](agent-workflow-next-session.md)에 보존한다.
 
 | 단위 | 구현·확인할 실제 업무 | 완료 기준 |
 | --- | --- | --- |
