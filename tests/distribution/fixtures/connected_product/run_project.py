@@ -314,7 +314,7 @@ def main() -> int:
         phase = "restart"
         report["execution"]["phases"].append({"name": "service_restart", "started_at_utc": now()})
         stop_process(service)
-        report["observed"]["services"][-1]["status"] = "stopped"
+        report["observed"]["services"][-1].update(status="stopped", exit_code=service.returncode)
         if server_log is not None:
             server_log.close()
             server_log = None
@@ -388,6 +388,11 @@ def main() -> int:
             except (OSError, subprocess.TimeoutExpired) as error:
                 report["cleanup"]["errors"].append(str(error))
         stop_process(service)
+        if service is not None:
+            for observed in report["observed"]["services"]:
+                if observed["pid"] == service.pid:
+                    observed.update(status="stopped" if service.poll() is not None else "running",
+                                    exit_code=service.returncode)
         if server_log is not None:
             server_log.close()
         for path in (port_file, database, Path(str(database) + "-wal"), Path(str(database) + "-shm")):

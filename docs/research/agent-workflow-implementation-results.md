@@ -1,5 +1,20 @@
 # Agent workflow implementation and acceptance
 
+## Independent cleanup observation repair, 2026-10-09
+
+The independent first-connection review found a project-runner observation defect:
+the second owned server was terminated, but its raw record still said `running`.
+This was not evidence of a live process leak. The source connected-product fixture
+now records both waited process exit codes and final stopped states; its registered
+native assertions require those states and no cleanup errors. The existing browser
+regression first failed on `['stopped', 'running']`, then passed with two independent
+real browser runs and retained, non-overwritten artifacts. Evidence is retained in
+`.work/generic-completion/cleanup-{red,green}.log` and
+`.work/connected-product-artifacts/5dbf6ceb-cad2-4c03-a6f1-40488cb4868e`.
+This fixes the project-owned acceptance runner, not the plugin runtime. Old package
+and project reports remain historical and unchanged. The web follow-up Agent is
+repairing the observation in its separately owned project as well.
+
 ## Independent trial findings before package freeze, 2026-10-09
 
 The clean `0aa96ae` source passed the full repository suite: 369 tests in 537.359s,
@@ -73,7 +88,7 @@ Agent work and independent package acceptance. G5-G6 have not started; no Labele
 preparation, installation, provider call, push or deployment was performed.
 
 
-Current user-function source is plugin **0.1.42** in the isolated
+The prior 2026-10-07 user-function source was plugin **0.1.42** in the isolated
 `wp-20261007-connected-workflows` worktree, based on `67e06d3eaedda203156b932bf1ac7e62be63df8a`.
 The A/B/C/D sections below distinguish deterministic CLI behavior from reused
 Agent diagnosis/design/semantic review. The package was not installed or published;

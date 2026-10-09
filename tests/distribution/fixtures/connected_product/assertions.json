@@ -17,6 +17,9 @@
           "assertions": [
             {"pointer": "/status", "equals": "PASS"},
             {"pointer": "/counts/assertions", "min": 14},
+            {"pointer": "/observed/services/0/status", "equals": "stopped"},
+            {"pointer": "/observed/services/1/status", "equals": "stopped"},
+            {"pointer": "/cleanup/errors", "equals": []},
             {"pointer": "/observed/assertions_by_id/new_database_is_empty/passed", "equals": true},
             {"pointer": "/observed/assertions_by_id/keyboard_submit/observed/saved_by_keyboard", "equals": true},
             {"pointer": "/observed/assertions_by_id/positive_quantity_api_save/observed/api_response/request_body", "equals": "{\"quantity\":2}"},

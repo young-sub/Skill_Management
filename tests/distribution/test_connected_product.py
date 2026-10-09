@@ -31,6 +31,10 @@ class ConnectedProductTests(unittest.TestCase):
             self.assertEqual(raw['counts']['assertions'], 14)
             self.assertFalse(Path(raw['execution']['database_path']).exists())
             self.assertEqual(raw['cleanup']['errors'], [])
+            self.assertEqual([service['status'] for service in raw['observed']['services']],
+                             ['stopped', 'stopped'])
+            self.assertTrue(all(isinstance(service.get('exit_code'), int)
+                                for service in raw['observed']['services']))
             reports.append(raw)
         self.assertTrue({a['path'] for a in reports[0]['artifacts']}.isdisjoint(
             {a['path'] for a in reports[1]['artifacts']}))

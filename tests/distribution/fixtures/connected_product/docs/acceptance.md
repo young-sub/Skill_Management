@@ -16,7 +16,7 @@ ui.js owns the shared app-nav component and the page interactions. Both HTML scr
 
 ## Project runner
 
-Run python run_project.py --report .work/connected-acceptance/<new-run-id>/browser.json. The project runner owns service launch, readiness and SQLite doctor checks, the real Chromium drive, evidence collection, a process restart, and cleanup. The report directory must be new. It retains raw browser responses, database row observations before and after restart, screenshots, a Playwright trace, and the server log; the temporary SQLite database and port file are removed during cleanup.
+Run python run_project.py --report .work/connected-acceptance/<new-run-id>/browser.json. The project runner owns service launch, readiness and SQLite doctor checks, the real Chromium drive, evidence collection, a process restart, and cleanup. The report directory must be new. It retains raw browser responses, database row observations before and after restart, screenshots, a Playwright trace, and the server log; the temporary SQLite database and port file are removed during cleanup. Both owned service processes retain their observed stopped state and exit code after cleanup; registered assertions require their termination and no cleanup errors.
 
 The configured browser check is an end-to-end observation. The isolated test_domain.py covers the business boundary directly; neither a successful server health response nor an HTTP success status alone passes the user flow.
 
