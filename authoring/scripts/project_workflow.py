@@ -318,6 +318,8 @@ def begin(root, project, intent, targets=(), *, prior_state=None):
     features = inspect_project(root, project)['features']
     feedback = {}
     results = {}
+    reviews = {}
+    retired_reviews = {}
     check_links = {f['id']: {'checks': list(f['checks']), 'prevention': deepcopy(f.get('prevention', []))}
                    for f in config['features']}
     if prior_state is not None or config.get('state'):
@@ -329,13 +331,22 @@ def begin(root, project, intent, targets=(), *, prior_state=None):
             if not isinstance(saved, dict) or saved.get('root') != str(root.resolve()) or saved.get('schema_version') != 1:
                 raise ValueError('work_target_mismatch')
             feedback = deepcopy(saved.get('feedback', {}))
+            current = inspect_project(root, project, saved)
+            reusable = {item['id'] for item in current['features'] if item['reviewed']}
+            for key, review in saved.get('reviews', {}).items():
+                unresolved = [f for f in architecture_findings(review) if f['status'] == 'open']
+                if key in reusable or review.get('product_findings') or unresolved:
+                    reviews[key] = deepcopy(review)
+                    reviews[key]['scope_reviews'] = {}
+                    reviews[key]['inherited_architecture_findings'] = deepcopy(unresolved)
+            retired_reviews = deepcopy(saved.get('retired_reviews', {}))
             results = deepcopy(saved.get('results', {}))
             for identity, review in saved.get('reviews', {}).items():
                 if review.get('bundle'):
                     links = results.setdefault(identity, [])
                     if review['bundle'] not in links:
                         links.append(review['bundle'])
-            for pending in inspect_project(root, project, saved)['check_retirements']:
+            for pending in current['check_retirements']:
                 if pending['status'] == 'BLOCKED' and pending['feature'] in check_links:
                     links = check_links[pending['feature']]
                     prior_links = saved['check_links'][pending['feature']]
@@ -346,7 +357,8 @@ def begin(root, project, intent, targets=(), *, prior_state=None):
     return {'schema_version': 1, 'task_id': str(uuid.uuid4()), 'root': str(root.resolve()), 'intent': intent,
             'targets': sorted(set(targets)), 'base': git(root, 'rev-parse', 'HEAD').decode().strip(),
             'dirty_baseline': git(root, 'status', '--porcelain').decode('utf-8'),
-            'baseline': inventory(root, config['roots']), 'reviews': {}, 'feedback': feedback, 'results': results,
+            'baseline': inventory(root, config['roots']), 'reviews': reviews, 'retired_reviews': retired_reviews,
+            'feedback': feedback, 'results': results,
             'source_patterns': {f['id']: list(dict.fromkeys(f['sources'] + [pattern
                 for system in config.get('ui_systems', {}).values() if f['id'] in system['consumers']
                 for field in ('tokens', 'components') for pattern in system[field]])) for f in config['features']},
@@ -357,21 +369,8 @@ def begin(root, project, intent, targets=(), *, prior_state=None):
 
 
 def begin_work(root, project):
-    """Called by Harness start before mutation; reuse current semantic reviews."""
-    state = begin(root, project, 'change')
-    configured = configuration(project).get('state')
-    if configured:
-        path = local_path(root, configured)
-        if not path.resolve().is_relative_to(root.resolve() / '.work'):
-            raise ValueError('state_must_be_task_local_under_work')
-        if path.is_file():
-            previous = json.loads(path.read_text(encoding='utf-8'))
-            current = inspect_project(root, project, previous)
-            reusable = {item['id'] for item in current['features'] if item['reviewed']}
-            state['reviews'] = {key: deepcopy(value) for key, value in previous.get('reviews', {}).items()
-                                if key in reusable}
-            state['feedback'] = deepcopy(previous.get('feedback', {}))
-    return state
+    """Use the same follow-up rules for ordinary tasks and Harness start."""
+    return begin(root, project, 'change')
 
 
 def work_record(root, work_id):
@@ -776,15 +775,15 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
         if not feature['checks']:
             result['unlinked'].append(identity)
     result['unmapped'] = sorted(name for name in files.keys() - covered if files[name] is not None)
-    removed = (set(state.get('input_bases', {})) | set(state.get('reviews', {}))) - {f['id'] for f in config['features']}
+    removed = (set(state.get('input_bases', {})) | set(state.get('reviews', {})) | set(state.get('retired_reviews', {}))) - {f['id'] for f in config['features']}
     removed |= {item['feature'] for item in result['feedback'] if item['feature'] not in {f['id'] for f in config['features']}}
     for name in sorted(removed):
         basis = digest({'removed': name, 'previous': state.get('input_bases', {}).get(name),
                         'features': config['features'], 'files': files})
         result['retired'].append({'id': name, 'basis': basis})
         review = state.get('retired_reviews', {}).get(name, {})
-        reviewed = current_review(root, review, basis)
         prior_review = state.get('reviews', {}).get(name, {})
+        reviewed = current_review(root, review, basis) and review.get('active_findings_basis') == finding_basis(prior_review)
         for candidate in (prior_review, review):
             if not isinstance(candidate, dict):
                 raise ValueError('workflow_review_must_be_object')
@@ -1219,9 +1218,17 @@ def architecture_references(architecture):
         ([entry['owner']] if 'owner' in entry else [])))
 
 
+def finding_basis(review):
+    return digest({'product': review.get('product_findings', []),
+                   'architecture': architecture_findings(review)})
+
+
 def architecture_findings(review):
-    return [dict(finding, scope_review=key) for key, entry in review.get('scope_reviews', {}).items()
-            for finding in entry.get('architecture', {}).get('findings', [])]
+    current = [dict(finding, scope_review=key) for key, entry in review.get('scope_reviews', {}).items()
+               for finding in entry.get('architecture', {}).get('findings', [])]
+    identities = {finding['id'] for finding in current}
+    return current + [finding for finding in review.get('inherited_architecture_findings', [])
+                      if finding['id'] not in identities]
 
 
 def validate_architecture(root, architecture):
@@ -1291,9 +1298,16 @@ def record_review(root, project, state, review):
     feature = next((item for item in result['features'] + result['retired'] if item['id'] == review.get('feature')), None)
     if feature is None or feature['basis'] != review.get('basis'):
         raise ValueError('stale_or_unknown_review')
-    prior = state.get('retired_reviews', {}).get(review['feature'],
-                state.get('reviews', {}).get(review['feature'], {}))
-    unresolved = {f['id'] for f in architecture_findings(prior) if f['status'] == 'open'}
+    key = 'retired_reviews' if feature in result['retired'] else 'reviews'
+    other_key = 'reviews' if key == 'retired_reviews' else 'retired_reviews'
+    prior = state.get(key, {}).get(review['feature'], state.get(other_key, {}).get(review['feature'], {}))
+    prior_records = [prior]
+    if key == 'retired_reviews' and prior.get('active_findings_basis') != finding_basis(state.get('reviews', {}).get(review['feature'], {})):
+        prior_records.append(state.get('reviews', {}).get(review['feature'], {}))
+    if ('inherited_architecture_findings' in review and
+            review['inherited_architecture_findings'] != prior.get('inherited_architecture_findings', [])):
+        raise ValueError('inherited_architecture_findings_are_read_only; resolve through a current scope review')
+    unresolved = {f['id'] for entry in prior_records for f in architecture_findings(entry) if f['status'] == 'open'}
     remaining = {f['id'] for f in architecture_findings(review)}
     if unresolved - remaining:
         raise ValueError(f'unresolved_architecture_finding_disposition_required:{sorted(unresolved - remaining)}')
@@ -1308,8 +1322,14 @@ def record_review(root, project, state, review):
             if not entry.get('architecture'):
                 raise ValueError('architecture_evidence_required')
     updated = deepcopy(state)
-    key = 'retired_reviews' if feature in result['retired'] else 'reviews'
+    if key == 'reviews':
+        updated.get('retired_reviews', {}).pop(review['feature'], None)
     updated.setdefault(key, {})[review['feature']] = deepcopy(review)
+    if key == 'retired_reviews':
+        updated[key][review['feature']]['active_findings_basis'] = finding_basis(state.get('reviews', {}).get(review['feature'], {}))
+    if 'product_findings' not in review:
+        updated[key][review['feature']]['product_findings'] = list(dict.fromkeys(
+            finding for entry in prior_records for finding in entry.get('product_findings', [])))
     updated[key][review['feature']]['reference_hashes'] = {
         name: file_hash(root, name) for name in review['references']}
     for entry in updated[key][review['feature']].get('scope_reviews', {}).values():

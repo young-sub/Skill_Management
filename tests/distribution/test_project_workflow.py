@@ -274,6 +274,18 @@ class ProjectWorkflowTests(unittest.TestCase):
         state = runtime.record_review(self.root, self.project, state, review)
         current = runtime.inspect_project(self.root, self.project, state)
         self.assertEqual(current['coverage']['rows'][0]['status'], 'ISSUES')
+        followup = runtime.begin(self.root, self.project, 'change', ['api'], prior_state=state)
+        self.assertEqual(followup['reviews']['api'].get('scope_reviews', {}), {})
+        self.assertTrue(any(f.get('id') == 'duplicate-owner' for f in
+            runtime.inspect_project(self.root, self.project, followup)['product_findings']))
+        with self.assertRaisesRegex(ValueError, 'unresolved_architecture_finding'):
+            runtime.record_review(self.root, self.project, followup, dict(review, scope_reviews={}))
+        changed = json.loads(json.dumps(followup['reviews']['api']))
+        changed['inherited_architecture_findings'][0]['status'] = 'fixed'
+        with self.assertRaisesRegex(ValueError, 'inherited_architecture_findings'):
+            runtime.record_review(self.root, self.project, followup, changed)
+
+
         open_state = state
         self.assertEqual(current['coverage']['rows'][0]['evidence']['architecture']['findings'][0]['owner'], 'src/cli.py')
         finding = scope['architecture']['findings'].pop()
@@ -744,6 +756,101 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.write('src/api.py', 'price = 11\n')
         fresh = runtime.begin_work(self.root, self.project)
         self.assertEqual(set(fresh['reviews']), {'cli'})
+
+    def test_followup_preserves_map_reviews_but_requires_new_scope_decisions(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'init')
+        for feature in ('api', 'cli'):
+            state = self.review(runtime, state, feature)
+        state['reviews']['api']['scope_reviews'] = {'old-task': {
+            'status': 'NOT_REQUIRED', 'reason': 'Previous request only', 'references': ['src/api.py']}}
+        before = json.dumps(state, sort_keys=True)
+        fresh = runtime.begin(self.root, self.project, 'change', ['api'], prior_state=state)
+        audit = runtime.inspect_project(self.root, self.project, fresh)
+        self.assertEqual(set(fresh['reviews']), {'api', 'cli'})
+        self.assertEqual(fresh['reviews']['api'].get('scope_reviews', {}), {})
+        self.assertTrue(all(f['reviewed'] for f in audit['features']))
+        self.assertFalse(any(o['target'] == 'cli' for o in audit['obligations']))
+        self.assertEqual(json.dumps(state, sort_keys=True), before)
+
+    def test_followup_keeps_stale_product_findings_until_explicit_disposition(self):
+        runtime = self.runtime()
+        state = self.review(runtime, runtime.begin(self.root, self.project, 'init'), 'api')
+        gap = 'Output quality still needs a representative check'
+        state = runtime.record_review(self.root, self.project, state,
+            dict(state['reviews']['api'], product_findings=[gap]))
+        self.write('src/api.py', 'price = 11\n')
+        fresh = runtime.begin(self.root, self.project, 'change', ['cli'], prior_state=state)
+        audit = runtime.inspect_project(self.root, self.project, fresh)
+        self.assertIn({'feature': 'api', 'finding': gap}, audit['product_findings'])
+        self.assertFalse(next(f for f in audit['features'] if f['id'] == 'api')['reviewed'])
+        fresh = self.review(runtime, fresh, 'api')
+        self.assertIn({'feature': 'api', 'finding': gap},
+                      runtime.inspect_project(self.root, self.project, fresh)['product_findings'])
+        fresh = runtime.record_review(self.root, self.project, fresh,
+            dict(fresh['reviews']['api'], product_findings=[], analysis='Representative output inspected; gap resolved.'))
+        self.assertEqual(runtime.inspect_project(self.root, self.project, fresh)['product_findings'], [])
+
+    def test_followup_retains_removed_feature_product_findings(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'init')
+        state = self.review(runtime, state, 'cli')
+        gap = 'Unresolved CLI output discrepancy'
+        state = runtime.record_review(self.root, self.project, state,
+            dict(state['reviews']['cli'], product_findings=[gap]))
+        self.project['extensions']['workflow']['features'].pop()
+        audit = runtime.inspect_project(self.root, self.project, state)
+        state = runtime.record_review(self.root, self.project, state, {
+            'feature': 'cli', 'basis': audit['retired'][0]['basis'], 'analysis': 'CLI removed; gap remains',
+            'references': ['docs/map.md'], 'findings': [], 'product_findings': [gap]})
+        # A reconciliation may own the only remaining record of a retired feature.
+        del state['reviews']['cli']
+        fresh = runtime.begin(self.root, self.project, 'change', prior_state=state)
+        self.assertIn({'feature': 'cli', 'finding': gap},
+                      runtime.inspect_project(self.root, self.project, fresh)['product_findings'])
+
+    def test_restored_feature_uses_active_findings_over_old_retirement(self):
+        runtime = self.runtime()
+        state = self.review(runtime, runtime.begin(self.root, self.project, 'init'), 'cli')
+        feature = self.project['extensions']['workflow']['features'].pop()
+        audit = runtime.inspect_project(self.root, self.project, state)
+        state = runtime.record_review(self.root, self.project, state, {
+            'feature': 'cli', 'basis': audit['retired'][0]['basis'], 'analysis': 'CLI retirement checked',
+            'references': ['docs/map.md'], 'findings': [], 'product_findings': []})
+        self.project['extensions']['workflow']['features'].append(feature)
+        state = self.review(runtime, state, 'cli')
+        gap = 'New issue after restoring CLI'
+        state = runtime.record_review(self.root, self.project, state,
+            dict(state['reviews']['cli'], product_findings=[gap]))
+        state = self.review(runtime, state, 'cli')
+        self.assertIn({'feature': 'cli', 'finding': gap},
+                      runtime.inspect_project(self.root, self.project, state)['product_findings'])
+        self.project['extensions']['workflow']['features'].pop()
+        audit = runtime.inspect_project(self.root, self.project, state)
+        state = runtime.record_review(self.root, self.project, state, {
+            'feature': 'cli', 'basis': audit['retired'][0]['basis'], 'analysis': 'Retired again; issue still open',
+            'references': ['docs/map.md'], 'findings': []})
+        self.assertIn({'feature': 'cli', 'finding': gap},
+                      runtime.inspect_project(self.root, self.project, state)['product_findings'])
+
+    def test_legacy_retirement_cannot_shadow_a_new_active_finding(self):
+        runtime = self.runtime()
+        state = self.review(runtime, runtime.begin(self.root, self.project, 'init'), 'cli')
+        self.project['extensions']['workflow']['features'].pop()
+        audit = runtime.inspect_project(self.root, self.project, state)
+        state = runtime.record_review(self.root, self.project, state, {
+            'feature': 'cli', 'basis': audit['retired'][0]['basis'], 'analysis': 'Previous retirement complete',
+            'references': ['docs/map.md'], 'findings': [], 'product_findings': []})
+        # Existing releases could retain both records after remove/restore/remove.
+        gap = 'New active finding missing from the older retirement'
+        state['reviews']['cli']['product_findings'] = [gap]
+        audit = runtime.inspect_project(self.root, self.project, state)
+        self.assertIn({'feature': 'cli', 'finding': gap}, audit['product_findings'])
+        state = runtime.record_review(self.root, self.project, state, {
+            'feature': 'cli', 'basis': audit['retired'][0]['basis'], 'analysis': 'Reconciled mapping only',
+            'references': ['docs/map.md'], 'findings': []})
+        self.assertIn({'feature': 'cli', 'finding': gap},
+                      runtime.inspect_project(self.root, self.project, state)['product_findings'])
 
     def test_private_and_outside_paths_rejected_before_read(self):
         runtime = self.runtime()

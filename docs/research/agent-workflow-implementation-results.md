@@ -1,5 +1,37 @@
 # Agent workflow implementation and acceptance
 
+## Generic completion G1 continuity repair, 2026-10-09
+
+Work starts from local main `d3bb741` (contains `23e5d15`) in a new
+`generic-completion-20261009` worktree, branch `wp-20261009-generic-completion`.
+The original checkout at `172dfa3`, old work records and installed distributions
+are preserved. The removed path in the request was recovered through main's
+tracked execution prompt; no old worktree was reconstructed.
+
+Ordinary follow-up tasks and Harness start now share current map-review reuse.
+New scope decisions remain required. Stale reviews retain unresolved product and
+architecture findings; omission in a replacement product review does not resolve
+an issue. Architecture inheritance cannot be edited to claim repair without the
+existing current-scope evidence validation. Retired Feature findings remain
+visible, and a new active review supersedes obsolete retirement approval.
+
+Focused tests first reproduced lost reviews/product findings, lost retired
+findings, unvalidated inherited resolution, and active/retired shadowing. Each
+was repaired with the same criterion and normal retirement/fresh-review controls.
+Workflow/hook plus affected Harness and documentation checks passed 88 tests
+before the final retirement correction. Final affected regression passed 90 tests;
+resource drift, distribution validation and `git diff --check` also passed.
+Logs are retained at `.work/generic-completion/{regression,drift,distribution}.log`.
+The independent Agent review found the retirement shadowing boundary; its finding
+was reproduced and fixed by the main Agent. This is local deterministic behavior
+and independent code review, not package/native-host or product acceptance.
+
+G1 remains partial: request summary/outcome references and dependency-scoped reuse
+still need implementation/review. G2-G4 still require first-connection, six-flow
+Agent work and independent package acceptance. G5-G6 have not started; no Labeler
+preparation, installation, provider call, push or deployment was performed.
+
+
 Current user-function source is plugin **0.1.42** in the isolated
 `wp-20261007-connected-workflows` worktree, based on `67e06d3eaedda203156b932bf1ac7e62be63df8a`.
 The A/B/C/D sections below distinguish deterministic CLI behavior from reused

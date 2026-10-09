@@ -1,10 +1,22 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: 82af3816a74b3c319c309e9bac504f41acf5596ebae33dd87f3dac564362d0ad -->
+<!-- Source-SHA256: d2cd50b193d18b0392eaac1197cfd6f7cf7423ccd123c121e16d0c3b384981bb -->
 
 # Project workflow obligations
 
 Existing project config owns `extensions.workflow`; a task record under `.work` retains review progress. The bundled `scripts/project_workflow.py` computes obligations from current bytes and registered connections without calling a model. Requirements, feature meanings, causes and visual judgments remain Agent work. Review records are Agent inputs, not authenticated proof.
+
+## Follow-up review and finding continuity
+
+Ordinary `start` with an explicit prior context and configured-state `begin`/Harness
+start share the same inheritance rules. Current map reviews remain reusable;
+new-task `scope_reviews` are empty so old applicability decisions cannot exempt
+new work. Stale reviews with unresolved product or architecture findings remain
+visible without counting as current approval. Architecture findings travel inside
+the review, independently of task scope decisions, until an explicit disposition.
+Omitting `product_findings` in a replacement review preserves them; an explicit
+empty list with the required review analysis records their resolution. Retired
+Feature findings also remain visible. Prior task records are never rewritten.
 
 ## Connect the current request once
 

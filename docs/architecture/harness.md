@@ -73,3 +73,10 @@ The existing Impeccable entrypoint also loads the canonical repair/reuse referen
 `authoring/` is canonical. `scripts/sync-skill-resources.ps1` generates self-contained public resources and the manifest. Each installed Skill exposes only its owned commands. When a known command is invoked through the wrong Skill, that entrypoint reports the requested command, owning sibling Skill, and exact sibling script path; there is no shared launcher. The installed cohort is accepted only when its complete observed tree exactly matches the required manifest resource set and hashes; Skill prose is not a compatibility signal. The bundled manifest must retain valid metadata and the same Harness resource entries, but unrelated Skill additions, removals, or hash changes do not invalidate the cohort. Full distribution validation still covers all public resources. Installation stages and verifies the whole cohort before atomically replacing its owned Skill roots.
 
 Harness maintenance requires a supported project configuration. If normalization fails, it reports the configuration finding and marks document, impact and baseline checks `not_checked`; it does not substitute empty defaults and invent drift. Independent environment, instruction, lifecycle, transaction, Git and requested installed-cohort audits continue. A standalone `extensions.workflow` project uses the project-workflow audit; its presence does not require full Harness installation.
+
+Ordinary and Harness task starts now share map-review continuity: basis-current
+reviews are reusable, task scope decisions reset, and unresolved product and
+architecture findings remain independent of approval freshness. Architecture
+carry is read-only input to the next review; resolution uses validated current
+scope evidence. Reintroducing a retired Feature supersedes its old retirement
+review, while a retirement retains the active finding baseline for stale checks.

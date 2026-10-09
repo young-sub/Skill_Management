@@ -2,6 +2,18 @@
 
 Existing project config owns `extensions.workflow`; a task record under `.work` retains review progress. The bundled `scripts/project_workflow.py` computes obligations from current bytes and registered connections without calling a model. Requirements, feature meanings, causes and visual judgments remain Agent work. Review records are Agent inputs, not authenticated proof.
 
+## Follow-up review and finding continuity
+
+Ordinary `start` with an explicit prior context and configured-state `begin`/Harness
+start share the same inheritance rules. Current map reviews remain reusable;
+new-task `scope_reviews` are empty so old applicability decisions cannot exempt
+new work. Stale reviews with unresolved product or architecture findings remain
+visible without counting as current approval. Architecture findings travel inside
+the review, independently of task scope decisions, until an explicit disposition.
+Omitting `product_findings` in a replacement review preserves them; an explicit
+empty list with the required review analysis records their resolution. Retired
+Feature findings also remain visible. Prior task records are never rewritten.
+
 ## Connect the current request once
 
 `start --root <project> --intent change --target <feature>` creates ordinary task
