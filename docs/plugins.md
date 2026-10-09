@@ -8,7 +8,7 @@ The package identity and version are owned by `distribution/plugin.json`.
 ## Build
 
 ```powershell
-python scripts/build_plugin.py --output .work/packages/agentic-coding-0.1.42
+python scripts/build_plugin.py --output .work/packages/agentic-coding-0.1.43
 ```
 
 The builder first runs the existing generated-resource check. It selects tracked
@@ -56,6 +56,13 @@ host evidence. A project selects the installed dependency files that constrain
 reuse; unlisted transitive runtime changes remain outside that declaration.
 
 ## Capabilities and current boundary
+
+Version 0.1.43 adds ordinary/Harness follow-up review and unresolved-finding
+continuity, request summaries and outcome references, bounded prompt previews,
+and explicit rejection of invalid dot-segment inventory roots. Experimental
+package trials are recorded separately from final package acceptance in the
+[implementation results](research/agent-workflow-implementation-results.md).
+This source version does not update any installed Skill or Plugin.
 
 `agent-workflow` routes natural-language tasks to implementation, verification and
 lookup, feedback repair, UI standards, or maintenance. `setup-project-verification`
