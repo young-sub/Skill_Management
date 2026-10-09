@@ -6,11 +6,11 @@ pstack의 스킬, 작업 절차, 서브에이전트, 자동화 팩과 실행 도
 
 이 문서는 외부 플러그인의 조사 기록이다. 이 저장소의 실행 지침은 [Agent workflow](../agents/workflow.md)와 기존 Harness 문서가 정한다.
 
-2026-10-05 논의의 현재 채택·제외 기준은 [Agent Coding 체계 방향](agent-coding-system-direction.md), 후속 구현은 [다음 세션 실행 프롬프트](agent-coding-next-session.md)에 정리했다. 이전 배포 비교·Router 보류 판단은 [아카이브](archive/index.md)에 보존한다. 이 문서는 2026-10-03에 고정한 외부 소스의 조사 기록이며, 후보 전체의 품질 효과나 현재 플러그인 호스트 지원을 보증하지 않는다.
+현재 채택·제외 기준과 다음 개선 순서는 [Agent Coding 체계 방향](agent-coding-system-direction.md#next-improvements-0147), 실제 후속 구현은 [구현 결과](agent-workflow-implementation-results.md#d1d3-consumption-2026-10-09)에 정리했다. [과거 실행 프롬프트](agent-coding-next-session.md)는 수행 범위의 기록이며 새 실행 지시가 아니다. 이전 배포 비교·Router 보류 판단은 [아카이브](archive/index.md)에 보존한다. 이 문서는 2026-10-03에 고정한 외부 소스의 조사 기록이며, 후보 전체의 품질 효과나 현재 플러그인 호스트 지원을 보증하지 않는다.
 
 ## 조사 범위와 근거
 
-2026-10-09의 현재 고도화 판단은 [0.1.46 이후 보완 검토](agent-workflow-refinement-review.md#post-0146-review)를 따른다. 이 링크 갱신은 아래 고정 소스를 새로 조사하거나 pstack을 실행했다는 뜻이 아니다. 기존 기능 인수와 새 구현을 구분하고, 고정된 기준의 실패/정상 반례·실제 기능 조작·원인별 개선을 재사용한다. 아래 pstack 고정 소스 조사 범위는 바뀌지 않았으며 동일 과업 실행 비교나 최신 버전 우월성을 확인한 것은 아니다.
+2026-10-09의 현재 고도화 판단은 [0.1.47 설계 검토](agent-coding-system-direction.md#design-review-0147)를 따른다. [0.1.46 보완 검토](agent-workflow-refinement-review.md#post-0146-review)의 D1–D3는 후속 구현에서 해결됐다. 이 링크 갱신은 아래 고정 소스를 새로 조사하거나 pstack을 실행했다는 뜻이 아니다. 기존 기능 인수와 새 구현을 구분하고 고정된 기준의 실패/정상 반례·실제 기능 조작·원인별 개선을 재사용한다. 아래 pstack 고정 소스 조사 범위는 바뀌지 않았으며 동일 과업 실행 비교나 최신 버전 우월성을 확인한 것은 아니다.
 
 우리 체계의 2026-10-07 실제 구현·사용과 이 고정 소스의 비교는 [현재 구현 결과](agent-workflow-implementation-results.md#pinned-pstack-comparison)에 있다. 같은 커밋의 주요 1차 소스를 다시 확인했으며, pstack 실행이나 양쪽의 동일 과제 비교 실험을 한 것은 아니다.
 

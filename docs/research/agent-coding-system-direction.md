@@ -1,16 +1,12 @@
 # Agent Coding 업무 위임·검증·지속 개선 체계
 
-현재 구현은 **0.1.47**이다. 아래 0.1.46 검토에서 남긴 D1–D3는 기존 결정·hook
-소유 코드에서 수리했고, task 조회 요약과 raw 발견 경로를 연결했다.
-[후속 실제 결과](agent-workflow-implementation-results.md#d1d3-consumption-2026-10-09)가
-검증·패키지 소비·자연어 평가와 남은 한계를 소유한다. 아래 표의 0.1.46
-미흡점은 당시 출발점이며 현재 미구현 목록으로 재실행하지 않는다.
+현재 설계 검토 기준은 **2026-10-09 / 0.1.47 / local main `7c30e79`**이다. 많은 업무를 위임하면서 요구·실행·근거·미확인·후속 개선을 확인하는 방향은 유지한다. 이번 보완은 현재 구현·소비 결과에 대한 설계 검토이며 runtime 변경이나 새로운 인수 완료를 뜻하지 않는다. [현재 상태와 이번 재현](#design-review-0147), [다음 개선의 순서](#next-improvements-0147)를 따른다.
 
-현재 검토 기준: **2026-10-09 / 0.1.46 / local main `ef25cf2`**. 목표는 많은 업무를 위임하면서 요구·실행·근거·미확인·후속 개선을 확인하는 것이다. 기존 task/context, 6셀 scope, 실제 runner, feedback/prevention, UI guide와 maintenance를 유지한다.
+0.1.46 검토의 D1–D3는 기존 결정·hook 소유 코드에서 수리했고 task 조회 요약과 raw 발견 경로를 연결했다. [후속 실제 결과](agent-workflow-implementation-results.md#d1d3-consumption-2026-10-09)가 검증·패키지 소비·독립 새 문맥 평가와 남은 한계를 소유한다. 기존 task/context, 6셀 scope, 실제 runner, feedback/prevention, UI guide와 maintenance를 재사용한다.
 
 0.1.45 검토의 A–C는 구현됐다. 명시적 승인 연결, 메타데이터 갱신 방어, 규칙만 폐기하고 API/호출자 유지, 요청별 관측 방법·미확인 ID·후속 승계를 신규 작업으로 다시 만들지 않는다. 실제 인수와 host 한계는 [구현 결과](agent-workflow-implementation-results.md#post-review-reliability-2026-10-09)가 소유한다.
 
-[최신 보완 검토](agent-workflow-refinement-review.md#post-0146-review)는 **분류 왕복으로 철회 승인이 살아나는 상태 전이와 새로 추가된 관련 기준의 누락**을 현재 CLI에서 추가 재현했다. 이것을 먼저 보완하고, 여러 task의 검증 조회와 새 문맥의 guide/근거 소비를 다음 인수 대상으로 삼는다. 이번 변경은 설계 보완이며 해당 runtime 수리까지 수행한 것이 아니다.
+[0.1.46 보완 검토](agent-workflow-refinement-review.md#post-0146-review)는 당시의 분류 왕복·새 기준 누락·task/project 공백 혼동을 재현한 기록이다. 이 반례나 과거 실행 블록을 다음 구현 목록으로 다시 실행하지 않는다. 새로운 우선순위는 현재 남은 소비 공백과 아직 확인하지 못한 업무 경험에서 정한다.
 
 [R0–R4](agent-workflow-completion-design.md#review-driven-refinement)와 [실행된 요청](agent-workflow-next-session.md)은 수행 범위의 기록이다. 별도 승인/조사 장부나 전체 Git stale 정책 축소는 도입하지 않는다. 문서·패키지·한정 fixture의 성공을 일반 위임 효과로 확대하지 않는다.
 
@@ -43,20 +39,26 @@ Agent는 요구·원인·시각·검사 가치의 의미 판단을, CLI는 상�
 
 이전 설계와 수행 완료 프롬프트는 [아카이브](archive/index.md)에 보존한다. 그 안의 미래형 지시는 현재 작업을 승인하거나 다시 실행하는 근거가 아니다.
 
+<a id="design-review-0147"></a>
+
 ## 2. 구현 상태와 다음 공백
 
-0.1.46의 범위 한정 실제 실행과 이번 추가 재현을 함께 본다. 아래 미흡점은 [보완 검토](agent-workflow-refinement-review.md#post-0146-review)에 조건·관찰·코드 소유 위치를 남겼다. 검사 수나 패키지 무결성을 일반 위임 신뢰도의 대용으로 쓰지 않는다.
+현재 소스·호출자·기존 검증·0.1.47 패키지 출력을 대조했다. 아래는 구현된 기능, 이번에 실제 재현한 소비 공백, 추가로 평가할 범위를 구분한 결과다. 검사 수나 패키지 무결성을 일반 위임 신뢰도의 대용으로 쓰지 않는다.
 
 | 영역 | 이미 확인한 토대 | 남은 공백/경계 |
 | --- | --- | --- |
-| 요청·조사·재개 | 같은 task/context, 미설정 조사, 요청 내 unknown·범위 밖 runtime 구분, 안정 ID·stale 후속 승계, 읽기 전용 조회 실행 0회 | 선언한 inventory가 실제 전체 제품을 증명하지 않음. 여러 ordinary task의 현재 검증·차단·미확인을 한 번에 비교하는 소비는 추가 인수 필요 |
-| Full-stack 검증 | 6셀 scope, prepare/execute/lookup, 실제 Chromium/API/Domain/SQLite·재시작 readback, FE 오류/BE PASS 반례 | hook이 현재 task의 gap 집계에 `in_task=false`인 다른 Feature 셀도 포함함. 의미·구조 충분성이나 사업 성과는 별도 판단 |
-| 피드백·예방 | 원인별 분기, 원래 기준 RED/GREEN·정상 사례, 명시적 결정 ID/대상/처분/기준 binding, 메타데이터·일반 agree 방어 | `intentional_difference → unknown → intentional_difference`가 철회 근거를 재승인함. 같은 Feature에 새 관련 기준 파일을 추가해도 기존 예외는 ACCEPTED로 남음 |
-| UI/검증 guide | 공유 owner·consumer·기준 revision·예외 연결, 실제 공유 UI 수정과 다음 요청 재사용, 프로젝트 runner 유지보수 | CONNECTED는 시각·사용성 판정이 아님. 새 소비자가 guide와 실제 코드 owner를 선택하는 자연어 인수, 요약에서 raw로 이어지는 발견 경로를 강화해야 함 |
-| 검사 가치 | 실제 detector 통합, 고유 방어 유지, API/호출자 유지·규칙만 폐기하는 실행과 활성 연결 정리 | 구조적 예방 이동·flaky 수리는 각각 의미에 맞는 근거가 필요. 선언된 중복을 실제 동일 검출로 단정할 수 없음 |
-| 패키지·host | 19 Skills/246파일의 0.1.46 동결 패키지와 파일 hash, 실제 CLI/후속 task 소비 | native 발견/context/보호된 수락은 별도 BLOCKED/미검증. fresh reader가 raw를 오해한 기록도 있으며 장기 무인 효과·동시 다중 writer는 미입증 |
+| 요청·조사·재개 | 같은 task/context, 미설정 조사, 안정 unknown ID·stale 후속 승계, 정확히 선택한 세 ordinary task의 요약과 독립 읽기 평가, 조회 실행 0회 | 선언한 inventory는 전체 제품 조사 증명이 아님. 독립 새 문맥 성공은 native host의 자동 발견/context 전달과 다름 |
+| Full-stack 검증 | 6셀 scope, task=6/project=12, 전체 matrix 보존, 실제 Chromium/API/Domain/SQLite·재시작 readback, FE 오류/BE PASS 반례 | 이번 조회는 `READY_FOR_REVIEW`인데 활성 6셀이 `UNDECIDED`, coverage는 `PARTIAL`, 다음 행동은 빈 목록. 실제 제품 false PASS가 아니라 남은 검토의 안내 공백 |
+| 피드백·예방 | D1 분류 왕복 후 철회 유지, D2 적용 기준 집합 변경/legacy 재검토, 유효한 새 결정과 후속 승계, 원인별 기존 수리 경로 | 로컬 review의 ID/hash는 실제 사용자 승인·의미적 정답을 인증하지 않음. Feature 내 세밀한 기준 제외는 아직 지원하지 않음 |
+| UI/검증 guide | T5 공유 UI owner/guide·다음 화면 재사용, 0.1.47 독립 견적 변경의 기준/지도/활성 검사 갱신과 후속 재사용, raw 위치/상세 생략 표시 | CONNECTED는 시각·사용성 판정이 아님. 기존 정상 증거를 반복하기보다 새 소비자가 의도된 variant와 실제 오류를 구분하는 추가 자연어 과제를 선택 |
+| 검사 가치 | 실제 detector 통합, 고유 방어 유지, API/호출자 유지·rule-only 폐기와 실행·후속 소비, Skill의 낡은 replacement 요구 제거 | 구조적 예방 이동·flaky 수리는 각자의 실제 금지/정상/관측 근거가 필요. 선언된 중복이나 오래된 검사라는 이유로 삭제 불가 |
+| 패키지·host·많은 task | 19 Skills/246파일의 0.1.47 고정 패키지, source commit/hash와 실제 CLI, 같은 base에서 공유 owner 변경 후 stale/현재 근거 구분 | native 발견은 기존 CODEX_HOME 접근 오류로 BLOCKED. hook 출력 축소는 조사량 제한이 아님. 장기 무인 성과·다중 writer·대규모 latency는 미측정 |
 
-0.1.46 Full과 마지막 hook 보정의 영향 회귀는 [구현 결과](agent-workflow-implementation-results.md#post-review-reliability-2026-10-09)의 서로 다른 실행 범위를 따른다. 이번 추가 사례가 그 회귀에 포함됐다고 소급 주장하지 않는다. 이전 review/findings 승계 수리와 원래 A–C 정상 인수는 유지한다.
+현재 회귀는 Full 401개와 이후 표시 수정의 영향 회귀 48개 등 서로 다른 실행 범위다. 이번 설계 검토에서 이를 재실행하거나 전체 위임 품질 PASS로 확대하지 않았다. baseline/candidate의 독립 견적 과제는 모두 완료됐고 실행 선택도 달랐으므로 우월성·시간 절감은 입증되지 않았다.
+
+이번 읽기 전용 재현은 기존 안전한 견적 복제본과 최종 0.1.47 패키지를 사용했다. 기존 후속 task `8743f1b2-e480-4b7f-a8cd-2bdd5de78a30`의 `lookup --summary`가 위의 미결정/빈 다음 행동 조합을 반환했다. [scope·상태 계산과 요약](../../authoring/scripts/project_workflow.py)은 명시된 coverage 또는 scope 결정이 있을 때 scope 의무를 발생시키지만, 이 fixture에는 그것이 없다. legacy 호환 경로의 근거 재사용은 허용하되 범위 검토까지 끝났다는 의미로 표시하지 않아야 한다. 미결정 자체를 이유로 모든 작은 요청에 setup·6셀 실행을 강요하는 수정도 잘못이다.
+
+같은 fixture의 [hook](../../authoring/scripts/workflow_context.py)을 함수 호출 계측으로 읽었다. 두 Feature·후보 두 개에서 `inspect_project`와 `inventory`가 각각 2회, `file_hash`가 51회였다. `task_candidates()`는 출력의 8개 제한 전에 후보 레코드를 모두 읽으며 active Harness work도 최대 8개를 추가 조사한다. 이는 중복 읽기의 관찰이며 대규모 지연의 측정은 아니다. hook/조회 전후 프로젝트 파일 59개 hash가 같고 native 실행 수는 4→4였다. argv/cwd/원문·계측 방법은 `.work/goal-design-review-20261009/`에 남겼으며 임시 근거 보존 정책을 따른다.
 
 ## 3. 하나의 업무 진입점과 선택적 Playbook
 
@@ -88,9 +90,9 @@ Agent는 요구·원인·시각·검사 가치의 의미 판단을, CLI는 상�
 
 ## 4. 검증 관점과 Full-stack 책임
 
-**비즈니스 모델과 아키텍처는 검토 관점, FE·BE·Domain은 책임 영역, E2E는 연결 확인 방법**이다. 사용자 요구와 업무 규칙이 정답이며 현재 구현 자체를 정답으로 삼지 않는다.
+**업무 결과·규칙과 아키텍처는 검토 관점, FE·BE/API·Domain은 논리적 책임 영역, E2E는 연결 확인 방법**이다. runtime의 `business`는 이 업무 결과·규칙 관점을 가리킨다. 사업 모델의 가치·전환·수익 가설 검증은 별도 사용자/운영 관찰이다. 사용자 요구와 합의한 업무 규칙을 기준으로 삼으며 현재 구현 자체를 정답으로 삼지 않는다.
 
-| 책임 영역 | 비즈니스 모델 관점 | 아키텍처 관점 | 근거 |
+| 책임 영역 | 업무 결과·규칙 관점 | 아키텍처 관점 | 근거 |
 | --- | --- | --- | --- |
 | FE | 작업 완료, 입력·오류·저장 상태, 기대 값과 실제 결과 | 상태 소유권, 비동기·중복 상태, component/effect 경계 | 실제 조작·reload/readback, 상태·keyboard·관련 화면 |
 | BE | 권한·계정 분리, 저장 규칙, 실패 시 데이터 보존 | parse/validation, API contract, transaction, adapter·실패 책임 | API/handler 결과, persistence·rollback, 계정 경계 |
@@ -98,6 +100,8 @@ Agent는 요구·원인·시각·검사 가치의 의미 판단을, CLI는 상�
 | Cross-layer | 사용자 결과가 제품 전체에서 일치 | UI → API → Domain → 저장 → 재조회 연결 | 실제 앱·API·DB/readback 대조, 필요한 print/PDF |
 
 사업 성과 가설(사용자 가치·전환·수익)과 소프트웨어 업무 규칙(가격·권한·상태 전이)을 구분한다. 전자는 적절한 사용자/운영 관찰이 필요하며 단위 테스트 PASS로 입증하지 않는다. 보안·성능·접근성·데이터 무결성은 관련 셀과 흐름의 속성으로 다루며 셀을 무조건 늘리지 않는다.
+
+BE/API와 Domain은 서버를 둘로 나누라는 뜻이 아니다. 같은 모듈이 두 책임을 소유할 수 있다. 지도에는 입력/응답·외부 효과 경계와 규칙 owner를 연결하고 같은 사실의 중복 검사를 만들지 않는다. 사업 가설은 기존 요구 문서에 기대 가치·관찰 대상·현재 미확인 상태를 두고, 필요한 실사용 평가만 합의한다. 제품 analytics나 별도 점수 저장소를 선행 구축하지 않는다.
 
 아키텍처는 실제 caller·상태/효과 owner·의존 방향·계약·실패 경로를 본다. 코드 구조 설명만으로 PASS를 만들지 않는다. 금지 의존, 중복 상태/호출, API 계약처럼 결정적으로 검사할 수 있는 성질은 기존 test/lint에 연결하고, 설계 선택의 적절성은 근거 있는 의미 검토로 남긴다. 같은 실행이 여러 셀을 뒷받침할 수 있지만 각 주장을 실제로 입증하는지 확인한다.
 
@@ -107,25 +111,28 @@ Agent는 요구·원인·시각·검사 가치의 의미 판단을, CLI는 상�
 
 프로젝트 Feature Map의 최소 정보는 `ID/이름, 사용자 행동, 기대 결과, business invariant, FE, BE/API, Domain, 데이터 side effect, 실제 검증 방법`이다. 기존 구조를 재사용하고 assertion·특정 실행의 PASS를 영구 지도에 복제하지 않는다. 관련 없는 층에는 해당 없음과 이유를 둔다.
 
-최초 init은 모든 기능을 대상으로 한다. 요구/화면/API/CLI/job/역할/flag/데이터/기존 테스트를 교차 조사하고, 모든 Feature에 요구 출처·책임·흐름·검증 연결 또는 미연결 상태를 둔다. 큰 지도는 업무 영역별 작성 뒤 영역 간 의존/흐름을 통합하며 전체 조사와 최소 의미가 완성되기 전에는 PARTIAL이다. 지도 완성과 전 기능 테스트 실행 PASS는 구분한다. [전체 init·분할·완료 기준](agent-workflow-completion-design.md)을 따른다.
+전체 최초 init은 합의한 프로젝트 조사 범위의 모든 기능을 대상으로 한다. 요구/화면/API/CLI/job/역할/flag/데이터/기존 테스트를 교차 조사하고 모든 Feature에 요구 출처·책임·흐름·검증 연결 또는 미연결 상태를 둔다. 범위의 출처·미조사 영역·제외 이유를 보존하며 일부 주요 기능만 조사한 뒤 전체 완료로 줄여 쓰지 않는다. 큰 지도는 업무 영역별 작성 뒤 영역 간 의존/흐름을 통합하며 전체 조사와 최소 의미가 완성되기 전에는 PARTIAL이다. 전체 init의 PARTIAL은 독립적으로 수행 가능한 작은 요청을 일괄 차단하는 이유가 아니다. 지도 완성과 전 기능 테스트 실행 PASS는 구분한다. [전체 init·분할·완료 기준](agent-workflow-completion-design.md)을 따른다.
 
 map/guide는 기준과 방법, 프로젝트 설정은 argv와 실행 연결, `.work/`는 특정 실행 근거를 소유한다. 기존 `.harness/project.yaml`의 명령·영향 선택과 필요한 `extensions`를 우선 검토하되 비-Harness 프로젝트에 설치를 강제하지 않는다. Markdown·JSON·YAML을 사람이 중복 관리하지 않는다.
 
-조회는 처음에 CLI/파일 요약으로 충분하다. 공통 조정 도구가 필요하면 capture·프로젝트 adapter를 호출하는 최소 계층만 둔다. 새 파일명·옵션은 실제 소비자에 맞춰 구현 시 결정한다. dashboard·MCP·모든 runner용 parser는 선행 조건이 아니다.
+조회는 기존 `lookup/resume/audit --summary`와 viewer로 시작한다. 여러 task는 사용자가 명시한 제한된 state 묶음을 순서대로 읽어 비교하며 같은 task에 동시에 쓰지 않는다. ID·요청·Feature·관점/영역·기대/실제·run/raw·현재 재사용·미확인·다음 행동을 짧게 연결한다. dashboard·MCP·상태 DB·새 batch 명령은 선행 조건이 아니다.
 
 | 결과에 연결할 정보 | 의미 |
 | --- | --- |
 | Feature·check·주장·기대 결과 | 어떤 사용자 결과를 확인하는가 |
 | 관점·책임 영역·선택/제외 이유 | 무엇을 검증하고 무엇은 영향이 없는가 |
 | 실행 상태 | 계획, 실행됨, 미실행, skip, `not_required` 구분 |
-| 판정 | PASS / ISSUES / BLOCKED와 미확인 범위 |
+| 검사 판정 / 범위 검토 | PASS / ISSUES / BLOCKED와 활성 셀의 미결정·미확인·N/A·범위 밖을 분리 |
+| 당시 결과 / 현재 재사용 / 원본 접근 | 현재 유효·STALE·미실행과 raw 존재·상세 생략·누락/만료를 분리 |
 | 명령·cwd·source/runtime·fixture | 어느 코드·서버·데이터에서 실행했는가 |
 | run ID·native exit·case/skip/error·raw evidence | 요약을 확인할 실제 근거 |
 | 구현 commit/diff와 검증 연결 | 어떤 변경으로 어떤 문제가 해결됐는가 |
 
 PASS는 선택한 필수 기준을 실제 확인한 범위에 한정한다. ISSUES는 기대와 다른 실제 행동, BLOCKED는 필수 관찰 불가·미해결 정답·환경 제한이다. `not_required`는 제외이며 PASS가 아니다. 0건·필수 전부 skip·다른 대상·stale 결과·shell 후속 성공은 성공 근거가 아니다.
 
-짧은 조회도 `요청 범위 → 기대 출처/revision → 선택한 검사/관찰 방식 → 실제 결과·근거 → 미확인/제외 이유 → 현재 재사용·다음 행동`을 보여준다. source 조사 완료, 제품 runtime 관찰, 선언한 지도 범위, host 수락 수준을 하나의 PASS로 합치지 않는다. 요청 내 미관찰은 열린 항목으로, 요청 밖 runtime은 미실행/범위 밖으로 표시한다. source-only 요청을 완료하기 위해 브라우저 실행을 강제하지 않는다. 이 조사 계약은 0.1.46에서 구현됐으며, 다음에는 실제 사용자가 선택한 여러 task와 raw 근거를 오해 없이 따라가는지 확인한다.
+짧은 조회도 `요청 범위 → 기대 출처/revision → 선택한 검사/관찰 방식 → 실제 결과·근거 → 미확인/제외 이유 → 현재 재사용·다음 행동`을 보여준다. source 조사 완료, 제품 runtime 관찰, 선언한 지도 범위, host 수락 수준을 하나의 PASS로 합치지 않는다. 요청 내 미관찰은 열린 항목으로, 요청 밖 runtime은 미실행/범위 밖으로 표시한다. source-only 요청을 완료하기 위해 브라우저 실행을 강제하지 않는다. 이 조사 계약과 여러 task/raw의 소비는 기존 인수를 재사용하며, 지금은 §2의 scope 미결정 안내를 보완할 필요가 있다.
+
+`READY_FOR_REVIEW`는 연결/제출 기록의 검토 준비 상태이지 작업 완료나 full-stack 충분성이 아니다. 읽기 요약에서는 이 뜻과 `검사 현재 PASS / 범위 미결정 / 다음 의미 검토`를 함께 보여준다. legacy 범위 미등록은 명시하되 자동 N/A나 모든 셀 REQUIRED로 추정하지 않는다. Agent가 요청과 영향에서 필요한 셀을 결정하고, 명시된 필수 셀의 누락·stale·실행 여부는 기존 코드가 확인한다. 확인 가치가 없는 셀에는 근거 있는 N/A를 쓰며 실행 수에 더하지 않는다.
 
 현재 capture는 untracked 내용, dependency, fixture, served source, Agent 신원이나 editable evidence 진위를 인증하지 않는다. 중요한 항목은 프로젝트 실행 경로에서 확인한다. 과거 결과 조회는 원래 판정과 현재 재사용 가능성을 구분하고 자료가 없으면 주장을 확대하지 않는다.
 
@@ -144,11 +151,13 @@ PASS는 선택한 필수 기준을 실제 확인한 범위에 한정한다. ISSU
 | 설치·배포 drift | source/generated·설치 무결성·Harness |
 | 환경·접근 제한 | BLOCKED와 가능한 fallback, 제한 보존 |
 
-사용자 검수는 후보/주장 ID·동의한 처분·범위·요구/UI 기준 revision에 연결한다. “문제가 있다”는 동의와 “차이를 유지한다”는 동의를 구분한다. 설명/원인/owner 메모 수정은 이전 동의의 근거를 새 hash로 바꾸지 않는다. 기준 변경·철회는 재검토하고, 유효한 동일 결정은 후속 task에서 재사용한다. 0.1.46의 binding을 유지하되 **다른 kind를 거쳐 돌아오는 전이에도 동일한 결정 불변조건**을 적용해야 한다. 분류 수정 자체는 허용하고 과거 승인 근거의 재작성만 막는다.
+사용자 검수는 후보/주장 ID·동의한 처분·범위·요구/UI 기준 revision에 연결한다. “문제가 있다”는 동의와 “차이를 유지한다”는 동의를 구분한다. 설명/원인/owner 메모 수정은 이전 동의의 근거를 새 hash로 바꾸지 않는다. 기준 변경·철회는 재검토하고 유효한 동일 결정은 후속 task에서 재사용한다. 0.1.47은 **다른 kind를 거쳐 돌아오는 전이에도 원본 결정 근거를 보존**하며, 다른 분류의 확인 근거와 승인 근거의 소유권을 구분한다. 분류 수정 자체는 허용한다.
 
-기준의 내용 hash뿐 아니라 **적용 기준 집합의 추가·제거·연결 변경**도 판단 대상이다. 기존 Feature의 선택 기준과 제외 이유를 검토한 범위에 연결하고, 새 기준이 그 범위와 관련되는지 아직 판단하지 않았다면 이전 예외를 현재 유효한 것으로 재사용하지 않는다. 무관한 Feature의 기준 변경은 영향을 주지 않아야 한다. 의미 관련성은 Agent/사용자 검토가 소유하며 CLI는 누락·변경·결정 연결을 확인한다. 별도 승인 DB나 자연어 권한 판정기는 만들지 않는다.
+기준의 내용 hash뿐 아니라 **적용 기준 집합의 추가·제거·연결 변경**도 판단 대상이다. 0.1.47은 해당 Feature의 모든 연결 기준과 소비 UI guide를 결정에 묶고 연결 변경·불완전한 legacy를 재검토로 남긴다. 무관한 Feature 기준 변경은 정상 결정을 무효화하지 않는다. 더 세밀한 제외는 아직 지원하지 않으며 추후 관련성 근거와 검토 revision을 먼저 마련해야 한다. 의미 관련성은 Agent/사용자 검토, CLI는 명시된 누락·변경·결정 연결을 소유한다. 별도 승인 DB나 자연어 권한 판정기는 만들지 않는다.
 
 가드레일은 원래 실패를 검출하고 가까운 정상 사용을 허용해야 한다. 동작 보존은 baseline/equivalent GREEN을 쓸 수 있다. 기대값·skip·visual baseline을 완화해 결함을 숨기지 않는다. 지침이 이미 있었다면 같은 문장 추가보다 적용되지 않은 원인을 고친다.
+
+“다시는 발생하지 않음”은 확인한 원인·입력·호출 경계의 예방으로 한정한다. 예를 들어 FE 표시만 고쳐 저장되는 잘못된 값은 남겨두거나, 타입 선언만 추가해 외부 입력을 허용하는 것은 예방 완료가 아니다. 입력 → API → 규칙 owner → 저장 → 새 조회에서 실제 값/ID와 최초 기대 위반 지점을 추적하고, owner 수리 후 같은 실패·가까운 정상·관련 우회 입력을 확인한다. 설명·guide·추가 테스트만으로 원인 코드의 수리를 대신하지 않는다.
 
 의무의 발생·유지·누락 차단은 환경, 해당 의미를 판단하여 실제 작성·수리하는 것은 Agent, 정형 실행·계산은 code/CLI/runtime이 맡는다. 이 원칙은 요청·구현·검토·검증/조회·피드백·UI·유지보수·설치·자원/재개·완료 전반에 적용한다. 책임/권한의 위치와 처리의 결정성은 별도 축이며 Skill 전체를 하나로 분류하지 않는다. 외부 결과가 변해도 정형 수집/timeout/판정을 LLM에 넘길 이유는 아니다. 지도 갱신은 이 구분의 한 예다. 우회 불가가 필요한 효과는 Agent가 임의로 바꾸지 못하는 권한·수락 경계가 맡으며 선택적 로컬 hook/wrapper나 수정 가능한 PASS 파일은 강제 통제가 아니다. 단계별 분류 기준과 실제 역할 표·최소 context·검증은 [공통 책임 분리 설계](agent-workflow-completion-design.md)에 둔다.
 
@@ -166,9 +175,9 @@ PASS는 선택한 필수 기준을 실제 확인한 범위에 한정한다. ISSU
 | UI 작업자 / 관련 변경·반복 불일치 | 디자인 의도·대표 화면·상태 검토, 필요한 token/component·guide 개선 |
 | Harness maintain / 관련 무결성 문제 | mapping·배포·retention·cohort 점검 |
 
-UI 기준은 design principles, color/typography/spacing/radius/elevation, layout/component conventions, loading/empty/error, responsive·accessibility, Do/Don't·reference·visual 검증을 필요한 깊이로 연결한다. 의도는 guide, 실제 값·동작은 코드가 소유한다. 한 화면의 의도된 예외를 전역 규칙으로 승격하지 않는다. 관련 desktop/mobile·interaction을 실제 확인한다.
+UI 기준은 디자인 의도·용어·정보 위계·상태·variant/예외, color/typography/spacing/radius/elevation, layout/component conventions, loading/empty/error, responsive·accessibility, Do/Don't·reference·visual 검증을 필요한 깊이로 연결한다. 의도는 guide, 실제 값·동작은 코드가 소유한다. 한 화면의 의도된 예외를 전역 규칙으로 승격하지 않는다. 관련 desktop/mobile·interaction을 실제 확인한다.
 
-UI guide를 만들 때 현재 화면을 정답으로 복사하지 않는다. 공유 component의 두 소비 화면에서 같은 의미의 정상/오류·keyboard·관련 viewport를 확인하고, 새 context의 다음 화면 요청이 그 guide/owner를 재사용하는지 인수한다. 의도된 destructive/일반 action 차이를 결함으로 수리하지 않는다. UI 예외도 기준 변경과 연결해 재검토한다.
+UI guide를 만들 때 현재 화면을 정답으로 복사하지 않는다. 실제 영향받는 대표 소비 화면에서 정상/오류·keyboard·관련 viewport를 확인하고, 새 context의 관련 화면 요청이 그 guide/owner를 재사용하는지 인수한다. 여러 consumer에 공통 변경이 있다면 서로 다른 사용 의미의 정상·variant를 대조하되 매 수정마다 고정 화면 수나 T5 전수 재실행을 요구하지 않는다. 의도된 destructive/일반 action 차이를 결함으로 수리하지 않는다. UI 예외도 기준 변경과 연결해 재검토한다.
 
 제품 버그·오래된 guide·실행 도구 오류를 구분한다. 제품 위반을 guide 변경으로 숨기지 않는다. 영구 문서는 현재 사용법과 lasting 결정, 상세 로그·fixture·screenshot은 기존 `.work` 보존 정책에 둔다.
 
@@ -212,18 +221,24 @@ Plugin은 검증된 공통 Router·Playbook·Skill·capture 등의 **생성 패�
 
 다음 개선은 업무 흐름과 실제 행동이 우선이며 공개 Plugin 전환은 선행 조건이 아니다. 필요한 임시 host 검증에서 설치·discovery·실행·업데이트·중복과 모델의 선택·이행을 구분한다. agent·hook·plugin 형식은 구현 시 현재 host와 공식 문서를 확인한다. 일반 설치·전역 설정·원본 제품 통합·push/publish는 별도 권한 범위다.
 
+<a id="next-improvements-0147"></a>
+
 ## 10. 다음 개선의 순서와 인수
 
-[0.1.46 추가 검토의 구체적 반례](agent-workflow-refinement-review.md#post-0146-review)를 먼저 해결한다. 아래는 이후 구현의 제안이며, 완료된 R0–R4나 원래 A–C를 다시 수행하라는 지시가 아니다.
+설계 방향은 유지하되 현재 소비 공백부터 해결한다. 아래는 구체적인 후속 제안이며 이번 문서 변경에서 구현 완료로 표시하지 않는다. 완료된 D1–D3/G1–G6/R0–R4/A–C, T5 UI 재사용, quote 규칙 폐기·검사 통합을 신규 작업으로 다시 만들지 않는다.
 
-| 순서 | 가장 작은 개선 | 완료 판단 |
+| 우선순위 | 최소 개선과 기존 소유 위치 | 인수 조건과 금지할 확대 |
 | --- | --- | --- |
-| 1 | 기존 feedback의 분류 전이와 적용 기준 집합 변경을 결정 유효성에 연결 | 철회→unknown→예외 복귀도 OPEN; 새 관련 기준 추가 뒤 재검토; 새 명시적 승인·정상 재분류·무관한 Feature 변경은 정상 처리; 새 task에도 유지 |
-| 2 | hook의 task 공백과 프로젝트 전체 공백 분리, 이어서 기존 task/lookup/viewer의 근거 발견 경로 개선 | API만 대상으로 하면 task gap은 활성 6셀만 계산; 제외된 CLI 6셀은 전체 조회에 보존. 선택한 task별 실제 주장/관찰·미확인·stale·다음 행동을 조회; raw 누락과 상세 생략 구별; 실행·쓰기 0회 |
-| 3 | UI/검증 guide를 실제로 사용하는 작은 연속 과제 | 불편→공유 owner 수리→기준/활성 selector 갱신→새 context의 관련 화면/검증 요청; 의도된 variant 유지, 죽은 명령은 runner 문제로 분류, 실제 수정 후 원래 실패·정상 계약 확인 |
-| 4 | 근거가 있는 검사 하나의 유지·통합·폐기 또는 책임 이동 | 사유별 기존 maintenance 경로 사용; 고유 실패·정상 허용·우회 경로와 활성 selector를 확인; 폐기 규칙의 가짜 replacement test, 고정 검사 수, 매번 Full을 추가하지 않음 |
+| 1 | `project_workflow`의 기존 task 요약과 `workflow_context`에서 scope 미결정·검사 재사용·다음 의미 검토를 함께 안내 | §2의 READY/6 UNDECIDED/빈 next_actions 사례에 구체적 검토 행동 표시. legacy 연결 부족은 명시하되 추정 N/A/승인 금지. 명시된 REQUIRED 공백은 완료 근거로 사용 불가. source-only·작은 직접 수정·이유 있는 N/A 정상 허용; 조회 hash 불변·실행 0회 |
+| 2 | 실제 영향 과제의 기대 주장과 6셀 근거 연결을 검증하고 기존 runner/guide의 소비 공백만 수리 | 자연어 입력/저장 변경에서 요구 → Feature → FE/API/Domain owner → 동일 값/ID 저장·새 조회를 발견. FE 오류/BE PASS의 기존 반례 재사용. 아키텍처 caller·효과 owner·실패 복구와 사업 가설 미확인을 구분. 6개 신규 테스트·일괄 Full·새 schema부터 만들지 않음 |
+| 3 | 기존 피드백/UI/검증 guide에 한 번의 새로운 연속 사용 인수를 붙임 | 실제 새 불편이 있다면 공유 owner 수리·원래 실패/정상/우회 → map/guide/active selector → 독립 새 문맥의 관련 요청까지 확인. 새 UI 소비 화면의 정상/의도된 variant/오류 복구·접근성/관련 viewport 관찰. T5 전수 재실행이나 모든 불편의 규칙·memory화를 금지 |
+| 4 | hook의 중복 조사와 후보 발견 비용을 계측하고 같은 호출의 불변 snapshot을 재사용 | 작은 묶음과 예상 운영 task 수의 안전한 fixture에서 hash 읽기·bundle 재평가·argv·elapsed 측정 후 선택 task와 최소 후보 안내를 우선. 동일 hook 내 조사 공유부터 적용; 상세 묶음은 명시적 조회. 후보 생략·미조사 상태를 표시하고 추정 선택 금지. stale 재검증·close/accept 경계 보호 유지; 별도 scheduler/DB나 오래된 PASS cache 금지 |
+| 5 | 관측된 불필요한 검사 하나만 기존 maintenance에서 사유별 정리 | 중복이면 남은 검사의 같은 결함/정상 허용, 요구 폐기면 권한·기준·owner·유지 계약, type/constraint 이동이면 실제 금지·우회/정상, flaky면 관측 수단 수리와 남은 공백. 기존 quote 폐기/통합 근거 재사용; 새 후보가 입증되지 않으면 유지. 검사 수 감소를 목표로 삼지 않음 |
+| 조건부 | 공유 지도 무효화 세분화 또는 native host·장기 위임 평가 | 관련 요구·caller·공유 코드·token/guide·selector·fixture/runtime의 의존 완전성과 누락 시 차단을 먼저 입증. 그 전에는 전체 Git/bundle stale 유지. native 발견/context는 기존 권한으로 실행 가능한 host에서만 별도 인수; 설치·인증·전역 설정 변경으로 제한 우회 금지 |
 
-많은 task의 운영은 기존 task/context/results의 읽기 전용 묶음 요약부터 검토한다. task별 writer를 하나로 유지하고 공유 source/설정의 통합 owner를 지정한다. 같은 base의 독립 task 둘 사이에서 공통 owner가 바뀌는 사례로 최종 통합 상태와 낡은 결과 차단을 확인한다. 의존 범위의 완전한 증명 없이 전체 Git 무효화를 느슨하게 하거나 새 scheduler/상태 DB를 만들지 않는다.
+많은 task는 task별 writer 하나와 공유 source/설정의 통합 owner를 유지한다. 개별 branch의 PASS와 최신 통합 상태의 근거를 구분한다. 공유 owner가 바뀐 두 task의 stale 인수는 이미 있으며, 후속 통합 변경이 실제로 무효화한 범위만 재검증한다. 같은 source/명령 이름만으로 실행을 공유하지 않고 현재 기준·환경·fixture까지 같은 기존 조건 연결을 사용한다.
+
+검증 가이드는 다음 작업자가 실행할 수 있는 argv/cwd·전제조건·assertion·fixture/runtime·raw producer/위치·cleanup을 기존 registry와 참조로 연결한다. command/관측기 실패는 제품 위반과 분리한다. “PASS 문구를 얻었다”보다 실행하지 않은 항목, raw 만료, 의미 검토와 다음 행동을 짧게 전달하는 것이 우선이다. 표시 개선만으로 오류 관측·실질 예방이 완성됐다고 주장하지 않는다.
 
 검증은 변경한 결정적 분기의 focused RED/GREEN과 영향 회귀를 우선하고, 관련 동작이 바뀐 최종 후보에 자연어 인수를 제한한다. 같은 요구·source·fixture·host/모델 조건에서 거짓 완료·결함 누락·정상 과업 오탐·개입·재작업·중복 실행·시간을 기록한다. 측정되지 않은 비용이나 임의의 신뢰도 백분율을 만들지 않는다. 효과가 없으면 규칙/절차를 축소하며, 안전·권한 경계를 없애 점수를 높이지 않는다.
 
@@ -239,7 +254,7 @@ Plugin은 검증된 공통 Router·Playbook·Skill·capture 등의 **생성 패�
 
 ## 11. 요구사항 검토로 구체화한 실행 연결
 
-2026-10-05 [R01–R16 검토](agent-coding-requirements-review.md)는 수정 전 `53865b0`의 설계 검토다. 당시 책임은 `c7c064a`에서 source/generated·직접 조회 CLI로 구현했고 후속 수정과 독립 시험에서 T1–T6을 수행했다. 아래 setup/갱신 책임은 후속 전체-init 합의에 맞춰 확대했다. 당시의 미구현 판단을 현재 전체-init 기능의 부재로 해석하지 않는다. 실제 충족 상태와 환경 BLOCKED는 [구현 결과](agent-workflow-implementation-results.md), 현재 재현된 공백과 다음 개선 순서는 [최신 보완 검토](agent-workflow-refinement-review.md)와 §10이 소유한다. 일반적 효율·장기 안정성은 입증하지 않았다.
+2026-10-05 [R01–R16 검토](agent-coding-requirements-review.md)는 수정 전 `53865b0`의 설계 검토다. 당시 책임은 `c7c064a`에서 source/generated·직접 조회 CLI로 구현했고 후속 수정과 독립 시험에서 T1–T6을 수행했다. 아래 setup/갱신 책임은 후속 전체-init 합의에 맞춰 확대했다. 당시의 미구현 판단을 현재 전체-init 기능의 부재로 해석하지 않는다. 실제 충족 상태와 환경 BLOCKED는 [구현 결과](agent-workflow-implementation-results.md), 현재 재현된 공백과 다음 개선 순서는 §2와 §10이 소유한다. [0.1.46 보완 검토](agent-workflow-refinement-review.md#post-0146-review)는 완료된 수리의 출발점을 남긴다. 일반적 효율·장기 안정성은 입증하지 않았다.
 
 ### 발견, 조합, 실패 처리
 
