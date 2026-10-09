@@ -73,6 +73,47 @@ No install/authentication/home/global setting is changed. Independent collaborat
 contexts evaluate natural-language consumption separately from native host discovery;
 their results and interventions must be inspected, not inferred from package success.
 
+Independent fresh collaboration contexts compared the same natural quote request on
+separate identical safe clones with 0.1.46 and 0.1.47, without answer patches, Skill
+names or CLI sequences. Both completed the change, updated map/criteria/selector,
+retired the rule while retaining API/caller, and reused current evidence on a later
+related preparation with zero product executions. Main-agent inspection checked
+their actual diffs, committed revisions, native raw values and counters. Baseline
+executed three native checks (RED, precommit GREEN, postcommit GREEN); candidate
+executed four (two old-contract baseline checks, precommit and postcommit contract).
+Candidate assertions also cover caller negative rejection. These different selected
+sequences do not establish a speed/cost improvement. Both exposed conservative
+shared-map re-review; neither full init nor host-protected acceptance was claimed.
+
+Two other fresh readers consumed the same three explicitly selected task records.
+Both distinguished historical stale PASS, never-run and current reusable PASS, and
+kept undecided product cells separate from check PASS. Before/after all 47 project
+files matched and native calls stayed 3; reader product executions were zero. The
+extra historical direct native call is in acceptance command raw, not assigned to
+the never-run task. Candidate used three workflow summary lookups; baseline used
+two bundle lookups and source/raw reads. Wrong-root reads, shell/JSON/BOM errors,
+retries and source-discovered recovery instructions are retained, not hidden as
+autonomous success. No supervisor supplied a corrective patch or CLI hint. Logged
+child-process durations are not end-to-end Agent elapsed or comparative efficiency.
+The minimal synthetic project's separate Core Harness audit lacks its full project
+schema; ordinary workflow consumption remains independently observed. Full schema
+setup was not added to clear that unrelated audit.
+
+The final immutable 0.1.47 package contains 19 Skills and 246 files, built from
+`eb76c6a6498bb13c09154e3d3a5b7fd489ba299f`. `frozen-provenance.json` ties every
+package hash to that commit and records six actual lookup/resume reads with zero
+product executions and unchanged project/package bytes. The ZIP SHA-256 is
+`18fdae9ec2798ad65c90fa2d2f504112b7482918ae807f672f4f6976f2af188d`;
+the package inventory SHA-256 is
+`0f0abc877f41f1c05728ba235a7bf520d4b3d2ae7753ffcddf32794db726908d`.
+`agentic-coding-0.1.47/` and its ZIP remain in the main evidence directory.
+`worktree-evidence/` preserves all 35 connected-product/raw/log files byte-for-byte.
+Embedded TEMP paths in those historical traces describe the executed environment;
+after worktree cleanup use the archive, not those paths as current commands.
+The first freeze readback completed six reads before child Git ownership rejection;
+the retry used a single command-local verified safe-directory override, with no
+global configuration change or product rerun. That failure and retry are retained.
+
 ## Post-review reliability, 2026-10-09
 
 Version 0.1.46 implements the additional 0.1.45 counterexamples from the latest
