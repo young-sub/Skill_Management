@@ -1,5 +1,22 @@
 # Agent workflow implementation and acceptance
 
+## Generic completion G1 request binding, 2026-10-09
+
+Ordinary `start`/`begin` accept `--request-summary` and repeatable `--outcome-ref`
+for safe existing project files. Candidates, task lookup and the read-only prompt
+hook expose the same request. Multiple matching Features remain ambiguous until
+explicit context/state selection; no timestamp or host session assumption is used.
+The metadata is part of immutable task identity. Follow-ups supply their own
+summary rather than silently inheriting the previous request. Harness work still
+references its existing contract via work ID.
+
+A focused real CLI RED/GREEN covers two requests with the same target, ambiguous
+resume, exact lookup with byte-preserving state, hook readback, follow-up request
+reset, outside-project reference rejection, and rejection of request edits through
+lookup. The affected workflow/hook, documentation and Harness regression passed
+91 tests (`.work/generic-completion/request-regression.log`). These are local
+CLI/hook observations, not native-host task discovery.
+
 ## Generic completion G1 continuity repair, 2026-10-09
 
 Work starts from local main `d3bb741` (contains `23e5d15`) in a new
@@ -26,8 +43,8 @@ The independent Agent review found the retirement shadowing boundary; its findin
 was reproduced and fixed by the main Agent. This is local deterministic behavior
 and independent code review, not package/native-host or product acceptance.
 
-G1 remains partial: request summary/outcome references and dependency-scoped reuse
-still need implementation/review. G2-G4 still require first-connection, six-flow
+G1 remains partial: dependency-scoped reuse still needs review/implementation.
+Ordinary request summary/outcome references were added in the following unit. G2-G4 still require first-connection, six-flow
 Agent work and independent package acceptance. G5-G6 have not started; no Labeler
 preparation, installation, provider call, push or deployment was performed.
 

@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: d2cd50b193d18b0392eaac1197cfd6f7cf7423ccd123c121e16d0c3b384981bb -->
+<!-- Source-SHA256: 30b3abfcb3f1a4d2abb424b1f66b8dc2e0a0174fe493200c48fd88022713706b -->
 
 # Project workflow obligations
 
@@ -22,6 +22,13 @@ Feature findings also remain visible. Prior task records are never rewritten.
 
 `start --root <project> --intent change --target <feature>` creates ordinary task
 state under `.work/tasks/<task-id>/state.json`; no Harness contract is required.
+Use `--request-summary <text>` and repeatable `--outcome-ref <existing-project-file>`
+to bind the ordinary request to this record. Candidates, lookup and the read-only
+prompt hook expose that request; ambiguous candidates are never selected by time.
+References must be safe existing project files. The summary is part of immutable
+task identity, not a completion claim. New follow-ups record their own summary.
+These options belong only to `start`/`begin`; lookup cannot rewrite them. Harness
+work uses its existing `--work-id` contract reference, without a second request ledger.
 For existing work, use `connect --root <project> --state <exact .work path>` or
 `--work-id <id>`. Both return `task_context`, an invocation selector containing
 the project, existing state pointer and immutable task identity. Connect is read-only.

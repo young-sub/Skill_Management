@@ -108,6 +108,36 @@ class ProjectWorkflowTests(unittest.TestCase):
         _, reused = self.invoke('prepare', context=followup['task_context'])
         self.assertEqual(reused['verification']['status'], 'NOT_REQUIRED', reused)
 
+    def test_request_context_distinguishes_candidates_and_is_not_inherited(self):
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        _, first = self.invoke('start', '--intent', 'change', '--target', 'api',
+            '--request-summary', 'Keep API price stable', '--outcome-ref', 'docs/requirement.md')
+        request = {'summary': 'Keep API price stable', 'outcome_refs': ['docs/requirement.md']}
+        self.assertEqual(first['task']['request'], request)
+        hook = subprocess.run([sys.executable, str(SCRIPT.with_name('workflow_context.py'))],
+            input=json.dumps({'hook_event_name': 'UserPromptSubmit', 'cwd': str(self.root)}),
+            capture_output=True, text=True, encoding='utf-8',
+            env=dict(os.environ, AGENT_WORKFLOW_CONTEXT=first['task_context']))
+        detail = json.loads(json.loads(hook.stdout)['hookSpecificOutput']['additionalContext'].split('\n', 1)[1])
+        self.assertEqual(detail['current_task']['request'], request)
+
+        _, second = self.invoke('start', '--intent', 'change', '--target', 'api',
+            '--request-summary', 'Review CLI ownership', '--outcome-ref', 'docs/map.md')
+        _, ambiguous = self.invoke('resume')
+        self.assertEqual(ambiguous['status'], 'BLOCKED')
+        self.assertEqual({c['request']['summary'] for c in ambiguous['task_candidates']},
+                         {'Keep API price stable', 'Review CLI ownership'})
+        snapshot = {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()}
+        _, lookup = self.invoke('lookup', context=first['task_context'])
+        self.assertEqual(lookup['task']['request'], request)
+        self.assertEqual(snapshot, {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()})
+        _, followup = self.invoke('start', '--intent', 'change', context=first['task_context'])
+        self.assertIsNone(followup['task']['request'])
+        _, bad = self.invoke('start', '--request-summary', 'Missing outcome', '--outcome-ref', '../outside.md')
+        self.assertEqual(bad['status'], 'BLOCKED')
+        _, bad = self.invoke('lookup', '--request-summary', 'Rewrite old request', context=second['task_context'])
+        self.assertEqual(bad['status'], 'BLOCKED')
+
     def test_connect_validates_explicit_state_before_issuing_context(self):
         self.write('.harness/project.yaml', json.dumps(self.project))
         _, started = self.invoke('start', '--intent', 'change', '--target', 'api')

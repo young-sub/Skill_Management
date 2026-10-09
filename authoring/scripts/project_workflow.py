@@ -305,11 +305,24 @@ def coverage_summary(rows, matrix=()):
                       for axis in ('FE', 'BE/API', 'Domain')}}
 
 
-def begin(root, project, intent, targets=(), *, prior_state=None):
+def request_details(root, summary=None, outcome_refs=()):
+    if summary is None and not outcome_refs:
+        return None
+    if not isinstance(summary, str) or not summary.strip():
+        raise ValueError('request_summary_required')
+    references = list(dict.fromkeys(outcome_refs))
+    for name in references:
+        if not isinstance(name, str) or not name or file_hash(root, name) is None:
+            raise ValueError('request_outcome_reference_missing')
+    return {'summary': summary.strip(), 'outcome_refs': references}
+
+
+def begin(root, project, intent, targets=(), *, prior_state=None, request_summary=None, outcome_refs=()):
     if intent not in {'init', 'change', 'feedback', 'ui', 'maintain'}:
         raise ValueError('unsupported_work_intent')
     if intent in {'feedback', 'ui'} and not targets:
         raise ValueError('target_required')
+    request = request_details(root, request_summary, outcome_refs)
     config = configuration(project)
     if config is None:
         raise ValueError('workflow_not_configured')
@@ -354,7 +367,7 @@ def begin(root, project, intent, targets=(), *, prior_state=None):
                         links['checks'].append(pending['check'])
                     links['prevention'].extend(p for p in prior_links.get('prevention', [])
                                                if p['check'] == pending['check'] and p not in links['prevention'])
-    return {'schema_version': 1, 'task_id': str(uuid.uuid4()), 'root': str(root.resolve()), 'intent': intent,
+    return {'schema_version': 1, 'task_id': str(uuid.uuid4()), 'root': str(root.resolve()), 'intent': intent, 'request': request,
             'targets': sorted(set(targets)), 'base': git(root, 'rev-parse', 'HEAD').decode().strip(),
             'dirty_baseline': git(root, 'status', '--porcelain').decode('utf-8'),
             'baseline': inventory(root, config['roots']), 'reviews': reviews, 'retired_reviews': retired_reviews,
@@ -425,7 +438,8 @@ def task_candidates(root, project):
         try:
             state, path = task_state(root, **selector)
             candidates.append({**selector, 'state': path.relative_to(root).as_posix(),
-                               'task_id': state.get('task_id'), 'intent': state['intent'], 'targets': state['targets']})
+                               'task_id': state.get('task_id'), 'intent': state['intent'], 'targets': state['targets'],
+                               'request': state.get('request')})
         except (OSError, ValueError, TypeError, KeyError) as error:
             candidates.append({**selector, 'status': 'BLOCKED', 'reason': str(error)})
     return candidates
@@ -1353,6 +1367,8 @@ def main(argv=None):
     parser.add_argument('--timeout', type=float, default=300)
     parser.add_argument('--resume', action='store_true', help='Execute only never-started checks of this prepared run')
     parser.add_argument('--intent', choices=['init', 'change', 'feedback', 'ui', 'maintain'], default='init')
+    parser.add_argument('--request-summary', help='Ordinary task request; Harness work keeps its existing contract reference')
+    parser.add_argument('--outcome-ref', action='append', default=[], help='Existing project-relative expected-outcome document')
     parser.add_argument('--target', action='append', default=[])
     parser.add_argument('--review', type=Path)
     parser.add_argument('--feedback', type=Path, help='Register/update a complaint and repair chain in the existing work state')
@@ -1366,6 +1382,8 @@ def main(argv=None):
         project = json.loads(local_path(root, args.project).read_text(encoding='utf-8'))
         if args.resume and args.action != 'execute' or args.output and args.action != 'prepare':
             raise ValueError('execution_options_require_matching_action')
+        if (args.request_summary is not None or args.outcome_ref) and args.action not in {'begin', 'start'}:
+            raise ValueError('request_metadata_requires_task_start')
         state_path = local_path(root, args.state) if args.state else None
         if state_path and not state_path.resolve().is_relative_to(root / '.work'):
             raise ValueError('state_must_be_task_local_under_work')
@@ -1376,7 +1394,8 @@ def main(argv=None):
             if args.state or args.work_id:
                 raise ValueError('start_creates_a_new_task; use begin/connect for an existing record')
             prior = resolve_task(root, context=context)[0] if context else None
-            state = begin(root, project, args.intent, args.target, prior_state=prior)
+            state = begin(root, project, args.intent, args.target, prior_state=prior,
+                          request_summary=args.request_summary, outcome_refs=args.outcome_ref)
             state_path = local_path(root, f'.work/tasks/{state["task_id"]}/state.json')
             write_state(state_path, state)
         elif args.action != 'begin' and (context or args.state or args.work_id) and not (
@@ -1394,9 +1413,13 @@ def main(argv=None):
             changed = False
             if args.action == 'begin':
                 if state is None:
-                    state = begin(root, project, args.intent, args.target)
+                    state = begin(root, project, args.intent, args.target,
+                                  request_summary=args.request_summary, outcome_refs=args.outcome_ref)
                     state_path.parent.mkdir(parents=True, exist_ok=True)
                     changed = True
+                elif ((args.request_summary is not None or args.outcome_ref) and
+                      state.get('request') != request_details(root, args.request_summary, args.outcome_ref)):
+                    raise ValueError('resume_request_mismatch')
                 elif state.get('intent') != args.intent or state.get('targets') != sorted(set(args.target)):
                     raise ValueError('resume_request_mismatch')
             elif args.action == 'feedback':
@@ -1434,7 +1457,7 @@ def main(argv=None):
             result['execution_selection'] = {key: selection[key] for key in ('selected_checks', 'selection', 'unconnected_features')}
             result['task_context'] = task_context(root, state, state_path, args.work_id)
             result['task'] = {'state': state_path.relative_to(root).as_posix(), 'work_id': args.work_id,
-                              **{key: state.get(key) for key in ('task_id', 'intent', 'targets', 'base', 'dirty_baseline',
+                              **{key: state.get(key) for key in ('task_id', 'intent', 'targets', 'request', 'base', 'dirty_baseline',
                                                                'reviews', 'feedback', 'results', 'execution_plan')}}
     except (OSError, ValueError, TypeError, KeyError, subprocess.CalledProcessError) as error:
         result = {'status': 'BLOCKED', 'findings': [str(error)], 'test_commands_executed': 0}

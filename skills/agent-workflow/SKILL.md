@@ -4,7 +4,7 @@ description: Coordinate a coding task from a natural-language request through re
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: 4d44b9c7befe2b6e8c46d423b79fefd3fd1e9bf4c3de34dcbdcd716e8ef4ca91 -->
+<!-- Source-SHA256: ba7eab72b68238d84ba5279e5c72bde88f9a6845bb0232c03a54797ba60981cf -->
 
 
 # Agent Workflow
@@ -26,13 +26,17 @@ Load [verification responsibilities](references/project-verification.md) for set
 For configured projects, [workflow obligations](references/workflow-obligations.md) provides the direct audit/resume CLI. Consume its affected references and perform the required semantic work. Local consistency and host-protected acceptance are distinct; the CLI reports the unsupported enforcement boundary explicitly.
 
 Connect the selected request once through the same CLI: `start --intent <intent>
---target <feature>` creates ordinary task state, or `connect --state <exact path>` /
+--target <feature> --request-summary <user-outcome> --outcome-ref <existing-requirement-file>`
+creates ordinary task state, or `connect --state <exact path>` /
 `--work-id <id>` selects existing work. Retain its `task_context` in the invocation's
 `AGENT_WORKFLOW_CONTEXT` or pass `--context` when the host does not inherit it.
 Then use `prepare`, explicit `execute`, `review`, `feedback`, read-only `lookup` or
 read-only task `resume` without rebuilding state/run paths. `execute --resume` is
 a separate effect and never replays unknown launches. A new `start` carrying the
 old context retains feedback/results for a related follow-up with a new baseline.
+Record the ordinary request summary and existing expected-outcome references;
+Harness work retains its contract through `--work-id` instead of duplicating it.
+A follow-up records its own request; the previous summary is not silently reused.
 Do not guess among candidates or imply that a host supplies session identity.
 For lookup-only requests, connect/read existing work; never start a new task.
 

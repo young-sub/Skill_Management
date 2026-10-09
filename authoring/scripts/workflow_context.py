@@ -50,6 +50,7 @@ def context(payload):
             current = runtime['inspect_project'](root, project, state)
             summary['current_task'] = {'work_id': work_id, 'state': state_path.relative_to(root).as_posix(),
                 'task_id': state.get('task_id'), 'intent': state['intent'], 'targets': state['targets'],
+                'request': state.get('request'),
                 'status': current['status'], 'obligations': current['obligations'][:3],
                 'scope': scope_context(current)}
         except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
