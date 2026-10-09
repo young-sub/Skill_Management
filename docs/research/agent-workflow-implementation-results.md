@@ -82,6 +82,31 @@ worktree removal. Only this task's worktree/branch is removed after local main
 integration. No push, deployment, installed-Skill update or global setting change
 belongs to this delivery.
 
+## R0–R4 package freeze and local delivery, 2026-10-09
+
+The immutable 0.1.45 package is built from source commit
+`3be9eec2f116020f04116d263a60dd50fb177c9b` with 19 public Skills and 246 total files.
+All 245 payload hashes match the candidate used for the final unconfigured
+natural-language survey and fresh-context read. Strict byte inventory validation
+passes before and after direct frozen-package lookup. That lookup returns the
+same task ID and nine entries, executes zero test commands and leaves all 17
+project/source/task/evaluation file hashes unchanged. This attests direct local
+package use; it does not establish native installed-host discovery or enforcement.
+
+The frozen ZIP SHA-256 is
+`1406519067e79e34541f31b151d039c6d051437861e6a7eb6b777601b8586f70`;
+its inventory SHA-256 is
+`ebe6d323f63f843f964da0899754f670f507a5790a1a01b315103161e6c6c8ad`.
+`r0-r4/frozen-provenance.json` retains every file hash and the exact source commit;
+`r0-r4/frozen-readonly-lookup.json` retains the actual lookup and unchanged hashes.
+The preserved 0.1.44 package and installed resources are untouched.
+
+Delivery retains source, synthetic trial Git histories, raw outcomes, trace and
+screenshots below `.work/r0-r4-delivery-20261009`; no original project data or
+credentials are copied. `r0-r4/delivery-manifest.json` records the final local main
+commit, synchronized origin, merge, original Labeler state and worktree removal.
+The durable source/package record is separate from expiring execution artifacts.
+
 ## Delivery scope, 2026-10-09
 
 G1-G6 are completed within the bounded local implementation, independent trials,
