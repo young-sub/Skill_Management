@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/core_harness.py
-# Source-SHA256: 7930a2e66a5df559c74a4d2fd0c9cd6388ec80e7d6305d9dd826623425b45552
+# Source-SHA256: a6182fd48cbc2d46691cd808d058b9286698145917c61fb40cc4e068bed111a8
 
 #!/usr/bin/env python3
 """Deterministic Core-First Agent Harness contracts and compatibility checks."""
@@ -625,7 +625,8 @@ def static_inventory(root: Path, mapping: dict[str, Any] | None = None) -> dict[
     )
     authority_names = ("AGENTS.md", "CLAUDE.md", "docs/index.md", "README.md")
     authority_candidates = [name for name in authority_names if (root / name).is_file()]
-    candidate_directories = {parent for path in inventory_paths for parent in path.parents if parent != root}
+    candidate_directories = {parent for path in inventory_paths for parent in path.parents
+                             if parent != root and parent.is_relative_to(root)}
     nested_repositories = sorted(
         path.relative_to(root).as_posix() for path in candidate_directories
         if (path / ".git").exists()

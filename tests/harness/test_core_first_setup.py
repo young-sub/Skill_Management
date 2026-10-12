@@ -30,6 +30,45 @@ def tracked_snapshot(root: Path) -> dict[str, bytes]:
 
 
 class CoreFirstSetupTests(unittest.TestCase):
+    def test_static_inventory_confines_git_candidates_to_root_in_nested_worktree(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repository = Path(temp_dir) / "repository"
+            repository.mkdir()
+            subprocess.run(["git", "init", "-q", str(repository)], check=True)
+            (repository / "README.md").write_text("# Root\n", encoding="utf-8")
+            subprocess.run(["git", "add", "README.md"], cwd=repository, check=True)
+            subprocess.run(["git", "-c", "user.name=Test", "-c", "user.email=test@example.invalid",
+                            "commit", "-qm", "base"], cwd=repository, check=True)
+            root = repository / ".work" / "worktrees" / "child"
+            subprocess.run(["git", "worktree", "add", "-qb", "child", str(root)],
+                           cwd=repository, check=True, capture_output=True)
+            original_exists = Path.exists
+            probes = []
+
+            def observed_exists(path):
+                if path.name == ".git":
+                    probes.append(path.parent)
+                return original_exists(path)
+
+            with mock.patch.object(Path, "exists", observed_exists):
+                inventory = core.static_inventory(root)
+            self.assertEqual(inventory["files"], ["README.md"])
+            self.assertEqual(inventory["git"]["nested_repositories"], [])
+            self.assertTrue(all(path.is_relative_to(root.resolve()) for path in probes), probes)
+
+    def test_static_inventory_retains_real_nested_repository_in_non_git_survey(self) -> None:
+        core = load_core()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            nested = root / "components" / "nested"
+            nested.mkdir(parents=True)
+            subprocess.run(["git", "init", "-q", str(nested)], check=True)
+            (nested / "app.py").write_text("VALUE = 1\n", encoding="utf-8")
+            inventory = core.static_inventory(root)
+            self.assertEqual(inventory["git"]["nested_repositories"], ["components/nested"])
+            self.assertIn("components/nested/app.py", inventory["files"])
+
     def test_static_inventory_never_executes_repository_content(self) -> None:
         core = load_core()
         with tempfile.TemporaryDirectory() as temp_dir:

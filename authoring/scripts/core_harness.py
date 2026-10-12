@@ -621,7 +621,8 @@ def static_inventory(root: Path, mapping: dict[str, Any] | None = None) -> dict[
     )
     authority_names = ("AGENTS.md", "CLAUDE.md", "docs/index.md", "README.md")
     authority_candidates = [name for name in authority_names if (root / name).is_file()]
-    candidate_directories = {parent for path in inventory_paths for parent in path.parents if parent != root}
+    candidate_directories = {parent for path in inventory_paths for parent in path.parents
+                             if parent != root and parent.is_relative_to(root)}
     nested_repositories = sorted(
         path.relative_to(root).as_posix() for path in candidate_directories
         if (path / ".git").exists()

@@ -1,5 +1,32 @@
 # Agent workflow implementation and acceptance
 
+<a id="continuous-plugin-improvement-2026-10-13"></a>
+
+## Continuous improvement: inventory boundary, 2026-10-13
+
+The user applied the complete [continuous execution request](plugin-continuous-improvement-next-session.md).
+Current plugin base was clean main `107850a`, 106 commits ahead of fetched
+origin/main with no remote-only commits. Yeondoo Link was clean on
+`evaluation/plugin-ui-20261012` at `bd03682`; its separate candidate worktree
+remained at `e1b8a09`. Product main and fetched origin/main both were `220c945`.
+Both existing product branches/worktrees are preserved.
+
+The actual nested-worktree regression reproduced `ValueError` while converting
+an outer Git ancestor into a root-relative nested repository. The canonical
+`static_inventory` now restricts candidate probes to descendants of the requested
+root. A real nested worktree confirms no outside-root Git probes; a real child
+repository in a non-Git survey remains discoverable. Existing Git enumeration,
+private/ignored-file exclusions and nested-boundary validation are unchanged.
+Setup, CLI maintenance and cutover passed 57 tests; repository docs and installed
+CLI acceptance passed 10 tests. Resource drift, distribution and formatting checks
+passed. Raw RED/GREEN is retained under `.work/plugin-continuous/20261012/`.
+
+This repairs the common source cause previously avoided by moving the worktree.
+It does not complete direction §13: actual product task/evidence connection,
+measured candidate scale, native host acceptance and independent subsequent
+consumption remain in progress. Baseline 0.1.48 was built from unchanged main
+into a fresh path in that same temporary evidence root; no installation changed.
+
 <a id="yeondoo-plugin-improvement-2026-10-12"></a>
 
 ## Scope guidance, hook reuse and Yeondoo Link pilot, 2026-10-12

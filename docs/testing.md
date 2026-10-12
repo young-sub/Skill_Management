@@ -68,6 +68,11 @@ Windows Impeccable transport regressions run with `python -m unittest tests.dist
 
 ## Direct execution and verdict binding
 
+`tests.harness.test_core_first_setup` covers a real worktree inside its parent
+repository and a real child repository in a non-Git survey. The former rejects
+outside-root Git probes; the latter preserves descendant discovery. Run setup,
+CLI maintenance and cutover regressions for this inventory boundary.
+
 `python -m unittest tests.distribution.test_project_workflow` exercises real Git fixtures: partition/resume, unconnected Features, changed consumers, unmapped additions/deletions, stale review, active prevention links, audit-only, private-path refusal and the existing maintain/close boundaries. Source review remains separate from runtime verification; a submitted PASS cannot discharge a missing run. `tests.distribution.test_verification_execution` exercises the viewer producer with actual child-process reports and fixed assertions. It also exercises same-plan `--resume`: completed commands stay single-run, stale/missing evidence and unknown launches are refused, and a completed checkpoint survives interruption while writing the final bundle. Controller interruption is injected at the persistence/launch boundary; this is separate from an OS process-death or authenticated Agent trial. The self-containment scanner uses Python tokens to distinguish callable subscripts from Markdown links while still checking real docstring/comment references.
 
 Installer regression cases retain user bytes after refresh, avoid rewriting a matching install and retain recovery copies after a denied restore. Temporary installation is distinct from host Agent discovery/behavior and protected enforcement. The Windows timeout-child cleanup case remains an environment limitation when `taskkill` is denied; report its actual error rather than treating the rest of the suite as Full PASS.
