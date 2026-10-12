@@ -24,7 +24,7 @@ passed. Raw RED/GREEN is retained under `.work/plugin-continuous/20261012/`.
 This repairs the common source cause previously avoided by moving the worktree.
 It does not alone complete direction §13. The subsequent units below connect
 the actual product, measure candidate scale and exercise independent consumption;
-native host acceptance and protected main integration remain separate boundaries. Baseline 0.1.48 was built from unchanged main
+native host acceptance remains a separate boundary; local-main delivery is recorded below. Baseline 0.1.48 was built from unchanged main
 into a fresh path in that same temporary evidence root; no installation changed.
 
 ### Six outcomes and current completion boundary
@@ -50,9 +50,9 @@ retains all 247 files unchanged (`package-0.1.53-post-final.json`). Both copied 
 use bytecode-disabled execution; no cache files were removed to manufacture equality. New connected-product exports retain all 102 files from six
 artifact directories in `connected-product-export-final/`, bound to the original
 paths by `connected-export-final-manifest.json`. Earlier packages/raw/exports
-remain intact. Main integration and created plugin worktree cleanup are pending
-the protected-branch approval boundary below; the actual product worktree/branch
-is retained independently.
+remain intact. Local-main integration is recorded below. Cleanup is limited to
+the created plugin worktree/branch after checking retained evidence; the actual
+product worktree/branch is retained independently.
 
 ### Real-product task-start source cost
 
@@ -88,9 +88,10 @@ Raw Full/targeted measurements live under `.work/plugin-continuous/20261012/`;
 `.work/plugin-continuous/20261012/connected-product-export/`. The manifest binds
 original and retained roots and verifies every hash before eventual cleanup.
 
-Local main integration was rejected twice by automatic approval review: it did
+Before the later direct integration instruction, local-main integration was
+rejected twice by automatic approval review: it did
 not treat the goal-context approval as a trusted message authorizing the exact
-protected/default-branch merge. Main remains at `107850a`; verified branch
+protected/default-branch merge. At that checkpoint main remained at `107850a`; verified branch
 commits/packages are preserved. The earlier pending approval question named only
 `1f9263c` and `5fd36ae`; later verified units extend that stack, so that narrower
 question is not approval for the current complete branch. No alternate transport or indirect Git integration was
@@ -460,16 +461,26 @@ That discovery does not prove Skill invocation or automatic hook delivery. This
 session has no permitted current-package native load/acceptance observation;
 ordinary installation/global config/provider changes remain excluded.
 
-Prepared local-main integration retains the clean107850a base and the complete
-verified source units plus this current-results record. Prior automatic review
-rejected protected-main integration because goal-context authorization did not
-supply the required trusted direct confirmation for that exact operation.
-Integration and removal of only the created plugin worktree/branch await that
-confirmation. Product branches, failed raw, immutable packages and connected
-exports remain retained; no push/install/provider/original DB change occurred.
-The overall goal remains PARTIAL. Resume native acceptance only through an
-authorized host path that can load this package under the permitted configuration;
-current CLI/review evidence cannot fill that boundary.
+The subsequent direct user instruction authorized local-main merge and branch
+cleanup. The actual ff-only integration advanced clean main from107850a to
+a527b28, incorporating all15 prepared commits without changing runtime bytes.
+Post-merge package/update/docs checks passed9 tests; resource drift, distribution
+and formatting passed. A results-only delivery note records that action on the
+same development branch before its final ff-only integration. Cleanup is authorized
+only for plugin-continuous-20261012 and wp-20261012-plugin-continuous; its receipt
+owns the actual removal outcome. Before removal, the102 connected export files
+must match their retained Main copies; the only other ignored files are51 Python
+bytecode caches. No Product branch/worktree is selected for removal. The final
+.work/plugin-continuous/20261012/final-delivery-state.json retains actual Git,
+cleanup, package and raw integrity observations under the normal retention policy.
+
+Native host acceptance remains unresolved. Actual permitted discovery did not
+expose the current package, so no Skill invocation/automatic hook/protected-host
+acceptance is inferred. The overall goal remains PARTIAL for that boundary and
+the explicit product gaps. Resume native acceptance only through an authorized
+host path that can load this package under the permitted configuration; current
+CLI/review evidence cannot fill it. No push/install/provider/original DB change
+occurred.
 
 ### Actual product task, observer repairs and independent consumption
 
