@@ -57,6 +57,16 @@ reuse; unlisted transitive runtime changes remain outside that declaration.
 
 ## Capabilities and current boundary
 
+Version 0.1.48 makes undeclared task applicability visible in `next_actions`
+without changing review readiness, dropping reusable checks or requiring six
+executions. Explicit declared scope gaps keep their existing obligations;
+source-only work and reasoned exclusions remain valid. The hook shares a source
+inventory and identical selected/active task audits within one invocation,
+retains current check reuse and exact lookup pointers in bounded context, and
+remeasures on the next prompt. Different task states still assess evidence
+independently; whole-Git/bundle stale protection is unchanged. Local package use
+does not update the installed plugin or prove native hook delivery.
+
 Version 0.1.47 preserves exception decision hashes across feedback classification
 roundtrips and binds the applicable Feature/criterion/UI-guide connection set.
 New/remapped requirements and legacy missing bindings remain OPEN until a new

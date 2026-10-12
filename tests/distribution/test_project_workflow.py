@@ -97,6 +97,29 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertEqual((self.root / '.work/calls').read_text(), '1')
         self.assertEqual(executed['features'][0]['verification_status'], 'PASS')
         self.assertFalse(executed['features'][0]['reviewed'])
+        review = self.write('.work/scope-review.json', json.dumps({'feature': 'api',
+            'basis': executed['features'][0]['basis'], 'analysis': 'Arithmetic and ownership reviewed',
+            'references': ['src/api.py'], 'findings': []}))
+        self.invoke('review', '--review', str(review), context=context)
+        review = self.write('.work/cli-review.json', json.dumps({'feature': 'cli',
+            'basis': executed['features'][1]['basis'], 'analysis': 'Unchanged CLI owner reviewed',
+            'references': ['src/cli.py'], 'findings': []}))
+        self.invoke('review', '--review', str(review), context=context)
+        _, ready = self.invoke('lookup', '--summary', context=context)
+        self.assertEqual(ready['status'], 'READY_FOR_REVIEW', ready)
+        self.assertEqual(ready['coverage']['status'], 'PARTIAL')
+        self.assertEqual(ready['features'][0]['check_results'][0]['current_status'], 'PASS')
+        self.assertTrue(any(action['target'] == 'api' and
+            'scope_applicability_or_evidence' in action['requires'] for action in ready['next_actions']),
+            'Review readiness must explain undecided applicability without discarding valid execution')
+        hook = subprocess.run([sys.executable, str(SCRIPT.with_name('workflow_context.py'))],
+            input=json.dumps({'cwd': str(self.root), 'hook_event_name': 'UserPromptSubmit'}),
+            capture_output=True, text=True, encoding='utf-8',
+            env=dict(os.environ, AGENT_WORKFLOW_CONTEXT=context))
+        detail = json.loads(json.loads(hook.stdout)['hookSpecificOutput']['additionalContext'].split('\n', 1)[1])
+        self.assertEqual(detail['current_task']['features'][0].get('check_results', []),
+                         [{'id': 'check', 'historical_status': 'PASS', 'current_status': 'PASS', 'current_reuse': 'REUSABLE'}],
+                         'Hook scope gaps must not hide currently reusable native evidence')
         before = {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()}
         _, summary = self.invoke('lookup', '--summary', context=context)
         selected = next(f for f in summary['features'] if f['id'] == 'api')
@@ -356,6 +379,27 @@ class ProjectWorkflowTests(unittest.TestCase):
             'scope_reviews': {'unused': {'status': 'NOT_REQUIRED', 'reason': 'No impact on this behavior',
                                         'analysis': 'Inspected unchanged path', 'references': ['src/api.py']}}})
         self.assertEqual(runtime.inspect_project(self.root, self.project, state)['features'][0]['verification_status'], 'NOT_REQUIRED')
+
+    def test_scope_guidance_does_not_force_source_only_or_reasoned_exclusions(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'init')
+        state = self.review(runtime, state, 'api')
+        state = self.review(runtime, state, 'cli')
+        audit = runtime.inspect_project(self.root, self.project, state)
+        self.assertEqual(audit['status'], 'READY_FOR_REVIEW')
+        self.assertEqual(audit['features'][1]['verification_status'], 'NOT_REQUIRED')
+        self.assertEqual([a['target'] for a in audit.get('next_actions', [])], ['api', 'cli'])
+        self.assertEqual(len(audit['next_actions'][0]['cells']), 6)
+        for feature in ('api', 'cli'):
+            review = dict(state['reviews'][feature], scope_reviews={
+                p + ':' + a: {'status': 'NOT_REQUIRED', 'reason': 'Source-only review, no behavior changed',
+                             'analysis': 'Inspected unchanged source', 'references': ['src/' + feature + '.py']}
+                for p in ('business', 'architecture') for a in ('FE', 'BE/API', 'Domain')})
+            state = runtime.record_review(self.root, self.project, state, review)
+        audit = runtime.inspect_project(self.root, self.project, state)
+        self.assertEqual(audit['status'], 'READY_FOR_REVIEW')
+        self.assertEqual(audit['coverage']['status'], 'COMPLETE')
+        self.assertEqual(audit['next_actions'], [])
 
     def test_architecture_needs_flow_boundary_and_owner_resolution_evidence(self):
         runtime = self.runtime()

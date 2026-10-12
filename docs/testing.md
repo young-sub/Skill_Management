@@ -1,5 +1,12 @@
 # Testing And Impact Selection
 
+The 0.1.48 workflow/refinement/hook cases retain real native PASS when scope is
+undeclared, exercise advisory next actions versus blocking declared gaps, permit
+source-only review and reasoned N/A, and measure single-invocation inventory/audit
+sharing. A later hook must observe changed bytes; selected check reuse and exact
+references survive payload trimming. Full is selected for this shared runtime
+change; package/CLI and independent product evaluations are separate evidence.
+
 The workflow/refinement/hook selectors cover classification-roundtrip revocation,
 complete applicable criterion/guide connection bindings (including legacy review),
 task/project gap denominators and selected-task retention under payload pressure.

@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: e013054d555271691f4fff094693f3f95af3262cce46a61255ee0b04d2ab9aac -->
+<!-- Source-SHA256: 173d03bb43de342f9255f05c625b86e832c820f0fb942ce3f40c0a1f051237e3 -->
 
 # Project workflow obligations
 
@@ -24,6 +24,18 @@ keeps an explicitly selected task and its detail pointer ahead of other candidat
 Without a host-provided context, candidates are discovery only, not selection or
 proof of automatic host delivery. Whole-map/Git changes remain conservatively stale;
 complete Feature-local dependency coverage has not been established.
+
+`READY_FOR_REVIEW` describes retained review readiness, not scope completion.
+`next_actions` includes task-local applicability/evidence guidance even when
+legacy undeclared scope leaves no blocking obligations. Such guidance is
+advisory: it preserves current reusable checks and source-only/small work;
+reasoned NOT_REQUIRED remains valid and six executions are never inferred.
+Explicit declared scope gaps retain their existing blocking obligations.
+The hook preserves selected Feature references, current check reuse and an exact
+read-only detail pointer when trimming. It shares one source inventory and audits
+identical selected/active task state within a single invocation. New invocations
+remeasure bytes; different task states still inspect their own evidence. This
+does not weaken Git/bundle stale checks or claim a persistent discovery cache.
 
 ## Investigation without workflow setup
 

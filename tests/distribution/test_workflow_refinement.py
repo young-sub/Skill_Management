@@ -5,6 +5,8 @@ import os
 import subprocess
 import sys
 import unittest
+import runpy
+from unittest.mock import patch
 
 from tests.distribution import test_project_workflow as existing
 
@@ -228,6 +230,38 @@ class WorkflowRefinementTests(unittest.TestCase):
         hook()
         self.assertEqual(after, {str(p): p.read_bytes() for p in self.root.rglob('*') if p.is_file()})
         self.assertTrue(all(existing.Path(p).read_bytes() == value for p, value in snapshot.items()))
+
+    def test_hook_shares_inventory_and_selected_configured_audit_within_one_invocation(self):
+        self.project['extensions']['workflow']['state'] = '.work/task.json'
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        _, started = self.invoke('begin', '--state', '.work/task.json', '--intent', 'change', '--target', 'api')
+        runtime = self.runtime()
+        state = json.loads((self.root / '.work/task.json').read_text())
+        context = runtime.task_context(self.root, state, self.root / '.work/task.json')
+        self.write('.work/goals/active/W-SAME/work.json', json.dumps({'work_id': 'W-SAME',
+            'state': 'active', 'source_commit': state['base'], 'workflow_baseline': state}))
+        hook = runpy.run_path(str(existing.SCRIPT.with_name('workflow_context.py')))['context']
+        original_loader = runpy.run_path
+        def load(path, *args, **kwargs):
+            if existing.Path(path).resolve() == existing.SCRIPT.resolve():
+                return vars(runtime)
+            return original_loader(path, *args, **kwargs)
+        before = {str(p): p.read_bytes() for p in self.root.rglob('*') if p.is_file()}
+        with patch.dict(os.environ, AGENT_WORKFLOW_CONTEXT=context), patch.object(runpy, 'run_path', load), \
+                patch.object(runtime, 'inventory', wraps=runtime.inventory) as inventory, \
+                patch.object(runtime, 'inspect_project', wraps=runtime.inspect_project) as inspect:
+            detail = json.loads(hook({'cwd': str(self.root), 'hook_event_name': 'UserPromptSubmit'})[
+                'hookSpecificOutput']['additionalContext'].split('\n', 1)[1])
+            self.assertEqual(detail['current_task']['task_id'], state['task_id'])
+            self.assertEqual(inventory.call_count, 1, 'One prompt must survey the same sources once')
+            self.assertEqual(inspect.call_count, 1, 'Identical configured/selected state must share its audit')
+        self.assertEqual(before, {str(p): p.read_bytes() for p in self.root.rglob('*') if p.is_file()})
+        self.write('src/api.py', 'price = 12\n')
+        with patch.dict(os.environ, AGENT_WORKFLOW_CONTEXT=context), patch.object(runpy, 'run_path', load):
+            updated = json.loads(hook({'cwd': str(self.root), 'hook_event_name': 'UserPromptSubmit'})[
+                'hookSpecificOutput']['additionalContext'].split('\n', 1)[1])
+        self.assertIn('src/api.py', updated['current_task']['obligations'][0]['changed'],
+                      'A later invocation must observe new bytes')
 
     def test_unconfigured_investigation_survives_fresh_context_without_setup_or_execution(self):
         investigation = self.write('.work/input.json', json.dumps(self.investigation()))

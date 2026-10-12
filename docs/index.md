@@ -2,7 +2,7 @@
 
 Load ignored repository-local `.harness/environment-exceptions.json` once per task when present; refresh after relevant environment changes. `skip_until_manual_reenable` selects the recorded fallback without retrying the unavailable capability.
 
-Current plugin runtime: 0.1.47. [D1–D3 and consumption results](research/agent-workflow-implementation-results.md#d1d3-consumption-2026-10-09)
+Current plugin runtime: 0.1.48. Scope guidance and invocation-local hook reuse are described in [plugin capabilities](plugins.md#capabilities-and-current-boundary). [D1–D3 and consumption results](research/agent-workflow-implementation-results.md#d1d3-consumption-2026-10-09)
 owns the classification/criterion-set/context corrections, explicit task summaries
 and package/fresh-context evidence. Linked 0.1.46 reviews retain their historical scope.
 

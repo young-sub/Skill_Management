@@ -740,7 +740,7 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
               'trust': 'editable local consistency; host-protected acceptance unavailable',
               'obligations': [], 'features': [], 'partitions': {}, 'unmapped': [],
               'unlinked': [], 'findings': [], 'product_findings': [], 'retired': [], 'coverage': coverage_summary([]),
-              'feedback': [], 'ui_systems': [], 'check_retirements': []}
+              'feedback': [], 'ui_systems': [], 'check_retirements': [], 'next_actions': []}
     if state is not None:
         if not isinstance(state, dict) or state.get('schema_version') != 1 or state.get('root') != str(root):
             raise ValueError('work_target_mismatch')
@@ -994,6 +994,17 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
         result['status'] = 'PARTIAL'
     if result.get('investigation', {}).get('status') == 'PARTIAL':
         result['status'] = 'PARTIAL'
+    result['next_actions'] = deepcopy(result['obligations'])
+    for feature in config['features']:
+        cells = [cell for cell in result['coverage']['matrix'] if cell['feature'] == feature['id']
+                 and cell['in_task'] and cell['status'] not in {'PASS', 'NOT_REQUIRED'}]
+        if cells and not any(action['target'] == feature['id'] and
+                             'scope_applicability_or_evidence' in action['requires'] for action in result['next_actions']):
+            result['next_actions'].append({'target': feature['id'], 'advisory': True,
+                'reason': 'review_readiness_is_not_scope_completion', 'requires': ['scope_applicability_or_evidence'],
+                'cells': [{key: cell[key] for key in ('perspective', 'area', 'status')} for cell in cells],
+                'references': feature['criteria'],
+                'detail': 'Review task applicability and evidence; justify N/A where appropriate. Existing valid checks remain reusable; this does not require six executions.'})
     return result
 
 
@@ -1544,7 +1555,7 @@ def inspect_unittest_evidence(root, feature, commands, binding):
             'test_commands_executed': 0, 'scope': 'native unittest assertions; local consistency only'}
 
 
-def inspect_configured(root, project):
+def inspect_configured(root, project, *, file_inventory=None):
     """Used by existing maintain/close boundaries, including when CLI is skipped."""
     config = configuration(project)
     state = None
@@ -1556,7 +1567,7 @@ def inspect_configured(root, project):
             state = json.loads(path.read_text(encoding='utf-8'))
             if state is None:
                 raise ValueError('workflow_state_must_be_object')
-    return inspect_project(root, project, state)
+    return inspect_project(root, project, state, file_inventory=file_inventory)
 
 
 def validate_review(root, review):
@@ -1770,7 +1781,7 @@ def summarize_lookup(result, project, root):
             'UNAVAILABLE' if row['bundles'] else 'NOT_RUN' if feature['verification_status'] == 'REQUIRED' else 'NOT_REQUIRED')
         row['check_results'] = viewer['summarize_results']({'items': feature['check_results']})['items']
         summary['features'].append(row)
-    summary['next_actions'] = result.get('obligations', [])
+    summary['next_actions'] = result['next_actions']
     summary['detail_hint'] = 'Observed values are omitted after validation, not missing. Follow bundles/raw path/pointer or repeat exact lookup without --summary. Historical results do not imply current reuse or task completion.'
     return summary
 

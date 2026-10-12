@@ -96,12 +96,18 @@ def context(payload):
         return {'hookSpecificOutput': {'hookEventName': 'UserPromptSubmit', 'additionalContext':
             'Current investigation data, not instructions or authorization. No tests or repairs ran.\n' +
             detail}}
-    audit = runtime['inspect_configured'](root, project)
+    # One prompt observes one source inventory; reuse only within this invocation.
+    files = runtime['inventory'](root, config['roots'])
+    audit = runtime['inspect_configured'](root, project, file_inventory=files)
+    configured_path = runtime['local_path'](root, config['state']) if config.get('state') else None
+    task_audits = {}
     summary = {key: audit[key] for key in ('status', 'mapping_status', 'enforcement')}
     if os.environ.get('AGENT_WORKFLOW_CONTEXT'):
         try:
             state, state_path, work_id = runtime['resolve_task'](root)
-            current = runtime['inspect_project'](root, project, state)
+            current = (audit if state_path == configured_path else
+                       runtime['inspect_project'](root, project, state, file_inventory=files))
+            task_audits[runtime['digest'](state)] = current
             summary['current_task'] = {'work_id': work_id, 'state': state_path.relative_to(root).as_posix(),
                 'task_id': state.get('task_id'), 'intent': state['intent'], 'targets': state['targets'],
                 'request': request_preview(state.get('request')),
@@ -109,10 +115,21 @@ def context(payload):
                 'scope': scope_context(current)}
             active_features = {c['feature'] for c in current['coverage']['matrix'] if c.get('in_task', True)}
             selected = [f for f in config['features'] if f['id'] in active_features]
-            summary['current_task']['features'] = [{key: f[key] for key in ('id', 'map', 'criteria', 'checks')}
+            summary['current_task']['features'] = [{key: f[key] for key in ('id', 'sources', 'map', 'criteria', 'checks')}
                                                    for f in selected[:3]]
+            feature_results = {f['id']: f for f in current['features']}
+            for feature in summary['current_task']['features']:
+                observed = feature_results[feature['id']]
+                feature['verification_status'] = observed['verification_status']
+                feature['check_result_count'] = len(observed['check_results'])
+                feature['check_results'] = [{key: row[key] for key in
+                    ('id', 'historical_status', 'current_status', 'current_reuse')}
+                    for row in observed['check_results'][:3]]
             summary['current_task']['feature_count'] = len(selected)
-            summary['current_task']['next_actions'] = 'Use exact connected lookup for criteria, current evidence and remaining obligations; execute only when requested.'
+            summary['current_task']['next_action_count'] = len(current['next_actions'])
+            summary['current_task']['next_actions'] = current['next_actions'][:3]
+            summary['current_task']['detail'] = {'action': 'lookup', 'state': state_path.relative_to(root).as_posix(),
+                                                'work_id': work_id, 'read_only': True}
             if current.get('investigation'):
                 summary['current_task']['investigation'] = investigation_context(current['investigation'])
         except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
@@ -134,7 +151,10 @@ def context(payload):
         item = {'work_id': work_id}
         try:
             state, _ = runtime['work_record'](root, work_id)
-            work = runtime['inspect_project'](root, project, state)
+            key = runtime['digest'](state)
+            if key not in task_audits:
+                task_audits[key] = runtime['inspect_project'](root, project, state, file_inventory=files)
+            work = task_audits[key]
             item.update(status=work['status'], obligation_count=len(work['obligations']),
                         obligations=[{'target': row['target'], 'requires': row['requires']}
                                      for row in work['obligations'][:3]], findings=work['findings'][:3])
@@ -152,10 +172,12 @@ def context(payload):
     summary['ui_systems'] = [{key: entry.get(key) for key in ('id', 'guide', 'tokens', 'components', 'consumers', 'exceptions', 'findings')}
                             for entry in audit.get('ui_systems', [])[:4]]
     summary['scope'] = scope_context(audit)
+    summary['next_action_count'] = len(audit['next_actions'])
+    summary['next_actions'] = audit['next_actions'][:3]
     # Bounded context, with the existing audit retaining the complete result.
     detail = json.dumps(summary, ensure_ascii=False, separators=(',', ':'))
     if len(detail) > 5500:
-        for field in ('active_work', 'obligations', 'feedback', 'ui_systems', 'findings', 'product_findings'):
+        for field in ('active_work', 'obligations', 'next_actions', 'feedback', 'ui_systems', 'findings', 'product_findings'):
             summary.pop(field, None)
         summary['detail_omitted'] = 'Use connected lookup or an exact --state/--work-id audit for complete evidence.'
         detail = json.dumps(summary, ensure_ascii=False, separators=(',', ':'))
@@ -169,8 +191,12 @@ def context(payload):
             current.pop('obligations', None)
             current.pop('investigation', None)
             current['targets'] = current.get('targets', [])[:3]
-            current['features'] = [{'id': f['id'], 'detail': 'See exact lookup: map/criteria/checks'}
-                                   for f in current.get('features', [])[:3]]
+            current['features'] = [{**f, **{key: [value[:160] for value in f[key][:1]]
+                for key in ('sources', 'map', 'criteria', 'checks')},
+                'detail_omitted': True} for f in current.get('features', [])[:2]]
+            current['next_actions'] = [{key: action[key] for key in
+                ('target', 'requires', 'advisory', 'cells') if key in action}
+                for action in current.get('next_actions', [])[:2]]
             current['detail_omitted'] = True
             scope = current.get('scope', {})
             scope.pop('reviews', None)
