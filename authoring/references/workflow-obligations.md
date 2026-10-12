@@ -33,6 +33,19 @@ identical selected/active task state within a single invocation. New invocations
 remeasure bytes; different task states still inspect their own evidence. This
 does not weaken Git/bundle stale checks or claim a persistent discovery cache.
 
+The hook enumerates candidate paths but reads only the first eight candidate
+records in stable selector order. `task_candidate_count` includes discovered
+records in a configured project; `task_candidate_omitted` and
+`task_discovery_complete` distinguish uninspected records, whose intent and
+validity remain unknown. An unconfigured investigation preview also reports
+`task_record_count` separately from the inspected diagnosis candidates. Even an
+empty diagnosis preview cannot establish absence when records were omitted.
+Exact task context is resolved before previews; explicit CLI candidate discovery
+still loads all records. `resume --root <project>` without invocation context or a
+selector returns the complete candidate paths; select `--state`/`--work-id` for
+full details. Later prompts
+read current bytes again; no cross-invocation cache is used.
+
 ## Investigation without workflow setup
 
 `start --root <project> --intent diagnose --request-summary <request>

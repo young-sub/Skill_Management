@@ -27,6 +27,64 @@ measured candidate scale, native host acceptance and independent subsequent
 consumption remain in progress. Baseline 0.1.48 was built from unchanged main
 into a fresh path in that same temporary evidence root; no installation changed.
 
+### Bounded candidate discovery and native host observation
+
+The current retained-task workload is a measured local history model: two Agents,
+four tasks per day, four/sixteen/sixty-four days produce 32/128/512 retained
+records. These are unique copies of one real `begin` record, about 4 KB each,
+not evidence of a live scheduler or long-running Agent queue. Three warm-cache
+hook samples per scale used the same unchanged fixture and explicit current task.
+
+| Retained tasks plus configured record | Baseline median seconds | Candidate median seconds | Baseline/candidate state reads | Baseline/candidate total Path bytes |
+| --- | --- | --- | --- | --- |
+| 32 + 1 | 0.399 | 0.262 | 35 / 10 | 241144 / 142269 |
+| 128 + 1 | 0.865 | 0.266 | 131 / 10 | 620824 / 142269 |
+| 512 + 1 | 2.777 | 0.270 | 515 / 10 | 2139781 / 142269 |
+
+The canonical hook opts into eight candidate reads; later candidate paths retain
+`NOT_INSPECTED`. Default detailed CLI discovery remains complete. Explicit task
+context resolves independently of previews, including the final retained task.
+Unconfigured empty previews now disclose unknown omitted intents instead of
+implying no diagnosis tasks exist. A focused RED read 64 records where the hook
+needed only eight; GREEN retains later exact selection and observes changed bytes
+on the next prompt. The previous no-context/no-config regression was updated for
+this intentional omission disclosure, not by weakening a product oracle.
+
+All scales retained one inventory/configured audit/project audit, 26 file hashes,
+two Git subprocesses and zero product/test commands. Bundle evaluations were zero
+because this fixture attached no native bundle; earlier native reuse/stale defenses
+remain unchanged and are covered separately. Payload grew from about 4789 to 4960
+characters to describe omitted/unknown records. Measurements exclude Git OS reads,
+setup and cold-cache costs. Candidate paths are still enumerated, and actual
+source/bundle audits are not bounded by eight. This establishes less redundant
+record I/O within the tested history sizes, not whole-product or Agent superiority.
+Raw baseline/candidate measurements remain in separate paths under the owned
+temporary evidence root.
+
+Workflow/hook/viewer/execution verification passed 73 tests, with the final hook
+wording rechecked in its two focused tests. The earlier combined workflow/refinement
+run passed its 74 non-hook cases and the new bounded-read case, while the previous
+unconfigured-empty-output expectation failed as described above; that original
+failure remains in `candidate-green.txt`. Plugin packaging/resource/docs checks
+passed 14 tests. Resource drift, distribution validation and `git diff --check`
+passed. Full is not required by these two isolated changes: static descendant
+candidate probing affects setup/maintenance inventory, and opt-in preview loading
+affects prompt discovery; executor, criterion evaluation and protected-host logic
+remain unchanged. Configured Full triggers were assessed as candidate warnings.
+
+Native `codex.exe plugin list --json` first failed at the current CODEX_HOME with
+access denied. The normal authorized execution-permission retry succeeded, with
+no home/settings/authentication change. Its twelve installed entries do not
+include `agentic-coding`; the current local candidate is therefore not observed
+as an installed native Skill or automatically delivered hook on this host.
+[OpenAI packaging guidance](https://developers.openai.com/plugins/build/plugins)
+also distinguishes bundled hook trust from package presence. Installation/trust
+changes are outside this request. Native current-package discovery/Skill invocation,
+automatic hook delivery and protected acceptance remain BLOCKED/unverified until
+an already permitted host exposes the reviewed current package. Direct package
+CLI success does not substitute for those observations. The two actual native
+captures are `native-discovery.json` and `native-discovery-authorized.json`.
+
 <a id="yeondoo-plugin-improvement-2026-10-12"></a>
 
 ## Scope guidance, hook reuse and Yeondoo Link pilot, 2026-10-12

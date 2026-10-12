@@ -2,8 +2,10 @@
 
 Load ignored repository-local `.harness/environment-exceptions.json` once per task when present; refresh after relevant environment changes. `skip_until_manual_reenable` selects the recorded fallback without retrying the unavailable capability.
 
-Current plugin runtime: 0.1.48. [Current scope/hook and Yeondoo Link results](research/agent-workflow-implementation-results.md#yeondoo-plugin-improvement-2026-10-12)
-owns the current common fixes, package evidence, real product branches and fresh
+Current plugin runtime: 0.1.49. [Continuous improvement results](research/agent-workflow-implementation-results.md#continuous-plugin-improvement-2026-10-13)
+owns the inventory boundary, measured candidate discovery and current native host limit.
+[Scope/hook and Yeondoo Link results](research/agent-workflow-implementation-results.md#yeondoo-plugin-improvement-2026-10-12)
+retain the prior common fixes, package evidence, real product branches and fresh
 follow-up reuse. [D1–D3 results](research/agent-workflow-implementation-results.md#d1d3-consumption-2026-10-09)
 retain the 0.1.47 classification/criterion-set/context scope; linked older reviews remain historical.
 
@@ -19,7 +21,7 @@ retain the 0.1.47 classification/criterion-set/context scope; linked older revie
 - [Skill inventory](architecture/skill-inventory.md) — public distribution inventory.
 - [Agentic Coding plugin](plugins.md) — reproducible local package, installed CLI paths, and separate host/task acceptance boundaries.
 - [Agent Coding direction](research/agent-coding-system-direction.md) — retained 0.1.47 pre-run diagnosis, responsibility boundaries and §12 agreement; the execution note links current 0.1.48 fixes, actual product reuse and remaining limits.
-- [Continuous plugin improvement request](research/plugin-continuous-improvement-next-session.md) — prepared next-session execution prompt: inventory repair, real product task/evidence connection, measured candidate discovery and separate host acceptance, followed by continued implementation against the six outcomes in direction §13. Not executed by this documentation change.
+- [Continuous plugin improvement request](research/plugin-continuous-improvement-next-session.md) — user-applied execution prompt; current implementation/evidence is linked above. The complete six outcomes remain active, independently of individual delivered units.
 - [Executed plugin improvement prompt](research/plugin-improvement-next-session.md) — retained authorization/scope for the completed 0.1.48 pilot; use the continuous request for new execution.
 - [Agent workflow refinement review](research/agent-workflow-refinement-review.md#post-0146-review) — historical 0.1.46 review: classification-roundtrip approval revival, newly added criterion omission and task/global hook-gap mixing; fixes and bounded acceptance are recorded in the 0.1.47 results.
 - [Agent workflow completion design](research/agent-workflow-completion-design.md#review-driven-refinement) — executed R0–R4 implementation and acceptance scope; retains historical G1–G6 sequencing and U1–U7 responsibility criteria without reopening completed work.

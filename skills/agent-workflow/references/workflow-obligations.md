@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: 173d03bb43de342f9255f05c625b86e832c820f0fb942ce3f40c0a1f051237e3 -->
+<!-- Source-SHA256: 8381e2e2628b83527efd36a543cb2d3238f7d7f9d75dbd76ba515c0057a20754 -->
 
 # Project workflow obligations
 
@@ -36,6 +36,19 @@ read-only detail pointer when trimming. It shares one source inventory and audit
 identical selected/active task state within a single invocation. New invocations
 remeasure bytes; different task states still inspect their own evidence. This
 does not weaken Git/bundle stale checks or claim a persistent discovery cache.
+
+The hook enumerates candidate paths but reads only the first eight candidate
+records in stable selector order. `task_candidate_count` includes discovered
+records in a configured project; `task_candidate_omitted` and
+`task_discovery_complete` distinguish uninspected records, whose intent and
+validity remain unknown. An unconfigured investigation preview also reports
+`task_record_count` separately from the inspected diagnosis candidates. Even an
+empty diagnosis preview cannot establish absence when records were omitted.
+Exact task context is resolved before previews; explicit CLI candidate discovery
+still loads all records. `resume --root <project>` without invocation context or a
+selector returns the complete candidate paths; select `--state`/`--work-id` for
+full details. Later prompts
+read current bytes again; no cross-invocation cache is used.
 
 ## Investigation without workflow setup
 

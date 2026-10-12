@@ -68,12 +68,16 @@ def context(payload):
     project = json.loads(path.read_text(encoding='utf-8')) if path.is_file() else {}
     config = runtime['configuration'](project)
     if config is None:
-        candidates = [c for c in runtime['task_candidates'](root, project) if c.get('intent') == 'diagnose']
+        records = runtime['task_candidates'](root, project, limit=8)
+        omitted = sum(c.get('status') == 'NOT_INSPECTED' for c in records)
+        candidates = [c for c in records if c.get('intent') == 'diagnose']
         selector = os.environ.get('AGENT_WORKFLOW_CONTEXT')
-        if not selector and not candidates:
+        if not selector and not candidates and not omitted:
             return {}
         summary = {'status': 'NOT_CONFIGURED', 'task_candidates': [dict(c, request=request_preview(c.get('request'), 160)) for c in candidates[:8]],
-                   'task_candidate_count': len(candidates)}
+                   'task_candidate_count': len(candidates), 'task_record_count': len(records),
+                   'task_candidate_omitted': omitted, 'task_discovery_complete': omitted == 0,
+                   'task_discovery_detail': 'For full candidate paths run resume without task context or selector, then select exact --state/--work-id. Omitted intent and validity are unknown.'}
         if selector:
             try:
                 state, state_path, work_id = runtime['resolve_task'](root)
@@ -134,10 +138,13 @@ def context(payload):
                 summary['current_task']['investigation'] = investigation_context(current['investigation'])
         except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
             summary['current_task'] = {'status': 'BLOCKED', 'reason': str(error)}
-    candidates = runtime['task_candidates'](root, project)
+    candidates = runtime['task_candidates'](root, project, limit=8)
     summary['task_candidates'] = [dict(candidate, request=request_preview(candidate.get('request'), 160))
                                   for candidate in candidates[:8]]
     summary['task_candidate_count'] = len(candidates)
+    summary['task_candidate_omitted'] = max(0, len(candidates) - 8)
+    summary['task_discovery_complete'] = len(candidates) <= 8
+    summary['task_discovery_detail'] = 'For full candidate paths run resume without task context or selector, then select exact --state/--work-id. Omitted intent and validity are unknown.'
     active_root = runtime['local_path'](root, '.work/goals/active')
     active = []
     if active_root.is_dir():

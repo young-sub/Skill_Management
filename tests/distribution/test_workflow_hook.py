@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 HOOK = ROOT / 'authoring/scripts/workflow_context.py'
@@ -15,6 +16,61 @@ WORKFLOW = ROOT / 'authoring/scripts/project_workflow.py'
 
 
 class WorkflowHookTests(unittest.TestCase):
+    def test_unconfigured_hook_bounds_candidate_reads_and_retains_unknown_omissions(self):
+        runtime = runpy.run_path(str(WORKFLOW))
+        hook = runpy.run_path(str(HOOK))['context']
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+            (root / '.gitignore').write_text('.work/\n')
+            subprocess.run(['git', 'add', '.'], cwd=root, check=True)
+            subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=t@invalid',
+                            'commit', '-qm', 'base'], cwd=root, check=True)
+            state = runtime['begin'](root, {}, 'diagnose', request_summary='Investigate current state')
+            for index in range(64):
+                path = root / '.work/tasks' / f'{index:03}' / 'state.json'
+                path.parent.mkdir(parents=True)
+                path.write_text(json.dumps(dict(state, task_id=str(index),
+                    intent='change' if index < 8 else 'diagnose')))
+            reads = []
+            read_text = Path.read_text
+
+            def measured_read(path, *args, **kwargs):
+                if path.name == 'state.json':
+                    reads.append(path)
+                return read_text(path, *args, **kwargs)
+
+            with mock.patch.dict(os.environ, AGENT_WORKFLOW_CONTEXT=''), mock.patch.object(Path, 'read_text', measured_read):
+                output = hook({'hook_event_name': 'UserPromptSubmit', 'cwd': str(root)})
+            self.assertLessEqual(len(reads), 8, 'A bounded prompt must not read every retained task')
+            detail = json.loads(output['hookSpecificOutput']['additionalContext'].split('\n', 1)[1])
+            self.assertEqual(detail['task_record_count'], 64)
+            self.assertEqual(detail['task_candidate_omitted'], 56)
+            self.assertEqual(detail['task_candidates'], [])
+            self.assertFalse(detail['task_discovery_complete'])
+            # Exact selection and explicit detailed discovery still inspect later records.
+            selected, _ = runtime['task_state'](root, '.work/tasks/063/state.json')
+            self.assertEqual(selected['intent'], 'diagnose')
+            self.assertEqual(len(runtime['task_candidates'](root, {})), 64)
+            binding = runtime['task_context'](root, selected, root / '.work/tasks/063/state.json')
+            with mock.patch.dict(os.environ, AGENT_WORKFLOW_CONTEXT=binding):
+                selected_output = hook({'hook_event_name': 'UserPromptSubmit', 'cwd': str(root)})
+            selected_detail = json.loads(selected_output['hookSpecificOutput']['additionalContext'].split('\n', 1)[1])
+            self.assertEqual(selected_detail['current_task']['task_id'], '63')
+            # A later prompt observes changed preview bytes; it does not cache them.
+            first_path = root / '.work/tasks/000/state.json'
+            first = json.loads(first_path.read_text())
+            first['intent'] = 'diagnose'
+            first['request']['summary'] = 'Newly observed investigation'
+            first_path.write_text(json.dumps(first))
+            with mock.patch.dict(os.environ, AGENT_WORKFLOW_CONTEXT=''):
+                fresh = hook({'hook_event_name': 'UserPromptSubmit', 'cwd': str(root)})
+            fresh_detail = json.loads(fresh['hookSpecificOutput']['additionalContext'].split('\n', 1)[1])
+            self.assertEqual(fresh_detail['task_candidates'][0]['request']['summary'], first['request']['summary'])
+            (root / '.work/tasks/063/state.json').write_text('null')
+            with self.assertRaisesRegex(ValueError, 'work_target_mismatch'):
+                runtime['task_state'](root, '.work/tasks/063/state.json')
+
     def test_configured_resume_lookup_and_unconfigured_are_read_only(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -113,9 +169,14 @@ class WorkflowHookTests(unittest.TestCase):
             (root / '.work/task.json').write_text('null')
             self.assertIn('workflow_state_must_be_object', invoke()['systemMessage'])
             config.write_text('{}')
-            self.assertEqual(invoke(), {})
+            missing_config = invoke()
+            omissions = json.loads(missing_config['hookSpecificOutput']['additionalContext'].split('\n', 1)[1])
+            self.assertEqual(omissions['status'], 'NOT_CONFIGURED')
+            self.assertEqual(omissions['task_record_count'], 11)
+            self.assertEqual(omissions['task_candidate_omitted'], 3)
+            self.assertFalse(omissions['task_discovery_complete'])
             config.unlink()
-            self.assertEqual(invoke(), {})
+            self.assertEqual(invoke(), missing_config)
             self.assertEqual(invoke(dict(payload, hook_event_name='Stop')), {})
 
 

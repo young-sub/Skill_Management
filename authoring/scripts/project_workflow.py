@@ -570,8 +570,10 @@ def task_state(root, state=None, work_id=None):
     return record, path
 
 
-def task_candidates(root, project):
+def task_candidates(root, project, *, limit=None):
     """Bounded discovery of existing owned records, without choosing a task."""
+    if limit is not None and (type(limit) is not int or limit < 0):
+        raise ValueError('invalid_candidate_preview_limit')
     paths = {p.relative_to(root).as_posix() for p in local_path(root, '.work/tasks').glob('*/state.json')}
     configured = (configuration(project) or {}).get('state')
     if configured and local_path(root, configured).is_file():
@@ -580,7 +582,10 @@ def task_candidates(root, project):
     selectors += [{'work_id': p.parent.name} for p in
                   sorted(local_path(root, '.work/goals/active').glob('*/work.json'))]
     candidates = []
-    for selector in selectors:
+    for index, selector in enumerate(selectors):
+        if limit is not None and index >= limit:
+            candidates.append({**selector, 'status': 'NOT_INSPECTED', 'reason': 'candidate_preview_limit'})
+            continue
         try:
             state, path = task_state(root, **selector)
             candidates.append({**selector, 'state': path.relative_to(root).as_posix(),

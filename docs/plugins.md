@@ -57,6 +57,13 @@ reuse; unlisted transitive runtime changes remain outside that declaration.
 
 ## Capabilities and current boundary
 
+Version 0.1.49 confines nested inventory Git probes to the requested root and
+bounds hook candidate-record reads to eight. Counts and omitted/unknown records
+remain explicit, exact task selection is independent of the preview, and CLI
+detail discovery remains complete. Candidate path enumeration and current
+source/evidence audits still run; this is a bound on record reads, not total
+constant-time discovery or native host acceptance.
+
 Version 0.1.48 makes undeclared task applicability visible in `next_actions`
 without changing review readiness, dropping reusable checks or requiring six
 executions. Explicit declared scope gaps keep their existing obligations;
