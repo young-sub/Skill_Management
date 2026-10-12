@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: 69fcacea81b05fe9c1b471d6e93b5190d3a7cc575527b217f80d5b40450ebaf8
+# Source-SHA256: 7129c062e4c92936d09aa44072bdc3e4b6ce1c24e77eb39438e8b7ee90a49e15
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -1499,6 +1499,15 @@ def oracle_repair_preimages(root, feature, entry, paths):
     dependency = item['conditions']['expected']['dependency']
     measured = record.get('conditions', {}).get('dependency', {})
     captured = record.get('before', {}).get('untracked_sha256', {})
+    before = record.get('before', {})
+    head = before.get('head')
+    source = item['conditions']['expected'].get('source', {})
+    # shortcut: Dirty captures/custom filters stay OPEN; require retained bytes before supporting them.
+    clean_tracked = (isinstance(head, str) and re.fullmatch(r'[0-9a-f]{40,64}', head)
+        and before.get('status') == ''
+        and before.get('tracked_diff_sha256') == hashlib.sha256(b'').hexdigest()
+        and source.get('revision') == head and source.get('status') == ''
+        and source.get('diff') == before['tracked_diff_sha256'])
     result = {}
     for name in paths:
         if (not any(fnmatchcase(name, pattern) for pattern in feature['sources'])
@@ -1506,9 +1515,20 @@ def oracle_repair_preimages(root, feature, entry, paths):
                 or name not in dependency.get('file_refs', [])):
             continue
         sha = dependency.get('file_hashes', {}).get(str(local_path(root, name)))
-        if (isinstance(sha, str) and re.fullmatch(r'[0-9a-f]{64}', sha) and captured.get(name) == sha
-                and measured.get('file_hashes', {}).get(str(local_path(root, name))) == sha):
+        if (not isinstance(sha, str) or not re.fullmatch(r'[0-9a-f]{64}', sha)
+                or measured.get('file_hashes', {}).get(str(local_path(root, name))) != sha):
+            continue
+        if captured.get(name) == sha:
             result[name] = sha
+        elif clean_tracked and name not in captured:
+            try:
+                blob = git(root, 'show', f'{head}:{name}')
+            except (OSError, subprocess.CalledProcessError):
+                continue
+            # Git may store LF while a clean Windows checkout supplies CRLF.
+            variants = (blob, blob.replace(b'\n', b'\r\n')) if b'\r\n' not in blob else (blob,)
+            if any(hashlib.sha256(value).hexdigest() == sha for value in variants):
+                result[name] = sha
     return result
 
 

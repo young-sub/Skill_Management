@@ -32,13 +32,14 @@ into a fresh path in that same temporary evidence root; no installation changed.
 | User outcome | Observed local implementation and evidence | Remaining boundary |
 | --- | --- | --- |
 | Task handoff and selected lookup at retained-history scale | Root-confined inventory; eight hook preview reads with exact independent selection; 32/128/512-record measurements; real product discovery and 1966-file read-only lookup/resume invariance | Current independently prepared execution and final related read-only reuse are observed; eight current required check rows are PASS/REUSABLE, zero checks executed, eight named task/raw file hashes unchanged. Source/bundle audits remain substantial; native hook acceptance is unobserved. |
-| Business/architecture across FE, BE/API and Domain | Twelve actual MVP candidates mapped; consultation App dispatch, transition, memory/display and edit invalidation traced. Independent browser/API/SQLite/restart example retains frontend-failure/API-PASS contrast. | Three requested Features have current FE/Domain business/architecture PASS and reasoned BE/API N/A. Staff UI/business is reviewed; its architecture FE/Domain remain UNDECIDED. Other project reviews remain open. Consultation has no backend/API/DB; provider generation APIs elsewhere remain a separate concern. No clinical, commercial or whole-product approval. |
+| Business/architecture across FE, BE/API and Domain | Twelve actual MVP candidates mapped; consultation App dispatch, transition, memory/display and edit invalidation traced. Independent browser/API/SQLite/restart example retains frontend-failure/API-PASS contrast. | Three requested Features have current FE/Domain business/architecture PASS and reasoned BE/API N/A. Staff FE/Domain business and architecture now have current bounded reviews; its local device lock is not server authentication. Other project reviews remain open. Consultation has no backend/API/DB; provider generation APIs elsewhere remain a separate concern. No clinical, commercial or whole-product approval. |
 | Repair and prevent feedback recurrence | Original adapter failures retained; descriptor/VM consumers repaired without changing browser conditions; real Git metadata regression and structural guard; bound red preimage for tools created after task start | Actual loader feedback is RESOLVED against current run03 while preserving its red and missing baseline owner. Consumer-scoped manifest feedback is OPEN for unobserved owner repair; scope/feedback raw and independent related reuse are retained; package tests and Agent review inputs do not authenticate human approval. |
-| Maintain and reuse UI standards | Existing design guide, tokens and shared components/consumer links reused; six original suites, actual desktop/mobile/staff screenshots retained | Related staff screen review and focused privacy end/cancel/reset review are observed; UI remains draft. Staff owner architecture remains NOT_RUN. CatalogImport is mapped but its modal is outside the six-suite run. |
-| Executable verification guide and runtime connection | Feature/check/assertion registry, native event reporter and owned browser adapter connect twelve judgments to two commands. Current 0.1.54 execution on product 79d74b1 passes native 55/55 and six full suites, with 13 served-source matches, 120 PNG hashes and owned-resource shutdown. | Current scoped reviews and read-only related reuse are recorded. Whole task retains 21 coverage gaps and consumer observer feedback OPEN. Earlier captures remain historical/stale. Speech/provider calls and user acceptance are separate. |
+| Maintain and reuse UI standards | Existing design guide, tokens and shared components/consumer links reused; six original suites, actual desktop/mobile/staff screenshots retained | Related staff screen review and focused privacy end/cancel/reset review are observed; UI remains draft. Staff owner architecture is reviewed using unchanged source and retained actual flow. CatalogImport is mapped but its modal is outside the six-suite run. |
+| Executable verification guide and runtime connection | Feature/check/assertion registry, native event reporter and owned browser adapter connect twelve judgments to two commands. Current 0.1.54 execution on product 79d74b1 passes native 55/55 and six full suites, with 13 served-source matches, 120 PNG hashes and owned-resource shutdown. | Current scoped reviews and read-only related reuse are recorded. After staff owner review the task retains 20 coverage gaps and the misrouted consumer observer feedback OPEN. Earlier captures remain historical/stale. Speech/provider calls and user acceptance are separate. |
 | Keep or improve checks by measured value | Duplicate inventory and bundle observations reduced while preserving complete result equality; summary assertion duplication removed after validation; original tests retained; owned cleanup and old-output refusal verified | Original checks are retained; equivalent defect/valid-case evidence did not justify retirement. Whole-Git stale protection remains; smaller I/O and presentation samples do not establish general Agent quality or speed. |
 
-The overall goal remains PARTIAL. The frozen final source package is 0.1.54 from
+The overall goal remains PARTIAL. The completed package consumption before the
+tracked-owner follow-up used frozen 0.1.54 from
 clean commit `b9612ab`, tree `7e5404002be4ff04a148a7affc92b3b3824f33d2`.
 Its 247 actual files match the content inventory; inventory SHA-256 is
 `61d70766fe6d403ae8effb965d864e2cff7bf9df474064eb925431b8bad6cfbb`.
@@ -116,6 +117,56 @@ was not a task or bundle input. These single samples overlapped briefly and
 cache/load were uncontrolled; the deterministic evaluation reduction supports
 the finding more strongly than timing. Raw records are `real-lookup-baseline.json`
 and `real-lookup-candidate.json`. Final packaged independent follow-up is recorded below.
+
+### Follow-up: tracked new tool owner and staff ownership
+
+The prior 0.1.54 read-only matrix had staff architecture FE/Domain UNDECIDED.
+Root reviewed App dispatch/lifecycle, StaffGate input/unmount handling and the
+staff-lock device storage boundary against the retained actual PIN/native/browser
+normal and refusal cases. An existing-format review registered in 334.652 seconds,
+child exit 2, zero product commands. All four staff FE/Domain cells are now PASS;
+both BE/API cells remain reasoned NOT_REQUIRED for this device UI gate. Whole
+coverage stays PARTIAL with 20 gaps; this is no server authentication, exhaustive
+race, clinical or human UI approval. The input, before-state, full stdout and
+root receipt are in `final-consumption/review-staff-owner-scoped-0.1.54.*` and
+`staff-owner-root-receipt.json` under the retained continuous-improvement evidence.
+
+The separate consumer feedback has two actual blockers: staff-access does not own
+scripts/browser-runner.mjs, and its later failing capture has the new runner already
+tracked. Contrary to an initial independent review claim, the actual run02 bound
+plan selects staff-access and includes its failed /suites/5/status assertion; root
+read it and the reviewer corrected that claim. Selection is not the blocker.
+Neither the feedback Feature nor immutable task baseline is silently rewritten.
+
+Runtime 0.1.55 allows a missing new-tool preimage from a clean captured Git revision.
+It retains bound red/selected failed assertion/root/unchanged-capture/current and
+old owner/dependency checks, then verifies the exact Git blob SHA or deterministic
+LF-to-CRLF checkout SHA against both declared and measured dependency hashes.
+Dirty tracked captures, missing/different Git objects, custom checkout filters and
+present malformed/unchanged baseline entries stay OPEN. No task baseline is filled.
+The actual clean product red revision 1c9dfbf has blob SHA a9dc7903...; its CRLF
+checkout SHA exactly matches captured fe2ed661... . Sandbox Git read exited 128;
+the same read-only normal execution-permission retry passed, without settings changes.
+
+Focused RED observed OPEN instead of RESOLVED in 11.048 seconds. Three focused
+cases then passed in 62.447 seconds: tracked new-tool repair, dirty tracked refusal,
+and existing untracked repair, including missing/different Git objects, raw tamper,
+missing red, removed owner and malformed/present preimages. An initial byte-edit
+attempt mismatched CRLF and made no source change; a mistakenly launched two-case
+repeat retained the same RED (36.358 seconds). It is not GREEN evidence. Source
+editing then preserved the original CRLF bytes; the successful checks are separate.
+Independent source review found no material trust/path defect; it ran no tests.
+The complete impacted workflow/refinement/hook regression passed 80 tests in
+181.729 seconds. Package/update/repository-doc checks passed nine tests in
+7.840 seconds; resource drift, distribution and formatting passed. Full was not
+repeated for this bounded fallback; prior Full counts above are earlier sources.
+
+This bounded runtime unit does not reclassify the old staff-specific record or
+claim its resolution. A separate app-runtime owner feedback must use its selected
+failed run-level /status and retained normal /cleanup/errors assertions, with the
+original red/current green bundles. Packaging and actual follow-up consumption
+are reported separately when observed. Earlier 0.1.54 package/run/lookup numbers
+below retain their original conditions and are historical after this source change.
 
 ### Actual product task, observer repairs and independent consumption
 

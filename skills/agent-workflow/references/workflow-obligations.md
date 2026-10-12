@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: dd063725ea2f547a57ced8f62c36ecac50d6e82fd1a4ffaa695290ce669b9b85 -->
+<!-- Source-SHA256: 03ca801283e69bdf109d60e053c90e399572a3233b9079b04f289553225b825f -->
 
 # Project workflow obligations
 
@@ -300,6 +300,8 @@ those fields. This checks record completeness, not whether its semantic analysis
 is correct; editable manifests, policy and reviews are not authenticated evidence.
 
 A changed-behavior review can reference a task-local `bundle` JSON produced by the result viewer's explicit execution path. Audit reopens its plan/captures/raw/current inputs through read-only bundle inspection, then checks Feature/check IDs and exact registered argv/cwd. Missing, stale or mismatched evidence cannot discharge the obligation. Feedback also needs an observed repair relative to the original basis; a new analysis or PASS flag alone is insufficient. Map/UI meaning and whether a regression covers the reported cause remain review responsibilities, distinct from those mechanical checks.
+
+For a tool owner missing from the immutable task baseline, a bound root-local failing capture can supply a separate repair preimage. Its selected failed assertion, declared owner and dependency hashes must match. Untracked files use the captured per-file hash; already tracked files require an unchanged clean capture and an exact blob hash at the captured Git revision (LF or its Windows CRLF checkout). Dirty tracked captures and unavailable/mismatched Git objects remain OPEN. Existing baseline entries always take precedence; no baseline is backfilled.
 
 `accept` returns BLOCKED because no protected verifier identity/policy/results boundary exists on this host. An Agent with equal filesystem authority can modify config/records or skip commands; the local close guard cannot prevent that bypass. A hash, fresh context or submitted PASS is not enforcement. Draft/test/map edits remain allowed; no global hook or general installation is performed.
 # Native unittest evidence

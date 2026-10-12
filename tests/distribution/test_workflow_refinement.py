@@ -374,7 +374,7 @@ class WorkflowRefinementTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'feedback_kind'):
             runtime.record_feedback(self.root, self.project, state, dict(complaint, kind='approved'))
 
-    def test_changed_requirement_needs_authority_new_revision_and_real_retained_contract(self, kind='requirement_change', added_owner=False):
+    def test_changed_requirement_needs_authority_new_revision_and_real_retained_contract(self, kind='requirement_change', added_owner=False, tracked_owner=False, dirty_red=False):
         runtime = self.runtime()
         feature = self.project['extensions']['workflow']['features'][0]
         feature['sources'].append('src/run.py')
@@ -407,6 +407,11 @@ class WorkflowRefinementTests(unittest.TestCase):
         if added_owner:
             runner.write_bytes(original_runner)
             self.assertNotIn('src/run.py', json.loads((self.root / start['task']['state']).read_text())['baseline'])
+        if tracked_owner:
+            for argv in (['git', 'add', '.'], ['git', '-c', 'user.name=Fixture', '-c', 'user.email=f@invalid', 'commit', '-qm', 'new tool before failure']):
+                subprocess.run(argv, cwd=self.root, capture_output=True, check=True)
+        if dirty_red:
+            self.write('src/api.py', 'price = 12 # uncommitted during failure\n')
         entry = {'id': 'new-price', 'feature': 'api', 'kind': kind,
                  'expected': 'Twelve', 'observed': 'Ten', 'reproduction': 'Read price',
                  'scope': 'API price', 'reason': 'New requirement', 'reconsider': 'Price changes again',
@@ -439,6 +444,10 @@ class WorkflowRefinementTests(unittest.TestCase):
         entry['authorization_refs'] = ['docs/authorization.md']
         feedback.write_text(json.dumps(entry), encoding='utf-8')
         _, confirmed = self.invoke('feedback', '--feedback', str(feedback), context=context)
+        if dirty_red:
+            self.assertEqual(confirmed['feedback'][0]['status'], 'OPEN', confirmed['feedback'])
+            self.assertIn('oracle_or_tool_repair_not_observed', confirmed['feedback'][0]['remaining'])
+            return
         self.assertEqual(confirmed['feedback'][0]['status'], 'RESOLVED', confirmed['feedback'])
         if not added_owner:
             self.assertNotIn('red_bundle', confirmed['feedback'][0])
@@ -474,6 +483,12 @@ class WorkflowRefinementTests(unittest.TestCase):
             finally:
                 raw_file.write_bytes(original_raw)
             self.assertEqual(runtime.inspect_feedback(self.root, runtime.configuration(self.project), saved)[0]['status'], 'RESOLVED')
+            if tracked_owner:
+                for missing_blob in (b'not the captured file', None):
+                    options = {'return_value': missing_blob} if missing_blob is not None else {'side_effect': OSError('Git object unavailable')}
+                    with patch.object(runtime, 'git', **options):
+                        self.assertIn('oracle_or_tool_repair_not_observed', runtime.inspect_feedback(
+                            self.root, runtime.configuration(self.project), saved)[0]['remaining'])
         _, later = self.invoke('start', '--intent', 'change', '--target', 'api', context=context)
         self.assertEqual(later['feedback'][0]['status'], 'RESOLVED', later['feedback'])
         _, reused = self.invoke('prepare', context=later['task_context'])
@@ -488,6 +503,14 @@ class WorkflowRefinementTests(unittest.TestCase):
 
     def test_new_tool_owner_repair_uses_bound_failure_hash(self):
         self.test_changed_requirement_needs_authority_new_revision_and_real_retained_contract(kind='oracle_tool_error', added_owner=True)
+
+    def test_new_tracked_tool_owner_repair_uses_clean_failure_git_blob(self):
+        self.test_changed_requirement_needs_authority_new_revision_and_real_retained_contract(
+            kind='oracle_tool_error', added_owner=True, tracked_owner=True)
+
+    def test_dirty_tracked_tool_failure_cannot_supply_a_missing_baseline(self):
+        self.test_changed_requirement_needs_authority_new_revision_and_real_retained_contract(
+            kind='oracle_tool_error', added_owner=True, tracked_owner=True, dirty_red=True)
 
     def test_unrelated_investigation_update_cannot_refresh_stale_observations(self):
         runtime = self.runtime()
