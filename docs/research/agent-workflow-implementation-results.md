@@ -22,10 +22,36 @@ CLI acceptance passed 10 tests. Resource drift, distribution and formatting chec
 passed. Raw RED/GREEN is retained under `.work/plugin-continuous/20261012/`.
 
 This repairs the common source cause previously avoided by moving the worktree.
-It does not complete direction §13: actual product task/evidence connection,
-measured candidate scale, native host acceptance and independent subsequent
-consumption remain in progress. Baseline 0.1.48 was built from unchanged main
+It does not alone complete direction §13. The subsequent units below connect
+the actual product, measure candidate scale and exercise independent consumption;
+native host acceptance and protected main integration remain separate boundaries. Baseline 0.1.48 was built from unchanged main
 into a fresh path in that same temporary evidence root; no installation changed.
+
+### Six outcomes and current completion boundary
+
+| User outcome | Observed local implementation and evidence | Remaining boundary |
+| --- | --- | --- |
+| Task handoff and selected lookup at retained-history scale | Root-confined inventory; eight hook preview reads with exact independent selection; 32/128/512-record measurements; real product discovery and 1966-file read-only lookup/resume invariance | Current independently prepared execution and final related read-only reuse are observed; eight current required check rows are PASS/REUSABLE, zero checks executed, eight named task/raw file hashes unchanged. Source/bundle audits remain substantial; native hook acceptance is unobserved. |
+| Business/architecture across FE, BE/API and Domain | Twelve actual MVP candidates mapped; consultation App dispatch, transition, memory/display and edit invalidation traced. Independent browser/API/SQLite/restart example retains frontend-failure/API-PASS contrast. | Three requested Features have current FE/Domain business/architecture PASS and reasoned BE/API N/A. Staff UI/business is reviewed; its architecture FE/Domain remain UNDECIDED. Other project reviews remain open. Consultation has no backend/API/DB; provider generation APIs elsewhere remain a separate concern. No clinical, commercial or whole-product approval. |
+| Repair and prevent feedback recurrence | Original adapter failures retained; descriptor/VM consumers repaired without changing browser conditions; real Git metadata regression and structural guard; bound red preimage for tools created after task start | Actual loader feedback is RESOLVED against current run03 while preserving its red and missing baseline owner. Consumer-scoped manifest feedback is OPEN for unobserved owner repair; scope/feedback raw and independent related reuse are retained; package tests and Agent review inputs do not authenticate human approval. |
+| Maintain and reuse UI standards | Existing design guide, tokens and shared components/consumer links reused; six original suites, actual desktop/mobile/staff screenshots retained | Related staff screen review and focused privacy end/cancel/reset review are observed; UI remains draft. Staff owner architecture remains NOT_RUN. CatalogImport is mapped but its modal is outside the six-suite run. |
+| Executable verification guide and runtime connection | Feature/check/assertion registry, native event reporter and owned browser adapter connect twelve judgments to two commands. Current 0.1.54 execution on product 79d74b1 passes native 55/55 and six full suites, with 13 served-source matches, 120 PNG hashes and owned-resource shutdown. | Current scoped reviews and read-only related reuse are recorded. Whole task retains 21 coverage gaps and consumer observer feedback OPEN. Earlier captures remain historical/stale. Speech/provider calls and user acceptance are separate. |
+| Keep or improve checks by measured value | Duplicate inventory and bundle observations reduced while preserving complete result equality; summary assertion duplication removed after validation; original tests retained; owned cleanup and old-output refusal verified | Original checks are retained; equivalent defect/valid-case evidence did not justify retirement. Whole-Git stale protection remains; smaller I/O and presentation samples do not establish general Agent quality or speed. |
+
+The overall goal remains PARTIAL. The frozen final source package is 0.1.54 from
+clean commit `b9612ab`, tree `7e5404002be4ff04a148a7affc92b3b3824f33d2`.
+Its 247 actual files match the content inventory; inventory SHA-256 is
+`61d70766fe6d403ae8effb965d864e2cff7bf9df474064eb925431b8bad6cfbb`.
+Before and post-consumption receipts are `package-0.1.54-before.json` and
+`package-0.1.54-post-final.json`: all 247 actual files are unchanged, with no missing
+or additional file. The preceding independently consumed 0.1.53 package also
+retains all 247 files unchanged (`package-0.1.53-post-final.json`). Both copied CLIs
+use bytecode-disabled execution; no cache files were removed to manufacture equality. New connected-product exports retain all 102 files from six
+artifact directories in `connected-product-export-final/`, bound to the original
+paths by `connected-export-final-manifest.json`. Earlier packages/raw/exports
+remain intact. Main integration and created plugin worktree cleanup are pending
+the protected-branch approval boundary below; the actual product worktree/branch
+is retained independently.
 
 ### Real-product task-start source cost
 
@@ -64,8 +90,9 @@ original and retained roots and verifies every hash before eventual cleanup.
 Local main integration was rejected twice by automatic approval review: it did
 not treat the goal-context approval as a trusted message authorizing the exact
 protected/default-branch merge. Main remains at `107850a`; verified branch
-commits/packages are preserved. A separate exact approval request for `1f9263c`
-and `5fd36ae` is pending. No alternate transport or indirect Git integration was
+commits/packages are preserved. The earlier pending approval question named only
+`1f9263c` and `5fd36ae`; later verified units extend that stack, so that narrower
+question is not approval for the current complete branch. No alternate transport or indirect Git integration was
 used. Product source and evidence work continues independently.
 
 ### Shared bundle observation during real-product lookup
@@ -88,13 +115,14 @@ separate failed preparation's supervision record had been added. That added log
 was not a task or bundle input. These single samples overlapped briefly and
 cache/load were uncontrolled; the deterministic evaluation reduction supports
 the finding more strongly than timing. Raw records are `real-lookup-baseline.json`
-and `real-lookup-candidate.json`. Packaged independent follow-up remains in progress.
+and `real-lookup-candidate.json`. Final packaged independent follow-up is recorded below.
 
 ### Actual product task, observer repairs and independent consumption
 
 The retained product branch `evaluation/plugin-verification-20261013` now has
 `0b1edbb` (machine map, assertion registry, native reporter and owned browser
-runner) and `1c9dfbf` (Git-path metadata repair). Product main and both earlier
+runner), `1c9dfbf` (Git-path metadata repair) and `79d74b1` (narrow manifest
+cancellation observation with committed-document/identity guards). Product main and both earlier
 UI evaluation branches/worktrees are preserved. The machine map covers 12 current
 MVP Feature candidates. The survey stays PARTIAL; no consultation API/server DB,
 real payment, clinical approval or global product completion was invented.
@@ -142,6 +170,181 @@ was written outside the product, separately from CLI behavior. This is actual
 read-only evidence, not only a fixture. Product mapping/semantic review remained
 PARTIAL. Capture/selection changes require a new plan; lookup never launches one.
 
+### Independent current execution and retired manifest observation
+
+The final fresh-context Agent used immutable 0.1.53 on product `1c9dfbf`.
+It independently selected the existing ordinary consultation task rather than
+the whole-product survey. Root corrected its initial Harness-Skill assumption,
+missing session/duplicate lookup handling, oversized stdout capture and Windows
+JSON argument transport. Those interventions and parser errors are retained in
+`final-consumption/operations.md`; model metadata is UNKNOWN. This is bounded
+discovery/consumption with supervision, not a controlled demonstration of general
+Agent superiority. Large stdout is retained with its actual UTF-16LE/BOM encoding.
+
+Successful current preparation took 288.188 seconds, child exit 0, twelve selected
+Feature/check judgments and zero executed tests. Explicit execution took 295.955
+seconds, child exit 1 and two producer commands. Native passed 54/54 with no
+failure/skip/cancel/todo. Five browser suites passed; the original staff script
+returned PASS but the adapter promoted one manifest GET `net::ERR_ABORTED` to
+ISSUES. Page/console/HTTP/external/cleanup errors were empty and owned resources
+closed. The full current CLI also reported ISSUES/PARTIAL; it was not credited as
+PASS. The raw lacks lifecycle attribution, so navigation and the manifest's
+five-second abort timeout cannot be causally distinguished from that record.
+
+Product commit `79d74b1` repairs only the observer/guard/registry/related guide.
+Root's controlled localhost Chromium fixture reproduces normal document
+replacement cancellation: the exact original observer preimage fails and the
+current observer passes under the same manifest fixture. Both retain raw/events
+and close their own server/browser. An independent challenge rejected a generic
+GET exception. Eligibility is instead limited to the known same-origin/main-frame
+static `/audio/manifest.json` request, a known earlier request identity, the exact
+abort and a replacing document response/commit. The retained cancellation text
+describes a retired static request and explicitly does not infer cause. Failed
+navigation, live/unknown/unbound requests, other GET endpoints, mutating methods
+and other network errors still fail. The independent final review found no blocking
+event-order or cross-page identity defect, but an earlier request ID is only a
+temporal ownership proxy: an independently aborted manifest near navigation could
+still be classified as retired. Causal attribution remains unproven; the guard
+does not test delayed independent aborts. Same-document changes and redirects are
+covered, as are two pages' identical URL identities. Five native guard cases
+passed; original browser/GUI assertions are unchanged. A retrospective run of the
+current guard rejects the retained generic candidate (an extra API GET is wrongly
+retired), separately from the final eligible-manifest GREEN. A CRLF-sensitive
+fixture preimage recovery attempt and its missing-owner-path run failed; the
+correct byte recovery verifies the original SHA before reuse. Earlier fixture
+paths and product raw were preserved.
+
+On clean product `79d74b1`, independent 0.1.54 preparation completed in 330.508
+seconds, child exit 0 and zero executed tests. Its explicit execution completed
+in 324.584 seconds, child exit 0 and two producer commands. Native passed 55/55
+with no failure/skip/cancel/todo; browser passed all six suites in 56.517 seconds,
+with 184 original flow facts. One retired static manifest is retained as a
+cancellation with request ID 1501 and navigation ID 1506; actual request failures
+and all other error arrays are empty. Vite PID 29280 stopped, both Chromium
+instances closed and cleanup errors are empty. Root independently compared the
+enclosing stdout/child supervisor, current twelve reusable judgments, all 32
+source-file hashes, all thirteen served-source matches and all 120 retained PNG
+hashes. Both browser Git snapshots are clean at `79d74b1`, source unchanged.
+Root's first source-hash helper wrongly assumed a dict instead of the recorded
+list and failed before confirming anything; the corrected receipt discloses it.
+Current task status stays PARTIAL for unreviewed project areas, remaining staff
+architecture and the separate OPEN consumer feedback. Independent consumption actually refreshed the original loader
+feedback with run03 green and preserved round-3 red: RESOLVED, remaining empty,
+zero executed commands. Root checked actual stdout SHA and child supervisor
+(`feedback-loader-root-confirmation.json`). Exit 2 is the whole PARTIAL audit,
+not a rejected registration. The immutable baseline and `source_before` still
+lack the runner; no historical preimage was backfilled.
+
+A separate consumer-scoped staff manifest feedback was actually registered and
+remains OPEN with `oracle_or_tool_repair_not_observed`. It is not credited as a
+resolved owner feedback: its repair path belongs to app-runtime, whereas the
+record is scoped to staff-access. Root caught its proposed red pointer naming
+passing suite 2; the Agent corrected it to failed suite 5 before registration.
+The actual run02/run03 bundles and separate owner RED/GREEN remain intact.
+An owner absent from the immutable baseline but already tracked at later RED
+has no per-file untracked preimage for the current bounded fallback; this path
+is not generalized. Neither missing ownership nor missing historic identity is
+backfilled to clear the feedback. Both registration calls execute zero checks;
+actual child exits 2 reflect the enclosing PARTIAL audit. These supervised
+input corrections belong to Agent evaluation cost, not plugin effectiveness.
+
+The first consultation/comparison-purchase reviews registered successfully but
+left all applicability cells UNDECIDED. Root caught the mismatch between review
+prose and actual matrix; the existing review format now records explicit FE/Domain
+coverage links and reasoned BE/API NOT_REQUIRED for those two local-memory flows.
+Actual refreshed matrices show four required cells PASS and two NOT_REQUIRED per
+Feature, while current native verification stays PASS and zero commands execute.
+This is not a global BE/API exemption: provider generation and other Features
+remain separately unreviewed. The two first payload files were overwritten when
+adding scope declarations without keeping before-byte copies; original input
+bytes are UNKNOWN. First CLI stdout and normalized registered reviews are retained.
+Subsequent scoped input names/RunIds are separate. Source, baseline and producer
+raw were not changed to make the reviews pass. The first privacy screen review correctly remains NOT_RUN in its retained
+registration. Because that missing observation was within authorization, root
+performed one focused actual privacy UI observation instead of stopping there.
+Its copied original browser-flow prefix preserves twelve original conditions
+through end/cancel/reset; it is not a full-suite rerun. Actual child exit 0,
+12.266 seconds, twelve PNGs: 1440px/390px dialogs have no horizontal overflow,
+44px close/56px action heights and focus within the dialog after Tab; cancellation
+preserves the existing consultation and ending returns to welcome with cart 0.
+The original current full-flow evidence separately checks answer/product leakage.
+All 32 recorded source/dependency file hashes and 13 served-source comparisons match; before/
+after Git remains clean `79d74b1`. Owned Vite PID 7448 and Chromium closed with
+no cleanup errors. Root opened the mobile dialog and reset image; the independent
+consumer rechecked report SHA and three images before its review refresh.
+`privacy-ui-root-receipt.json` binds twelve PNGs, report, copied source and driver.
+Product-local `.work/privacy-ui-20261013/` retains artifacts and instrumented
+prefix. Two root temporary-seam failures (duplicate export and Windows root-path
+separator comparison) happened before app/browser execution; their source bytes
+are retained. Console-error capture for this scoped report is UNKNOWN; it does
+not replace the six-suite raw or establish complete accessibility/provider/
+clinical acceptance. The independent consumer refreshed the privacy screen review using a separate
+input/RunId and these retained facts. Privacy now has current required FE/Domain
+business/architecture PASS with reasoned BE/API NOT_REQUIRED; staff business
+passes while its architecture FE/Domain remain UNDECIDED and owner review NOT_RUN.
+Root also visually opened the current 1440px/390px staff captures and confirmed
+two-column/stacked layout, common cards/actions and review-needed notice. This
+bounded screen observation does not approve all focus/scroll states or the UI. Final related read-only reuse is observed below; final 0.1.53/0.1.54 package
+post-inventories match all original bytes without missing/additional files. Supervisor wrapper/inspection failures remain in the independent
+operations log; failed before-hash evidence is UNKNOWN, not a passed check.
+
+### Final related read-only consumption and delivery boundary
+
+Final independent 0.1.54 lookup initially returned BLOCKED in 0.348 seconds:
+Git ls-files exited 128 under sandbox permissions. The Agent first described it
+as PARTIAL; root read the retained output and corrected that interpretation.
+The three original outputs were copied byte-for-byte as
+`lookup-0.1.54-sandbox-blocked.*`. An identical normal execution-permission retry
+used the actual product cwd and retained task context, without safe.directory or
+settings/transport changes. Child exit 2, 183.871 seconds, stdout 355730 bytes:
+PARTIAL, read_only true, zero executed checks. Full raw is preserved as
+`lookup-0.1.54-escalated.*`; a subsequent overly broad nested-object projection
+truncated only the tool display, not the retained JSON, and is disclosed.
+
+The actual continued consultation/purchase/staff lookup reuses eight current
+required native/browser check rows for consultation, comparison-purchase,
+privacy-lifecycle and staff-access. All are PASS, raw AVAILABLE, REUSABLE, selected
+for task_verification_required. They bind native run
+`b737066f-d39a-438c-a1ae-cb31a23bbc8d` and browser run
+`b78b5946-5553-44c2-8bf7-04f8a40f9b5f`. Earlier explicit execution ran twelve
+judgments across six consumers; current task applicability requires eight after
+scoped review. Catalog-cart/speech are not required in this lookup and remain
+unreviewed; they did not become reviewed global PASS. This is consumption of the
+existing exact task, not a fabricated new-task identity or native host invocation.
+
+Root independently checked complete stdout, current checks/matrix/feedback and
+before/after snapshots. All eight named files match both snapshots and current
+bytes: task state, run03 plan/bundle/native/browser, run02 bundle/browser, focused
+privacy report. This sample is not every project file; source32, served13 and
+PNG120 were checked separately. `final-lookup-root-confirmation.json` and
+`readonly-hashes-root-confirmation.json` retain root results; the first root
+projection used irrelevant reuse field names and was corrected after reading the
+actual current_reuse field, preserving its initial derived receipt. Both final
+packages still match all 247 actual files, with no missing/extra/cache artifact.
+
+Seven review/refresh calls took 298.776-317.976 seconds each; two feedback calls
+took 113.761/148.570 seconds. All those state-registration audits execute zero
+product checks. Successful final prepare/execute took 330.508/324.584 seconds,
+separate from the 56.517-second full browser run and 12.266-second focused UI
+observation. Earlier duplicate lookup, invalid JSON transport, unsupported .NET
+helpers, missing scope decisions, overwritten input pre-images and root/Agent
+corrections are retained in operations.md and superseded records. These costs and
+model-metadata UNKNOWN prevent claiming general Agent speed/quality superiority.
+No new model transport, installed Skill, home/global setting or provider was added.
+
+Only current results/index change in this final documentation unit; runtime and
+frozen package code remain bound to b9612ab. Affected behavior/Feature evidence is
+owned by workflow-obligations, verification-results, plugin-package, native-
+verification and harness-setup units above; this unit adds no Feature logic.
+Local plugin main integration remains rejected at the existing protected-branch
+boundary. Main/worktree ancestry and cleanliness must be checked against the final
+reviewable branch before a newly trusted approval; keep the created plugin branch
+until integration is authorized and complete. Product branch/worktree 79d74b1 and
+prior branches/raw remain retained. Native current-package hook/Skill/protected
+acceptance needs an already permitted host exposing this package; whole product,
+clinical, fulfillment, provider and user UI acceptance remain unverified. Overall
+goal stays PARTIAL; none of this record declares full six-outcome completion.
+
 ### Added tool owner and bound repair preimage
 
 Actual feedback registration exposed a further common false blocker: the task
@@ -166,7 +369,7 @@ skip/error reported. A subsequent independent review reproduced a malformed
 present hash (`null`) accepting a repair; the final narrow hash-value gate rejects
 null/non-hash preimages rather than falling back. Full predates that final input
 gate; its two focused native repair/normal and invalid-input rechecks passed
-in 43.816 seconds. Resource drift, distribution and formatting checks passed. Final packaged related consumption remains in progress;
+in 43.816 seconds. Resource drift, distribution and formatting checks passed. Final packaged related consumption confirms the original loader RESOLVED and preserves the separate consumer observer OPEN;
 no protected-host or semantic approval is claimed.
 
 ### Portable package source identity
