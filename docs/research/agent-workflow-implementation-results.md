@@ -57,8 +57,9 @@ distinct from passing API/Domain cases. Owned services/DB were cleaned, exported
 raw/screenshots remained, and old output refusal preserved bytes. This synthetic
 API/storage boundary is independent of Yeondoo Link's memory-only consultation.
 Raw Full/targeted measurements live under `.work/plugin-continuous/20261012/`;
-the linked connected artifacts remain under the owned plugin worktree pending
-verified export before cleanup.
+68 connected-artifact files were exported byte-for-byte to
+`.work/plugin-continuous/20261012/connected-product-export/`. The manifest binds
+original and retained roots and verifies every hash before eventual cleanup.
 
 Local main integration was rejected twice by automatic approval review: it did
 not treat the goal-context approval as a trusted message authorizing the exact
@@ -78,7 +79,16 @@ rejection and remeasurement after raw mutation on the next call. Workflow,
 refinement, hook, viewer and execution regression passed 149 tests in 334.494
 seconds. Full 408 above applies to the preceding 0.1.50 unit; it is not attributed
 to this subsequent change. Whole-Git/raw/runtime stale protection stays active.
-Actual-product measurement and packaged follow-up acceptance remain in progress.
+On the same actual six-consumer product task with two retained bundles, baseline
+performed 12 bundle evaluations in 194.790 seconds; current package performed
+two in 40.423 seconds. Complete inspection JSON was equal, both executed zero
+product commands, and all existing task/raw files retained their hashes. The
+baseline snapshot covered 80 evidence files; the candidate covered 81 because a
+separate failed preparation's supervision record had been added. That added log
+was not a task or bundle input. These single samples overlapped briefly and
+cache/load were uncontrolled; the deterministic evaluation reduction supports
+the finding more strongly than timing. Raw records are `real-lookup-baseline.json`
+and `real-lookup-candidate.json`. Packaged independent follow-up remains in progress.
 
 ### Candidate scale and host detail
 
