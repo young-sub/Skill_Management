@@ -169,6 +169,26 @@ gate; its two focused native repair/normal and invalid-input rechecks passed
 in 43.816 seconds. Resource drift, distribution and formatting checks passed. Final packaged related consumption remains in progress;
 no protected-host or semantic approval is claimed.
 
+### Portable package source identity
+
+Fresh consumption initially attributed the package to an enclosing Git HEAD.
+Root correction used the external frozen receipt, but ordinary portable discovery
+had no build-origin file. Version 0.1.53 adds `build-origin.json` with source
+commit/tree, source dirty flag and version. Its bytes are hashed in the package
+inventory. The builder verifies its own checkout root; dirty path names/project
+state/credentials are not included. Dirty builds explicitly require content hashes
+rather than treating HEAD as all copied bytes. Missing origin in old packages
+means source commit UNKNOWN unless a retained receipt is available.
+
+The existing actual package consumer first failed for missing origin; GREEN
+checks source identity against the builder checkout while running copied tools
+outside it, validates origin's inventory hash and preserves no-overwrite/update
+behavior. Package/update/docs verification passed nine tests. This is passive
+packaging metadata, not execution or review authority; the affected Feature is
+plugin-package and ordinary workflow discovery guidance. Full above belongs to
+the shared runtime repair unit; this isolated builder change uses those targeted
+checks and subsequent immutable product consumption.
+
 ### Candidate scale and host detail
 
 The current retained-task workload is a measured local history model: two Agents,

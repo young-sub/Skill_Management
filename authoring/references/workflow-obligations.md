@@ -352,3 +352,9 @@ observation for each Feature before applying its registered command and criteria
 This invocation-local reuse preserves independent consumer judgments. Later
 lookup/resume calls remeasure raw, source, runtime and whole-Git identity; no
 observation survives across requests and no product command runs during lookup.
+
+Portable plugin consumers read `<plugin-root>/build-origin.json` for build source
+identity and `package-files.json` for copied content. Do not substitute an enclosing
+repository Git HEAD. Old packages without a build origin require a retained build
+receipt; otherwise source commit is UNKNOWN. Build metadata is not native host
+acceptance or semantic/task success.

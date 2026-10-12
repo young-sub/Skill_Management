@@ -26,6 +26,15 @@ def build(output):
                           cwd=ROOT, capture_output=True, text=True, encoding='utf-8')
     if sync.returncode:
         raise ValueError('Generated resource check failed:\n' + sync.stdout + sync.stderr)
+    def git(*tokens):
+        return subprocess.check_output(['git', '-C', str(ROOT), *tokens], text=True, encoding='utf-8').strip()
+
+    if Path(git('rev-parse', '--show-toplevel')).resolve() != ROOT.resolve():
+        raise ValueError('Package source must be its own Git checkout root')
+    origin = {'schema_version': 1, 'source_commit': git('rev-parse', 'HEAD'),
+              'source_tree': git('rev-parse', 'HEAD^{tree}'),
+              'source_dirty': bool(git('status', '--porcelain')),
+              'limit': 'Build observation, not a signature or task/host verdict. Dirty source bytes are bound by package-files.json.'}
     manifest = json.loads((ROOT / 'distribution/plugin.json').read_text(encoding='utf-8'))
     catalog = json.loads((ROOT / 'distribution/catalog.json').read_text(encoding='utf-8'))
     names = subprocess.run(['git', '-C', str(ROOT), 'ls-files', '-z', '--', 'skills'],
@@ -55,6 +64,7 @@ def build(output):
         return (json.dumps(value, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
 
     files['plugin.json'] = encoded(manifest)
+    files['build-origin.json'] = encoded(dict(origin, version=manifest['version']))
     # Older Codex CLI hosts consume this overlay; identity has one source above.
     files['.codex-plugin/plugin.json'] = encoded({
         key: manifest[key] for key in ('name', 'version', 'description')

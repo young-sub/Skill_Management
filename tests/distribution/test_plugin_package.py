@@ -23,6 +23,13 @@ class PluginPackageTests(unittest.TestCase):
             self.assertEqual(built.returncode, 0, built.stderr + built.stdout)
             manifest = json.loads((package / 'plugin.json').read_text())
             compatibility = json.loads((package / '.codex-plugin/plugin.json').read_text())
+            origin_path = package / 'build-origin.json'
+            self.assertTrue(origin_path.is_file(), 'Portable consumers need source identity without querying ancestor Git')
+            origin = json.loads(origin_path.read_text(encoding='utf-8'))
+            self.assertEqual(origin['version'], manifest['version'])
+            self.assertEqual(origin['source_commit'], subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'], text=True).strip())
+            self.assertEqual(origin['source_tree'], subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', 'HEAD^{tree}'], text=True).strip())
+            self.assertEqual(origin['source_dirty'], bool(subprocess.check_output(['git', '-C', str(ROOT), 'status', '--porcelain'])))
             self.assertEqual(manifest['name'], compatibility['name'])
             # Codex 0.160.0 ignores bundled hooks with the portable $schema marker.
             # Keep the working compatibility manifest until that host path is fixed.
@@ -100,6 +107,7 @@ class PluginPackageTests(unittest.TestCase):
             self.assertEqual(user_file.read_text(), 'preserve me')
             inventory = json.loads((package / 'package-files.json').read_text())
             self.assertNotIn('user-note.txt', inventory['files'])
+            self.assertEqual(inventory['files']['build-origin.json'], hashlib.sha256(origin_path.read_bytes()).hexdigest())
             self.assertFalse(any('.work' in p or '.env' in p for p in inventory['files']))
             updater = subprocess.run([sys.executable, str(package / 'scripts/update_plugin.py'),
                                       '--help'], cwd=root, capture_output=True)

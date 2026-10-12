@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: 856398a7c7895d27b7eefe312d817065a716ce9e6e734f938c165d568aa42796 -->
+<!-- Source-SHA256: e9566eae5dd79c70c8fef4569f81c233a1fb4c5769b5a6b801b4b74b13a9a9b2 -->
 
 # Project workflow obligations
 
@@ -356,3 +356,9 @@ observation for each Feature before applying its registered command and criteria
 This invocation-local reuse preserves independent consumer judgments. Later
 lookup/resume calls remeasure raw, source, runtime and whole-Git identity; no
 observation survives across requests and no product command runs during lookup.
+
+Portable plugin consumers read `<plugin-root>/build-origin.json` for build source
+identity and `package-files.json` for copied content. Do not substitute an enclosing
+repository Git HEAD. Old packages without a build origin require a retained build
+receipt; otherwise source commit is UNKNOWN. Build metadata is not native host
+acceptance or semantic/task success.

@@ -2,7 +2,7 @@
 
 Load ignored repository-local `.harness/environment-exceptions.json` once per task when present; refresh after relevant environment changes. `skip_until_manual_reenable` selects the recorded fallback without retrying the unavailable capability.
 
-Current plugin runtime: 0.1.52. [Continuous improvement results](research/agent-workflow-implementation-results.md#continuous-plugin-improvement-2026-10-13)
+Current plugin runtime: 0.1.53. [Continuous improvement results](research/agent-workflow-implementation-results.md#continuous-plugin-improvement-2026-10-13)
 owns the inventory boundary, measured candidate discovery and current native host limit.
 [Scope/hook and Yeondoo Link results](research/agent-workflow-implementation-results.md#yeondoo-plugin-improvement-2026-10-12)
 retain the prior common fixes, package evidence, real product branches and fresh

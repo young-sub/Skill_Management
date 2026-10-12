@@ -8,7 +8,7 @@ The package identity and version are owned by `distribution/plugin.json`.
 ## Build
 
 ```powershell
-python scripts/build_plugin.py --output .work/packages/agentic-coding-0.1.48
+python scripts/build_plugin.py --output .work/packages/agentic-coding-0.1.53
 ```
 
 The builder first runs the existing generated-resource check. It selects tracked
@@ -16,6 +16,13 @@ files from the public Skill catalog, rejects aliased/private sources, and refuse
 to overwrite any existing destination. Use a new build directory for each update.
 `plugin.json` and its older Codex compatibility overlay share one identity.
 `package-files.json` records content hashes; it is not a signature or task verdict.
+`build-origin.json` carries source commit/tree, source dirty state and package
+version. Its own bytes are included in that content inventory. Read this build
+observation when the portable package has no Git checkout; an enclosing repository's
+HEAD is not package provenance. A dirty build's copied bytes are defined by the
+content inventory, so its HEAD alone does not describe all copied content. The
+builder verifies its source checkout root and does not include dirty path names,
+project data or credentials in the origin record.
 The installed capture CLI is `<plugin-root>/scripts/run_check.py`, with its shared
 native unittest evidence reader beside it; workflow and
 result tools remain in the installed `skills/agent-workflow/scripts/` directory.
