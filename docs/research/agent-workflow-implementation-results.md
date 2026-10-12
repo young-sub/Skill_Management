@@ -31,9 +31,9 @@ into a fresh path in that same temporary evidence root; no installation changed.
 
 | User outcome | Observed local implementation and evidence | Remaining boundary |
 | --- | --- | --- |
-| Task handoff and selected lookup at retained-history scale | Root-confined inventory; eight hook preview reads with exact independent selection; 32/128/512-record measurements; real product discovery and 1966-file read-only lookup/resume invariance | Current independently prepared execution and final related read-only reuse are observed; eight current required check rows are PASS/REUSABLE, zero checks executed, eight named task/raw file hashes unchanged. Source/bundle audits remain substantial; native hook acceptance is unobserved. |
+| Task handoff and selected lookup at retained-history scale | Root-confined inventory; eight hook preview reads with exact independent selection; 32/128/512-record measurements; real product discovery and 1966-file read-only lookup/resume invariance | Current independently prepared execution and final related read-only reuse are observed; 0.1.55 independent lookup observes twelve current PASS/REUSABLE check rows across six consumers, zero checks executed and 101 unchanged named task/evidence files; prior 0.1.54 scope was eight rows/four consumers. Source/bundle audits remain substantial; native hook acceptance is unobserved. |
 | Business/architecture across FE, BE/API and Domain | Twelve actual MVP candidates mapped; consultation App dispatch, transition, memory/display and edit invalidation traced. Independent browser/API/SQLite/restart example retains frontend-failure/API-PASS contrast. | Three requested Features have current FE/Domain business/architecture PASS and reasoned BE/API N/A. Staff FE/Domain business and architecture now have current bounded reviews; its local device lock is not server authentication. Other project reviews remain open. Consultation has no backend/API/DB; provider generation APIs elsewhere remain a separate concern. No clinical, commercial or whole-product approval. |
-| Repair and prevent feedback recurrence | Original adapter failures retained; descriptor/VM consumers repaired without changing browser conditions; real Git metadata regression and structural guard; bound red preimage for tools created after task start | Actual loader feedback is RESOLVED against current run03 while preserving its red and missing baseline owner. Consumer-scoped manifest feedback is OPEN for unobserved owner repair; scope/feedback raw and independent related reuse are retained; package tests and Agent review inputs do not authenticate human approval. |
+| Repair and prevent feedback recurrence | Original adapter failures retained; descriptor/VM consumers repaired without changing browser conditions; real Git metadata regression and structural guard; bound red preimage for tools created after task start | Actual loader and the separate app-runtime manifest owner feedback are RESOLVED against retained red/current run03, without filling baseline preimages. The earlier misrouted staff consumer feedback is preserved OPEN; scope/feedback raw and independent related reuse are retained; package tests and Agent review inputs do not authenticate human approval. |
 | Maintain and reuse UI standards | Existing design guide, tokens and shared components/consumer links reused; six original suites, actual desktop/mobile/staff screenshots retained | Related staff screen review and focused privacy end/cancel/reset review are observed; UI remains draft. Staff owner architecture is reviewed using unchanged source and retained actual flow. CatalogImport is mapped but its modal is outside the six-suite run. |
 | Executable verification guide and runtime connection | Feature/check/assertion registry, native event reporter and owned browser adapter connect twelve judgments to two commands. Current 0.1.54 execution on product 79d74b1 passes native 55/55 and six full suites, with 13 served-source matches, 120 PNG hashes and owned-resource shutdown. | Current scoped reviews and read-only related reuse are recorded. After staff owner review the task retains 20 coverage gaps and the misrouted consumer observer feedback OPEN. Earlier captures remain historical/stale. Speech/provider calls and user acceptance are separate. |
 | Keep or improve checks by measured value | Duplicate inventory and bundle observations reduced while preserving complete result equality; summary assertion duplication removed after validation; original tests retained; owned cleanup and old-output refusal verified | Original checks are retained; equivalent defect/valid-case evidence did not justify retirement. Whole-Git stale protection remains; smaller I/O and presentation samples do not establish general Agent quality or speed. |
@@ -164,8 +164,56 @@ repeated for this bounded fallback; prior Full counts above are earlier sources.
 This bounded runtime unit does not reclassify the old staff-specific record or
 claim its resolution. A separate app-runtime owner feedback must use its selected
 failed run-level /status and retained normal /cleanup/errors assertions, with the
-original red/current green bundles. Packaging and actual follow-up consumption
-are reported separately when observed. Earlier 0.1.54 package/run/lookup numbers
+original red/current green bundles. Clean 1aa2a8d (tree 49a15f7a246904235ee43086b9871f747e30c2f1) built
+0.1.55 into a new 247-file package; inventory SHA
+eaf34425da4ec7b7b5c683c73759d66436b92af654e8538edb9491c71c2e03e6.
+Actual packaged feedback registration on the product task took 203.864 seconds,
+child exit 2, whole PARTIAL and zero executed product checks. The new owner record
+is RESOLVED with no remaining conditions; loader remains RESOLVED and the original
+staff feedback stays OPEN. Root checked the full stdout and unchanged task ID,
+baseline, prior reviews and original staff feedback. The new source_before still
+lacks the runner; its preimage comes only from the bound clean red Git evidence.
+owner-feedback-0.1.55-root-receipt.json retains these comparisons and stdout SHA.
+Independent fresh-context related consumption used the new source package and
+actual existing guide/task/context without expected verdicts or the repair patch.
+The first sandbox lookup was BLOCKED (0.303 seconds, exit 2): actual Git stderr
+from a separate read-only probe is dubious ownership. Those original outputs
+remain intact. The normal execution-permission retry changed no Git setting and
+completed at 20:02:26 UTC in 227.815 seconds, exit 2, PARTIAL, read_only true and
+zero product commands; stdout 191999 bytes, stderr 0. Root initially described
+uncollected completion as still running; actual supervisor times supersede that
+status message. A sandbox CIM probe was Access Denied and supplies no OS proof.
+
+Before/after 101 linked task/bundle/plan/raw/assessment/capture/context files have
+the same SHA and length, missing zero. Root independently checked both snapshots
+and current bytes. The snapshot excludes product sources/runtime dependencies;
+previous actual source32/served13/PNG120 checks retain their separate scope.
+The same twelve current native/browser judgments are PASS/REUSABLE with raw
+AVAILABLE across consultation, staff-access, comparison-purchase, privacy-lifecycle,
+ui-assets and app-runtime. Root independently verifies physical raw hashes.
+The current in-task matrix additionally includes verification-connection; this
+owner-scoped feedback consumes broader tool/shared-UI connections than the previous
+four-consumer/eight-row snapshot. It does not imply their pending semantic reviews
+passed. Coverage has 20 gaps and lookup 16 findings. Original staff feedback stays
+OPEN; both loader and separate app-runtime manifest owner feedback are RESOLVED.
+The independent consumer confirms reuse for the requested local consultation/
+purchase continuation, keeping Chromium abort cause UNKNOWN and real clinical,
+POS/payment, provider and user acceptance unverified. It issued no product tests,
+source/state/config changes or installation. Model ID is UNKNOWN (only a generic
+GPT-6 family label is available); no general model/Agent quality or latency claim.
+
+Full original blocked/retried stdout, stderr, supervisor, input snapshots and helper
+bytes remain under tracked-owner-consumption/ (elevated/ is the normal-permission
+result). root-readonly-receipt.json and root-current-checks-receipt.json retain root
+confirmation. A first root display projection used absent verification/raw_status
+keys and returned None; no verdict or raw availability claim used those fields.
+The actual check_results/evidence_status fields and physical raw hashes above are
+the verified projection. All 247 files of 0.1.55 match the pre-consumption snapshot,
+with no extra/missing/changed bytes; 0.1.53/0.1.54 also remain unchanged. The 102
+connected-example export files still match both source and retained copies.
+Current result documentation adds no code beyond frozen 1aa2a8d; protected-main
+integration and native current-package host acceptance remain separate pending
+boundaries. The overall goal remains PARTIAL. Earlier 0.1.54 package/run/lookup numbers
 below retain their original conditions and are historical after this source change.
 
 ### Actual product task, observer repairs and independent consumption
@@ -383,8 +431,9 @@ corrections are retained in operations.md and superseded records. These costs an
 model-metadata UNKNOWN prevent claiming general Agent speed/quality superiority.
 No new model transport, installed Skill, home/global setting or provider was added.
 
-Only current results/index change in this final documentation unit; runtime and
-frozen package code remain bound to b9612ab. Affected behavior/Feature evidence is
+The earlier a5680a8 documentation unit changed only results/index; its runtime
+and frozen 0.1.54 package remained bound to b9612ab. The 0.1.55 tracked-owner
+follow-up above is the newer runtime source 1aa2a8d. Affected behavior/Feature evidence is
 owned by workflow-obligations, verification-results, plugin-package, native-
 verification and harness-setup units above; this unit adds no Feature logic.
 Local plugin main integration remains rejected at the existing protected-branch
