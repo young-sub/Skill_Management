@@ -31,7 +31,7 @@ into a fresh path in that same temporary evidence root; no installation changed.
 
 | User outcome | Observed local implementation and evidence | Remaining boundary |
 | --- | --- | --- |
-| Task handoff and selected lookup at retained-history scale | Root-confined inventory; eight hook preview reads with exact independent selection; 32/128/512-record measurements; real product discovery and 1966-file read-only lookup/resume invariance | Current independently prepared execution and final related read-only reuse are observed; 0.1.55 independent lookup observes twelve current PASS/REUSABLE check rows across six consumers, zero checks executed and 101 unchanged named task/evidence files; prior 0.1.54 scope was eight rows/four consumers. Source/bundle audits remain substantial; native hook acceptance is unobserved. |
+| Task handoff and selected lookup at retained-history scale | Root-confined inventory; eight hook preview reads with exact independent selection; 32/128/512-record measurements; real product discovery and 1966-file read-only lookup/resume invariance | Fresh 0.1.56 independent lookup confirms twelve current PASS/REUSABLE check rows across six consumers, zero checks executed, 101 unchanged named task/evidence files and 247 unchanged package files. Prior 0.1.55 had 20 gaps; current task has 17. Source/bundle audits remain substantial; native hook acceptance is unobserved. |
 | Business/architecture across FE, BE/API and Domain | Twelve actual MVP candidates mapped; consultation App dispatch, transition, memory/display and edit invalidation traced. Independent browser/API/SQLite/restart example retains frontend-failure/API-PASS contrast. | Three requested Features have current FE/Domain business/architecture PASS and reasoned BE/API N/A. Staff FE/Domain business and architecture now have current bounded reviews; its local device lock is not server authentication. Other project reviews remain open. Consultation has no backend/API/DB; provider generation APIs elsewhere remain a separate concern. No clinical, commercial or whole-product approval. |
 | Repair and prevent feedback recurrence | Original adapter failures retained; descriptor/VM consumers repaired without changing browser conditions; real Git metadata regression and structural guard; bound red preimage for tools created after task start | Actual loader and the separate app-runtime manifest owner feedback are RESOLVED against retained red/current run03, without filling baseline preimages. The earlier misrouted staff consumer feedback is preserved OPEN; scope/feedback raw and independent related reuse are retained; package tests and Agent review inputs do not authenticate human approval. |
 | Maintain and reuse UI standards | Existing design guide, tokens and shared components/consumer links reused; six original suites, actual desktop/mobile/staff screenshots retained | Related staff screen review and focused privacy end/cancel/reset review are observed; UI remains draft. Staff owner architecture is reviewed using unchanged source and retained actual flow. CatalogImport is mapped but its modal is outside the six-suite run. |
@@ -276,6 +276,65 @@ returned exit 0 in 26.417 seconds, twelve installed entries and no agentic-codin
 entry or available package. The current package is not exposed by this host;
 native current-package/hook acceptance remains unobserved. No installation,
 global trust/configuration, provider or transport workaround was performed.
+
+The verified unit is committed at 8a4a2fe and a new 0.1.56 package was built from
+that clean source/tree 4fb974553ecad1560b60f4ee871166380229963f: nineteen Skills,
+247 files, inventory SHA-256
+5aafb76f4f01a5ba603552833689f31654d1d9b0fa76cff2da8fb37c2f3fa949.
+Earlier 0.1.53/0.1.54/0.1.55 packages still have their 247 original hashes, with
+no extra/missing files after the owner registrations and cost measurements.
+
+A separate UI review noticed sticky staff actions covering question text in
+full-page screenshots. Root reopened both captures and traced the existing
+180px document scroll padding before treating that image as an accessibility
+defect. A real focused browser run on unchanged 79d74b1 then reached all four
+bilingual Korean/English staff questions at 1440x900 and 390x844. Eight observed
+focused rectangles were fully above the bar and their centers received pointer
+hits. Eight PNGs preserve the actual focus/scroll states; root reopened the
+mobile third-question capture. This is focused keyboard reachability, not
+whole-screen visual or comprehensive accessibility approval.
+
+That observation completed in 10.144 seconds with 32 source fingerprints and
+13 served-source checks unchanged, no page/HTTP/external-request errors, owned
+PID 28784 stopped and browser closed. The initial diagnostic incorrectly looked
+for the sibling action bar as a descendant and returned zero observations; its
+failed report is preserved. Only that diagnostic selector/output path changed
+for the subsequent run. No product source, test or configuration changed.
+Raw observations are scoped-owner-review/staff-focus-2/; earlier failed raw
+remains in staff-focus/. The screenshot overlap therefore does not establish
+keyboard obstruction. Broad public assets, image-fetch effects, other asset
+consumers, public-use rights and user acceptance remain unreviewed; ui-assets
+owner/screen gaps remain visible, rather than turning this focused pass into
+whole-Feature approval. Actual product source stays at 79d74b1.
+
+An independent fresh context subsequently discovered the existing consultation/
+comparison-purchase task and inspected it with the frozen 0.1.56 packaged
+maintain-agent-harness workflow CLI. It executed no product test and made no
+source/config/state or Git trust change. The first sandbox lookup returned
+BLOCKED in 0.324 seconds; a preserved separate Git probe identified dubious
+ownership. The same read-only lookup through normal require_escalated permission
+returned child exit 2, PARTIAL in 141.090 seconds, stdout 236864 UTF-8 bytes and
+empty stderr. It ran from 20:58:28.889 to 21:00:49.982 UTC. Those endpoints, rather
+than a pending tool handle, establish completion. Model ID is UNKNOWN; this is
+independent subsequent-context reuse, not a model-quality or attestation claim.
+
+Root independently parsed actual current_status/current_reuse/raw_availability:
+twelve rows across consultation, staff-access, comparison-purchase,
+privacy-lifecycle, ui-assets and app-runtime are PASS/REUSABLE/AVAILABLE. The
+seven-Feature in-task matrix includes verification-connection. All seventeen
+gaps remain explicit. Loader and app-runtime owner feedback are RESOLVED; the
+original misrouted staff feedback remains OPEN. Original failure/current run03
+and provider, business/user acceptance boundaries were not rewritten.
+
+The independent capture and root rehash confirm the same 101 named task/linked
+evidence files before/after/current and all 247 frozen package files unchanged.
+Root also rehashed each current physical raw path against its reported SHA.
+Snapshot scope excludes product source/runtime hashes; the actual lookup still
+remeasures those conditions. Evidence is pooled-feedback-consumption/ (including
+the original failed run and elevated/ retry), root-receipt.json and
+package-0.1.56-post-final.json. The 102 connected-example exports still match
+both original and retained copies. Protected local-main integration and native
+current-package host acceptance remain pending; the overall goal is PARTIAL.
 
 ### Actual product task, observer repairs and independent consumption
 
