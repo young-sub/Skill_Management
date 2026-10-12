@@ -6,7 +6,7 @@
 
 아래 블록은 수행 범위의 기록으로 보존한다. 이후 사용자 합의의 전체 Feature init·매 고도화 갱신·환경 집행·위임 성과 기준과 U1–U7은 [완성 기준과 후속 구현](agent-workflow-completion-design.md)이 소유한다. 아래의 한 중요 흐름 연결만으로 최초 setup을 완료하는 범위는 새 전체-init 요구를 충족하지 않는다. 재개 시 현재 source/host와 새 단위의 인수 기준을 확인하며 과거 통제 결함을 일괄 재주입하지 않는다. 새 권한 없이 일반 설치·운영 적용으로 범위를 넓히지 않는다.
 
-새 구현을 시작할 때에는 [플러그인 전체 역할 분리·고도화 프롬프트](agent-workflow-next-session.md)를 사용한다. 환경/Agent의 책임과 결정적/의미 판단 처리의 구분을 지도뿐 아니라 검증·조회·피드백·UI·유지보수·설치/재개 전반에 적용하는 것이 새 수용 범위다.
+현재 새 구현은 [연두링크 사례 기반 플러그인 고도화 프롬프트](plugin-improvement-next-session.md)를 사용한다. [전체 역할 분리·고도화 프롬프트](agent-workflow-next-session.md)도 이미 수행된 범위의 기록이다. 아래 과거 실행 블록을 다시 실행하거나 현재 권한으로 해석하지 않는다.
 
 ```text
 작업 저장소: C:\Users\YS\Desktop\python\Skill_Management

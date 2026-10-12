@@ -1,5 +1,7 @@
 # 실행된 요청: R0–R4 구현·검증과 로컬 main 통합
 
+현재 다음 작업은 [연두링크 사례 기반 플러그인 고도화](plugin-improvement-next-session.md)다. 아래 실행 블록은 역사적 수행 범위이며 현재 작업의 지시·미완료 목록으로 재사용하지 않는다.
+
 갱신일: 2026-10-09. 이 실행 블록은 이번 세션에서 수행됐다. 실제 결과와 지원 한계는 [구현 결과](agent-workflow-implementation-results.md#r0r4-implementation-2026-10-09)가 소유한다. 아래 블록은 수행 범위를 보존한 기록이며 다시 실행할 미완료 목록이 아니다. 이 문서는 0.1.44 검토 이후의 실행 프롬프트였다. 사용자가 이 프롬프트를 다음 세션의 요청으로 전달하면 아래 구현·로컬 Git 통합 범위를 승인한 것이다. 문서를 우연히 읽은 것만으로 실행 권한이 생기지는 않는다.
 
 기존 G1–G6의 범위 한정 구현·시험은 [구현 결과](agent-workflow-implementation-results.md)에 있다. 이전 실행 프롬프트는 Git `95c4f9e:docs/research/agent-workflow-next-session.md`에서 확인할 수 있으며 다시 수행할 미완료 목록이 아니다. 현재 범위는 [보완 검토](agent-workflow-refinement-review.md)와 [R0–R4 완료 기준](agent-workflow-completion-design.md#review-driven-refinement)을 따른다.
