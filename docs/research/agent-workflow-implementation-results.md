@@ -2,7 +2,7 @@
 
 <a id="continuous-plugin-improvement-2026-10-13"></a>
 
-## Continuous improvement: inventory boundary, 2026-10-13
+## Continuous improvement: source and actual product, 2026-10-13
 
 The user applied the complete [continuous execution request](plugin-continuous-improvement-next-session.md).
 Current plugin base was clean main `107850a`, 106 commits ahead of fetched
@@ -89,6 +89,85 @@ was not a task or bundle input. These single samples overlapped briefly and
 cache/load were uncontrolled; the deterministic evaluation reduction supports
 the finding more strongly than timing. Raw records are `real-lookup-baseline.json`
 and `real-lookup-candidate.json`. Packaged independent follow-up remains in progress.
+
+### Actual product task, observer repairs and independent consumption
+
+The retained product branch `evaluation/plugin-verification-20261013` now has
+`0b1edbb` (machine map, assertion registry, native reporter and owned browser
+runner) and `1c9dfbf` (Git-path metadata repair). Product main and both earlier
+UI evaluation branches/worktrees are preserved. The machine map covers 12 current
+MVP Feature candidates. The survey stays PARTIAL; no consultation API/server DB,
+real payment, clinical approval or global product completion was invented.
+
+The actual selected task targets consultation, comparison/purchase and privacy.
+Its shared browser/native owners select six consumers, twelve judgments and only
+two producer commands. Old round 1 refused execution after selection changed;
+rounds 2 and 3 preserved all six browser TypeErrors from the new adapter's
+path/source descriptor mismatch. Root's first repair missed the VM filename
+consumer. The final fix uses `source` at every consumer and directly loads all
+six original functions in the focused guard; product conditions were unchanged.
+Round 4 through immutable 0.1.51 passed native 53/53 with no failure/skip/cancel/todo,
+all six full existing browser suites, 184 recorded original flow assertions,
+13 exact served-source matches and 120 PNGs with verified retained hashes.
+Browser duration was 57.452 seconds; its owned Vite server and two Chromium
+instances closed with no cleanup errors. Full CLI duration includes preparation,
+source/runtime checks and final audit and is separate from that browser time.
+
+Independent fresh-context consumption discovered task/criteria/owner/checks
+through ordinary README and packaged Skill guidance; it received no command order
+or expected patch. It distinguished the survey from the exact existing task,
+traced App action ? transition ? React memory ? display, separated purchase
+request from store confirmation, and found shared CSS/component use in staff UI.
+It read original failures and new normal raw without executing the product.
+Its package comparison matched all 246 receipt files and version 0.1.51. Two
+material interpretations needed root correction: ancestor Git HEAD is not the
+non-Git package's source commit; CatalogImport already has Feature source,
+criteria/coverage and UI-consumer linkage. Its modal remains outside the six-suite
+browser run. These corrections are retained in the independent investigation.
+
+The same independent consumption found `EADME.md` in the browser raw where native
+Git status recorded `README.md`. Root reproduced this in a real temporary Git
+repository: `.trim()` removed the first porcelain status space. `.trimEnd()` fixes
+only output normalization. The actual blocked-run regression retains both pre/post
+`status: " M", path: "README.md"`, launches no server/browser and preserves setup
+failure. Four focused runner tests passed; named loader/no-overwrite/Git metadata
+cases and prevention are connected to the existing app-runtime native command.
+Old raw is unchanged, including its metadata error. No UI/business oracle changed.
+
+After the first product commit, actual `lookup --summary` and task `resume`
+preserved hashes of 1966 tracked-source/task/raw files, ran zero checks and retained
+historical PASS/current UNKNOWN/current reuse STALE with raw available and facts
+explicitly omitted. They took 70.919 and 70.136 seconds; the supervisor's record
+was written outside the product, separately from CLI behavior. This is actual
+read-only evidence, not only a fixture. Product mapping/semantic review remained
+PARTIAL. Capture/selection changes require a new plan; lookup never launches one.
+
+### Added tool owner and bound repair preimage
+
+Actual feedback registration exposed a further common false blocker: the task
+started before its runner was created, so the immutable baseline has no runner
+hash. The existing oracle/tool branch could not establish a repair even with an
+actual retained failing native capture. A new 0.1.52 unit keeps missing baseline
+keys unknown and uses a separate, recomputed red-capture preimage only for a
+root-local declared tool owner. It requires selected historical failure on the
+same expected pointer, current/red ownership, intact root/plan/raw/producer/
+assessment binding, stable capture source and matching declared dependency,
+measured dependency and per-file untracked hashes. Existing baseline hashes win;
+neither baseline nor source_before is backfilled. Current green must still pass.
+
+Focused native RED reproduced OPEN despite an actual failing/repair/normal chain.
+GREEN covered the new owner and preserved the existing oracle path. Missing red,
+removed ownership, a present unchanged baseline and raw tampering remain OPEN;
+restoring exact bytes is reobserved. Both focused tests passed in 42.246 seconds.
+A read-only probe against the actual product removed only the missing-preimage
+blocker, preserved the task hash and kept stale green/current binding obligations
+OPEN. Full for the new preimage path passed all 410 tests in 673.036 seconds with no
+skip/error reported. A subsequent independent review reproduced a malformed
+present hash (`null`) accepting a repair; the final narrow hash-value gate rejects
+null/non-hash preimages rather than falling back. Full predates that final input
+gate; its two focused native repair/normal and invalid-input rechecks passed
+in 43.816 seconds. Resource drift, distribution and formatting checks passed. Final packaged related consumption remains in progress;
+no protected-host or semantic approval is claimed.
 
 ### Candidate scale and host detail
 

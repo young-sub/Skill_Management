@@ -374,7 +374,7 @@ class WorkflowRefinementTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'feedback_kind'):
             runtime.record_feedback(self.root, self.project, state, dict(complaint, kind='approved'))
 
-    def test_changed_requirement_needs_authority_new_revision_and_real_retained_contract(self, kind='requirement_change'):
+    def test_changed_requirement_needs_authority_new_revision_and_real_retained_contract(self, kind='requirement_change', added_owner=False):
         runtime = self.runtime()
         feature = self.project['extensions']['workflow']['features'][0]
         feature['sources'].append('src/run.py')
@@ -398,8 +398,15 @@ class WorkflowRefinementTests(unittest.TestCase):
             'dependency': {'file_refs': ['src/api.py', 'src/run.py']},
             'fixture': {'file_refs': ['docs/requirement.md']}}]}))
         self.write('.harness/project.yaml', json.dumps(self.project))
+        runner = self.root / 'src/run.py'
+        original_runner = runner.read_bytes()
+        if added_owner:
+            runner.unlink()
         _, start = self.invoke('start', '--intent', 'feedback', '--target', 'api')
         context = start['task_context']
+        if added_owner:
+            runner.write_bytes(original_runner)
+            self.assertNotIn('src/run.py', json.loads((self.root / start['task']['state']).read_text())['baseline'])
         entry = {'id': 'new-price', 'feature': 'api', 'kind': kind,
                  'expected': 'Twelve', 'observed': 'Ten', 'reproduction': 'Read price',
                  'scope': 'API price', 'reason': 'New requirement', 'reconsider': 'Price changes again',
@@ -418,6 +425,8 @@ class WorkflowRefinementTests(unittest.TestCase):
             _, prepared = self.invoke('prepare', context=context)
             _, red = self.invoke('execute', '--run-check', str(existing.ROOT / 'scripts/run_check.py'), context=context)
             self.assertEqual(red['verification']['status'], 'ISSUES', red)
+            if added_owner:
+                entry['red_bundle'] = existing.Path(red['verification']['execution']['bundle_path']).relative_to(self.root).as_posix()
             original = self.root / 'src/run.py'
             original.write_text(original.read_text().replace("['price']-2", "['price']"), encoding='utf-8')
             entry.update(trace='API value -> runner subtraction -> observation', root_cause='Adapter subtracts two',
@@ -431,7 +440,40 @@ class WorkflowRefinementTests(unittest.TestCase):
         feedback.write_text(json.dumps(entry), encoding='utf-8')
         _, confirmed = self.invoke('feedback', '--feedback', str(feedback), context=context)
         self.assertEqual(confirmed['feedback'][0]['status'], 'RESOLVED', confirmed['feedback'])
-        self.assertNotIn('red_bundle', confirmed['feedback'][0])
+        if not added_owner:
+            self.assertNotIn('red_bundle', confirmed['feedback'][0])
+        else:
+            saved = json.loads((self.root / start['task']['state']).read_text())
+            self.assertNotIn('src/run.py', saved['baseline'])
+            self.assertNotIn('src/run.py', saved['feedback']['new-price']['source_before'])
+            no_red = deepcopy(saved)
+            no_red['feedback']['new-price'].pop('red_bundle')
+            self.assertIn('oracle_or_tool_repair_not_observed', runtime.inspect_feedback(self.root,
+                runtime.configuration(self.project), no_red)[0]['remaining'])
+            present = deepcopy(saved)
+            present['feedback']['new-price']['source_before']['src/run.py'] = runtime.file_hash(self.root, 'src/run.py')
+            self.assertIn('oracle_or_tool_repair_not_observed', runtime.inspect_feedback(self.root,
+                runtime.configuration(self.project), present)[0]['remaining'], 'Red cannot override a present baseline')
+            for malformed in (None, 0, 'not-a-hash'):
+                invalid = deepcopy(saved)
+                invalid['feedback']['new-price']['source_before']['src/run.py'] = malformed
+                self.assertIn('oracle_or_tool_repair_not_observed', runtime.inspect_feedback(self.root,
+                    runtime.configuration(self.project), invalid)[0]['remaining'], 'Malformed present preimages cannot certify repair')
+            config = deepcopy(runtime.configuration(self.project))
+            config['features'][0]['sources'].remove('src/run.py')
+            self.assertIn('oracle_or_tool_repair_not_observed', runtime.inspect_feedback(self.root, config, saved)[0]['remaining'])
+            red_path = self.root / entry['red_bundle']
+            binding = json.loads(red_path.read_text())
+            bound = json.loads(existing.Path(binding['plan']).read_text())
+            raw_file = existing.Path(bound['checks'][0]['raw_observations'][0]['path'])
+            original_raw = raw_file.read_bytes()
+            try:
+                raw_file.write_text(json.dumps({'price': 12, 'zero': 0}))
+                self.assertIn('oracle_or_tool_repair_not_observed', runtime.inspect_feedback(self.root,
+                    runtime.configuration(self.project), saved)[0]['remaining'], 'Tampered raw cannot certify a repair preimage')
+            finally:
+                raw_file.write_bytes(original_raw)
+            self.assertEqual(runtime.inspect_feedback(self.root, runtime.configuration(self.project), saved)[0]['status'], 'RESOLVED')
         _, later = self.invoke('start', '--intent', 'change', '--target', 'api', context=context)
         self.assertEqual(later['feedback'][0]['status'], 'RESOLVED', later['feedback'])
         _, reused = self.invoke('prepare', context=later['task_context'])
@@ -443,6 +485,9 @@ class WorkflowRefinementTests(unittest.TestCase):
 
     def test_independent_tool_error_repairs_adapter_without_changing_product_or_requirement(self):
         self.test_changed_requirement_needs_authority_new_revision_and_real_retained_contract(kind='oracle_tool_error')
+
+    def test_new_tool_owner_repair_uses_bound_failure_hash(self):
+        self.test_changed_requirement_needs_authority_new_revision_and_real_retained_contract(kind='oracle_tool_error', added_owner=True)
 
     def test_unrelated_investigation_update_cannot_refresh_stale_observations(self):
         runtime = self.runtime()

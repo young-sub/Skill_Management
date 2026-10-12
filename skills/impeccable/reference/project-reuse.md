@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/repair-and-reuse.md -->
-<!-- Source-SHA256: 4d4e74b30fa0325f8ff772b1f84283e400a98c168413d2212c6843376f03771d -->
+<!-- Source-SHA256: acdcb13785c2870c637b6ae42695b892a4ef9c1cf87926eb4a47dd24b6ec0376 -->
 
 # Repair and subsequent reuse
 
@@ -102,3 +102,16 @@ Documentation alone does not repair a code defect. Do not soften expected values
 For UI, inspect existing design intent, references, token and component owners, responsive behavior and relevant states. Guide owns intent and source references; code owns token values and implementation. Repair repetition at the shared owner and verify real interaction, not screenshot existence. Do not convert animation timing or observation failure into a product patch.
 
 Make updated criteria/shared implementation discoverable through existing project guidance. Verify reuse with a subsequent fresh-context request when claiming that benefit; do not supply the prior patch or long implementation instructions. Record the actual installed resource path, context/host, user request, tool execution, diff and run/raw references. A source edit or installation manifest alone proves neither discovery nor improved Agent behavior.
+
+For `oracle_tool_error`, a tool created after task start may have no captured
+baseline hash. Missing keys are not inferred absence. An explicit `red_bundle`
+can supply a separate repair preimage only through its selected failing native
+check: the same expected pointer must fail; root/Feature/check, raw/capture/assessment
+bindings and unchanged source must validate. The root-local command must have
+registered the exact owner dependency, whose hash matches the capture's per-file
+untracked hash and measured dependency. Both current and red-plan source patterns
+must own that path. Missing/ambiguous/tampered evidence leaves the repair OPEN.
+A present task-start hash always takes precedence; baseline and `source_before`
+remain unchanged. Fresh current green confirmation is still required. This does
+not certify semantic or protected-host approval and does not support new-owner
+preimages from commands outside the project root.

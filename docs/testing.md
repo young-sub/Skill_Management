@@ -154,3 +154,10 @@ No dependency installation or shared user database is involved.
 Registered preparation supports subdirectory commands: keep local `file_refs` relative to command cwd and declare shared inputs as `repository_file_refs` relative to the observed Git root. Config/criteria/map/UI bindings are automatic; changed shared inputs block execution and invalidate lookup.
 
 Task-mode native JSON preparation uses the same pending selector, registered assertion path, immutable task binding and automatic result links. Scope matrix gaps and structured architecture review are tested with the workflow/result selectors. The historical HTTP trial under `.work/fullstack-task-20261006` belongs to the previous worktree and excluded FE. The current `.work/connected-acceptance` trial adds real Chromium/FE/API/Domain/SQLite/restart evidence through the packaged CLI, including feedback/UI repair, preservation and follow-up reuse. Its natural-language result lookup is a separate bounded collaboration-host case; installed Agent and protected-host acceptance remain unverified.
+
+The 0.1.52 refinement acceptance creates a tool after task start, observes its
+actual native failure, repairs it, and confirms normal/current evidence without
+backfilling the task baseline. Missing red, removed ownership, a present unchanged
+baseline and raw tampering remain OPEN; restoring exact retained bytes permits
+remeasurement. This changes feedback resolution at the shared ordinary/Harness
+boundary, so Full is selected. Product/native host consumption is separate.

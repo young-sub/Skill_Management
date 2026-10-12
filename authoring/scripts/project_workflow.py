@@ -1413,8 +1413,15 @@ def inspect_feedback(root, config, state):
                         if not entry.get(field):
                             remaining.append(field)
                     before = dict(entry.get('source_before', {}), **entry.get('criteria_before', {}))
-                    if not entry.get('repair_paths') or any(name not in before or file_hash(root, name) == before[name]
-                                                           for name in entry.get('repair_paths', [])):
+                    missing = [name for name in entry.get('repair_paths', []) if name not in before]
+                    if missing and entry.get('red_bundle'):
+                        try:
+                            before.update(oracle_repair_preimages(root, feature, entry, missing))
+                        except (OSError, ValueError, KeyError, TypeError):
+                            pass
+                    if not entry.get('repair_paths') or any(not isinstance(before.get(name), str)
+                            or not re.fullmatch(r'[0-9a-f]{64}', before[name]) or file_hash(root, name) == before[name]
+                            for name in entry.get('repair_paths', [])):
                         remaining.append('oracle_or_tool_repair_not_observed')
                 proof = entry.get('confirmation', {})
                 if proof.get('check') not in feature['checks'] or not proof.get('expected_pointer') or not proof.get('normal_pointer') or not entry.get('green_bundle'):
@@ -1452,6 +1459,52 @@ def inspect_feedback(root, config, state):
                 except (OSError, ValueError, TypeError, KeyError):
                     remaining.append('repair_evidence_unavailable')
         result.append(dict(entry, status='OPEN' if remaining else 'RESOLVED', remaining=sorted(set(remaining))))
+    return result
+
+
+def oracle_repair_preimages(root, feature, entry, paths):
+    """Use a bound failing capture for new tool owners; never rewrite task baseline."""
+    viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
+    red = viewer['view_bundle'](local_path(root, entry['red_bundle']), include_scope=False)
+    check = entry.get('confirmation', {}).get('check')
+    items = [item for item in red.get('items', []) if item['feature'] == feature['id'] and item['id'] == check]
+    if len(items) != 1:
+        return {}
+    item = items[0]
+    allowed = ('raw_assertion_mismatch:', 'condition_mismatch:current.', 'condition_missing:current.')
+    if (not item.get('selected') or item['historical_status'] != 'ISSUES'
+            or any(reason not in {'capture_native_failure', 'capture_exit_nonzero', 'current_context_missing'}
+                   and not reason.startswith(allowed) for reason in item['reasons'])):
+        return {}
+    pointer = entry.get('confirmation', {}).get('expected_pointer')
+    if not any(obs['assertion']['pointer'] == pointer and not obs['matched']
+               for raw in item.get('raw', []) for obs in raw.get('observations', [])):
+        return {}
+    plan_path = Path(red['bundle']['plan']).resolve()
+    plan, _ = viewer['_read_json'](local_path(root, plan_path.relative_to(root).as_posix()))
+    scope = plan.get('workflow_scope', {})
+    old_feature = next((f for f in scope.get('features', []) if f['id'] == feature['id']), {})
+    if scope.get('root') != str(root.resolve()):
+        return {}
+    record_path = Path(item['capture']['path']).resolve()
+    record, raw = viewer['_read_json'](local_path(root, record_path.relative_to(root).as_posix()))
+    if (hashlib.sha256(raw).hexdigest() != item['capture']['sha256']
+            or Path(record['cwd']).resolve() != root.resolve()
+            or record.get('before') != record.get('after')):
+        return {}
+    dependency = item['conditions']['expected']['dependency']
+    measured = record.get('conditions', {}).get('dependency', {})
+    captured = record.get('before', {}).get('untracked_sha256', {})
+    result = {}
+    for name in paths:
+        if (not any(fnmatchcase(name, pattern) for pattern in feature['sources'])
+                or not any(fnmatchcase(name, pattern) for pattern in old_feature.get('sources', []))
+                or name not in dependency.get('file_refs', [])):
+            continue
+        sha = dependency.get('file_hashes', {}).get(str(local_path(root, name)))
+        if (isinstance(sha, str) and re.fullmatch(r'[0-9a-f]{64}', sha) and captured.get(name) == sha
+                and measured.get('file_hashes', {}).get(str(local_path(root, name))) == sha):
+            result[name] = sha
     return result
 
 
