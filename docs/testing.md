@@ -161,3 +161,9 @@ backfilling the task baseline. Missing red, removed ownership, a present unchang
 baseline and raw tampering remain OPEN; restoring exact retained bytes permits
 remeasurement. This changes feedback resolution at the shared ordinary/Harness
 boundary, so Full is selected. Product/native host consumption is separate.
+
+The shared-result fixture in `tests.distribution.test_verification_execution`
+also observes actual linked native proof through reusable scope checks. One
+scope observation reads a shared bundle once while retaining different consumer
+PASS/ISSUES rows and command rejection. A later call rereads changed raw; this
+inspection-local sharing does not weaken whole-Git, source or scope guards.

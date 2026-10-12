@@ -31,11 +31,11 @@ into a fresh path in that same temporary evidence root; no installation changed.
 
 | User outcome | Observed local implementation and evidence | Remaining boundary |
 | --- | --- | --- |
-| Task handoff and selected lookup at retained-history scale | Root-confined inventory; eight hook preview reads with exact independent selection; 32/128/512-record measurements; real product discovery and 1966-file read-only lookup/resume invariance | Fresh 0.1.56 independent lookup confirms twelve current PASS/REUSABLE check rows across six consumers, zero checks executed, 101 unchanged named task/evidence files and 247 unchanged package files. Prior 0.1.55 had 20 gaps; current task has 17. Source/bundle audits remain substantial; native hook acceptance is unobserved. |
-| Business/architecture across FE, BE/API and Domain | Twelve actual MVP candidates mapped; consultation App dispatch, transition, memory/display and edit invalidation traced. Independent browser/API/SQLite/restart example retains frontend-failure/API-PASS contrast. | Three requested Features have current FE/Domain business/architecture PASS and reasoned BE/API N/A. Staff FE/Domain business and architecture now have current bounded reviews; its local device lock is not server authentication. Other project reviews remain open. Consultation has no backend/API/DB; provider generation APIs elsewhere remain a separate concern. No clinical, commercial or whole-product approval. |
-| Repair and prevent feedback recurrence | Original adapter failures retained; descriptor/VM consumers repaired without changing browser conditions; real Git metadata regression and structural guard; bound red preimage for tools created after task start | Actual loader and the separate app-runtime manifest owner feedback are RESOLVED against retained red/current run03, without filling baseline preimages. The earlier misrouted staff consumer feedback is preserved OPEN; scope/feedback raw and independent related reuse are retained; package tests and Agent review inputs do not authenticate human approval. |
+| Task handoff and selected lookup at retained-history scale | Root-confined inventory; eight hook preview reads with exact independent selection; 32/128/512-record measurements; real product discovery and 1966-file read-only lookup/resume invariance | Historical 0.1.56 independent lookup at79d74b1 confirms twelve then-current PASS/REUSABLE check rows across six consumers, zero checks executed, 101 unchanged named task/evidence files and 247 unchanged package files. Prior 0.1.55 had20 gaps; that reviewed snapshot had17. Current registry/observer changes require fresh execution/reviews and independent consumption. Source/bundle audits remain substantial; native hook acceptance is unobserved. |
+| Business/architecture across FE, BE/API and Domain | Twelve actual MVP candidates mapped; consultation App dispatch, transition, memory/display and edit invalidation traced. Independent browser/API/SQLite/restart example retains frontend-failure/API-PASS contrast. | Historical79d74b1 has three requested Features with FE/Domain business/architecture PASS and reasoned BE/API N/A, plus bounded staff reviews; metadata/observer changes reopen current review. Fresh review is pending; its local device lock is not server authentication. Other project reviews remain open. Consultation has no backend/API/DB; provider generation APIs elsewhere remain a separate concern. No clinical, commercial or whole-product approval. |
+| Repair and prevent feedback recurrence | Original adapter failures retained; descriptor/VM consumers repaired without changing browser conditions; real Git metadata regression and structural guard; bound red preimage for tools created after task start | Historical79d74b1 loader and app-runtime manifest owner feedback were RESOLVED against retained red/run03, without filling baseline preimages; changed source requires current GREEN and feedback refresh. The earlier misrouted staff consumer feedback is preserved OPEN; scope/feedback raw and independent related reuse are retained; package tests and Agent review inputs do not authenticate human approval. |
 | Maintain and reuse UI standards | Existing design guide, tokens and shared components/consumer links reused; six original suites, actual desktop/mobile/staff screenshots retained | Related staff screen review and focused privacy end/cancel/reset review are observed; UI remains draft. Staff owner architecture is reviewed using unchanged source and retained actual flow. CatalogImport is mapped but its modal is outside the six-suite run. |
-| Executable verification guide and runtime connection | Feature/check/assertion registry, native event reporter and owned browser adapter connect twelve judgments to two commands. Current 0.1.54 execution on product 79d74b1 passes native 55/55 and six full suites, with 13 served-source matches, 120 PNG hashes and owned-resource shutdown. | App/runtime and verification-connection ownership are now reviewed against unchanged source/raw; 17 coverage gaps and the misrouted consumer observer feedback remain. Earlier captures remain historical/stale. Speech/provider calls and user acceptance are separate. |
+| Executable verification guide and runtime connection | Feature/check/assertion registry, native event reporter and owned browser adapter connect twelve judgments to two commands. Retained 0.1.54 execution on historical product79d74b1 passes native 55/55 and six full suites, with 13 served-source matches, 120 PNG hashes and owned-resource shutdown. | Historical79d74b1 app/runtime and verification-connection ownership were reviewed against that source/raw; fresh reporter/image source needs execution and review refresh. That snapshot retained17 coverage gaps and the misrouted consumer observer feedback remain. Earlier captures remain historical/stale. Speech/provider calls and user acceptance are separate. |
 | Keep or improve checks by measured value | Duplicate inventory and bundle observations reduced while preserving complete result equality; summary assertion duplication removed after validation; original tests retained; owned cleanup and old-output refusal verified | Original checks are retained; equivalent defect/valid-case evidence did not justify retirement. Whole-Git stale protection remains; smaller I/O and presentation samples do not establish general Agent quality or speed. |
 
 The overall goal remains PARTIAL. The completed package consumption before the
@@ -335,6 +335,60 @@ the original failed run and elevated/ retry), root-receipt.json and
 package-0.1.56-post-final.json. The 102 connected-example exports still match
 both original and retained copies. Protected local-main integration and native
 current-package host acceptance remain pending; the overall goal is PARTIAL.
+
+### Reused scope proof and image observer follow-up
+
+The reporter connection was semantically reviewed but still had no registered
+check. Product metadata commits e386224, 7c441c5 and 5554dd0 connect the existing
+nine named reporter fixtures through a dedicated reporter-native command and
+its declared criterion/fixture. Seventeen original registry rows and two original
+commands remained unchanged. Strict shared-report condition equality rejected
+the first two preparations; it was preserved, and the separate command avoids
+merging genuinely different inputs. No reporter test body was added or changed.
+
+Actual 0.1.56 preparation03 completed in347.917s. Execution03 ran three commands:
+native55/55 and reporter9/9 passed, but the surface suite retained one local
+product-image ERR_ABORTED and the complete browser report was ISSUES. That run
+completed with child exit1 in349.007s. Its155 files remain byte-identical.
+Preparation04 completed in391.877s and reused native/reporting proof; only one
+browser producer ran. The same surface image abort recurred, and owned runtime
+cleanup completed. The final reader was interrupted after1114.773s: child exit-1,
+stdout/stderr empty, state bytes unchanged, final task binding incomplete. Its
+checkpoint/raw is preserved; this is not a completed CLI or a latency comparison.
+
+That real reuse path exposed a separate common cost: _view_coverage reopens each
+linked native bundle for every reusable Feature. Runtime0.1.57 gives one scope
+observation one local pool, using the existing item-only/deep-copy join. Consumer
+command checks remain independent, full-scope and item-only keys stay distinct,
+and later calls reread current raw. Focused real native/Git fixture RED observed
+two reads instead of one (4.548s); GREEN passed in4.642s, retaining PASS versus
+ISSUES consumer rows, command refusal and next-call raw mutation rejection.
+Five impacted workflow/refinement/hook/viewer/execution modules passed153 tests
+in406.064s (supervisor406.308s, child exit0). Package/update/docs passed nine
+tests in7.818s; drift, distribution and formatting checks passed. Full was not
+repeated for this bounded observation-sharing change; earlier Full remains
+separate evidence. Clean package/product consumption is recorded separately;
+no full CLI speedup is inferred from the interrupted old reader.
+
+A controlled localhost Chromium diagnostic ran the unchanged original surface
+script while delaying that local image500ms. Image request38 preceded document
+request39; its response/commit preceded the image abort. The manifest-only
+observer retained that retired image as a failure. The diagnostic completed
+in10.941s with source unchanged and owned cleanup. This reproduces one normal
+retired-image lifecycle; it does not attribute the two earlier historical events.
+The existing lifecycle guard gained retired versus current/foreign/unowned/reset
+image cases and an independent HTTP404 control: actual RED exit1 (0.180s),
+GREEN exit0 (0.188s), one named case, no skips. Same controlled browser GREEN
+completed in11.461s, retaining the cancellation with no active errors and stable
+changed source bytes. Product commit6289ea0 changes only observer, that guard
+and the affected guide/map. All six original UI scripts remain unchanged.
+
+The prior twelve-row/17-gap lookup at79d74b1 is historical after these source and
+registry changes. Fresh task execution, current semantic reviews/feedback and
+independent related reuse remain required. Immutable baselines and misrouted
+staff feedback were not reset. Frozen .53-.56 packages, failed captures and
+connected exports remain preserved. Native current-package host acceptance and
+protected local-main integration are still separate unresolved boundaries.
 
 ### Actual product task, observer repairs and independent consumption
 

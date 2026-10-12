@@ -32,10 +32,16 @@ class VerificationExecutionTests(unittest.TestCase):
         workflow = importlib.util.module_from_spec(workflow_spec)
         workflow_spec.loader.exec_module(workflow)
         feature = {'id':'fixture-product','partition':'sum','sources':['check.py'],
-                   'map':['criterion.md'],'criteria':['criterion.md'],'checks':['arithmetic-readback']}
+                   'map':['criterion.md'],'criteria':['criterion.md'],'checks':['arithmetic-readback'],
+                   'coverage':[{'id':'sum','requirement':'criterion.md','outcome':'Captured sum',
+                                'perspectives':['business'],'areas':['Domain'],'kind':'test','check':'arithmetic-readback'}]}
         project = {'commands':{'arithmetic-readback':[sys.executable,str(root/'check.py')]},
                    'extensions':{'workflow':{'roots':['check.py'],'features':[
                        feature, dict(feature,id='second-feature')]}}}
+        (root/'.harness').mkdir()
+        (root/'.harness/project.yaml').write_text(json.dumps(project))
+        self._git('add','-A')
+        self._git('commit','-qm','shared result scope declarations')
         state = workflow.begin(root,project,'change',['fixture-product','second-feature'])
         plan_path = self._plan()
         plan = json.loads(plan_path.read_text())
@@ -70,6 +76,23 @@ class VerificationExecutionTests(unittest.TestCase):
                 self.assertEqual(next(i for i in rejected['items'] if i['feature']==feature['id'])['current_status'],'BLOCKED')
                 self.assertEqual(next(i for i in accepted['items'] if i['feature']==feature['id'])['current_status'],'PASS',
                                  'One consumer cannot mutate the shared native observation for another assessment')
+        state_path = root/'.work/state.json'
+        state_path.write_text(json.dumps(state))
+        scope = {'root':str(root),'state':'.work/state.json','features':project['extensions']['workflow']['features'],
+                 'bases':{f['id']:f['basis'] for f in current['features']}}
+        reusable = copy.deepcopy(executed['items'])
+        for item in reusable:
+            item['selected'] = False
+            item['selection'] = {'status':'not_required','reason':'current_evidence_reusable'}
+        with patch.object(viewer,'view_bundle',wraps=viewer.view_bundle) as observed:
+            with patch.object(workflow.runpy,'run_path',resolve):
+                coverage = viewer._view_coverage({'workflow_scope':scope},reusable)
+                self.assertEqual(observed.call_count,1,'One scope observation must not reopen the same reused native bundle per Feature')
+                self.assertEqual([r['status'] for r in coverage['rows']],['PASS','ISSUES'])
+                (root/'result.json').write_text(json.dumps({'checks':[{'sum':7,'readback':'ok'}]}))
+                changed = viewer._view_coverage({'workflow_scope':scope},reusable)
+                self.assertEqual(observed.call_count,2,'The next scope observation must remeasure changed raw')
+                self.assertTrue(all(r['status']!='PASS' for r in changed['rows']))
 
     def test_native_unobserved_or_skipped_cases_are_not_product_assertion_failures(self):
         (self.project / '.gitignore').write_text('result.json\n.work/\n')

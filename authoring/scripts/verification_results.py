@@ -1826,6 +1826,7 @@ def _view_coverage(plan, items, *, workflow_state=None):
         bases = {feature['id']: feature['basis'] for feature in current['features']}
     except (OSError, ValueError, KeyError, subprocess.CalledProcessError):
         bases = {}
+    bundle_cache = {}
     for feature in scope['features']:
         basis = scope['bases'][feature['id']]
         historical_review = scope.get('reviews', {}).get(feature['id'], {})
@@ -1842,7 +1843,8 @@ def _view_coverage(plan, items, *, workflow_state=None):
             if reusable:
                 commands = dict(project.get('commands', {}))
                 commands.update(project.get('impact', {}).get('feature_selectors', {}))
-                observed = workflow['inspect_result_links'](root, feature, commands, state.get('results', {}).get(feature['id'], []))
+                observed = workflow['inspect_result_links'](root, feature, commands, state.get('results', {}).get(feature['id'], []),
+                                                           bundle_cache=bundle_cache)
                 feature_items = [item for item in items if not (item['feature'] == feature['id'] and item['id'] in reusable)]
                 feature_items += [item for item in observed['items'] if item['id'] in reusable]
         current_rows = workflow['coverage_rows'](feature, review, basis, feature_items, current_basis=current_basis,

@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: 2e3158afc27a34fc45fb96f57636450bfca9812791526947666ea71061b7e38b -->
+<!-- Source-SHA256: b93711678f0c40f5a34b4c38c401492f8aba323866f41247f92b06f39f9cab34 -->
 
 # Project workflow obligations
 
@@ -51,6 +51,9 @@ shares within that call. Full scope and item-only observations have separate
 keys; each consumer receives its own copy before applying its contract. The
 next inspection remeasures current inputs. Caller-supplied observation pools
 must remain local to one inspection; they are not persistent validity records.
+One native bundle scope observation also shares item-only linked proof reads
+across Features whose checks reuse current evidence. Consumer command checks
+remain independent, and the next scope observation reads current raw again.
 
 The hook enumerates candidate paths but reads only the first eight candidate
 records in stable selector order. `task_candidate_count` includes discovered

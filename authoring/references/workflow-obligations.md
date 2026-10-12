@@ -47,6 +47,9 @@ shares within that call. Full scope and item-only observations have separate
 keys; each consumer receives its own copy before applying its contract. The
 next inspection remeasures current inputs. Caller-supplied observation pools
 must remain local to one inspection; they are not persistent validity records.
+One native bundle scope observation also shares item-only linked proof reads
+across Features whose checks reuse current evidence. Consumer command checks
+remain independent, and the next scope observation reads current raw again.
 
 The hook enumerates candidate paths but reads only the first eight candidate
 records in stable selector order. `task_candidate_count` includes discovered
