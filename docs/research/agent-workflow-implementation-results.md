@@ -27,8 +27,6 @@ measured candidate scale, native host acceptance and independent subsequent
 consumption remain in progress. Baseline 0.1.48 was built from unchanged main
 into a fresh path in that same temporary evidence root; no installation changed.
 
-### Bounded candidate discovery and native host observation
-
 ### Real-product task-start source cost
 
 The first real Yeondoo Link task connection exposed a further common cost after
@@ -68,6 +66,19 @@ protected/default-branch merge. Main remains at `107850a`; verified branch
 commits/packages are preserved. A separate exact approval request for `1f9263c`
 and `5fd36ae` is pending. No alternate transport or indirect Git integration was
 used. Product source and evidence work continues independently.
+
+### Shared bundle observation during real-product lookup
+
+A real product task with six consumers of one native/browser bundle exposed
+repeated full-bundle assessments in read-only lookup. Canonical 0.1.51 now
+observes each bundle once per project inspection and copies the result before
+consumer-specific command validation. The focused RED observed two reads for
+two consumers; GREEN retains different consumer verdicts, independent command
+rejection and remeasurement after raw mutation on the next call. Workflow,
+refinement, hook, viewer and execution regression passed 149 tests in 334.494
+seconds. Full 408 above applies to the preceding 0.1.50 unit; it is not attributed
+to this subsequent change. Whole-Git/raw/runtime stale protection stays active.
+Actual-product measurement and packaged follow-up acceptance remain in progress.
 
 ### Candidate scale and host detail
 

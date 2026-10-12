@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: 44b4175ae317181be679a6af95d65f0e653ed25bcbae81662661d1da46b2d9c0 -->
+<!-- Source-SHA256: 856398a7c7895d27b7eefe312d817065a716ce9e6e734f938c165d568aa42796 -->
 
 # Project workflow obligations
 
@@ -350,3 +350,9 @@ playbook selected by agent-workflow supplies fields and native evidence bindings
 Configured-state begin/Harness start retain it in the next work record and the
 prompt hook exposes pending causes/guardrails. No automatic conversation collection
 or universal host request registration is implied.
+
+A project inspection observes each shared native bundle once, then copies that
+observation for each Feature before applying its registered command and criteria.
+This invocation-local reuse preserves independent consumer judgments. Later
+lookup/resume calls remeasure raw, source, runtime and whole-Git identity; no
+observation survives across requests and no product command runs during lookup.

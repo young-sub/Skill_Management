@@ -720,10 +720,10 @@ def bind_results(root, state_path, bundles, *, work_id=None, expected_identity=N
     return updated
 
 
-def inspect_result_links(root, feature, commands, links, required_checks=None):
+def inspect_result_links(root, feature, commands, links, required_checks=None, *, bundle_cache=None):
     items, findings = {}, []
     for link in links:
-        observed = inspect_evidence(root, feature, commands, link)
+        observed = inspect_evidence(root, feature, commands, link, bundle_cache=bundle_cache)
         findings.extend(observed['findings'])
         for item in observed.get('items', []):
             if item.get('selected') and item.get('feature') == feature['id']:
@@ -777,6 +777,7 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
     result['findings'].extend(finding for system in result['ui_systems'] for finding in system['findings'])
     commands = dict(project.get('commands', {}))
     commands.update(project.get('impact', {}).get('feature_selectors', {}))
+    bundle_cache = {}
     result['feedback'] = inspect_feedback(root, config, state)
     covered = set()
     old = state.get('baseline', {})
@@ -909,7 +910,7 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
                 if reviewed:
                     behavior = evidence_resolver(root, required_feature, commands)
             elif links:
-                behavior = inspect_result_links(root, feature, commands, links, required_feature['checks'])
+                behavior = inspect_result_links(root, feature, commands, links, required_feature['checks'], bundle_cache=bundle_cache)
             elif not required_feature['checks'] and excluded:
                 behavior = {'status': 'NOT_REQUIRED', 'findings': [], 'items': []}
             if needs_behavior and behavior is not None and behavior['status'] not in {'PASS', 'NOT_REQUIRED'}:
@@ -1476,7 +1477,7 @@ def feedback_confirmation(root, feature, entry):
     return remaining
 
 
-def inspect_evidence(root, feature, commands, bundle):
+def inspect_evidence(root, feature, commands, bundle, *, bundle_cache=None):
     """Reinspect raw execution; submitted review/status strings cannot discharge checks."""
     try:
         path = local_path(root, bundle)
@@ -1484,7 +1485,12 @@ def inspect_evidence(root, feature, commands, bundle):
         if isinstance(binding, dict) and binding.get('format') == 'unittest-captures-v1':
             return inspect_unittest_evidence(root, feature, commands, binding)
         viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
-        observed = viewer['view_bundle'](path, include_scope=False)
+        if bundle_cache is None:
+            observed = viewer['view_bundle'](path, include_scope=False)
+        else:
+            if path not in bundle_cache:
+                bundle_cache[path] = viewer['view_bundle'](path, include_scope=False)
+            observed = deepcopy(bundle_cache[path])
         verified = set()
         for item in observed['items']:
             if item['feature'] != feature['id']:

@@ -21,6 +21,56 @@ def _digest(data: bytes) -> str:
 
 
 class VerificationExecutionTests(unittest.TestCase):
+    def test_project_lookup_shares_bundle_observation_and_remeasures_next_call(self):
+        import copy
+        root = self.project
+        (root / '.gitignore').write_text('result.json\n.work/\n')
+        (root / 'criterion.md').write_text('The captured sum is five.\n')
+        self._git('add', '-A')
+        self._git('commit', '-qm', 'declared shared native observation')
+        workflow_spec = importlib.util.spec_from_file_location('workflow_shared_bundle', VIEWER.with_name('project_workflow.py'))
+        workflow = importlib.util.module_from_spec(workflow_spec)
+        workflow_spec.loader.exec_module(workflow)
+        feature = {'id':'fixture-product','partition':'sum','sources':['check.py'],
+                   'map':['criterion.md'],'criteria':['criterion.md'],'checks':['arithmetic-readback']}
+        project = {'commands':{'arithmetic-readback':[sys.executable,str(root/'check.py')]},
+                   'extensions':{'workflow':{'roots':['check.py'],'features':[
+                       feature, dict(feature,id='second-feature')]}}}
+        state = workflow.begin(root,project,'change',['fixture-product','second-feature'])
+        plan_path = self._plan()
+        plan = json.loads(plan_path.read_text())
+        other = copy.deepcopy(plan['checks'][0])
+        other['feature_id'] = 'second-feature'
+        other['raw_observations'][0]['assertions'][0]['equals'] = 6
+        plan['checks'].append(other)
+        plan_path.write_text(json.dumps(plan))
+        evidence = root/'.work/evidence'
+        _, executed = self._execute(plan_path,evidence_dir=evidence)
+        self.assertEqual(executed['test_commands_executed'],1)
+        bundle = '.work/evidence/bundle.json'
+        state['results'] = {name:[bundle] for name in ('fixture-product','second-feature')}
+        viewer = self._viewer_module()
+        load = workflow.runpy.run_path
+        with patch.object(viewer,'view_bundle',wraps=viewer.view_bundle) as observed:
+            def resolve(path,*args,**kwargs):
+                return vars(viewer) if Path(path).name=='verification_results.py' else load(path,*args,**kwargs)
+            with patch.object(workflow.runpy,'run_path',resolve):
+                current = workflow.inspect_project(root,project,state)
+                self.assertEqual(observed.call_count,1,'One lookup must not assess the same native bundle per consumer')
+                self.assertEqual([f['check_results'][0]['current_status'] for f in current['features']],['PASS','ISSUES'])
+                original = (root/'result.json').read_bytes()
+                (root/'result.json').write_text(json.dumps({'checks':[{'sum':7,'readback':'ok'}]}))
+                changed = workflow.inspect_project(root,project,state)
+                self.assertEqual(observed.call_count,2,'A later lookup must observe changed raw bytes again')
+                self.assertTrue(all(f['check_results'][0]['current_status']!='PASS' for f in changed['features']))
+                (root/'result.json').write_bytes(original)
+                cache = {}
+                rejected = workflow.inspect_evidence(root,feature,{'arithmetic-readback':['must-not-run']},bundle,bundle_cache=cache)
+                accepted = workflow.inspect_evidence(root,feature,project['commands'],bundle,bundle_cache=cache)
+                self.assertEqual(next(i for i in rejected['items'] if i['feature']==feature['id'])['current_status'],'BLOCKED')
+                self.assertEqual(next(i for i in accepted['items'] if i['feature']==feature['id'])['current_status'],'PASS',
+                                 'One consumer cannot mutate the shared native observation for another assessment')
+
     def test_native_unobserved_or_skipped_cases_are_not_product_assertion_failures(self):
         (self.project / '.gitignore').write_text('result.json\n.work/\n')
         self._git('add', '.gitignore')

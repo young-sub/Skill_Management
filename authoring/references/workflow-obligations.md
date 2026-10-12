@@ -346,3 +346,9 @@ playbook selected by agent-workflow supplies fields and native evidence bindings
 Configured-state begin/Harness start retain it in the next work record and the
 prompt hook exposes pending causes/guardrails. No automatic conversation collection
 or universal host request registration is implied.
+
+A project inspection observes each shared native bundle once, then copies that
+observation for each Feature before applying its registered command and criteria.
+This invocation-local reuse preserves independent consumer judgments. Later
+lookup/resume calls remeasure raw, source, runtime and whole-Git identity; no
+observation survives across requests and no product command runs during lookup.
