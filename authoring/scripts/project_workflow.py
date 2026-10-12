@@ -1834,6 +1834,9 @@ def summarize_lookup(result, project, root):
     summary['detail_command'] = {'action': 'lookup', 'root': str(root),
         'state': task.get('state'), 'work_id': task.get('work_id'), 'summary': False}
     viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
+    for row in summary['coverage'].get('rows', []):
+        if row.get('evidence'):
+            row['evidence'] = viewer['summarize_results']({'items': [row['evidence']]})['items'][0]
     config = {f['id']: f for f in (configuration(project) or {}).get('features', [])}
     active = {c['feature'] for c in result.get('coverage', {}).get('matrix', []) if c.get('in_task', True)}
     summary['features'] = []

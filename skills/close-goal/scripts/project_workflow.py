@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: 2e9720e3edd20ea67189f030d8c1ae60d9292ee35ae7050377a45727a65eb332
+# Source-SHA256: 69fcacea81b05fe9c1b471d6e93b5190d3a7cc575527b217f80d5b40450ebaf8
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -1838,6 +1838,9 @@ def summarize_lookup(result, project, root):
     summary['detail_command'] = {'action': 'lookup', 'root': str(root),
         'state': task.get('state'), 'work_id': task.get('work_id'), 'summary': False}
     viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
+    for row in summary['coverage'].get('rows', []):
+        if row.get('evidence'):
+            row['evidence'] = viewer['summarize_results']({'items': [row['evidence']]})['items'][0]
     config = {f['id']: f for f in (configuration(project) or {}).get('features', [])}
     active = {c['feature'] for c in result.get('coverage', {}).get('matrix', []) if c.get('in_task', True)}
     summary['features'] = []

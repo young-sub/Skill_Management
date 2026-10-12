@@ -189,6 +189,35 @@ plugin-package and ordinary workflow discovery guidance. Full above belongs to
 the shared runtime repair unit; this isolated builder change uses those targeted
 checks and subsequent immutable product consumption.
 
+### Coverage evidence in read-only summaries
+
+The final independent 0.1.53 consumption exposed a presentation leak: check
+results omitted large assertion values, but coverage rows repeated those same raw
+observations. Tool-output truncation lost the complete independent stdout. The
+original truncated attempt and duplicate lookup remain recorded rather than
+being credited as an intact capture. Subsequent commands capture full stdout and
+stderr to separate supervisor files before presenting small metadata.
+
+The minimal 0.1.54 fix applies the existing viewer summary to coverage evidence
+after validation. The complete matrix, row verdicts, raw locations/pointers,
+bindings/hashes and observation counts remain. A focused RED with a large observed
+value reproduced the leak; GREEN also preserves the original detailed result.
+Presentation-only replay of a retained actual product summary reduced serialized
+characters from 368328 to 140939 across 40 coverage rows and twelve raw records,
+retaining the count of 102 observations and identical complete matrix and all raw
+bindings. This replay launched zero product commands and is not new runtime or
+Agent-quality evidence. Further metadata and scope remain intentionally complete;
+large stdout still belongs in a retained file. Full above is not attributed to
+this isolated presentation change; affected CLI/viewer regression and packaged
+read-only follow-up are the selected verification.
+
+Workflow/hook regression passed its 51 cases. The initial combined command also
+had two loader errors from a nonexistent viewer test-class selector; that exit-1
+run is retained. The two correctly selected viewer summary cases then passed,
+including missing raw versus deliberately omitted observations. Repository docs,
+resource drift, distribution and formatting checks passed. No repeated Full or
+product run was used to verify this presentation-only path.
+
 ### Candidate scale and host detail
 
 The current retained-task workload is a measured local history model: two Agents,

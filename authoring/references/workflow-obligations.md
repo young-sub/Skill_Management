@@ -5,8 +5,10 @@ Existing project config owns `extensions.workflow`; a task record under `.work` 
 `lookup --summary` (also `resume`/`audit`) reduces presentation after the same
 current evidence inspection. It retains exact task identity/request, Feature
 source/map/criterion references, complete scope matrix, excluded checks, original
-results/current reuse, raw pointers and next obligations. For several tasks, name
-a small set of exact states and invoke this lookup once per state. Candidate
+results/current reuse, raw pointers and next obligations. Coverage-row evidence
+uses the same omission/count markers as check results; large assertion values
+stay in the detailed lookup and original raw. For several tasks, name a small set
+of exact states and invoke this lookup once per state. Candidate
 discovery reads identity metadata only; it does not validate every bundle. No new
 task registry or automatic batch execution is involved. Use the same exact lookup
 without `--summary` for observed assertion values and complete retained records.

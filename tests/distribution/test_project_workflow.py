@@ -360,7 +360,9 @@ class ProjectWorkflowTests(unittest.TestCase):
             self.fail(f'Existing review cannot record task scope decisions: {error}')
         item = {'feature': 'api', 'id': 'check', 'historical_status': 'PASS', 'current_status': 'PASS',
                 'current_reuse': 'REUSABLE', 'selected': True, 'reasons': [], 'run_id': 'run',
-                'capture': {'argv': ['native'], 'cwd': str(self.root)}, 'raw': [],
+                'capture': {'argv': ['native'], 'cwd': str(self.root)},
+                'raw': [{'path': '.work/native.json', 'pointer': '/values',
+                         'observations': [{'actual': list(range(20000)), 'matched': True}]}],
                 'selection': {'status': 'selected', 'reason': 'price rule changed'}}
         result = runtime.inspect_project(self.root, self.project, state,
             evidence_resolver=lambda *_: {'status': 'PASS', 'findings': [], 'items': [item]})
@@ -374,6 +376,16 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertEqual(result['coverage']['status'], 'PARTIAL')
         self.assertEqual(result['status'], 'PARTIAL')
         self.assertEqual(result['coverage']['rows'][0]['evidence']['run_id'], 'run')
+        summary = runtime.summarize_lookup(result, self.project, self.root)
+        raw = summary['coverage']['rows'][0]['evidence']['raw'][0]
+        self.assertNotIn('observations', raw, 'Coverage must not leak the raw values omitted by summary results')
+        self.assertEqual((raw['observation_count'], raw['observations_omitted']), (1, True))
+        self.assertEqual((raw['path'], raw['pointer']), ('.work/native.json', '/values'))
+        self.assertEqual(summary['coverage']['matrix'], result['coverage']['matrix'])
+        self.assertEqual(summary['coverage']['rows'][0]['status'], 'PASS')
+        self.assertEqual(summary['coverage']['rows'][0]['evidence']['run_id'], 'run')
+        self.assertIn('observations', result['coverage']['rows'][0]['evidence']['raw'][0])
+        self.assertLess(len(json.dumps(summary)), len(json.dumps(result)) / 2)
 
     def test_registered_pass_without_scope_decisions_is_not_full_scope_complete(self):
         runtime = self.runtime()
