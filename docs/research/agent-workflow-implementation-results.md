@@ -1,5 +1,178 @@
 # Agent workflow implementation and acceptance
 
+<a id="yeondoo-plugin-improvement-2026-10-12"></a>
+
+## Scope guidance, hook reuse and Yeondoo Link pilot, 2026-10-12
+
+The [authorized prompt](plugin-improvement-next-session.md) applies
+[direction §12](agent-coding-system-direction.md#plugin-maturity-yeondoo-link).
+Both checkouts initially were clean: plugin main `1d7462e`, version 0.1.47;
+Yeondoo Link main `220c945`. Plugin fetch succeeded: local main was 103 commits
+ahead of origin/main, with no remote-only commits. Yeondoo Link's existing remote
+tracking ref equaled main; it was not fetched, so latest remote status is unverified.
+The user confirmed the shared store device and friendly, clear pharmacy guidance;
+that is a use-scene/direction decision, not approval of an unseen UI implementation.
+
+### Common implementation and bounded evidence
+
+Commit `efbd5b8` releases local package 0.1.48 at the existing
+`workflow-obligations`/`verification-results`/`agent-workflow` owners. Undeclared
+active applicability now produces advisory `next_actions`, independently of
+review readiness and reusable native results. Explicit declared gaps retain their
+blocking obligations; source-only work and reasoned NOT_REQUIRED remain valid.
+The hook retains exact task/request, Feature references, current check reuse,
+scope gaps, action counts and read-only detail pointers in bounded context. It
+shares one source inventory and identical selected/active task audits per
+invocation; later prompts remeasure bytes. Different states still assess their
+evidence independently. Whole-Git/bundle stale protection is retained because
+complete Feature-local dependency coverage has not been demonstrated.
+
+Focused RED caught empty next actions with six active UNDECIDED cells and current
+native PASS, duplicated inventory/audit, and hidden reusable evidence in the hook.
+GREEN preserves real native PASS, source-only readiness and reasoned N/A;
+payload pressure retains the selected task, and a later hook observes changed
+source bytes. Existing checks remain: no retirement or softened oracle was needed.
+The relevant initial workflow/refinement/hook run passed 75 tests. Full ran 404
+tests: 402 passed, two environment/layout errors remained in that invocation.
+The owned-child timeout cleanup test passed when rerun with normal execution
+permission (1 test); the cutover/inventory test passed after moving only this
+worktree from the repository's `.work` to an external temporary directory
+(1 test). The original Full failure is retained, not renamed a passing Full run.
+The pre-existing Harness inventory limitation with a Git ancestor was avoided
+by worktree placement; it was not repaired or attributed to the hook change.
+Resource drift, distribution validation and `git diff --check` passed.
+
+Actual immutable package CLI consumption used small explicit task sets. Baseline
+0.1.47 returned READY_FOR_REVIEW, coverage PARTIAL, native PASS and empty next
+actions; 0.1.48 kept the same readiness/PASS and explained the remaining semantic
+review. NOT_RUN, current reusable PASS, historical PASS/current STALE after a
+shared-owner edit, omitted-but-observed raw, and unavailable raw remained distinct.
+Lookup/task resume preserved all project hashes and executed zero checks; a
+related task's prepare reused evidence without execution. The committed package
+executed two native fixture commands, with full content integrity unchanged before
+and after consumption. Supervisor retries are retained: an initial relative review
+input used the wrong working directory, and an attempted `start --state` was
+correctly rejected before execution; absolute input and `begin` corrected these
+fixture-driver mistakes. They are not plugin successes or product defects.
+
+| Hook fixture, three samples per package | 0.1.47 | 0.1.48 |
+| --- | --- | --- |
+| Unexecuted two-Feature task: inventory / audit / file hash calls | 2 / 2 / 12 | 1 / 1 / 6 |
+| Same task with captured native bundle, now stale/raw unavailable: bundle assessments | 2 | 1 |
+| Same captured task: Path API byte-read calls / project bytes | 50 / 125633 | 25 / 69471 |
+| Same captured task: median wall seconds / context characters | 1.000 / 4171 | 0.518 / 5241 |
+
+These are bounded fixture measurements, not large-project latency or general Agent
+cost superiority. The read counts exclude Git/runpy OS reads; the larger context
+retains useful evidence/actions. Both measured hook calls were read-only and ran
+zero checks. The captured-bundle timing includes stale/unavailable inspection,
+not a claim about an entirely valid production bundle.
+
+Baseline package, experimental candidate and source-bound final package are
+retained under `.work/plugin-improvement-20261012/`. The final
+`candidate-0.1.48-efbd5b8` content inventory equals the experimental candidate used
+for the independent product task. Experimental imports may create Python bytecode
+cache files; distribution-file hashes are checked separately. The final CLI runs
+disable bytecode writes and preserve every packaged content file. Raw command
+outputs, focused RED, failed Full, package scenarios and hook measurements are
+retained in that same owned directory. Product Agent logs/captures are separately
+under `.work/plugin-evaluation/`; they are not protected-host acceptance.
+
+### Product evaluation and remaining limits
+
+The baseline and candidate workers receive fresh contexts, the same natural-language
+request, product base and confirmed direction, a package discovery path and local
+permission boundaries. They receive no expected patch, Skill order or grading
+table. Both can read current project docs and their package's ordinary entrypoints.
+External installed design guidance, cached design engine and browser tools are
+recorded separately; the coordinator's port isolation, direction update and bounded
+environment-retry instruction are interventions, not automatic plugin behavior.
+Full UI approval, whole-project mapping, native installed discovery/hook delivery,
+protected host acceptance and general quality/cost superiority remain outside this
+bounded pilot. No installed Skill/Plugin, credentials, global permissions or
+configuration, provider, remote branch or deployment is changed.
+
+The baseline worker used 0.1.47 on real branch
+`evaluation/plugin-ui-20261012`: commit `a1f1676` presents the three existing start
+routes as illustrated cards, retains the original handlers and leaves questions
+for a later task. Build, full surface/access checks and four languages × five
+viewports (20 combinations) passed; `src/session.ts`, `src/content.ts` and
+`data/ui.seed.json` did not change.
+The stale access oracle expected two customer menus even though source/README
+already defined consultation, product browsing and cart; the product test was
+repaired against those independent sources. It is not a plugin defect.
+
+The candidate worker used 0.1.48 from the same real product base on
+`evaluation/plugin-ui-candidate-20261012`. Commit `7270537` prioritizes guided
+discovery with existing UI tokens/components and preserves the original paths.
+Node tests passed 41/41 and build passed. Its own browser operation remained
+BLOCKED: offline Playwright/cache failures and system Chrome/154 GPU termination
+prevented observation. A source review caught a weakened known-product viewport
+assertion; `fbe16ab` restores it while retaining the new guided-entry assertion.
+Supervisor browser review then independently exposed the old access-menu oracle;
+`e1b8a09` repairs that single test and preserves the staff/PIN/re-lock checks.
+Neither repair changes product data/state or supplies new provider functionality.
+
+The separate supervisor reused available Playwright 1.58.2/Chromium 145 and
+frozen product hashes. Surface full execution passed; UIUX only lines 1–94
+passed (start viewport/audio assertions, not the subsequent consultation flow).
+Four languages × mobile/desktop (8 combinations) passed. Final `e1b8a09` access
+full execution passed; unchanged UI/guide hashes reused the earlier surface/UIUX
+observations without rerunning them. The original access failure and a partial
+lock continuation are retained separately. This is supervised product evidence,
+not the candidate's autonomous browser success; different tool paths and retries
+prevent a causal natural-language speed/quality superiority claim. Both UI drafts
+are functionally viable within the measured scope; neither has user visual approval.
+
+A fresh worker who had not seen the representative implementation conversation
+then used final 0.1.48 against baseline-produced guide/code `a1f1676`, on the
+same real development branch. It discovered README → screen design → question
+and shared CSS owners, reused the existing bilingual `Text` and choice controls,
+and committed `bd03682`. Selection instructions now use the shared language
+component; short tablets use compact horizontal cards while phones retain their
+intended different layout. Single choice, multi-select/Done, Back preserving
+choices, empty-selection disablement and Skip recovery were directly observed.
+A 320×568 overlap was found and repaired in the question title's existing media
+rule, with failing/final captures retained. Node tests passed 41/41 before that
+CSS-only adjustment; build passed afterward. The semantic consumer was real and
+independent, but this demonstrates guide/code reuse, not a causal superiority of
+the 0.1.48 runtime changes over 0.1.47. The product has no configured machine task
+map; those task/bundle joins are proved separately by the packaged CLI fixtures.
+
+The main agent reviewed the diff, raw and before/after PNGs rather than accepting
+the worker's verdict alone. A final bounded supervisor-requested acceptance pass
+measured all four languages at 320×568 and 1198×780 with `scrollY=0`: no horizontal
+overflow, no first-answer/sticky-action overlap, and Korean question/instruction
+text appeared once. Keyboard Tab showed a visible 3px focus outline; Space kept
+the single-choice advance. At the short tablet, measured recipient-card bounds
+put all six choices and actions in the first viewport. Phone later choices still
+require intentional scrolling; scrolled captures are not counted as no-scroll
+success. Original before/after, failing overlap and scrolled snapshots are retained.
+This extra pass is explicitly a supervisor-added acceptance scope, not evidence
+of an entirely unassisted run. It does not validate translations, medical facts,
+real store use or every UI state. Owned local servers/browser sessions were closed.
+
+### Retained delivery
+
+The source-bound final package is 0.1.48 / `efbd5b8`, 19 Skills / 246 files (245 content files plus the inventory),
+inventory SHA256 `967449b391a6ae5e142e3f568d0f3ef9f85d98a38a2f77fc659c74281a7dafa0`.
+Its complete file set and hashes were unchanged after CLI, hook and fresh-context
+consumption. The evaluation candidate's distribution inventory is identical.
+Raw failures, commands, timings, limits and provenance remain under
+`.work/plugin-improvement-20261012/`; product and supervised browser records are
+under `.work/plugin-evaluation/{baseline,candidate,candidate-supervised-browser,followup}/`.
+Connected-product artifacts from the temporary Full run were copied to the former
+directory and 34 file hashes matched before removing the created plugin workspace.
+
+Plugin functional unit `efbd5b8` and this evidence/navigation unit are integrated
+only into local plugin main after rechecking its captured base and clean state.
+Only the created plugin worktree/branch are removed; no push occurs. The actual
+product branch `evaluation/plugin-ui-20261012` retains `a1f1676` → `bd03682`;
+the same-base comparison branch/worktree `evaluation/plugin-ui-candidate-20261012`
+retains `7270537` → `fbe16ab` → `e1b8a09`. Product main remains `220c945`,
+with no product main merge, branch deletion or push. The separate local source
+changes, product drafts and package/native-host limits must remain distinct.
+
 The [0.1.46 design review](agent-workflow-refinement-review.md#post-0146-review)
 reproduced additional kind-roundtrip, newly added criterion and task/global hook-gap
 cases. Version 0.1.47 fixes them at their existing owners. Earlier results below

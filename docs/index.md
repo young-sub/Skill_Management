@@ -2,9 +2,10 @@
 
 Load ignored repository-local `.harness/environment-exceptions.json` once per task when present; refresh after relevant environment changes. `skip_until_manual_reenable` selects the recorded fallback without retrying the unavailable capability.
 
-Current plugin runtime: 0.1.48. Scope guidance and invocation-local hook reuse are described in [plugin capabilities](plugins.md#capabilities-and-current-boundary). [D1–D3 and consumption results](research/agent-workflow-implementation-results.md#d1d3-consumption-2026-10-09)
-owns the classification/criterion-set/context corrections, explicit task summaries
-and package/fresh-context evidence. Linked 0.1.46 reviews retain their historical scope.
+Current plugin runtime: 0.1.48. [Current scope/hook and Yeondoo Link results](research/agent-workflow-implementation-results.md#yeondoo-plugin-improvement-2026-10-12)
+owns the current common fixes, package evidence, real product branches and fresh
+follow-up reuse. [D1–D3 results](research/agent-workflow-implementation-results.md#d1d3-consumption-2026-10-09)
+retain the 0.1.47 classification/criterion-set/context scope; linked older reviews remain historical.
 
 - [System](system.md) — end-to-end Core-First Harness flow and state ownership.
 - [Harness architecture](architecture/harness.md) — project, contract, execution, environment, retention, and distribution boundaries.
@@ -17,13 +18,13 @@ and package/fresh-context evidence. Linked 0.1.46 reviews retain their historica
 - [Triage labels](agents/triage-labels.md) — current issue vocabulary.
 - [Skill inventory](architecture/skill-inventory.md) — public distribution inventory.
 - [Agentic Coding plugin](plugins.md) — reproducible local package, installed CLI paths, and separate host/task acceptance boundaries.
-- [Agent Coding direction](research/agent-coding-system-direction.md) — 2026-10-12 discussion and current 0.1.47 limits: completed D1–D3, reproduced scope guidance and hook costs, maturity/PStack tradeoffs, responsibility boundaries, and the Yeondoo Link evaluation agreement.
-- [Next plugin improvement session](research/plugin-improvement-next-session.md) — unexecuted prompt: use Yeondoo Link on a separate real-repository branch to expose and repair plugin gaps, compare frozen conditions, verify independent follow-up reuse, integrate the plugin locally, and retain the product branch.
+- [Agent Coding direction](research/agent-coding-system-direction.md) — retained 0.1.47 pre-run diagnosis, responsibility boundaries and §12 agreement; the execution note links current 0.1.48 fixes, actual product reuse and remaining limits.
+- [Executed plugin improvement prompt](research/plugin-improvement-next-session.md) — retained authorization/scope for the 0.1.48 common fixes, same-base product comparison and independent related task; actual evidence and remaining limits are in current implementation results.
 - [Agent workflow refinement review](research/agent-workflow-refinement-review.md#post-0146-review) — historical 0.1.46 review: classification-roundtrip approval revival, newly added criterion omission and task/global hook-gap mixing; fixes and bounded acceptance are recorded in the 0.1.47 results.
 - [Agent workflow completion design](research/agent-workflow-completion-design.md#review-driven-refinement) — executed R0–R4 implementation and acceptance scope; retains historical G1–G6 sequencing and U1–U7 responsibility criteria without reopening completed work.
 - [Executed refinement prompt](research/agent-workflow-next-session.md) — retained R0–R4 execution scope; actual implementation, local delivery and remaining host limits are recorded in the implementation results.
 - [Agent Coding requirements review](research/agent-coding-requirements-review.md) — R01–R16 audit of the pre-implementation design, raw-evidence limits, minimal corrections, and concrete acceptance tasks; this review did not execute the implementation prompt.
-- [Agent workflow implementation results](research/agent-workflow-implementation-results.md) — 0.1.47 D1–D3 fixes, frozen package/source identity, independent natural-language task/reader evaluations and follow-up reuse; retained rule retirement, R0–R4 connected-flow evidence and separate native-host limits.
+- [Agent workflow implementation results](research/agent-workflow-implementation-results.md) — current 0.1.48 scope/hook fixes, source-bound package, real Yeondoo Link branches, same-base comparison and independent follow-up reuse; retained D1–D3/R0–R4 evidence and separate native-host limits.
 - [Executed implementation prompt](research/agent-coding-next-session.md) — retained scope of the first implementation and T1–T6 pilot; current follow-up work is owned by the completion design, and actual outcomes/limits by the implementation results.
 - [Labeler pilot results](research/labeler-verification-pilot.md) — actual browser/API/D1/print evidence, defect controls, delegated repair, minimal improvements, Skill responsibility and temporary Plugin host checks.
 - [pstack research](research/pstack-analysis.md) — pinned upstream inventory and critical analysis; research evidence rather than repository execution policy.
