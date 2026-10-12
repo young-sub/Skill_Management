@@ -29,6 +29,48 @@ into a fresh path in that same temporary evidence root; no installation changed.
 
 ### Bounded candidate discovery and native host observation
 
+### Real-product task-start source cost
+
+The first real Yeondoo Link task connection exposed a further common cost after
+the initial four priorities: one in-memory `begin` with an existing survey state
+collected the same source inventory three times. The actual product contains
+large tracked static audio assets. Baseline 0.1.49 read 5332 hash inputs totaling
+858134878 bytes in 33.874 seconds. The minimal canonical 0.1.50 change shares one
+inventory for initial Feature bases, prior-state reuse and the new baseline:
+one inventory, 1888 reads, 289442107 bytes, 14.305 seconds. Both observations
+performed two project inspections, ran zero product commands, created no task and
+left Git status unchanged. They exclude the CLI final audit; cache condition and
+concurrent verification load were uncontrolled, so byte/scan reduction is stronger
+evidence than the single-sample timing difference.
+
+Focused RED physically read the same linked runtime input three times. GREEN
+preserves baseline/Feature bases, prior review/results/check links and observes a
+changed input on the next request, invalidating the old review. Ordinary workflow,
+refinement and affected Harness execution/forward regressions passed 119 tests.
+Because ordinary and Harness persistent baselines share this entrypoint, Full
+was selected for this unit and passed all 408 tests in 712.445 seconds, with no
+skip/error reported. The old 0.1.48 Full failure remains historical; this is a new
+run from the actual nested worktree after its root-inventory repair.
+
+Existing independent connected-product checks also passed two tests: browser
+quantity `2` and `0` became API IDs `1` and `2`, matched SQLite and fresh GET after
+service restart; negative rejection and frontend-payload corruption stayed
+distinct from passing API/Domain cases. Owned services/DB were cleaned, exported
+raw/screenshots remained, and old output refusal preserved bytes. This synthetic
+API/storage boundary is independent of Yeondoo Link's memory-only consultation.
+Raw Full/targeted measurements live under `.work/plugin-continuous/20261012/`;
+the linked connected artifacts remain under the owned plugin worktree pending
+verified export before cleanup.
+
+Local main integration was rejected twice by automatic approval review: it did
+not treat the goal-context approval as a trusted message authorizing the exact
+protected/default-branch merge. Main remains at `107850a`; verified branch
+commits/packages are preserved. A separate exact approval request for `1f9263c`
+and `5fd36ae` is pending. No alternate transport or indirect Git integration was
+used. Product source and evidence work continues independently.
+
+### Candidate scale and host detail
+
 The current retained-task workload is a measured local history model: two Agents,
 four tasks per day, four/sixteen/sixty-four days produce 32/128/512 retained
 records. These are unique copies of one real `begin` record, about 4 KB each,

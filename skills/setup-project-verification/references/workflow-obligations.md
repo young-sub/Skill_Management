@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: 8381e2e2628b83527efd36a543cb2d3238f7d7f9d75dbd76ba515c0057a20754 -->
+<!-- Source-SHA256: 44b4175ae317181be679a6af95d65f0e653ed25bcbae81662661d1da46b2d9c0 -->
 
 # Project workflow obligations
 
@@ -36,6 +36,12 @@ read-only detail pointer when trimming. It shares one source inventory and audit
 identical selected/active task state within a single invocation. New invocations
 remeasure bytes; different task states still inspect their own evidence. This
 does not weaken Git/bundle stale checks or claim a persistent discovery cache.
+
+Task `begin` shares one current source inventory for its initial Feature bases,
+prior-state reuse assessment and new baseline. That snapshot lives only for that
+call. The CLI's final audit and later requests still observe current files;
+execution and lookup do not inherit a persistent source cache. Prior evidence,
+feedback and review decisions keep their existing independent validity checks.
 
 The hook enumerates candidate paths but reads only the first eight candidate
 records in stable selector order. `task_candidate_count` includes discovered

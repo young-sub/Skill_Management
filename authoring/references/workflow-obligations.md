@@ -33,6 +33,12 @@ identical selected/active task state within a single invocation. New invocations
 remeasure bytes; different task states still inspect their own evidence. This
 does not weaken Git/bundle stale checks or claim a persistent discovery cache.
 
+Task `begin` shares one current source inventory for its initial Feature bases,
+prior-state reuse assessment and new baseline. That snapshot lives only for that
+call. The CLI's final audit and later requests still observe current files;
+execution and lookup do not inherit a persistent source cache. Prior evidence,
+feedback and review decisions keep their existing independent validity checks.
+
 The hook enumerates candidate paths but reads only the first eight candidate
 records in stable selector order. `task_candidate_count` includes discovered
 records in a configured project; `task_candidate_omitted` and

@@ -338,7 +338,8 @@ def begin(root, project, intent, targets=(), *, prior_state=None, request_summar
         raise ValueError('workflow_not_configured')
     if set(targets) - {f['id'] for f in config['features']}:
         raise ValueError('unknown_target')
-    features = inspect_project(root, project)['features']
+    files = inventory(root, config['roots'])
+    features = inspect_project(root, project, file_inventory=files)['features']
     feedback = {}
     results = {}
     reviews = {}
@@ -360,7 +361,7 @@ def begin(root, project, intent, targets=(), *, prior_state=None, request_summar
             if observed and (not targets or any(fnmatchcase(name, pattern) for name in observed['source_refs']
                     for feature in config['features'] if feature['id'] in targets for pattern in feature['sources'])):
                 investigation = deepcopy(observed)
-            current = inspect_project(root, project, saved)
+            current = inspect_project(root, project, saved, file_inventory=files)
             reusable = {item['id'] for item in current['features'] if item['reviewed']}
             for key, review in saved.get('reviews', {}).items():
                 unresolved = [f for f in architecture_findings(review) if f['status'] == 'open']
@@ -387,7 +388,7 @@ def begin(root, project, intent, targets=(), *, prior_state=None, request_summar
     return {'schema_version': 1, 'task_id': str(uuid.uuid4()), 'root': str(root.resolve()), 'intent': intent, 'request': request,
             'targets': sorted(set(targets)), 'base': git(root, 'rev-parse', 'HEAD').decode().strip(),
             'dirty_baseline': git(root, 'status', '--porcelain').decode('utf-8'),
-            'baseline': inventory(root, config['roots']), 'reviews': reviews, 'retired_reviews': retired_reviews,
+            'baseline': files, 'reviews': reviews, 'retired_reviews': retired_reviews,
             'feedback': feedback, 'results': results,
             'source_patterns': {f['id']: list(dict.fromkeys(f['sources'] + [pattern
                 for system in config.get('ui_systems', {}).values() if f['id'] in system['consumers']

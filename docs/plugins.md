@@ -57,6 +57,11 @@ reuse; unlisted transitive runtime changes remain outside that declaration.
 
 ## Capabilities and current boundary
 
+Version 0.1.50 shares a task-start source inventory only within one `begin` call,
+including ordinary and Harness baseline capture. The final CLI audit and later
+requests remeasure source; evidence/state rules and whole-Git stale checks remain
+unchanged. This reduces repeated source reads without omitting declared inputs.
+
 Version 0.1.49 confines nested inventory Git probes to the requested root and
 bounds hook candidate-record reads to eight. Counts and omitted/unknown records
 remain explicit, exact task selection is independent of the preview, and CLI

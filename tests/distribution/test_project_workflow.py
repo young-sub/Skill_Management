@@ -14,6 +14,33 @@ SCRIPT = ROOT / 'authoring/scripts/project_workflow.py'
 
 
 class ProjectWorkflowTests(unittest.TestCase):
+    def test_begin_reuses_one_source_snapshot_and_reobserves_next_request(self):
+        runtime = self.runtime()
+        asset = self.write('src/runtime.dat', 'large shared runtime input\n')
+        self.project['extensions']['workflow']['features'][0]['sources'].append('src/runtime.dat')
+        prior = self.review(runtime, runtime.begin(self.root, self.project, 'change', ['api']), 'api')
+        original_read = Path.read_bytes
+        reads = []
+
+        def observed_read(path):
+            if path == asset:
+                reads.append(path)
+            return original_read(path)
+
+        with patch.object(Path, 'read_bytes', observed_read):
+            following = runtime.begin(self.root, self.project, 'change', ['api'], prior_state=prior)
+        self.assertEqual(len(reads), 1, 'Starting one task must not repeatedly read the same source inventory')
+        self.assertEqual(following['baseline'], prior['baseline'])
+        self.assertEqual(following['input_bases'], prior['input_bases'])
+        self.assertIn('api', following['reviews'], 'Equivalent current review must remain reusable')
+        self.assertEqual(following['results'], prior['results'])
+        self.assertEqual(following['check_links'], prior['check_links'])
+        self.write('src/runtime.dat', 'changed shared runtime input\n')
+        changed = runtime.begin(self.root, self.project, 'change', ['api'], prior_state=following)
+        self.assertNotEqual(changed['baseline']['src/runtime.dat'], following['baseline']['src/runtime.dat'])
+        self.assertNotEqual(changed['input_bases']['api'], following['input_bases']['api'])
+        self.assertNotIn('api', changed['reviews'], 'A later request must invalidate the old source review')
+
     def invoke(self, action, *args, context=None):
         env = dict(os.environ)
         env.pop('AGENT_WORKFLOW_CONTEXT', None)
