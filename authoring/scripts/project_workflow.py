@@ -778,7 +778,7 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
     commands = dict(project.get('commands', {}))
     commands.update(project.get('impact', {}).get('feature_selectors', {}))
     bundle_cache = {}
-    result['feedback'] = inspect_feedback(root, config, state)
+    result['feedback'] = inspect_feedback(root, config, state, bundle_cache=bundle_cache)
     covered = set()
     old = state.get('baseline', {})
     changed = {name for name in files.keys() | old.keys() if files.get(name) != old.get(name)}
@@ -894,7 +894,7 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
                                 ['criterion_revision', 'verification', 'normal_case'] if kind == 'requirement_change' else
                                 ['repair', 'regression', 'normal_case'])
             findings.extend(f'feedback_pending:{item["id"]}:{part}' for item in unresolved_feedback for part in item['remaining'])
-        retirements = inspect_check_retirements(root, feature, state, review, reviewed)
+        retirements = inspect_check_retirements(root, feature, state, review, reviewed, bundle_cache=bundle_cache)
         result['check_retirements'].extend(retirements)
         if any(item['status'] != 'PRESERVED' for item in retirements):
             requires.append('check_preservation')
@@ -1020,7 +1020,7 @@ def retirement_references(proof):
         name for field in ('entrypoints', 'callers') for item in proof.get(field, []) for name in item.get('references', [])]
 
 
-def inspect_check_retirements(root, feature, state, review, reviewed):
+def inspect_check_retirements(root, feature, state, review, reviewed, *, bundle_cache=None):
     prior = state.get('check_links', {}).get(feature['id'], {})
     result = []
     for check in sorted(set(prior.get('checks', [])) - set(feature['checks'])):
@@ -1105,7 +1105,7 @@ def inspect_check_retirements(root, feature, state, review, reviewed):
                     for p in feature.get('prevention', [])):
                 remaining.append('replacement_prevention_inactive')
             try:
-                remaining.extend(feedback_evidence(root, feature, proof, original_check=check))
+                remaining.extend(feedback_evidence(root, feature, proof, original_check=check, bundle_cache=bundle_cache))
             except (OSError, ValueError, KeyError, TypeError):
                 remaining.append('replacement_evidence_unavailable')
         result.append({'feature': feature['id'], 'check': check, 'decision': decision,
@@ -1315,11 +1315,20 @@ def record_feedback(root, project, state, entry):
     return result
 
 
-def feedback_evidence(root, feature, entry, *, original_check=None):
+def bundle_observation(viewer, path, *, include_scope=True, bundle_cache=None):
+    if bundle_cache is None:
+        return viewer['view_bundle'](path, include_scope=include_scope)
+    key = (path.resolve(), include_scope)
+    if key not in bundle_cache:
+        bundle_cache[key] = viewer['view_bundle'](path, include_scope=include_scope)
+    return deepcopy(bundle_cache[key])
+
+
+def feedback_evidence(root, feature, entry, *, original_check=None, bundle_cache=None):
     """Fixed viewer/raw joins, never run a submitted reproduction or command."""
     viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
-    red = viewer['view_bundle'](local_path(root, entry['red_bundle']))
-    green = viewer['view_bundle'](local_path(root, entry['green_bundle']))
+    red = bundle_observation(viewer, local_path(root, entry['red_bundle']), bundle_cache=bundle_cache)
+    green = bundle_observation(viewer, local_path(root, entry['green_bundle']), bundle_cache=bundle_cache)
     check = entry['guardrail']['check']
     before = next((i for i in red.get('items', []) if i['feature'] == feature['id'] and i['id'] == check), None)
     after = next((i for i in green.get('items', []) if i['feature'] == feature['id'] and i['id'] == check), None)
@@ -1343,7 +1352,7 @@ def feedback_evidence(root, feature, entry, *, original_check=None):
     if not failing or not any(assertion in passing for assertion in failing):
         reasons.append('original_criterion_not_preserved')
     if original_check is not None:
-        original_result = viewer['view_bundle'](local_path(root, entry.get('original_bundle', entry['red_bundle'])))
+        original_result = bundle_observation(viewer, local_path(root, entry.get('original_bundle', entry['red_bundle'])), bundle_cache=bundle_cache)
         original = next((i for i in original_result.get('items', []) if i['feature'] == feature['id'] and i['id'] == original_check), None)
         if (not original or original['historical_status'] != 'ISSUES' or unbound(original) or not any(
                 not obs['matched'] and obs['assertion'] in failing for obs in assertions(original))):
@@ -1360,7 +1369,9 @@ def feedback_evidence(root, feature, entry, *, original_check=None):
     return reasons
 
 
-def inspect_feedback(root, config, state):
+def inspect_feedback(root, config, state, *, bundle_cache=None):
+    if bundle_cache is None:
+        bundle_cache = {}
     entries = state.get('feedback', {})
     if not isinstance(entries, dict):
         raise ValueError('feedback_must_be_object')
@@ -1416,7 +1427,7 @@ def inspect_feedback(root, config, state):
                     missing = [name for name in entry.get('repair_paths', []) if name not in before]
                     if missing and entry.get('red_bundle'):
                         try:
-                            before.update(oracle_repair_preimages(root, feature, entry, missing))
+                            before.update(oracle_repair_preimages(root, feature, entry, missing, bundle_cache=bundle_cache))
                         except (OSError, ValueError, KeyError, TypeError):
                             pass
                     if not entry.get('repair_paths') or any(not isinstance(before.get(name), str)
@@ -1428,7 +1439,7 @@ def inspect_feedback(root, config, state):
                     remaining.append('new_and_retained_contract_evidence_required')
                 else:
                     try:
-                        remaining.extend(feedback_confirmation(root, feature, entry))
+                        remaining.extend(feedback_confirmation(root, feature, entry, bundle_cache=bundle_cache))
                     except (OSError, ValueError, TypeError, KeyError):
                         remaining.append('confirmation_evidence_unavailable')
             result.append(dict(entry, status='OPEN' if remaining else 'ACCEPTED' if kind == 'intentional_difference' else 'RESOLVED',
@@ -1455,17 +1466,17 @@ def inspect_feedback(root, config, state):
                 remaining.append('active_prevention_link_missing')
             if entry.get('red_bundle') and entry.get('green_bundle') and all(guardrail.get(key) for key in required):
                 try:
-                    remaining.extend(feedback_evidence(root, feature, entry))
+                    remaining.extend(feedback_evidence(root, feature, entry, bundle_cache=bundle_cache))
                 except (OSError, ValueError, TypeError, KeyError):
                     remaining.append('repair_evidence_unavailable')
         result.append(dict(entry, status='OPEN' if remaining else 'RESOLVED', remaining=sorted(set(remaining))))
     return result
 
 
-def oracle_repair_preimages(root, feature, entry, paths):
+def oracle_repair_preimages(root, feature, entry, paths, *, bundle_cache=None):
     """Use a bound failing capture for new tool owners; never rewrite task baseline."""
     viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
-    red = viewer['view_bundle'](local_path(root, entry['red_bundle']), include_scope=False)
+    red = bundle_observation(viewer, local_path(root, entry['red_bundle']), include_scope=False, bundle_cache=bundle_cache)
     check = entry.get('confirmation', {}).get('check')
     items = [item for item in red.get('items', []) if item['feature'] == feature['id'] and item['id'] == check]
     if len(items) != 1:
@@ -1528,11 +1539,11 @@ def oracle_repair_preimages(root, feature, entry, paths):
     return result
 
 
-def feedback_confirmation(root, feature, entry):
+def feedback_confirmation(root, feature, entry, *, bundle_cache=None):
     """A changed requirement needs fresh native evidence, not an old RED oracle."""
     viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
     path = local_path(root, entry['green_bundle'])
-    green = viewer['view_bundle'](path)
+    green = bundle_observation(viewer, path, bundle_cache=bundle_cache)
     proof = entry['confirmation']
     item = next((i for i in green.get('items', []) if i['feature'] == feature['id'] and i['id'] == proof['check']), None)
     remaining = []
@@ -1558,12 +1569,7 @@ def inspect_evidence(root, feature, commands, bundle, *, bundle_cache=None):
         if isinstance(binding, dict) and binding.get('format') == 'unittest-captures-v1':
             return inspect_unittest_evidence(root, feature, commands, binding)
         viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
-        if bundle_cache is None:
-            observed = viewer['view_bundle'](path, include_scope=False)
-        else:
-            if path not in bundle_cache:
-                bundle_cache[path] = viewer['view_bundle'](path, include_scope=False)
-            observed = deepcopy(bundle_cache[path])
+        observed = bundle_observation(viewer, path, include_scope=False, bundle_cache=bundle_cache)
         verified = set()
         for item in observed['items']:
             if item['feature'] != feature['id']:

@@ -41,6 +41,13 @@ call. The CLI's final audit and later requests still observe current files;
 execution and lookup do not inherit a persistent source cache. Prior evidence,
 feedback and review decisions keep their existing independent validity checks.
 
+One project inspection shares native bundle observations across feedback,
+check retirement and result consumers. Standalone feedback inspection also
+shares within that call. Full scope and item-only observations have separate
+keys; each consumer receives its own copy before applying its contract. The
+next inspection remeasures current inputs. Caller-supplied observation pools
+must remain local to one inspection; they are not persistent validity records.
+
 The hook enumerates candidate paths but reads only the first eight candidate
 records in stable selector order. `task_candidate_count` includes discovered
 records in a configured project; `task_candidate_omitted` and

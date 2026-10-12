@@ -374,7 +374,7 @@ class WorkflowRefinementTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'feedback_kind'):
             runtime.record_feedback(self.root, self.project, state, dict(complaint, kind='approved'))
 
-    def test_changed_requirement_needs_authority_new_revision_and_real_retained_contract(self, kind='requirement_change', added_owner=False, tracked_owner=False, dirty_red=False):
+    def test_changed_requirement_needs_authority_new_revision_and_real_retained_contract(self, kind='requirement_change', added_owner=False, tracked_owner=False, dirty_red=False, retain_fixture=False):
         runtime = self.runtime()
         feature = self.project['extensions']['workflow']['features'][0]
         feature['sources'].append('src/run.py')
@@ -489,6 +489,8 @@ class WorkflowRefinementTests(unittest.TestCase):
                     with patch.object(runtime, 'git', **options):
                         self.assertIn('oracle_or_tool_repair_not_observed', runtime.inspect_feedback(
                             self.root, runtime.configuration(self.project), saved)[0]['remaining'])
+        if retain_fixture:
+            return runtime, saved, entry
         _, later = self.invoke('start', '--intent', 'change', '--target', 'api', context=context)
         self.assertEqual(later['feedback'][0]['status'], 'RESOLVED', later['feedback'])
         _, reused = self.invoke('prepare', context=later['task_context'])
@@ -497,6 +499,58 @@ class WorkflowRefinementTests(unittest.TestCase):
         self.write('docs/requirement.md', 'Price changed without revalidation.\n')
         _, stale = self.invoke('lookup', context=later['task_context'])
         self.assertEqual(stale['feedback'][0]['status'], 'OPEN')
+
+    def test_feedback_shares_observations_without_sharing_contracts_and_remeasures_raw(self):
+        runtime, state, entry = self.test_changed_requirement_needs_authority_new_revision_and_real_retained_contract(
+            kind='oracle_tool_error', added_owner=True, retain_fixture=True)
+        config = runtime.configuration(self.project)
+        for identity in ('same-contract', 'different-normal'):
+            state['feedback'][identity] = deepcopy(state['feedback']['new-price'])
+            state['feedback'][identity]['id'] = identity
+        state['feedback']['different-normal']['confirmation']['normal_pointer'] = '/absent'
+        load = runtime.runpy.run_path
+        calls = []
+        def resolve(path, *args, **kwargs):
+            viewer = load(path, *args, **kwargs)
+            if existing.Path(path).name == 'verification_results.py':
+                view = viewer['view_bundle']
+                def observed(bundle, *pos, **kw):
+                    calls.append((existing.Path(bundle).resolve(), kw.get('include_scope', True)))
+                    return view(bundle, *pos, **kw)
+                viewer['view_bundle'] = observed
+            return viewer
+        with patch.object(runtime.runpy, 'run_path', resolve):
+            result = runtime.inspect_feedback(self.root, config, state)
+            self.assertEqual([row['status'] for row in result], ['RESOLVED', 'RESOLVED', 'OPEN'])
+            self.assertIn('new_and_retained_contract_evidence_required', result[-1]['remaining'])
+            self.assertEqual(len(calls), len(set(calls)), 'Shared feedback must observe each bundle/scope mode only once')
+            self.assertEqual({scope for _, scope in calls}, {True, False})
+            green = json.loads((self.root / entry['green_bundle']).read_bytes())
+            plan = json.loads(existing.Path(green['plan']).read_bytes())
+            raw = existing.Path(plan['checks'][0]['raw_observations'][0]['path'])
+            original = raw.read_bytes()
+            try:
+                raw.write_text(json.dumps({'price': 11, 'zero': 0}))
+                count = len(calls)
+                stale = runtime.inspect_feedback(self.root, config, state)
+                self.assertTrue(all(row['status'] == 'OPEN' for row in stale))
+                self.assertGreater(len(calls), count, 'A later inspection must measure changed raw again')
+            finally:
+                raw.write_bytes(original)
+
+            cache = {}
+            result = runtime.inspect_evidence(self.root, config['features'][0], self.project['commands'],
+                                              entry['green_bundle'], bundle_cache=cache)
+            self.assertEqual(result['status'], 'PASS', result)
+            scope_file = self.root / plan['workflow_scope']['state']
+            scope_bytes = scope_file.read_bytes()
+            scope_file.unlink()
+            try:
+                result = runtime.inspect_feedback(self.root, config, state, bundle_cache=cache)
+                self.assertTrue(all(row['status'] == 'OPEN' for row in result),
+                                'An item-only observation cannot replace the required full scope inspection')
+            finally:
+                scope_file.write_bytes(scope_bytes)
 
     def test_independent_tool_error_repairs_adapter_without_changing_product_or_requirement(self):
         self.test_changed_requirement_needs_authority_new_revision_and_real_retained_contract(kind='oracle_tool_error')

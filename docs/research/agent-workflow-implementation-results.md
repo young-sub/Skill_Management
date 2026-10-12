@@ -35,7 +35,7 @@ into a fresh path in that same temporary evidence root; no installation changed.
 | Business/architecture across FE, BE/API and Domain | Twelve actual MVP candidates mapped; consultation App dispatch, transition, memory/display and edit invalidation traced. Independent browser/API/SQLite/restart example retains frontend-failure/API-PASS contrast. | Three requested Features have current FE/Domain business/architecture PASS and reasoned BE/API N/A. Staff FE/Domain business and architecture now have current bounded reviews; its local device lock is not server authentication. Other project reviews remain open. Consultation has no backend/API/DB; provider generation APIs elsewhere remain a separate concern. No clinical, commercial or whole-product approval. |
 | Repair and prevent feedback recurrence | Original adapter failures retained; descriptor/VM consumers repaired without changing browser conditions; real Git metadata regression and structural guard; bound red preimage for tools created after task start | Actual loader and the separate app-runtime manifest owner feedback are RESOLVED against retained red/current run03, without filling baseline preimages. The earlier misrouted staff consumer feedback is preserved OPEN; scope/feedback raw and independent related reuse are retained; package tests and Agent review inputs do not authenticate human approval. |
 | Maintain and reuse UI standards | Existing design guide, tokens and shared components/consumer links reused; six original suites, actual desktop/mobile/staff screenshots retained | Related staff screen review and focused privacy end/cancel/reset review are observed; UI remains draft. Staff owner architecture is reviewed using unchanged source and retained actual flow. CatalogImport is mapped but its modal is outside the six-suite run. |
-| Executable verification guide and runtime connection | Feature/check/assertion registry, native event reporter and owned browser adapter connect twelve judgments to two commands. Current 0.1.54 execution on product 79d74b1 passes native 55/55 and six full suites, with 13 served-source matches, 120 PNG hashes and owned-resource shutdown. | Current scoped reviews and read-only related reuse are recorded. After staff owner review the task retains 20 coverage gaps and the misrouted consumer observer feedback OPEN. Earlier captures remain historical/stale. Speech/provider calls and user acceptance are separate. |
+| Executable verification guide and runtime connection | Feature/check/assertion registry, native event reporter and owned browser adapter connect twelve judgments to two commands. Current 0.1.54 execution on product 79d74b1 passes native 55/55 and six full suites, with 13 served-source matches, 120 PNG hashes and owned-resource shutdown. | App/runtime and verification-connection ownership are now reviewed against unchanged source/raw; 17 coverage gaps and the misrouted consumer observer feedback remain. Earlier captures remain historical/stale. Speech/provider calls and user acceptance are separate. |
 | Keep or improve checks by measured value | Duplicate inventory and bundle observations reduced while preserving complete result equality; summary assertion duplication removed after validation; original tests retained; owned cleanup and old-output refusal verified | Original checks are retained; equivalent defect/valid-case evidence did not justify retirement. Whole-Git stale protection remains; smaller I/O and presentation samples do not establish general Agent quality or speed. |
 
 The overall goal remains PARTIAL. The completed package consumption before the
@@ -211,10 +211,71 @@ The actual check_results/evidence_status fields and physical raw hashes above ar
 the verified projection. All 247 files of 0.1.55 match the pre-consumption snapshot,
 with no extra/missing/changed bytes; 0.1.53/0.1.54 also remain unchanged. The 102
 connected-example export files still match both source and retained copies.
-Current result documentation adds no code beyond frozen 1aa2a8d; protected-main
+The 0.1.55 result-only follow-up 1cd589e adds no code beyond frozen 1aa2a8d; protected-main
 integration and native current-package host acceptance remain separate pending
 boundaries. The overall goal remains PARTIAL. Earlier 0.1.54 package/run/lookup numbers
 below retain their original conditions and are historical after this source change.
+
+### Feedback observation reuse and owner review, 2026-10-13
+
+The same actual three-feedback task still evaluated six native bundles even
+after result-link sharing: each feedback reopened its failing/current evidence.
+Runtime 0.1.56 reuses the existing inspection-local pool across feedback,
+check-retirement preservation and result consumers. Its key separates resolved
+path and full-scope/item-only mode; every consumer receives a copy. The next
+inspection has a fresh pool. Validation, raw/runtime/source hashes, scope review,
+exception handling and consumer-specific assertions are retained. This is a
+bounded observation snapshot, not atomic concurrent-state or protected acceptance.
+
+The real fixture first retained RESOLVED/RESOLVED/OPEN for equal and differing
+normal contracts, then failed on six views instead of two unique views. GREEN
+keeps those different judgments, rejects changed raw on a later inspection, and
+rejects missing task scope despite a pooled item-only PASS. Existing consumer
+command/mutation isolation remains covered. A separate read-only code review
+found no material issue; it ran no tests or product CLI.
+
+The five affected workflow/refinement/hook/viewer/execution modules passed
+153 tests in 409.561 seconds (supervisor 409.801, actual child exit 0).
+Package/update/repository-document checks passed nine tests; resource drift,
+distribution and formatting checks passed. Full was not repeated: this bounded
+pool changes observation reuse in the existing workflow paths, not schema,
+discovery, Harness baseline ownership or protected policy. Initial focused GREEN
+reported two tests OK despite PowerShell stderr decoration producing outer exit
+1; the definitive regression above captures the actual child exit and raw bytes.
+
+On the unchanged actual product state, standalone feedback inspection fell from
+six evaluations to three unique path/mode evaluations, 134.450 to 61.652 seconds.
+Complete feedback JSON is byte-identical (SHA-256
+bc805e1a71e8a046530b4fb6d86b801a437b5490fe404b93e75b03cc1dd7cb29).
+Both observations executed zero product commands and kept the same 101 named
+task/evidence files unchanged. That snapshot excludes product source/runtime
+hashes; the viewer still remeasured those inputs. These sequential samples
+overlapped regression load and had uncontrolled filesystem caches; reduced
+evaluation count is stronger evidence than the timings. Raw baseline, candidate
+and root equality receipt are under scoped-owner-review/ in the retained evidence.
+
+The 0.1.55 CLI separately registered current app-runtime and verification-connection
+owner reviews in 420.580 and 404.479 seconds. Whole status stays PARTIAL; gaps
+went from 20 to 17, baseline/feedback/prior reviews were unchanged, and no product
+check executed. App FE/Domain business and architecture are REQUIRED/PASS;
+BE/API is reasoned NOT_REQUIRED for the local frontend delivery. Tooling owns
+the verification-connection architecture/Domain cell; other cells refer back
+to their product owners and are reasoned NOT_REQUIRED. This does not exempt
+actual product business rules or authenticate a human review.
+
+An actual read-only release check refused the draft catalog with exit 1 and
+2972 review/publication issues; this expected refusal is not a release PASS.
+Source-traced missing-catalog fallback is not claimed as a newly executed corrupt
+catalog browser case. The reporter intentionally preserves aggregate PASS and
+ambiguous duplicate-name lookup ISSUES; its existing fixture confirms that
+distinction. An initial root suspicion of a reporter defect was corrected before
+any product code or test expectations changed.
+
+Fresh native discovery used normal authorized reads: codex plugin list --json
+returned exit 0 in 26.417 seconds, twelve installed entries and no agentic-coding
+entry or available package. The current package is not exposed by this host;
+native current-package/hook acceptance remains unobserved. No installation,
+global trust/configuration, provider or transport workaround was performed.
 
 ### Actual product task, observer repairs and independent consumption
 
