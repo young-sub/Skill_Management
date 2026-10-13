@@ -1,5 +1,14 @@
 # Testing And Impact Selection
 
+Version 0.1.58 adds focused feedback supersession cases in the workflow refinement
+selector: original identity preservation, removed-owner reconciliation, independent
+successor validity, input order, stale/revoked links, malformed records and zero-run
+lookup. The existing native RED/GREEN/normal execution case also consumes a linked
+successor in a later task and reopens both records after source drift. Fixtures for
+intentional differences are synthetic approvals; these tests are not real UI review.
+The change affects feedback completion/obligation consumers and distributed CLI
+state handling, so this delivery also runs Full and resource/distribution checks.
+
 The 0.1.48 workflow/refinement/hook cases retain real native PASS when scope is
 undeclared, exercise advisory next actions versus blocking declared gaps, permit
 source-only review and reasoned N/A, and measure single-invocation inventory/audit

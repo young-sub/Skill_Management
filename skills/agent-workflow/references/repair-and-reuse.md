@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/repair-and-reuse.md -->
-<!-- Source-SHA256: acdcb13785c2870c637b6ae42695b892a4ef9c1cf87926eb4a47dd24b6ec0376 -->
+<!-- Source-SHA256: 129bd2787ae6ea14a6ba2ee7a5868b03fb61da011fb9fea96bfcff77bd27b3cf -->
 
 # Repair and subsequent reuse
 
@@ -21,6 +21,33 @@ workflow `state` and Harness start carry these records into related subsequent w
 the read-only prompt context exposes their causes/guardrails and pending work.
 
 ## Classify the feedback before choosing a repair
+
+For a complaint registered under the wrong owner, first create and assess the
+correct owner's feedback in the same task. Keep the original ID/Feature and
+failure record. Submit a separate `feedback` update containing only `id`, the
+original `feature`, and `supersession`:
+
+```json
+{"id":"old-incident","feature":"old-owner","supersession":{"feedback":"correct-owner-incident","reason":"Review explains why these records describe the same incident and identifies the actual owner.","references":["docs/feedback-triage.md"]}}
+```
+
+This operation also works when the original Feature was removed. Existing
+project-relative references, original/target record digests and a current active
+target owner bind the disposition. Self-links, missing targets, chains and
+simultaneous edits to the original complaint are rejected. The target must
+independently be current RESOLVED/ACCEPTED before lookup derives SUPERSEDED;
+this does not mean the original owner was repaired. Original missing stages stay
+in `original_remaining`, while `remaining` holds current reconciliation blockers.
+Changed records/review references or an unresolved target reopen it. Re-review
+the link explicitly; metadata edits do not refresh its captured bindings.
+`supersession: null` revokes it; replaced/revoked links remain in
+`supersession_history`. Lookup/resume neither migrate nor write these records.
+
+A removed Feature still needs its separate removal review. A retired requirement
+without a current successor stays open; this link is not generic issue dismissal.
+Reason/references are review traceability, not authentication that a human approved
+it or proof that two complaints have the same meaning. The Agent must inspect that
+relationship; do not use an unrelated successful report to hide a failure.
 
 `kind` defaults to `requirement_violation` for existing records. Optional
 `candidate_id`, safe `evidence_refs`/`owner_refs`, and `user_review` connect the

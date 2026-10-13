@@ -1,5 +1,61 @@
 # Agent workflow implementation and acceptance
 
+<a id="feedback-reconciliation-2026-10-14"></a>
+
+## Design review and feedback reconciliation, 2026-10-14
+
+Review began on clean local main `4ef6a64` / runtime 0.1.57. Two bounded independent
+code reviews and the main review checked the six requested outcomes against the
+current owners, tests and retained product evidence. The direction's 0.1.47/0.1.48
+current-state and next-work claims were stale. Its current assessment and priorities
+now describe completed work separately from real remaining gaps; pinned pstack
+research remains historical and was not re-executed or compared for superiority.
+
+The concrete runtime gap was feedback owner reconciliation. Retargeting an existing
+ID was correctly rejected, but a removed Feature's old complaint could never be
+updated. Its removal review could finish while feedback stayed OPEN and no actionable
+removed-owner obligation remained. A wrong-owner report also remained OPEN after an
+independent correct-owner repair. Version **0.1.58** adds an explicit same-task
+`supersession` operation through the existing feedback API; it adds no state database
+or coordinator. Original identity/body, failed evidence and task baseline remain intact.
+
+The link captures a reason, existing review references and original/successor record
+digests. Its derived SUPERSEDED status requires independently current RESOLVED/ACCEPTED
+successor evidence. Changed records/references, stale or missing successor evidence,
+self-links, chains and malformed editable records cannot make it terminal. Revocation
+and replacement preserve prior links. Historical missing stages are separate from
+current blockers; removed-owner and stale-link cases expose `feedback_reconciliation`
+as the next action. Removal review remains independently required. This is local
+review traceability, not proof of human approval or semantic incident equivalence.
+
+The focused tests first reproduced the missing disposition/removal dead end and
+missing next action. Independent code challenge also exposed falsey malformed
+successor links and an unrelated malformed record; both were reproduced before their
+guards were corrected. Existing native execution tests retain actual failing and
+passing commands, consume the independently resolved successor in a later task, and
+reopen both records after source drift. Their original oracle and nearby-normal
+assertion remain unchanged. Generated resources follow the canonical source.
+
+Validation: the final four focused workflow/native cases passed in 15.053s; the
+same three new lifecycle cases against baseline `4ef6a64` produced eight failing
+assertions. Full ran **416 tests in 623.753s: 415 passed, one error**. The unchanged
+Windows owned-child timeout test returned tree-cleanup exit 1, followed by a locked
+temporary-directory cleanup error under the sandbox. Its separate authorized-host
+retry passed in 1.708s with no code change. Retain both results; this is not a claim
+of an all-green single Full run. Final documentation checks passed three cases;
+resource drift, distribution and formatting checks passed. Raw/command receipts are
+retained in `.work/design-review-20261014/`. The final focused run covers the last
+malformed-record guard added while the broader run was in progress.
+
+Remaining scope: original Yeondoo Link feedback/state/raw were not rewritten. Its
+retained 0.1.57 staff entry remains OPEN, and applying the new disposition there is
+a separate product-consumption check. Supersession supports one direct active-owner
+successor, not dismissal of a retired requirement with no successor. Native host,
+concurrent same-record writers, long autonomous operation, UI approval and business
+outcomes remain unverified. No product checks were deleted: this review found no
+equivalent-defect/normal-case proof justifying removal. The [current design](agent-coding-system-direction.md#next-improvements-0158)
+sets concrete next steps and acceptance criteria for those gaps.
+
 <a id="continuous-plugin-improvement-2026-10-13"></a>
 
 ## Continuous improvement: source and actual product, 2026-10-13

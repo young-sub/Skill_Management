@@ -2,8 +2,8 @@
 
 Load ignored repository-local `.harness/environment-exceptions.json` once per task when present; refresh after relevant environment changes. `skip_until_manual_reenable` selects the recorded fallback without retrying the unavailable capability.
 
-Current plugin runtime: 0.1.57. [Continuous improvement results](research/agent-workflow-implementation-results.md#continuous-plugin-improvement-2026-10-13)
-owns root-confined inventory, bounded task discovery, shared source/bundle reads, portable source identity, current actual-product execution and separate native-host/integration limits.
+Current plugin runtime: 0.1.58. [Feedback reconciliation](research/agent-workflow-implementation-results.md#feedback-reconciliation-2026-10-14) owns the current correction and bounded regression evidence. [Continuous improvement results](research/agent-workflow-implementation-results.md#continuous-plugin-improvement-2026-10-13)
+owns root-confined inventory, bounded task discovery, shared source/bundle reads, portable source identity, retained 0.1.57 actual-product execution, completed local integration and separate native-host limits.
 [Scope/hook and Yeondoo Link results](research/agent-workflow-implementation-results.md#yeondoo-plugin-improvement-2026-10-12)
 retain the prior common fixes, package evidence, real product branches and fresh
 follow-up reuse. [D1–D3 results](research/agent-workflow-implementation-results.md#d1d3-consumption-2026-10-09)
@@ -20,14 +20,14 @@ retain the 0.1.47 classification/criterion-set/context scope; linked older revie
 - [Triage labels](agents/triage-labels.md) — current issue vocabulary.
 - [Skill inventory](architecture/skill-inventory.md) — public distribution inventory.
 - [Agentic Coding plugin](plugins.md) — reproducible local package, installed CLI paths, and separate host/task acceptance boundaries.
-- [Agent Coding direction](research/agent-coding-system-direction.md) — retained 0.1.47 pre-run diagnosis, responsibility boundaries and §12 agreement; the execution note links current 0.1.48 fixes, actual product reuse and remaining limits.
-- [Continuous plugin improvement request](research/plugin-continuous-improvement-next-session.md) — applied six-outcome execution scope; current implementation, actual-product evidence and remaining native-host/integration boundaries are recorded in the results.
+- [Agent Coding direction](research/agent-coding-system-direction.md) — 2026-10-14 current six-outcome review, corrected feedback lifecycle, concrete next acceptance work and retained historical agreements.
+- [Continuous plugin improvement request](research/plugin-continuous-improvement-next-session.md) — applied six-outcome execution scope; current implementation, actual-product evidence and remaining native-host and product acceptance boundaries are recorded in the results.
 - [Executed plugin improvement prompt](research/plugin-improvement-next-session.md) — retained authorization/scope for the completed 0.1.48 pilot; use the continuous request for new execution.
 - [Agent workflow refinement review](research/agent-workflow-refinement-review.md#post-0146-review) — historical 0.1.46 review: classification-roundtrip approval revival, newly added criterion omission and task/global hook-gap mixing; fixes and bounded acceptance are recorded in the 0.1.47 results.
 - [Agent workflow completion design](research/agent-workflow-completion-design.md#review-driven-refinement) — executed R0–R4 implementation and acceptance scope; retains historical G1–G6 sequencing and U1–U7 responsibility criteria without reopening completed work.
 - [Executed refinement prompt](research/agent-workflow-next-session.md) — retained R0–R4 execution scope; actual implementation, local delivery and remaining host limits are recorded in the implementation results.
 - [Agent Coding requirements review](research/agent-coding-requirements-review.md) — R01–R16 audit of the pre-implementation design, raw-evidence limits, minimal corrections, and concrete acceptance tasks; this review did not execute the implementation prompt.
-- [Agent workflow implementation results](research/agent-workflow-implementation-results.md) — current 0.1.54 common repairs, immutable packages, actual Yeondoo Link verification and independent consumption; retained prior pilot and D1–D3/R0–R4 evidence and separate native-host limits.
+- [Agent workflow implementation results](research/agent-workflow-implementation-results.md) — current 0.1.58 feedback reconciliation and retained 0.1.57 packages, actual Yeondoo Link verification and independent consumption; retained prior pilot and D1–D3/R0–R4 evidence and separate native-host limits.
 - [Executed implementation prompt](research/agent-coding-next-session.md) — retained scope of the first implementation and T1–T6 pilot; current follow-up work is owned by the completion design, and actual outcomes/limits by the implementation results.
 - [Labeler pilot results](research/labeler-verification-pilot.md) — actual browser/API/D1/print evidence, defect controls, delegated repair, minimal improvements, Skill responsibility and temporary Plugin host checks.
 - [pstack research](research/pstack-analysis.md) — pinned upstream inventory and critical analysis; research evidence rather than repository execution policy.

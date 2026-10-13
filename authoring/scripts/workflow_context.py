@@ -174,7 +174,8 @@ def context(payload):
                    obligations=audit['obligations'][:8], unmapped_count=len(audit['unmapped']),
                    unmapped=audit['unmapped'][:8], findings=audit['findings'][:8],
                    product_findings=audit['product_findings'][:8])
-    summary['feedback'] = [{key: entry.get(key) for key in ('id', 'feature', 'status', 'expected', 'root_cause', 'guardrail', 'remaining')}
+    summary['feedback'] = [{key: entry.get(key) for key in ('id', 'feature', 'status', 'expected', 'root_cause', 'guardrail',
+                                                         'remaining', 'supersession', 'successor_status')}
                            for entry in audit.get('feedback', [])[:5]]
     summary['ui_systems'] = [{key: entry.get(key) for key in ('id', 'guide', 'tokens', 'components', 'consumers', 'exceptions', 'findings')}
                             for entry in audit.get('ui_systems', [])[:4]]

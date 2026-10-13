@@ -31,6 +31,127 @@ class WorkflowRefinementTests(unittest.TestCase):
                     'disposition': 'intentional_difference', 'scope': 'Terminal price',
                     'criteria_refs': ['docs/requirement.md']}}
 
+    def supersession_fixture(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'init')
+        state = runtime.record_feedback(self.root, self.project, state,
+            dict(self.difference(), owner_refs=['src/api.py']))
+        state = runtime.record_feedback(self.root, self.project, state, {
+            'id': 'misrouted', 'feature': 'cli', 'expected': 'Common output',
+            'observed': 'Terminal variant', 'reproduction': 'Compare source'})
+        self.write('docs/triage.md', 'Fixture review: same complaint; API owns the intended variant.\n')
+        correction = {'id': 'misrouted', 'feature': 'cli', 'supersession': {
+            'feedback': 'variant', 'reason': 'The API record owns this same complaint.',
+            'references': ['docs/triage.md']}}
+        return runtime, state, correction
+
+    def test_feedback_supersession_preserves_original_and_reopens_on_changed_proof(self):
+        runtime, state, correction = self.supersession_fixture()
+        original = deepcopy(state['feedback']['misrouted'])
+        corrected = runtime.record_feedback(self.root, self.project, state, correction)
+        for key, value in original.items():
+            self.assertEqual(corrected['feedback']['misrouted'][key], value)
+        audit = runtime.inspect_project(self.root, self.project, corrected)
+        row = next(item for item in audit['feedback'] if item['id'] == 'misrouted')
+        self.assertEqual(row['status'], 'SUPERSEDED', row)
+        self.assertEqual(row['successor_status'], 'ACCEPTED')
+        self.assertIn('root_cause', row['original_remaining'])
+        self.assertFalse(any('repair' in item['requires'] for item in audit['obligations']))
+        reverse = deepcopy(corrected)
+        reverse['feedback'] = dict(reversed(list(reverse['feedback'].items())))
+        self.assertEqual({item['id']: item for item in runtime.inspect_project(self.root, self.project, reverse)['feedback']},
+                         {item['id']: item for item in audit['feedback']})
+        followup = runtime.begin(self.root, self.project, 'change', prior_state=corrected)
+        self.assertEqual(runtime.inspect_feedback(self.root, runtime.configuration(self.project), followup)[1]['status'], 'SUPERSEDED')
+        for path in ('docs/triage.md', 'docs/decision.md'):
+            with self.subTest(changed=path):
+                before = (self.root / path).read_text(encoding='utf-8')
+                self.write(path, before + 'Review withdrawn.\n')
+                reopened = runtime.inspect_project(self.root, self.project, corrected)['feedback'][1]
+                self.assertEqual(reopened['status'], 'OPEN', reopened)
+                action = next(item for item in runtime.inspect_project(self.root, self.project, corrected)['next_actions']
+                              if item['target'] == 'cli')
+                self.assertIn('feedback_reconciliation', action['requires'])
+                self.write(path, before)
+        changed = runtime.record_feedback(self.root, self.project, corrected,
+            {'id': 'variant', 'feature': 'api', 'reason': 'Changed interpretation'})
+        self.assertEqual(runtime.inspect_feedback(self.root, runtime.configuration(self.project), changed)[1]['status'], 'OPEN')
+        revoked = runtime.record_feedback(self.root, self.project, corrected,
+            {'id': 'misrouted', 'feature': 'cli', 'supersession': None})
+        self.assertEqual(runtime.inspect_feedback(self.root, runtime.configuration(self.project), revoked)[1]['status'], 'OPEN')
+        self.assertEqual(revoked['feedback']['misrouted']['supersession_history'],
+                         [corrected['feedback']['misrouted']['supersession']])
+
+    def test_removed_feature_feedback_requires_explicit_current_successor(self):
+        runtime, state, correction = self.supersession_fixture()
+        self.project['extensions']['workflow']['features'].pop()
+        subprocess.run(['git', 'rm', 'src/cli.py'], cwd=self.root, check=True, capture_output=True)
+        state = self.review(runtime, state, 'api')
+        audit = runtime.inspect_project(self.root, self.project, state)
+        retired = audit['retired'][0]
+        state = runtime.record_review(self.root, self.project, state, {
+            'feature': 'cli', 'basis': retired['basis'], 'analysis': 'API retains the output contract.',
+            'references': ['docs/map.md', 'docs/requirement.md'], 'findings': []})
+        pending = runtime.inspect_project(self.root, self.project, state)
+        self.assertEqual(pending['status'], 'PARTIAL')
+        action = next((item for item in pending['next_actions'] if item['target'] == 'cli'), {})
+        self.assertIn('feedback_reconciliation', action.get('requires', []))
+        # A submitted status must never clear a removed owner's unresolved complaint.
+        with self.assertRaises(ValueError):
+            runtime.record_feedback(self.root, self.project, state,
+                {'id': 'misrouted', 'feature': 'cli', 'status': 'RESOLVED'})
+        corrected = runtime.record_feedback(self.root, self.project, state, correction)
+        audit = runtime.inspect_project(self.root, self.project, corrected)
+        self.assertEqual(audit['status'], 'READY_FOR_REVIEW', audit)
+        self.assertEqual(audit['feedback'][1]['status'], 'SUPERSEDED')
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        state_path = self.write('.work/task.json', json.dumps(corrected))
+        before = state_path.read_bytes()
+        process, lookup = self.invoke('lookup', '--state', '.work/task.json', '--summary')
+        self.assertEqual(process.returncode, 0, lookup)
+        self.assertEqual(lookup['feedback'][1]['status'], 'SUPERSEDED')
+        self.assertTrue(lookup['read_only'])
+        self.assertEqual(lookup['test_commands_executed'], 0)
+        self.assertEqual(state_path.read_bytes(), before)
+
+    def test_feedback_supersession_rejects_target_mutation_missing_proof_and_chains(self):
+        runtime, state, correction = self.supersession_fixture()
+        with self.assertRaisesRegex(ValueError, 'feedback_target_changed'):
+            runtime.record_feedback(self.root, self.project, state,
+                {'id': 'misrouted', 'feature': 'api', 'reason': 'Move silently'})
+        for proof in (dict(correction['supersession'], feedback='missing'),
+                      dict(correction['supersession'], feedback='misrouted'),
+                      dict(correction['supersession'], references=[]),
+                      dict(correction['supersession'], references=['docs/missing.md']),
+                      dict(correction['supersession'], reason='')):
+            with self.subTest(proof=proof), self.assertRaises(ValueError):
+                runtime.record_feedback(self.root, self.project, state, dict(correction, supersession=proof))
+        with self.assertRaises(ValueError):
+            runtime.record_feedback(self.root, self.project, state, dict(correction, expected='New complaint'))
+        corrected = runtime.record_feedback(self.root, self.project, state, correction)
+        with self.assertRaises(ValueError):
+            runtime.record_feedback(self.root, self.project, corrected, {
+                'id': 'variant', 'feature': 'api', 'supersession': dict(correction['supersession'], feedback='misrouted')})
+        missing = deepcopy(corrected)
+        del missing['feedback']['variant']
+        self.assertEqual(runtime.inspect_feedback(self.root, runtime.configuration(self.project), missing)[0]['status'], 'OPEN')
+        broken = deepcopy(corrected)
+        broken['feedback']['variant']['supersession'] = deepcopy(corrected['feedback']['misrouted']['supersession'])
+        self.assertTrue(all(item['status'] == 'OPEN' for item in
+            runtime.inspect_feedback(self.root, runtime.configuration(self.project), broken)))
+        for malformed in ({}, [], False):
+            with self.subTest(malformed=malformed):
+                broken = deepcopy(corrected)
+                broken['feedback']['variant']['supersession'] = malformed
+                self.assertTrue(all(item['status'] == 'OPEN' for item in
+                    runtime.inspect_feedback(self.root, runtime.configuration(self.project), broken)))
+                with self.assertRaises(ValueError):
+                    runtime.record_feedback(self.root, self.project, broken, correction)
+        broken = deepcopy(state)
+        broken['feedback']['unrelated'] = None
+        with self.assertRaisesRegex(ValueError, 'feedback_record_identity_mismatch'):
+            runtime.record_feedback(self.root, self.project, broken, correction)
+
     def test_revoked_decision_cannot_be_reapproved_by_metadata_or_same_review(self):
         runtime = self.runtime()
         state = runtime.begin(self.root, self.project, 'feedback', ['api'])

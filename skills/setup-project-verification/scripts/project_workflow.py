@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: e473364c4117e091a2736cad277ad87fb04541809d7bb6d7afc4681bf8e3f01a
+# Source-SHA256: faa14cc006d6c6c70b2a82dce635bf658504646e43f73864bdaadf3ca1b22e0f
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -875,7 +875,8 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
         feature_feedback = [item for item in result['feedback'] if item['feature'] == identity]
         repair_request = state.get('intent') == 'feedback' and identity in state.get('targets', []) and (
             not feature_feedback or any(item.get('kind', 'requirement_violation') in
-                                       {'requirement_violation', 'oracle_tool_error'} for item in feature_feedback))
+                                       {'requirement_violation', 'oracle_tool_error'} and not item.get('supersession')
+                                       for item in feature_feedback))
         if repair_request:
             requires.extend(['repair', 'regression', 'normal_case'])
         ui_requested = state.get('intent') == 'ui' and identity in state.get('targets', [])
@@ -889,11 +890,12 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
         mapping_pending = mapping_pending or not mapping_ready
         if product_findings:
             requires.append('product_resolution')
-        unresolved_feedback = [item for item in result['feedback'] if item['feature'] == identity and item['status'] not in {'RESOLVED', 'ACCEPTED'}]
+        unresolved_feedback = [item for item in result['feedback'] if item['feature'] == identity and item['status'] not in {'RESOLVED', 'ACCEPTED', 'SUPERSEDED'}]
         if unresolved_feedback:
             for item in unresolved_feedback:
                 kind = item.get('kind', 'requirement_violation')
-                requires.extend(['diagnosis'] if kind in {'environment_limit', 'unknown'} else
+                requires.extend(['feedback_reconciliation'] if item.get('supersession') else
+                                ['diagnosis'] if kind in {'environment_limit', 'unknown'} else
                                 ['difference_review'] if kind == 'intentional_difference' else
                                 ['criterion_revision', 'verification', 'normal_case'] if kind == 'requirement_change' else
                                 ['repair', 'regression', 'normal_case'])
@@ -992,16 +994,19 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
         if not reviewed:
             mapping_pending = True
             result['findings'].append(f'removed_feature_needs_reconciliation:{name}')
-        if not reviewed or product_findings:
+        pending_feedback = [item for item in result['feedback'] if item['feature'] == name
+                            and item['status'] not in {'RESOLVED', 'ACCEPTED', 'SUPERSEDED'}]
+        if not reviewed or product_findings or pending_feedback:
             result['obligations'].append({'id': f'removed:{name}:{basis}', 'target': name,
                 'basis': basis, 'reason': 'removed_feature', 'changed': [],
                 'requires': (['removal_review'] if not reviewed else []) +
-                            (['product_resolution'] if product_findings else []),
+                            (['product_resolution'] if product_findings else []) +
+                            (['feedback_reconciliation'] if pending_feedback else []),
                 'references': sorted({p for f in config['features'] for p in f['map']})})
     result['mapping_status'] = 'PARTIAL' if mapping_pending or result['unmapped'] else 'READY_FOR_REVIEW'
     result['coverage'] = coverage_summary(result['coverage']['rows'], result['coverage']['matrix'])
     result['status'] = 'PARTIAL' if result['obligations'] or result['unmapped'] or result['findings'] else 'READY_FOR_REVIEW'
-    if any(item['status'] not in {'RESOLVED', 'ACCEPTED'} for item in result['feedback']):
+    if any(item['status'] not in {'RESOLVED', 'ACCEPTED', 'SUPERSEDED'} for item in result['feedback']):
         result['status'] = 'PARTIAL'
     if result.get('investigation', {}).get('status') == 'PARTIAL':
         result['status'] = 'PARTIAL'
@@ -1247,15 +1252,64 @@ def difference_review_matches(entry, config, feature):
             difference_criteria(config, feature).issubset(refs))
 
 
+def feedback_basis(entry):
+    return digest({key: value for key, value in entry.items()
+                   if key not in {'supersession', 'supersession_history'}})
+
+
+def feedback_successor(root, config, state, identity, proof):
+    if (not isinstance(proof, dict) or not isinstance(proof.get('feedback'), str)
+            or not isinstance(proof.get('reason'), str) or not proof['reason'].strip()
+            or not isinstance(proof.get('references'), list) or not proof['references']):
+        raise ValueError('feedback_supersession_review_required')
+    if any(not isinstance(item, dict) or item.get('id') != key
+           for key, item in state.get('feedback', {}).items()):
+        raise ValueError('feedback_record_identity_mismatch')
+    successor = state.get('feedback', {}).get(proof['feedback'])
+    if (proof['feedback'] == identity or not isinstance(successor, dict)
+            or successor.get('id') != proof['feedback']
+            or successor.get('feature') not in {feature['id'] for feature in config['features']}):
+        raise ValueError('feedback_supersession_current_target_required')
+    # One direct owner link keeps cycles and hidden chains out of the completion path.
+    if successor.get('supersession') is not None or any(
+            isinstance(item.get('supersession'), dict) and item['supersession'].get('feedback') == identity
+            for item in state.get('feedback', {}).values()):
+        raise ValueError('feedback_supersession_chain_not_supported')
+    hashes = {}
+    for name in proof['references']:
+        if not isinstance(name, str) or not name or (value := file_hash(root, name)) is None:
+            raise ValueError('feedback_supersession_reference_missing')
+        hashes[name] = value
+    return successor, hashes
+
+
 def record_feedback(root, project, state, entry):
     if not isinstance(entry, dict) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,127}', str(entry.get('id', ''))):
         raise ValueError('feedback_identity_required')
-    feature = next((f for f in configuration(project)['features'] if f['id'] == entry.get('feature')), None)
-    if feature is None:
-        raise ValueError('feedback_feature_unknown')
     previous = state.get('feedback', {}).get(entry['id'], {})
     if previous and previous['feature'] != entry['feature']:
         raise ValueError('feedback_target_changed')
+    if 'supersession_history' in entry:
+        raise ValueError('feedback_supersession_history_is_read_only')
+    if 'supersession' in entry:
+        if not previous or set(entry) != {'id', 'feature', 'supersession'}:
+            raise ValueError('feedback_supersession_requires_existing_unchanged_record')
+        proof = deepcopy(entry['supersession'])
+        if proof is not None:
+            if not isinstance(proof, dict) or set(proof) != {'feedback', 'reason', 'references'}:
+                raise ValueError('feedback_supersession_review_required')
+            successor, hashes = feedback_successor(root, configuration(project), state, entry['id'], proof)
+            proof.update(source_basis=feedback_basis(previous), target_basis=feedback_basis(successor),
+                         reference_hashes=hashes)
+        result = deepcopy(state)
+        updated = result['feedback'][entry['id']]
+        if updated.get('supersession') and updated['supersession'] != proof:
+            updated.setdefault('supersession_history', []).append(updated['supersession'])
+        updated['supersession'] = proof
+        return result
+    feature = next((f for f in configuration(project)['features'] if f['id'] == entry.get('feature')), None)
+    if feature is None:
+        raise ValueError('feedback_feature_unknown')
     updated = dict(previous, **deepcopy(entry))
     for field in ('decision_hashes', 'decision_binding', 'decision_history', 'confirmation_hashes'):
         if field in entry:
@@ -1474,6 +1528,28 @@ def inspect_feedback(root, config, state, *, bundle_cache=None):
                 except (OSError, ValueError, TypeError, KeyError):
                     remaining.append('repair_evidence_unavailable')
         result.append(dict(entry, status='OPEN' if remaining else 'RESOLVED', remaining=sorted(set(remaining))))
+    statuses = {item['id']: item['status'] for item in result}
+    for item in result:
+        entry = entries[item['id']]
+        proof = entry.get('supersession')
+        if proof is None:
+            continue
+        remaining = []
+        try:
+            successor, hashes = feedback_successor(root, config, state, item['id'], proof)
+            if (proof.get('source_basis') != feedback_basis(entry)
+                    or proof.get('target_basis') != feedback_basis(successor)
+                    or proof.get('reference_hashes') != hashes):
+                remaining.append('feedback_supersession_review_stale')
+            if statuses[successor['id']] not in {'RESOLVED', 'ACCEPTED'}:
+                remaining.append('feedback_successor_unresolved')
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            remaining.append(str(error))
+        item['original_remaining'] = item['remaining']
+        successor_id = proof.get('feedback') if isinstance(proof, dict) else None
+        item['successor_status'] = statuses.get(successor_id) if isinstance(successor_id, str) else None
+        item['remaining'] = remaining
+        item['status'] = 'OPEN' if remaining else 'SUPERSEDED'
     return result
 
 

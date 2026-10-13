@@ -1,10 +1,17 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: b93711678f0c40f5a34b4c38c401492f8aba323866f41247f92b06f39f9cab34 -->
+<!-- Source-SHA256: 4454ac04aa446bad263a3368352d584f92ebdc37a24421c0b719a4161e9653fd -->
 
 # Project workflow obligations
 
 Existing project config owns `extensions.workflow`; a task record under `.work` retains review progress. The bundled `scripts/project_workflow.py` computes obligations from current bytes and registered connections without calling a model. Requirements, feature meanings, causes and visual judgments remain Agent work. Review records are Agent inputs, not authenticated proof.
+
+Misrouted feedback can retain its original identity while referencing a reviewed
+same-task successor. SUPERSEDED is derived only from current link bindings and
+an independently RESOLVED/ACCEPTED active-owner successor; stale/invalid links
+remain OPEN with `feedback_reconciliation` as the next action. Removed Features
+retain separate removal review obligations, including when feedback is pending.
+The agent-workflow repair/reuse reference owns the input and revocation rules.
 
 `lookup --summary` (also `resume`/`audit`) reduces presentation after the same
 current evidence inspection. It retains exact task identity/request, Feature

@@ -459,9 +459,21 @@ class VerificationExecutionTests(unittest.TestCase):
                          red_bundle='.work/red/evidence/bundle.json', green_bundle='.work/green/evidence/bundle.json')
         state = workflow['record_feedback'](self.project, project, state, complaint)
         self.assertEqual(workflow['inspect_project'](self.project, project, state)['feedback'][0]['status'], 'RESOLVED')
+        if not maintenance:
+            state = workflow['record_feedback'](self.project, project, state, dict(complaint,
+                id='duplicate', root_cause='Initially misdiagnosed as a caller issue', repair_paths=['check.py']))
+            self.assertEqual(workflow['inspect_project'](self.project, project, state)['feedback'][1]['status'], 'OPEN')
+            (self.project / '.work/triage.md').write_text('Fixture review: domain negative is the same incident.\n')
+            state = workflow['record_feedback'](self.project, project, state, {
+                'id': 'duplicate', 'feature': 'fixture-product', 'supersession': {
+                    'feedback': 'negative', 'reason': 'The domain owner repaired this incident.',
+                    'references': ['.work/triage.md']}})
+            self.assertEqual(workflow['inspect_project'](self.project, project, state)['feedback'][1]['status'], 'SUPERSEDED')
         (self.project / '.work/state.json').write_text(json.dumps(state))
         later = workflow['begin_work'](self.project, project)
         self.assertEqual(workflow['inspect_project'](self.project, project, later)['feedback'][0]['status'], 'RESOLVED')
+        if not maintenance:
+            self.assertEqual(workflow['inspect_project'](self.project, project, later)['feedback'][1]['status'], 'SUPERSEDED')
         if maintenance:
             summary = workflow['maintenance_summary'](self.project, project, state, ['.work/green/evidence/bundle.json'] * 2)
             check = next(row for row in summary['checks'] if row['id'] == 'arithmetic-readback')
@@ -511,6 +523,9 @@ class VerificationExecutionTests(unittest.TestCase):
         reopened = workflow['inspect_project'](self.project, project, later)['feedback'][0]
         self.assertEqual(reopened['status'], 'OPEN')
         self.assertIn('repair_revalidation_required', reopened['remaining'])
+        delegated = workflow['inspect_project'](self.project, project, later)['feedback'][1]
+        self.assertEqual(delegated['status'], 'OPEN')
+        self.assertIn('feedback_successor_unresolved', delegated['remaining'])
 
     def test_maintenance_cost_overlap_and_actual_consolidation_preserve_detection(self):
         self.test_feedback_red_green_normal_and_subsequent_revalidation(maintenance=True)
