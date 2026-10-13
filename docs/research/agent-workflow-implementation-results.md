@@ -47,6 +47,15 @@ resource drift, distribution and formatting checks passed. Raw/command receipts 
 retained in `.work/design-review-20261014/`. The final focused run covers the last
 malformed-record guard added while the broader run was in progress.
 
+Frozen 0.1.58 was built from clean source `49a3a0911125cf4c9c7457447707047fe24dd888`
+(tree `d235f4e58058f3e66437f5d09d5f999fb5af5fb1`): 19 Skills, 247 files.
+The same four lifecycle/native cases then consumed the packaged workflow/viewer/
+capture paths and passed in 15.038s; all 247 package file hashes remained identical,
+including no extra bytecode files. This is package CLI and synthetic native-flow
+acceptance, not installation, native host delivery or new Yeondoo Link acceptance.
+The package, command receipts and two retained connected-product regression exports
+are preserved under `.work/design-review-20261014/` before worktree cleanup.
+
 Remaining scope: original Yeondoo Link feedback/state/raw were not rewritten. Its
 retained 0.1.57 staff entry remains OPEN, and applying the new disposition there is
 a separate product-consumption check. Supersession supports one direct active-owner
