@@ -21,6 +21,59 @@ def _digest(data: bytes) -> str:
 
 
 class VerificationExecutionTests(unittest.TestCase):
+    def test_bundle_lookup_rejects_source_change_during_observation(self):
+        pending = self.project / 'pending.txt'
+        pending.write_text('original untracked bytes')
+        plan = self._plan()
+        _, executed = self._execute(plan)
+        viewer = self._viewer_module()
+        self.assertEqual(viewer.view_bundle(executed['bundle'], include_scope=False)['items'][0]['current_status'], 'PASS')
+        observe = viewer._bundle_current_context
+        for changed in (self.project / 'check.py', pending):
+            original = changed.read_bytes()
+            def interrupted(*args, **kwargs):
+                result = observe(*args, **kwargs)
+                changed.write_bytes(original + b'\n# changed during lookup\n')
+                return result
+            try:
+                with self.subTest(changed=changed.name), patch.object(viewer, '_bundle_current_context', interrupted):
+                    result = viewer.view_bundle(executed['bundle'], include_scope=False)
+                    self.assertEqual(result['items'][0]['current_reuse'], 'STALE')
+                    self.assertNotEqual(result['items'][0]['current_status'], 'PASS')
+                    self.assertEqual(result['test_commands_executed'], 0)
+            finally:
+                changed.write_bytes(original)
+
+    def test_source_observation_cache_keeps_command_and_record_cwds_distinct(self):
+        import copy
+
+        nested = self.project / 'nested'
+        nested.mkdir()
+        plan = json.loads(self._plan().read_text(encoding='utf-8'))
+        plan['checks'][0]['raw_observations'][0]['sha256'] = '0' * 64
+        second = copy.deepcopy(plan['checks'][0])
+        second['feature_id'] = 'nested-product'
+        second['id'] = 'nested-readback'
+        second['conditions']['command']['cwd'] = str(nested)
+        plan['checks'].append(second)
+        viewer = self._viewer_module()
+
+        with patch.object(viewer, '_git_snapshot', wraps=viewer._git_snapshot) as snapshots:
+            viewer._bundle_current_context(plan)
+
+        self.assertEqual(
+            {call.args[0] for call in snapshots.call_args_list},
+            {self.project.resolve(), nested.resolve()},
+            'A command cwd under the same repository still needs its own Git observation',
+        )
+
+        # A capture may name a cwd different from the check command cwd. The
+        # item-level current-source check must not reuse the other cwd's diff.
+        cache = {self.project.resolve(): viewer._git_snapshot(self.project)}
+        identity = viewer._current_source_identity(nested, cache, status=False)
+        self.assertEqual(identity['revision'], cache[self.project.resolve()]['revision'])
+        self.assertEqual(set(cache), {self.project.resolve(), nested.resolve()})
+
     def test_project_lookup_shares_bundle_observation_and_remeasures_next_call(self):
         import copy
         root = self.project
@@ -61,7 +114,17 @@ class VerificationExecutionTests(unittest.TestCase):
             def resolve(path,*args,**kwargs):
                 return vars(viewer) if Path(path).name=='verification_results.py' else load(path,*args,**kwargs)
             with patch.object(workflow.runpy,'run_path',resolve):
-                current = workflow.inspect_project(root,project,state)
+                git_commands = []
+                original_check_output = viewer.subprocess.check_output
+                def count_git(command,*args,**kwargs):
+                    if isinstance(command,(list,tuple)) and command and command[0]=='git':
+                        git_commands.append(list(command))
+                    return original_check_output(command,*args,**kwargs)
+                with patch.object(viewer.subprocess,'check_output',side_effect=count_git), \
+                        patch.object(viewer,'_git_snapshot',wraps=viewer._git_snapshot) as snapshots:
+                    current = workflow.inspect_project(root,project,state)
+                    self.assertEqual(snapshots.call_count,2,'One lookup shares a snapshot and checks it again before returning')
+                self.assertEqual(len(git_commands),10,'Source checks are bounded by cwd, not consumer count')
                 self.assertEqual(observed.call_count,1,'One lookup must not assess the same native bundle per consumer')
                 self.assertEqual([f['check_results'][0]['current_status'] for f in current['features']],['PASS','ISSUES'])
                 original = (root/'result.json').read_bytes()
@@ -70,6 +133,21 @@ class VerificationExecutionTests(unittest.TestCase):
                 self.assertEqual(observed.call_count,2,'A later lookup must observe changed raw bytes again')
                 self.assertTrue(all(f['check_results'][0]['current_status']!='PASS' for f in changed['features']))
                 (root/'result.json').write_bytes(original)
+                criteria = root/'criterion.md'
+                original_criteria = criteria.read_bytes()
+                criteria.write_text('The captured sum must be six.\n')
+                tracked_source_change = workflow.inspect_project(root,project,state)
+                self.assertTrue(all(f['check_results'][0]['current_status']!='PASS'
+                                    for f in tracked_source_change['features']),
+                                'A fresh lookup must invalidate evidence after tracked source changes')
+                criteria.write_bytes(original_criteria)
+                untracked = root/'lookup-source-probe.py'
+                untracked.write_text('marker = True\n')
+                untracked_source_change = workflow.inspect_project(root,project,state)
+                self.assertTrue(all(f['check_results'][0]['current_status']!='PASS'
+                                    for f in untracked_source_change['features']),
+                                'A fresh lookup must invalidate evidence after untracked source changes')
+                untracked.unlink()
                 cache = {}
                 rejected = workflow.inspect_evidence(root,feature,{'arithmetic-readback':['must-not-run']},bundle,bundle_cache=cache)
                 accepted = workflow.inspect_evidence(root,feature,project['commands'],bundle,bundle_cache=cache)

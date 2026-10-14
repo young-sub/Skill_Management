@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: 4454ac04aa446bad263a3368352d584f92ebdc37a24421c0b719a4161e9653fd -->
+<!-- Source-SHA256: 74fd6f404ea61c0f1f30cb447a2b1ef8e9e38cd4c48e22c1a6b74b248a47ba5f -->
 
 # Project workflow obligations
 
@@ -358,6 +358,14 @@ The native-JSON path remains available for browser/API/DB observations.
 Unittest captures establish only their assertions; ignored inputs, dependencies,
 live runtime identity and protected acceptance require separate evidence.
 # Feedback state and follow-up consumption
+
+Read-only `lookup` and task `resume` retain task, feedback, criteria and remaining
+work when a prepared plan is missing or bound to a different state path. The
+verification section reports BLOCKED and its cause, including in `--summary`;
+`execution_plan_reconciliation` requires inspecting the existing effects before
+any explicit prepare/execute. Copying a task for evaluation does not authorize
+executing its original plan. Neither query rewrites the plan/state nor retries a
+command; execute keeps the exact task/path binding requirement.
 
 Read-only `maintain` adds measured `maintenance` for explicitly linked bundles.
 Removing baseline checks from an active Feature retains `check_retirements` and

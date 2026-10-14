@@ -14,6 +14,56 @@ SCRIPT = ROOT / 'authoring/scripts/project_workflow.py'
 
 
 class ProjectWorkflowTests(unittest.TestCase):
+    def test_summary_distinguishes_unstarted_plan_from_unknown_external_effect(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'change', ['api'])
+        state['execution_plan'] = '.work/run/plan.json'
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        self.write('.work/task.json', json.dumps(state))
+        self.write('.work/run/plan.json', json.dumps({'workflow_scope': {
+            'root': str(self.root), 'state': '.work/task.json', 'work_id': None,
+            'task_identity': runtime.task_identity(state)}}))
+        _, unstarted = self.invoke('lookup', '--state', '.work/task.json', '--summary')
+        self.assertEqual(unstarted['verification']['status'], 'NOT_RUN')
+        marker = self.write('.work/run/evidence/command-0-started.json', '{}')
+        before = {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()}
+        _, interrupted = self.invoke('resume', '--state', '.work/task.json', '--summary')
+        self.assertEqual(interrupted['status'], 'BLOCKED')
+        self.assertEqual(interrupted['verification']['unknown_launches'], [marker.name])
+        self.assertEqual(interrupted['test_commands_executed'], 0)
+        self.assertEqual(before, {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()})
+
+    def test_lookup_preserves_task_evidence_when_prepared_plan_is_unavailable_or_misbound(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'feedback', ['api'])
+        state = runtime.record_feedback(self.root, self.project, state, {
+            'id': 'complaint', 'feature': 'api', 'expected': 'Ten',
+            'observed': 'Eleven', 'reproduction': 'Read the API'})
+        state['execution_plan'] = '.work/plan.json'
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        self.write('.work/copied-state.json', json.dumps(state))
+        for plan in (None, {'workflow_scope': {'state': '.work/original-state.json'}},
+                     [], {'workflow_scope': []}):
+            if plan is not None:
+                self.write('.work/plan.json', json.dumps(plan))
+            before = {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()}
+            for action in ('lookup', 'resume'):
+                with self.subTest(plan=plan, action=action):
+                    process, result = self.invoke(action, '--state', '.work/copied-state.json', '--summary')
+                    self.assertEqual(process.returncode, 2)
+                    self.assertEqual(result['status'], 'BLOCKED')
+                    self.assertEqual(result.get('task', {}).get('task_id'), state['task_id'])
+                    self.assertEqual(result['feedback'][0]['id'], 'complaint')
+                    self.assertEqual(result['verification']['status'], 'BLOCKED')
+                    self.assertTrue(result['verification']['remaining'])
+                    self.assertTrue(result['read_only'])
+                    self.assertEqual(result['test_commands_executed'], 0)
+                    self.assertTrue(any('execution_plan_reconciliation' in a['requires'] for a in result['next_actions']))
+            _, refused = self.invoke('execute', '--state', '.work/copied-state.json')
+            self.assertEqual(refused['status'], 'BLOCKED')
+            self.assertEqual(refused['test_commands_executed'], 0)
+            self.assertEqual(before, {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()})
+
     def test_begin_reuses_one_source_snapshot_and_reobserves_next_request(self):
         runtime = self.runtime()
         asset = self.write('src/runtime.dat', 'large shared runtime input\n')

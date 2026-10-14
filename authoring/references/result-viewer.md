@@ -1,5 +1,11 @@
 # Existing-result lookup
 
+Source identity is shared only within one lookup and exact command/capture cwd.
+Before returning, a final Git snapshot rechecks those observations; a changed or
+unavailable source invalidates current reuse. Each later invocation measures again.
+This reduces repeated reads without making lookup a lock or a transactional snapshot
+of a concurrently edited repository. Raw, criterion and runtime bindings still apply.
+
 Use the bundled `scripts/verification_results.py` for compatible project records. The default lookup path reads files and runs fixed read-only Git identity queries; it never executes captured argv, tests or services, or writes inputs. Direct CLI/CI remains independent of Skills.
 
 The existing workflow entrypoint also offers connected `prepare`, `execute`,

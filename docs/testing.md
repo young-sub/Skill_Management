@@ -1,5 +1,17 @@
 # Testing And Impact Selection
 
+The current consumption regression in `test_project_workflow` preserves task and
+feedback visibility for unavailable/misbound/malformed prepared plans in lookup/resume,
+including summary output. Both return BLOCKED with a reconciliation action while
+state/raw remain unchanged and execute still refuses the plan. The focused normal
+connected execution/resume case checks that valid plans retain their behavior.
+The viewer/execution regression checks invocation-local Git observation reuse,
+different command/capture cwd keys, and later raw/tracked/untracked source changes.
+A final source recheck rejects tracked or untracked edits made during lookup.
+Standalone current-context input cannot replace live Git measurement. These bounded
+changes select workflow/refinement/hook/viewer/execution and distribution checks;
+they do not change execution policy, Harness baseline, schema or test discovery.
+
 Version 0.1.58 adds focused feedback supersession cases in the workflow refinement
 selector: original identity preservation, removed-owner reconciliation, independent
 successor validity, input order, stale/revoked links, malformed records and zero-run

@@ -1,6 +1,6 @@
 # Agent Coding 업무 위임·검증·지속 개선 체계
 
-현재 검토 기준은 **2026-10-14 / 검토 시작 local main `4ef6a64` / 기존 runtime 0.1.57**이다. 이번 검토는 실제 코드·호출자·기존 인수 결과를 대조하고, 피드백 이관의 수명주기 공백을 **0.1.58**로 보완한다. [현재 상태와 한계](#design-review-0158), [다음 개선과 인수](#next-improvements-0158), [실제 구현·검증 결과](agent-workflow-implementation-results.md#feedback-reconciliation-2026-10-14)를 우선 읽는다. §12는 당시의 평가 합의, §13은 지속 목표다. 이전 실행 순서를 현재 미구현 목록으로 읽지 않는다.
+현재 실행 기준은 **2026-10-14 / 시작 local main `289c51c` / 0.1.58 → 0.1.59**다. 실제 보존된 연두링크 피드백을 복사 상태에서 이관하고, 제품 소비가 드러낸 조회 오류와 반복 Git 관측을 공통 코드에서 수리했다. [이번 구현·검증 결과](agent-workflow-implementation-results.md#product-consumption-2026-10-14)를 우선 읽는다. 아래 0.1.58 검토와 §10은 출발점과 인수 기준이며 이미 완료된 일을 다시 구현할 목록이 아니다. §12는 당시의 평가 합의, §13은 지속 목표다.
 
 **목적은 플러그인 고도화이며 연두링크는 실제 사용 평가 대상이다.** 연두링크 화면만 개선하고 종료하지 않는다. 기존 [연두링크 평가](plugin-improvement-next-session.md)와 [지속 고도화 요청](plugin-continuous-improvement-next-session.md)은 수행 범위를 보존한다. 다음 개선 선정은 현재 근거와 §10을 따른다. 과거 `agent-workflow-next-session.md`와 `agent-coding-next-session.md`의 실행 블록도 이미 수행된 범위의 기록이다.
 
@@ -53,7 +53,7 @@ Agent는 요구·원인·시각·검사 가치의 의미 판단을, CLI는 상�
 | --- | --- | --- |
 | 많은 task 위임·검증 조회 | 정확한 task 선택, 당시/현재 근거 구분, 조회 실행 0회, 공유 owner 변경 후 stale, 8개 hook 후보 읽기 제한. 512개 이력 fixture에서 조사량 감소를 측정 | 명시한 state들을 각각 조회할 수 있으나 묶음 비교는 Agent가 취합한다. 512개는 보존 기록 규모 시험이며 512개 실제 동시 업무가 아니다. 한 record에 writer 하나; 중단 인수·동시 쓰기·장기 무인 운영과 native 자동 전달은 미입증 |
 | 업무 규칙·아키텍처 × FE/BE/API/Domain | 6셀 적용 판단, 실제 native 근거, 아키텍처 caller/상태/효과 검토. 연두링크 상담의 FE/Domain과 메모리 재표시를 확인했고 없는 서버는 이유 있는 N/A. 별도 연결 예제에서 Chromium/API/Domain/SQLite·재시작 조회와 FE 오류/BE PASS를 대조 | 6셀은 질문과 책임의 지도이지 독립 실행 6개나 E2E 성공 증명이 아니다. 0.1.57 실제 소비에서 13개 검사가 현재 PASS여도 더 넓은 범위의 공백 17개가 남았다. 사업 가치·전환·수익과 임상/상용 적합성은 미검증 |
-| 불편·피드백·실질 가드레일 | 원인 분류, 요구 revision, owner 수리, 실제 RED/GREEN/정상과 후속 소비. **0.1.58은 잘못 연결되거나 삭제된 owner의 원본을 보존하고 현재 후속 담당 기록으로 이관하는 경로를 추가** | 원본 ID/대상 변경은 계속 금지. SUPERSEDED는 원본 수리 성공이 아니며 후속 기록이 독립적으로 현재 RESOLVED/ACCEPTED일 때만 성립한다. 실제 연두링크의 옛 staff 기록은 수정하지 않았고, 새 이관 기능의 제품 적용은 아직 별도 인수 전 |
+| 불편·피드백·실질 가드레일 | 원인 분류, 요구 revision, owner 수리, 실제 RED/GREEN/정상과 후속 소비. **0.1.58은 잘못 연결되거나 삭제된 owner의 원본을 보존하고 현재 후속 담당 기록으로 이관하는 경로를 추가** | 원본 ID/대상 변경은 계속 금지. SUPERSEDED는 원본 수리 성공이 아니며 후속 기록이 독립적으로 현재 RESOLVED/ACCEPTED일 때만 성립한다. 실제 연두링크 원본은 보존했다. 0.1.59 평가의 격리 복사 상태에서 동일 사건 이관과 누락·기준 변경·철회 시 OPEN 복귀를 확인했다 |
 | UIUX 기준의 생성·고도화 | guide/token/component owner와 소비 Feature 연결, 공유 입력 변경 시 재검토, 기존 화면·상태와 새 문맥의 staff 소비 근거 | CONNECTED는 실제 import/render·시각 일관성의 증명이 아니다. 시안은 draft이며 사용자 승인이 없다. CatalogImport modal처럼 지도에는 있으나 기존 6개 browser suite 밖인 화면이 다음 실제 소비 후보 |
 | 실행 가능한 검증 가이드 | 프로젝트 명령·adapter·raw/exit·source/served build·cleanup 연결. 0.1.57 제품 실행은 3개 producer의 13개 판정을 연결하고 원래 실패도 보존 | 명령 안내와 기능 적합성은 별개다. native host/Skill/hook, 외부 speech/provider와 새 작성자의 무도움 발견 능력은 따로 평가해야 한다. 당시 전체 lookup 215.984초는 여전히 비용 과제 |
 | 필요한 검사 유지·고도화·제거 | 이유별 retirement, 독자적 검출·정상 허용·활성 예방 연결, 중복 bundle/파일 읽기 감소 | 반복 읽기 제거는 테스트 삭제 근거가 아니다. 이번 검토에서도 고유 검출이 불필요하다는 근거가 없어 제품 검사를 제거하지 않았다. 통합·요구 폐기·구조적 예방·flaky 수리를 구분해 한 후보씩 평가 |
@@ -230,6 +230,8 @@ Plugin은 검증된 공통 Router·Playbook·Skill·capture 등의 **생성 패�
 <a id="next-improvements-0158"></a>
 
 ## 10. 다음 개선의 순서와 인수
+
+2026-10-14 실행에서는 아래 순서에 따라 실제 동일 사건의 이관·무효화, 다른 task의 조회와 재개, 기존 Labeler API/D1 연결 및 의도와 다른 유효 입력 반례를 확인했다. 반복 관측은 출력 동등성을 유지하며 Git 호출 143→49로 줄였고, 조회 도중 변경은 최종 재관측으로 STALE 처리한다. 기존 검사 삭제 근거는 없어 모두 유지했다. CatalogImport 후속 소비와 고정 패키지 인수의 최종 상태는 [이번 결과](agent-workflow-implementation-results.md#product-consumption-2026-10-14)를 따른다. 실제 사용자 업무 가치와 native host Skill/hook 전달은 별도 미검증으로 남긴다.
 
 다음은 0.1.58 보완 이후의 구체적인 개선 후보다. 모두를 한 번에 새 framework로 만들지 않는다. 우선순위는 **실제 잘못된 완료/재작업 방지 → 필요한 사용자 흐름과 후속 소비 → 반복 비용 감소**다. 새 구현이 필요한 것과 기존 기능으로 실행해 볼 인수를 구분한다.
 

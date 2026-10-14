@@ -1,5 +1,132 @@
 # Agent workflow implementation and acceptance
 
+<a id="product-consumption-2026-10-14"></a>
+
+## Product consumption and read-only handoff, 2026-10-14
+
+This execution began at clean local `main@289c51c` / 0.1.58 with one registered
+worktree. Implementation used the independent TEMP `skill-consumption-20261014`
+worktree; the user explicitly authorized local-main integration. Version **0.1.59**
+repairs two common consumption problems, without adding a dashboard, database,
+scheduler, dependency or concurrent-state-writer claim. Original product checkouts,
+credentials, branches and earlier `.work` evidence remain separate.
+
+### Actual feedback and task consumption
+
+The retained Yeondoo Link `6289ea0` task has two records for the same observer
+incident: `retired-manifest-abort-observer` was assigned to `staff-access`, while
+`app-runtime-manifest-abort-observer` names the actual browser-runner owner. Both
+bind the same run02 RED and aborted manifest GET. Root inspected the original raw:
+run02 classifies it as a request failure; run03 and run05 classify it as a narrowly
+matched navigation cancellation. The underlying browser-abort cause is unknown;
+the separate retired-image complaint is a different incident.
+
+An exact state copy under the retained product root's new
+`.work/tasks/feedback-consumption-20261014/` preserves original cwd/raw bindings.
+Fresh 0.1.58 audit confirmed the successor RESOLVED before supersession registration.
+Only the copy receives the incident review and link. The original task ID, baseline,
+complaint and RED/GREEN remain unchanged. Current inspection yields SUPERSEDED with
+a RESOLVED successor; separate in-memory variants for missing successor bundle,
+changed criterion set and revoked link each reopen the original record. Missing
+bundle and changed criteria also reopen the successor. All **743 original task/raw
+files** retain their hashes. These are new inspections of retained real evidence,
+not a claim that the old product producer commands ran again.
+
+Actual copied-state `lookup` first returned only `prepared_plan_task_mismatch`,
+hiding the task's feedback and current results. Exact execution-plan/path binding
+is still required for execute. Read-only lookup/resume now retain task, criteria,
+feedback and result rows, expose verification BLOCKED and its cause, and provide
+`execution_plan_reconciliation` before any explicit execution. Summary retains the
+same verification distinction, including NOT_RUN versus an unknown launched
+command. An independent reviewer reproduced array-shaped plan/scope crashes;
+explicit object validation now preserves the same diagnostic output instead.
+Missing/misbound/malformed plan cases are RED/GREEN; valid connected execution and
+resume remain GREEN. Querying does not repair paths, change state or replay effects.
+
+The current copied-state query shows thirteen current PASS rows and SUPERSEDED
+feedback while correctly reporting its original plan-path mismatch as BLOCKED.
+The existing product-survey request separately reports 41 NOT_RUN coverage gaps;
+the executed consultation/purchase task reports 17 wider gaps. These selected-task
+comparisons use existing CLI output, not another task database or a claim of total
+project discovery. Three newly run interruption checks cover a killed controller,
+durable unknown-launch refusal and retained known failure/pending execution.
+
+### Repeated source observation cost
+
+Within a bundle view, checks sharing an exact cwd previously re-read whole-Git
+identity per check, then read it again during item revalidation. The viewer now
+shares a private invocation-local observation; distinct command/capture cwd keys
+remain separate. Standalone `view_results` still performs live Git measurement and
+each later call starts fresh. Focused cases retain independent PASS/ISSUES consumer
+results, command rejection, raw mutation, tracked/untracked source invalidation and
+distinct-cwd behavior. Execution/preflight, criteria and whole-Git policy are unchanged.
+
+Three paired read-only run05 bundle observations returned identical complete JSON
+with thirteen PASS items. Git subprocesses fell **143 to 49** in every pair;
+baseline/candidate seconds were **14.035/5.590, 13.675/5.590, 13.614/5.951**. All
+200 named measurement inputs remained unchanged. The benchmark needed a per-command
+safe-directory override for the exact cross-owner product worktree; its earlier
+BLOCKED observation remains separately retained. No persistent Git setting changed.
+Concurrent load/cache state were uncontrolled; this supports reduced repeated work
+for that bundle, not general Agent productivity or whole-CLI speedup.
+
+No product test or guardrail was removed. This is consolidation of repeated reads,
+not requirement retirement, structural replacement or flaky-test repair. Existing
+defect/normal checks remain because there is no evidence that their unique coverage
+is redundant. The first broad collection hit its 300-second supervisor limit after
+127 progress markers; it is not PASS. The same five affected modules then passed
+**159 tests in 405.237s** with a 1200-second limit. The final malformed-plan guard
+has a separate three-case GREEN in 19.774s. Earlier distribution/package/docs checks
+passed 35 tests. Full was not selected: changes are bounded to read-only workflow
+presentation and viewer observation reuse; schemas, Harness baseline, execution
+policy, protected acceptance and test discovery are unchanged.
+
+Evidence for this execution is retained under `.work/consumption-20261014/`, with
+command receipts, original failures, actual feedback variants, paired measurements,
+product artifacts and package inventories. Independent review also reproduced a
+source mutation between initial measurement and reuse. A final per-cwd Git recheck
+now invalidates that lookup as STALE; tracked and existing-untracked mutations have
+separate RED/GREEN evidence. This is bounded observation, not a transactional source
+lock. The final viewer/execution regression passed **74 tests in 219.795s**.
+Intermediate baseline consumption added
+two bytecode files; those files are preserved and that package is not claimed
+unchanged. Final frozen-package consumption and delivery are recorded below.
+
+Native plugin discovery initially failed at CODEX_HOME under the sandbox; the
+authorized read-only retry listed twelve installed plugins, without `agentic-coding`.
+Current-package native Skill invocation and automatic hook delivery therefore remain
+BLOCKED/unobserved. Package CLI execution is separate evidence. No installation,
+provider, global setting, push or deployment is authorized by this result.
+
+### Actual existing API and storage flow
+
+Yeondoo Link's catalog is browser storage, so it cannot supply the requested server
+and database chain. An isolated copy of the existing Labeler `000ffd1` application
+ran its real local Worker and D1, using existing migrations and synthetic local
+accounts. ProductForm, App mutation, Worker API, createProductSchema, account-scoped
+createProduct and D1 were traced separately. The final UI-created category
+`af716a35-933b-45c6-ab9e-cb23e382d2b4` matched selection, product request/response,
+D1 and fresh browser reads. Normal 4,900/13,500 KRW offers survived fresh reads.
+
+A controlled browser-route rewrite changed intended 4,900 to valid 490. The real
+API accepted it (201), D1 and fresh UI showed 490, and the intent-to-storage oracle
+detected the mismatch; a separate valid direct API create passed. This is an
+injected boundary counterexample, not a discovered production FE defect. Invalid
+negative-price PATCH returned 400 without changing detail, version or count. Actual
+UI edit recovery returned 200, version 1 to 2, with 4,900 after fresh read/reopen.
+Separate accounts could not list/read each other's item; wrong account headers
+returned 409. No external request or browser error was observed. The server was
+stopped and D1/WAL/SHM snapshots hashed. Earlier selector, response-body and wrong
+Wrangler-state failures remain raw evidence, not passing product results.
+
+The business rule checked is preservation of a merchant's selected category and
+sales-unit price, with account-owned persistence and recoverable validation failure.
+Real merchant intervention, rework and economic value were not observed; synthetic
+local success does not establish business-model value. Full commands, raw API/D1
+results, screenshots and scripts are in `product-investigation/` in the retained
+execution evidence.
+
+
 <a id="feedback-reconciliation-2026-10-14"></a>
 
 ## Design review and feedback reconciliation, 2026-10-14

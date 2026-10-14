@@ -645,7 +645,11 @@ def connected_verification(root, project, state, path, work_id, action, *, outpu
         raise ValueError('task_requires_prepare')
     plan = local_path(root, name)
     prepared = json.loads(plan.read_text(encoding='utf-8'))
+    if not isinstance(prepared, dict):
+        raise ValueError('prepared_plan_must_be_object')
     scope = prepared.get('workflow_scope', {})
+    if not isinstance(scope, dict):
+        raise ValueError('prepared_plan_scope_must_be_object')
     if (scope.get('root') != str(root) or scope.get('state') != path.relative_to(root).as_posix()
             or scope.get('work_id') != work_id or scope.get('task_identity') != task_identity(state)):
         raise ValueError('prepared_plan_task_mismatch')
@@ -1936,6 +1940,8 @@ def summarize_lookup(result, project, root):
     summary['detail_command'] = {'action': 'lookup', 'root': str(root),
         'state': task.get('state'), 'work_id': task.get('work_id'), 'summary': False}
     viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
+    if 'verification' in result:
+        summary['verification'] = viewer['summarize_results'](result['verification'])
     for row in summary['coverage'].get('rows', []):
         if row.get('evidence'):
             row['evidence'] = viewer['summarize_results']({'items': [row['evidence']]})['items'][0]
@@ -2061,8 +2067,14 @@ def main(argv=None):
         if args.action in {'prepare', 'execute', 'review', 'feedback'} and configuration(project) is None:
             raise ValueError('workflow_not_configured; diagnosis supports investigate/connect/lookup/resume only')
         if args.action in {'prepare', 'execute'} or args.action in {'lookup', 'resume'} and state.get('execution_plan'):
-            verification = connected_verification(root, project, state, state_path, args.work_id, args.action,
-                output=args.output, run_check=args.run_check, timeout=args.timeout, resume=args.resume)
+            try:
+                verification = connected_verification(root, project, state, state_path, args.work_id, args.action,
+                    output=args.output, run_check=args.run_check, timeout=args.timeout, resume=args.resume)
+            except (OSError, ValueError, TypeError, KeyError, subprocess.CalledProcessError) as error:
+                if args.action not in {'lookup', 'resume'}:
+                    raise
+                verification = {'status': 'BLOCKED', 'remaining': [str(error)],
+                                'read_only': True, 'test_commands_executed': 0}
             state, state_path = task_state(root, None if args.work_id else state_path.relative_to(root), args.work_id)
         result = inspect_project(root, project, state)
         result['test_commands_executed'] = (verification or {}).get('test_commands_executed', 0)
@@ -2084,6 +2096,11 @@ def main(argv=None):
             result['task'] = {'state': state_path.relative_to(root).as_posix(), 'work_id': args.work_id,
                               **{key: state.get(key) for key in ('task_id', 'intent', 'targets', 'request', 'base', 'dirty_baseline',
                                                                'reviews', 'feedback', 'results', 'execution_plan', 'investigation')}}
+        if args.action in {'lookup', 'resume'} and (verification or {}).get('status') == 'BLOCKED':
+            result['status'] = 'BLOCKED'
+            result['next_actions'].append({'target': state['task_id'],
+                'requires': ['execution_plan_reconciliation'],
+                'reason': 'Inspect verification blockers and existing effects before explicit prepare/execute; lookup never retries.'})
     except (OSError, ValueError, TypeError, KeyError, subprocess.CalledProcessError) as error:
         result = {'status': 'BLOCKED', 'findings': [str(error)], 'test_commands_executed': 0}
         if root is not None and project is not None:

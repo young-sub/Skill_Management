@@ -1,8 +1,14 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/result-viewer.md -->
-<!-- Source-SHA256: 08d27d4fe2a897323a48050cbe109249eab4286c3e19983d4e1942bf0cddf3bc -->
+<!-- Source-SHA256: 789116349180e855b15e994438266f3e05c053831928deef535655b480239d44 -->
 
 # Existing-result lookup
+
+Source identity is shared only within one lookup and exact command/capture cwd.
+Before returning, a final Git snapshot rechecks those observations; a changed or
+unavailable source invalidates current reuse. Each later invocation measures again.
+This reduces repeated reads without making lookup a lock or a transactional snapshot
+of a concurrently edited repository. Raw, criterion and runtime bindings still apply.
 
 Use the bundled `scripts/verification_results.py` for compatible project records. The default lookup path reads files and runs fixed read-only Git identity queries; it never executes captured argv, tests or services, or writes inputs. Direct CLI/CI remains independent of Skills.
 

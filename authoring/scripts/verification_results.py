@@ -533,6 +533,7 @@ def _item_result(
     assessments: list[dict[str, Any]],
     observations: list[dict[str, Any]],
     current: dict[str, Any] | None,
+    source_cache: dict[Path, dict[str, str]] | None = None,
 ) -> dict[str, Any]:
     feature = check["feature_id"]
     check_id = check["id"]
@@ -662,14 +663,15 @@ def _item_result(
         # A copied historical context file cannot override the current checkout.
         if record and isinstance(record.get('cwd'), str):
             try:
-                def git(*tokens: str) -> bytes:
-                    return subprocess.check_output(['git', '-C', record['cwd'], *tokens], stderr=subprocess.DEVNULL)
-                live_source = {'revision': git('rev-parse', 'HEAD').decode().strip(),
-                               'diff': _sha256(git('diff', 'HEAD', '--binary'))}
+                live_source = _current_source_identity(
+                    record['cwd'], {} if source_cache is None else source_cache,
+                    status='status' in record.get('after', {}),
+                )
                 for key in ('revision', 'diff'):
                     if expected_conditions['source'].get(key) != live_source[key]:
                         current_findings.append(f'condition_mismatch:current.source.{key}')
-                if 'status' in record.get('after', {}) and git('status', '--porcelain').decode('utf-8', errors='replace') != record['after']['status']:
+                if ('status' in record.get('after', {})
+                        and live_source.get('status') != record['after']['status']):
                     current_findings.append('condition_mismatch:current.source.status')
             except (OSError, subprocess.CalledProcessError):
                 current_findings.append('condition_missing:current.source.git')
@@ -814,6 +816,24 @@ def _git_snapshot(cwd: Path) -> dict[str, str]:
         "status": git("status", "--porcelain").decode("utf-8", errors="replace"),
         "untracked": _sha256(json.dumps(untracked, sort_keys=True).encode('utf-8')),
     }
+
+
+def _current_source_identity(cwd: str | Path, cache: dict[Path, dict[str, str]], *, status: bool) -> dict[str, str]:
+    key = Path(cwd).absolute()
+    identity = cache.get(key)
+    if identity is None:
+        def git(*tokens: str) -> bytes:
+            return subprocess.check_output(['git', '-C', str(cwd), *tokens], stderr=subprocess.DEVNULL)
+        identity = {
+            'revision': git('rev-parse', 'HEAD').decode().strip(),
+            'diff': _sha256(git('diff', 'HEAD', '--binary')),
+        }
+        cache[key] = identity
+    if status and 'status' not in identity:
+        identity['status'] = subprocess.check_output(
+            ['git', '-C', str(cwd), 'status', '--porcelain'], stderr=subprocess.DEVNULL
+        ).decode('utf-8', errors='replace')
+    return identity
 
 
 _PRIVATE_PATH_PARTS = {".env", ".dev.vars", "auth", "auth.json", "credentials", "secrets"}
@@ -989,9 +1009,9 @@ def _runtime_identity(check: dict[str, Any]) -> dict[str, str]:
     return identity
 
 
-def _execution_conditions(check: dict[str, Any], cwd: Path) -> dict[str, Any]:
+def _execution_conditions(check: dict[str, Any], cwd: Path, *, source_snapshot: dict[str, str] | None = None) -> dict[str, Any]:
     conditions = copy.deepcopy(check["conditions"])
-    snapshot = _git_snapshot(cwd)
+    snapshot = source_snapshot if source_snapshot is not None else _git_snapshot(cwd)
     source = conditions["source"]
     source["revision"] = snapshot["revision"]
     source["diff"] = snapshot["diff"]
@@ -1197,9 +1217,12 @@ def _bundle_file(value: Any, *, base: Path, label: str) -> Path:
     return candidate if _path_hash(candidate, label) else candidate
 
 
-def _bundle_current_context(plan: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+def _bundle_current_context(
+    plan: dict[str, Any], *, source_cache: dict[Path, dict[str, str]] | None = None,
+) -> tuple[dict[str, Any], list[str]]:
     current: dict[str, Any] = {"checks": {}}
     findings: list[str] = []
+    source_cache = {} if source_cache is None else source_cache
     for index, check in enumerate(_plan_checks(plan)):
         selected, _ = _selection(check)
         if not selected:
@@ -1211,7 +1234,11 @@ def _bundle_current_context(plan: dict[str, Any]) -> tuple[dict[str, Any], list[
             if not isinstance(cwd_value, str):
                 raise ViewerInputError(f"checks[{index}].conditions.command.cwd is missing")
             cwd = _safe_cwd(Path(cwd_value), f"checks[{index}].conditions.command")
-            current["checks"][key] = {"conditions": _execution_conditions(check, cwd)}
+            source = source_cache.get(cwd)
+            if source is None:
+                source = _git_snapshot(cwd)
+                source_cache[cwd] = source
+            current["checks"][key] = {"conditions": _execution_conditions(check, cwd, source_snapshot=source)}
             runtime = check["conditions"]["runtime"]
             if not isinstance(runtime.get("executable"), str) or not runtime.get("executable_sha256"):
                 findings.append(f"runtime_identity_missing:{key}")
@@ -1312,13 +1339,15 @@ def view_bundle(bundle: dict[str, Any] | str | Path, *, workflow_state: Path | N
                     if (cwd / before["path"]).resolve() != Path(after["path"]).resolve():
                         raise ViewerInputError("bound plan changed raw path")
         _validate_bundle_report_paths(plan, evidence_dir)
-        current, condition_findings = _bundle_current_context(plan)
-        result = view_results(
+        source_cache: dict[Path, dict[str, str]] = {}
+        current, condition_findings = _bundle_current_context(plan, source_cache=source_cache)
+        result = _view_results(
             bound_plan,
             record_paths=records,
             assessment_paths=assessments,
             observation_paths=observations,
             current_context=current,
+            source_cache=source_cache,
             workflow_state=workflow_state,
             include_scope=include_scope,
         )
@@ -1753,6 +1782,32 @@ def view_results(
     include_scope: bool = True,
 ) -> dict[str, Any]:
     """Read and join records without executing or modifying any input."""
+    return _view_results(
+        plan_path,
+        record_paths=record_paths,
+        assessment_paths=assessment_paths,
+        observation_paths=observation_paths,
+        current_context_path=current_context_path,
+        current_context=current_context,
+        source_cache=None,
+        workflow_state=workflow_state,
+        include_scope=include_scope,
+    )
+
+
+def _view_results(
+    plan_path: str | Path,
+    *,
+    record_paths: Iterable[str | Path] = (),
+    assessment_paths: Iterable[str | Path] = (),
+    observation_paths: Iterable[str | Path] = (),
+    current_context_path: str | Path | None = None,
+    current_context: dict[str, Any] | None = None,
+    source_cache: dict[Path, dict[str, str]] | None = None,
+    workflow_state: Path | None = None,
+    include_scope: bool = True,
+) -> dict[str, Any]:
+    """Join evidence against a fresh, invocation-local view of current source."""
     plan_file = Path(plan_path).resolve()
     plan, plan_raw = _read_json(plan_file)
     if not isinstance(plan, dict):
@@ -1772,7 +1827,9 @@ def view_results(
             raise ViewerInputError("Current context must be a JSON object")
         current = copy.deepcopy(current_context)
     checks = _plan_checks(plan)
-    items = [_item_result(check, plan_file, records, assessments, observations, current) for check in checks]
+    source_cache = {} if source_cache is None else source_cache
+    items = [_item_result(check, plan_file, records, assessments, observations, current, source_cache)
+             for check in checks]
     historical = _summary(items, "historical_status")
     current_summary = _summary(items, "current_status", required_only=True)
     result = {
@@ -1791,6 +1848,13 @@ def view_results(
     result['status_scope'] = 'required selected checks; task completion is reported separately by workflow audit'
     result['coverage'] = _view_coverage(plan, items, workflow_state=workflow_state) if include_scope else {
         'status': 'NOT_CONFIGURED', 'rows': [], 'matrix': []}
+    for cwd, observed in source_cache.items():
+        try:
+            latest = _git_snapshot(cwd)
+            if any(latest[key] != value for key, value in observed.items()):
+                _invalidate_current_result(result, 'current_source_changed_during_lookup')
+        except (OSError, ValueError, subprocess.CalledProcessError):
+            _invalidate_current_result(result, 'current_source_unavailable_during_lookup')
     return result
 
 
