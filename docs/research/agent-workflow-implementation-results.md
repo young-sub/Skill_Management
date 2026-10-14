@@ -194,6 +194,40 @@ location and prerequisite are explicit; the optional CLI is absent, not installe
 or silently replaced in the claimed command result. The original consumer's
 `missing_ui_standard` finding is absent after linking the existing guide.
 
+The initial final workflow prepare was nevertheless BLOCKED: generation-tools and
+UI consumers registered the same native report path with different fixture
+bindings. Root intercepted read-only preparation before its write/preflight and
+compared the original selected plan: the non-UI generation-tools owner correctly
+lacks App, StaffGate, SpeechControls and style bindings. Strict preflight rejection
+is correct; this is a product registry collision, not a plugin source defect.
+The candidate gives generation-tools `local-native-generation` and a distinct
+`native-generation.json`. Independent comparison confirms all assertions,
+dependencies, fixtures, required flags and expected outcomes are unchanged; only
+check identity/output differ. No fake UI membership or relaxed equality was added.
+
+An isolated generation/reporter execution passed (55 and 9 native cases), with
+verification PASS but overall/coverage PARTIAL. It did not reproduce the original
+co-selection. A preserved copy of the original task then successfully prepared all
+18 originally selected checks together with distinct report paths. The original
+blocked state/plan/raw and first 250-file evidence copy remain unchanged; additional
+acceptance is retained separately under `.work/catalog-consumer/20261014-config-repair/`.
+This split retains distinct condition evidence and may repeat the native suite;
+there is no claim that it reduces execution cost or justifies deleting assertions.
+
+At committed candidate `1d9457b`, the original 18-check selection executed four
+producer commands and returned verification PASS: shared native 55/55, generation
+native 55/55, browser suites and reporter 9/9. Overall and coverage remained PARTIAL,
+including 23 NOT_RUN owner/screen review rows. The first result also correctly
+retained the old `generation-tools:local-native` retirement obligation rather than
+treating an alias change as evidence that its prior detection scope could disappear.
+An evidence-backed `consolidate` decision recorded through the existing CLI clears
+the semantic-review and preservation-decision gaps only. Retirement remains BLOCKED
+with `prior_detection_scope_unknown`: the preserved baseline has no prior prevention
+failure link for this owner. Current unchanged assertions and GREEN cannot fabricate
+that missing historical RED. Neither the baseline nor the acceptance guard was weakened.
+The unmerged product candidate remains a draft in the preserved TEMP checkout;
+plugin local-main integration does not approve or integrate that UI design.
+
 
 <a id="feedback-reconciliation-2026-10-14"></a>
 
