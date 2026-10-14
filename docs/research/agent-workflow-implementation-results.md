@@ -70,6 +70,30 @@ and CLI consumption are separate from native discovery, Skill invocation and hos
 callback/protected acceptance. Installed plugin updates, provider actions, remote
 push/deploy and product-main integration were outside this unit.
 
+The clean frozen 0.1.61 package is bound to source commit `65f5c38` with
+`source_dirty=false`, 19 Skills and 247 files. Final assisted fresh-context lookup
+used three actual task identities and four exact state selectors: replay permits
+four current criteria but remains semantically INCOMPLETE (one request, two impact
+and nine project actions); binding-followup is BLOCKED by prepared-plan mismatch;
+the unexecuted generation task has NOT_RUN criteria; the original Catalog repair
+state is correctly bound but its active local-native criterion is historical
+PASS/current UNKNOWN-STALE, with no reusable checks. The two Catalog selectors
+share a task ID; their distinct state paths and bound identities are not counted
+as separate delegated requests. Lookup timings were 26.842s, 20.107s, 5.602s and
+10.570s; these are evidence, not a speed improvement claim. All ran zero producers.
+
+Final before/after comparison retained 118 linked task/plan/bundle/evidence files,
+253 native raw files and all 247 package files unchanged; the extra original repair
+selector retained 46 linked files and the package unchanged. Candidate and final
+lookups for the first three selectors were byte-identical, while 10 package files
+differed after the shared handoff/hook corrections; package equivalence is not
+inferred. Manual final package-hook delivery retained exact state/package bytes,
+with 3,372/3,268-character context and INCOMPLETE/BLOCKED task acceptance. This is
+manual transport evidence, not a native host callback. The source unit was merged
+fast-forward to authorized local main; packages and evidence are retained before
+removing only the completed plugin worktree/branch. Product candidates remain
+unmerged and preserved.
+
 <a id="binding-and-guide-2026-10-14"></a>
 
 ## Check binding and guide follow-up, 2026-10-14
