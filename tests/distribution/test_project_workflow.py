@@ -14,6 +14,210 @@ SCRIPT = ROOT / 'authoring/scripts/project_workflow.py'
 
 
 class ProjectWorkflowTests(unittest.TestCase):
+    def test_action_scope_retains_project_obligations_and_unknown_legacy_scope(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'change', ['api'])
+        audit = runtime.inspect_project(self.root, self.project, state)
+        actions = {a['target']: a for a in audit['next_actions']}
+        self.assertEqual(actions['api'].get('scope'), 'request_required')
+        self.assertEqual(actions['cli'].get('scope'), 'project_remaining')
+        self.assertEqual(len(audit['obligations']), 2, 'Labels cannot discharge project obligations')
+        self.write('src/cli.py', 'print(11)\n')
+        changed = runtime.inspect_project(self.root, self.project, state)
+        cli = next(a for a in changed['next_actions'] if a['target'] == 'cli')
+        self.assertEqual(cli['scope'], 'impact_required')
+        self.assertIn('src/cli.py', cli['scope_basis']['changed'])
+        self.write('src/cli.py', 'print(10)\n')
+        del state['verification_bases']
+        legacy = runtime.inspect_project(self.root, self.project, state)
+        cli = next(a for a in legacy['next_actions'] if a['target'] == 'cli')
+        self.assertEqual(cli['scope'], 'scope_undetermined')
+        self.assertNotEqual(legacy['status'], 'READY_FOR_REVIEW')
+
+    def test_pending_actions_connect_registered_checks_reviews_and_guides(self):
+        runtime = self.runtime()
+        config = self.project['extensions']['workflow']
+        config['assertions'] = 'assertions.json'
+        config['features'][0]['coverage'] = [
+            dict(id='price', requirement='docs/requirement.md', outcome='Price ten',
+                 perspectives=['business'], areas=['Domain'], kind='test', check='check'),
+            dict(id='owner', requirement='docs/requirement.md', outcome='Single owner',
+                 perspectives=['architecture'], areas=['Domain'], kind='review')]
+        config['ui_systems'] = {'shared': {'guide': 'docs/style.md', 'tokens': ['src/api.py'],
+            'components': ['src/cli.py'], 'consumers': ['api']}}
+        self.write('docs/style.md', 'Review shared styles')
+        self.write('assertions.json', json.dumps({'schema_version': 1, 'checks': [
+            {'id': 'check', 'feature_id': 'api', 'expected': 'Native price is ten',
+             'raw_observations': [{'path': '{report_dir}/native.json', 'pointer': '/price',
+                                  'assertions': [{'pointer': '/price', 'equals': 10}]}]}]}))
+        state = runtime.begin(self.root, self.project, 'change', ['api'])
+        audit = runtime.inspect_project(self.root, self.project, state)
+        action = next(a for a in audit['next_actions'] if a['target'] == 'api')
+        pending = {p['id']: p for p in action.get('pending', [])}
+        self.assertIn('price', pending)
+        self.assertEqual(pending['price']['status'], 'NOT_RUN')
+        self.assertEqual(pending['price']['kind'], 'execution_check')
+        self.assertEqual(pending['price']['command'], self.project['commands']['check'])
+        self.assertEqual(pending['price']['expected'], 'Native price is ten')
+        self.assertTrue(pending['price']['raw_contract'])
+        self.assertEqual(pending['owner']['kind'], 'Agent_semantic_review')
+        self.assertIsNone(pending['owner']['command'])
+        self.assertIn('docs/style.md', pending['owner']['guides'])
+        self.assertIn('architecture:Domain', pending)
+        self.assertEqual(pending['architecture:Domain']['status'], 'UNDECIDED')
+        self.assertTrue(pending['owner']['next_action'])
+        self.assertEqual(pending['owner']['current_validity'], 'NOT_RUN')
+        config['features'][0]['coverage'][0]['check'] = 'unregistered'
+        missing = runtime.inspect_project(self.root, self.project, state)
+        action = next(a for a in missing['next_actions'] if a['target'] == 'api')
+        row = next(p for p in action['pending'] if p['id'] == 'price')
+        self.assertEqual(row['status'], 'MISSING')
+        self.assertIsNone(row['command'], 'Never invent a command for missing links')
+        self.assertIsNone(row['expected'])
+
+    def test_audit_checks_task_plan_binding_and_blocks_task_acceptance(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'change', ['api'])
+        state['execution_plan'] = '.work/plan.json'
+        self.write('.work/plan.json', json.dumps({'workflow_scope': {'state': '.work/other.json'}}))
+        self.write('.work/task.json', json.dumps(state))
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        before = {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()}
+        for action in ('lookup', 'resume', 'audit'):
+            _, result = self.invoke(action, '--state', '.work/task.json', '--summary')
+            self.assertEqual(result['status'], 'BLOCKED', result)
+            self.assertEqual(result.get('handoff', {}).get('task_acceptance'), 'BLOCKED')
+            self.assertEqual(result['handoff']['check_acceptance'], 'BLOCKED_BY_TASK_BINDING_OR_EFFECT')
+            self.assertEqual(result['test_commands_executed'], 0)
+            reconciliation = next(a for a in result['next_actions']
+                if 'execution_plan_reconciliation' in a['requires'])
+            self.assertEqual(reconciliation['scope'], 'request_required')
+            self.assertIn('prepared_plan_task_mismatch', reconciliation['blockers'])
+        context = runtime.task_context(self.root, state, self.root / '.work/task.json')
+        hook = subprocess.run([sys.executable, str(SCRIPT.with_name('workflow_context.py'))],
+            input=json.dumps({'cwd': str(self.root), 'hook_event_name': 'UserPromptSubmit'}),
+            capture_output=True, text=True, encoding='utf-8',
+            env=dict(os.environ, AGENT_WORKFLOW_CONTEXT=context))
+        current = json.loads(json.loads(hook.stdout)['hookSpecificOutput']['additionalContext'].split('\n', 1)[1])['current_task']
+        self.assertEqual(current['task_acceptance'], 'BLOCKED')
+        self.assertIn('prepared_plan_task_mismatch', current['verification_blockers'])
+        self.assertEqual(before, {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()})
+
+    def test_hook_separates_current_actions_from_project_remaining(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'change', ['api'])
+        self.write('.work/task.json', json.dumps(state))
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        context = runtime.task_context(self.root, state, self.root / '.work/task.json')
+        hook = subprocess.run([sys.executable, str(SCRIPT.with_name('workflow_context.py'))],
+            input=json.dumps({'cwd': str(self.root), 'hook_event_name': 'UserPromptSubmit'}),
+            capture_output=True, text=True, encoding='utf-8',
+            env=dict(os.environ, AGENT_WORKFLOW_CONTEXT=context))
+        detail = json.loads(json.loads(hook.stdout)['hookSpecificOutput']['additionalContext'].split('\n', 1)[1])
+        current = detail['current_task']
+        self.assertEqual(current.get('action_scope_counts', {}).get('project_remaining'), 1)
+        self.assertEqual({a['target'] for a in current['next_actions']}, {'api'})
+        self.assertEqual(current['next_action_count'], 2, 'Keep both obligation and applicability advice')
+        self.assertEqual(current['next_actions'][0]['scope'], 'request_required')
+        self.assertTrue(current['detail'])
+
+    def test_large_summary_keeps_denominators_and_exact_detail_pointer(self):
+        runtime = self.runtime()
+        for feature in self.project['extensions']['workflow']['features']:
+            feature['coverage'] = [dict(id='review-' + str(n), requirement='docs/requirement.md',
+                outcome='Owner review ' + str(n), perspectives=['business'], areas=['Domain'], kind='review')
+                for n in range(12)]
+        state = runtime.begin(self.root, self.project, 'change', ['api'])
+        result = runtime.inspect_project(self.root, self.project, state)
+        result['task'] = dict(state, state='.work/task.json')
+        summary = runtime.summarize_lookup(result, self.project, self.root)
+        coverage = summary['coverage']
+        self.assertEqual(coverage.get('row_count'), 24)
+        self.assertLessEqual(len(coverage['rows']), 8)
+        self.assertEqual(coverage['rows_omitted'], 24 - len(coverage['rows']))
+        self.assertEqual(len(coverage['gaps']), 24)
+        project = next(a for a in summary['next_actions'] if a['scope'] == 'project_remaining')
+        self.assertEqual(project['pending_count'], 12)
+        self.assertEqual(project['pending_omitted'], 12)
+        self.assertEqual(len(project['pending_ids']), 12)
+        self.assertEqual(project['pending'], [])
+        self.assertEqual(summary['detail_command']['state'], '.work/task.json')
+        self.assertEqual(len(result['coverage']['rows']), 24)
+
+    def test_project_partial_does_not_hide_current_request_readiness(self):
+        runtime = self.runtime()
+        self.project['extensions']['workflow']['features'][0]['coverage'] = [dict(
+            id='check-scope', requirement='docs/requirement.md', outcome='No behavioral change',
+            perspectives=['business'], areas=['Domain'], kind='test', check='check')]
+        state = runtime.begin(self.root, self.project, 'change', ['api'])
+        basis = runtime.inspect_project(self.root, self.project, state)['features'][0]['basis']
+        exclusion = {'status': 'NOT_REQUIRED', 'reason': 'Inspected unchanged source-only request',
+                     'analysis': 'Source review does not change price behavior', 'references': ['src/api.py']}
+        scopes = {p + ':' + a: exclusion for p in ('business', 'architecture') for a in ('FE', 'BE/API', 'Domain')}
+        scopes['check-scope'] = exclusion
+        state = runtime.record_review(self.root, self.project, state, {
+            'feature': 'api', 'basis': basis, 'analysis': 'Current unchanged API owner reviewed',
+            'references': ['src/api.py'], 'findings': [], 'scope_reviews': scopes})
+        self.write('.work/task.json', json.dumps(state))
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        _, result = self.invoke('lookup', '--state', '.work/task.json', '--summary')
+        self.assertEqual(result['status'], 'PARTIAL')
+        self.assertEqual({a['scope'] for a in result['next_actions']}, {'project_remaining'})
+        self.assertEqual(result.get('handoff', {}).get('task_acceptance'), 'READY_FOR_REVIEW')
+        self.assertEqual(result['handoff']['project_status'], 'PARTIAL')
+        self.assertEqual(result['handoff']['current_request_actions'], [])
+        context = runtime.task_context(self.root, state, self.root / '.work/task.json')
+        hook = subprocess.run([sys.executable, str(SCRIPT.with_name('workflow_context.py'))],
+            input=json.dumps({'cwd': str(self.root), 'hook_event_name': 'UserPromptSubmit'}),
+            capture_output=True, text=True, encoding='utf-8',
+            env=dict(os.environ, AGENT_WORKFLOW_CONTEXT=context))
+        current = json.loads(json.loads(hook.stdout)['hookSpecificOutput']['additionalContext'].split('\n', 1)[1])['current_task']
+        self.assertEqual(current.get('project_status'), 'PARTIAL')
+        self.assertEqual(current.get('task_acceptance'), 'READY_FOR_REVIEW')
+        self.assertEqual(current['next_action_count'], 0)
+
+    def test_assertion_only_drift_reopens_linked_consumer_without_execution(self):
+        runtime = self.runtime()
+        config = self.project['extensions']['workflow']
+        config['assertions'] = 'assertions.json'
+        config['features'][0]['sources'].append('src/run.py')
+        self.write('src/run.py', "import json,sys\nfrom pathlib import Path\n"
+            "Path(sys.argv[1]).parent.mkdir(parents=True,exist_ok=True)\n"
+            "Path(sys.argv[1]).write_text(json.dumps({'actual':10}))\n"
+            "with Path('.work/calls').open('a') as f:f.write('1')\n")
+        self.project['commands']['check'] = [sys.executable, 'src/run.py', '{report_dir}/native.json']
+        spec = {'schema_version': 1, 'checks': [{'id': 'check', 'feature_id': 'api',
+            'expected': 'Ten', 'required': True, 'selection': {'status': 'selected', 'reason': 'Price'},
+            'raw_observations': [{'path': '{report_dir}/native.json', 'pointer': '/actual',
+                'assertions': [{'pointer': '/actual', 'equals': 10}]}],
+            'dependency': {'file_refs': ['src/api.py']}, 'fixture': {'file_refs': ['docs/requirement.md']}}]}
+        self.write('assertions.json', json.dumps(spec))
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        _, started = self.invoke('start', '--intent', 'change', '--target', 'api')
+        context = started['task_context']
+        self.invoke('prepare', context=context)
+        _, executed = self.invoke('execute', context=context)
+        self.assertEqual(executed['verification']['status'], 'PASS', executed)
+        old = json.loads((self.root / started['task']['state']).read_text())
+        old = self.review(runtime, old, 'api')
+        followup = runtime.begin(self.root, self.project, 'change', ['cli'], prior_state=old)
+        before = runtime.inspect_project(self.root, self.project, followup)
+        self.assertEqual(before['features'][0]['verification_status'], 'NOT_REQUIRED')
+        spec['checks'][0]['raw_observations'][0]['assertions'][0]['equals'] = 11
+        self.write('assertions.json', json.dumps(spec))
+        snapshot = {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()}
+        result = runtime.inspect_project(self.root, self.project, followup)
+        self.assertEqual(result['features'][0]['check_results'][0]['current_reuse'], 'STALE')
+        self.assertEqual(result['features'][0]['verification_status'], 'REQUIRED')
+        action = next(a for a in result['next_actions'] if a['target'] == 'api')
+        self.assertEqual(action['scope'], 'impact_required')
+        self.assertIn('assertions.json', action['scope_basis']['assertion_contract_changed'])
+        check = next(p for p in action['pending'] if p.get('check') == 'check')
+        self.assertEqual(check['status'], 'STALE')
+        self.assertEqual(check['contract_reference'], 'assertions.json')
+        self.assertEqual((self.root / '.work/calls').read_text(), '1')
+        self.assertEqual(snapshot, {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()})
+
     def test_lookup_reports_unknown_launch_after_completed_checkpoint(self):
         import runpy
         self.project['extensions']['workflow']['assertions'] = 'assertions.json'
@@ -91,6 +295,21 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertEqual(refused['test_commands_executed'], 0)
         self.assertEqual(before, {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()})
         self.assertEqual(len((self.root / '.work/calls').read_text().splitlines()), 1)
+        for index in range(2, 152):
+            (evidence / f'command-{index}-started.json').write_text('{}')
+        snapshot = {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()}
+        hook = subprocess.run([sys.executable, str(SCRIPT.with_name('workflow_context.py'))],
+            input=json.dumps({'cwd': str(self.root), 'hook_event_name': 'UserPromptSubmit'}),
+            capture_output=True, text=True, encoding='utf-8',
+            env=dict(os.environ, AGENT_WORKFLOW_CONTEXT=context))
+        text = json.loads(hook.stdout)['hookSpecificOutput']['additionalContext']
+        current = json.loads(text.split('\n', 1)[1])['current_task']
+        self.assertEqual(current['task_acceptance'], 'BLOCKED')
+        self.assertGreaterEqual(current.get('verification_blocker_count', 0), 151)
+        self.assertLessEqual(len(current['verification_blockers']), 3)
+        self.assertEqual(current['verification_blockers_omitted'], current['verification_blocker_count'] - 3)
+        self.assertLess(len(text), 6000)
+        self.assertEqual(snapshot, {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()})
 
     def test_summary_distinguishes_unstarted_plan_from_unknown_external_effect(self):
         runtime = self.runtime()
@@ -288,8 +507,9 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertTrue(raw['path'])
         self.assertTrue(summary['detail_command'])
         self.assertEqual(summary['detail_command']['root'], str(self.root))
-        for action, extra in [('lookup', []), ('resume', []), ('execute', ['--resume'])]:
+        for action, extra in [('lookup', []), ('resume', []), ('audit', []), ('execute', ['--resume'])]:
             _, result = self.invoke(action, *extra, '--run-check', str(ROOT / 'scripts/run_check.py'), context=context)
+            self.assertEqual(result.get('verification', {}).get('status'), 'PASS', result)
             self.assertEqual(result['test_commands_executed'], 0, result)
         self.assertEqual(before, {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()})
         _, again = self.invoke('prepare', context=context)
@@ -489,6 +709,7 @@ class ProjectWorkflowTests(unittest.TestCase):
         item = {'feature': 'api', 'id': 'check', 'historical_status': 'PASS', 'current_status': 'PASS',
                 'current_reuse': 'REUSABLE', 'selected': True, 'reasons': [], 'run_id': 'run',
                 'capture': {'argv': ['native'], 'cwd': str(self.root)},
+                'conditions': {'expected': {'fixture': {'hashes': {'large-input': 'x' * 20000}}}},
                 'raw': [{'path': '.work/native.json', 'pointer': '/values',
                          'observations': [{'actual': list(range(20000)), 'matched': True}]}],
                 'selection': {'status': 'selected', 'reason': 'price rule changed'}}
@@ -513,6 +734,8 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertEqual(summary['coverage']['rows'][0]['status'], 'PASS')
         self.assertEqual(summary['coverage']['rows'][0]['evidence']['run_id'], 'run')
         self.assertIn('observations', result['coverage']['rows'][0]['evidence']['raw'][0])
+        self.assertNotIn('conditions', summary['features'][0]['check_results'][0])
+        self.assertIn('conditions', result['features'][0]['check_results'][0])
         self.assertLess(len(json.dumps(summary)), len(json.dumps(result)) / 2)
 
     def test_registered_pass_without_scope_decisions_is_not_full_scope_complete(self):

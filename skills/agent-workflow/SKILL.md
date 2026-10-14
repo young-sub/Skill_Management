@@ -4,7 +4,7 @@ description: Coordinate a coding task from a natural-language request through re
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: 6608e50a0191e17457334db1b6c99955e711d897ed42bdf4bc7a2eb381b9a5dd -->
+<!-- Source-SHA256: 6f5c50c763369d9ca4a57f1b21e6d480ef4da3367e14d433e0cd035a6dbf25cd -->
 
 
 # Agent Workflow
@@ -25,6 +25,22 @@ Read the project AGENTS/index, current checkout and dirty baseline, requirement 
 Load [verification responsibilities](references/project-verification.md) for setup, verification, maintenance or feedback. For feedback/UI work also read [repair and reuse](references/repair-and-reuse.md). If a named capability is unavailable, perform its bounded responsibility using project commands; do not silently treat missing checks as passed or install a new framework.
 
 For configured projects, [workflow obligations](references/workflow-obligations.md) provides the direct audit/resume CLI. Consume its affected references and perform the required semantic work. Local consistency and host-protected acceptance are distinct; the CLI reports the unsupported enforcement boundary explicitly.
+
+For delegated handoff, inspect `handoff` and action scopes before choosing work:
+current request, required impact, project remainder and unresolved scope stay
+separate. Follow each pending criterion to its existing command/guide/raw and
+current validity; repeat exact lookup without `--summary` when details are omitted.
+Do not accept task-misbound PASS, turn undecided cells into N/A, or count a current
+check as semantic review. Report the current request separately from overall debt.
+
+For guide reuse, discover the target Feature's project guide and registered
+UI systems before proposing a new procedure. Read their prerequisites, existing
+token/component consumers, command or interaction, expected outcome, raw location
+and cleanup. Reuse changed style/verification guidance in a different relevant
+follow-up when evaluating the guide itself; record discovery hints and assistance.
+Missing project-specific steps belong in the project guide/selector, while a
+failed common discovery instruction belongs here. Unapproved UI candidates stay
+draft; product screen review debt is not a missing plugin feature.
 
 Without configured workflow, use that same CLI's `start --intent diagnose
 --request-summary <request> --investigation <observations.json>`, as defined in

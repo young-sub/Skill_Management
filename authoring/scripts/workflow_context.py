@@ -112,10 +112,24 @@ def context(payload):
             current = (audit if state_path == configured_path else
                        runtime['inspect_project'](root, project, state, file_inventory=files))
             task_audits[runtime['digest'](state)] = current
+            verification = None
+            if state.get('execution_plan'):
+                try:
+                    verification = runtime['connected_verification'](root, project, state, state_path, work_id, 'lookup')
+                except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
+                    verification = {'status': 'BLOCKED', 'remaining': [str(error)]}
+            handoff = runtime['handoff_summary'](current, verification)
+            blockers = (verification or {}).get('remaining', []) or (verification or {}).get('unknown_launches', [])
             summary['current_task'] = {'work_id': work_id, 'state': state_path.relative_to(root).as_posix(),
                 'task_id': state.get('task_id'), 'intent': state['intent'], 'targets': state['targets'],
                 'request': request_preview(state.get('request')),
-                'status': current['status'], 'obligations': current['obligations'][:3],
+                'status': current['status'], 'status_scope': 'project_obligations',
+                'project_status': current['status'], 'task_acceptance': handoff['task_acceptance'],
+                'check_acceptance': handoff['check_acceptance'],
+                'verification_blocker_count': len(blockers),
+                'verification_blockers': [reason[:160] for reason in blockers[:3]],
+                'verification_blockers_omitted': max(0, len(blockers) - 3),
+                'obligations': current['obligations'][:3],
                 'scope': scope_context(current)}
             active_features = {c['feature'] for c in current['coverage']['matrix'] if c.get('in_task', True)}
             selected = [f for f in config['features'] if f['id'] in active_features]
@@ -130,8 +144,14 @@ def context(payload):
                     ('id', 'historical_status', 'current_status', 'current_reuse')}
                     for row in observed['check_results'][:3]]
             summary['current_task']['feature_count'] = len(selected)
-            summary['current_task']['next_action_count'] = len(current['next_actions'])
-            summary['current_task']['next_actions'] = current['next_actions'][:3]
+            actions = [a for a in current['next_actions'] if a['scope'] != 'project_remaining']
+            summary['current_task']['action_scope_counts'] = current['action_scope_counts']
+            summary['current_task']['next_action_count'] = len(actions)
+            summary['current_task']['next_actions'] = [{key: a[key] for key in
+                ('target', 'requires', 'scope', 'references', 'advisory') if key in a} | {
+                    'pending_count': len(a.get('pending', [])),
+                    'pending': [{key: p[key] for key in ('id', 'kind', 'status', 'check') if key in p}
+                                for p in a.get('pending', [])[:3]]} for a in actions[:3]]
             summary['current_task']['detail'] = {'action': 'lookup', 'state': state_path.relative_to(root).as_posix(),
                                                 'work_id': work_id, 'read_only': True}
             if current.get('investigation'):
@@ -181,7 +201,10 @@ def context(payload):
                             for entry in audit.get('ui_systems', [])[:4]]
     summary['scope'] = scope_context(audit)
     summary['next_action_count'] = len(audit['next_actions'])
-    summary['next_actions'] = audit['next_actions'][:3]
+    summary['action_scope_counts'] = audit['action_scope_counts']
+    summary['next_actions'] = [{key: action[key] for key in
+        ('target', 'requires', 'scope', 'references', 'advisory') if key in action}
+        for action in audit['next_actions'][:3]]
     # Bounded context, with the existing audit retaining the complete result.
     detail = json.dumps(summary, ensure_ascii=False, separators=(',', ':'))
     if len(detail) > 5500:
@@ -203,7 +226,7 @@ def context(payload):
                 for key in ('sources', 'map', 'criteria', 'checks')},
                 'detail_omitted': True} for f in current.get('features', [])[:2]]
             current['next_actions'] = [{key: action[key] for key in
-                ('target', 'requires', 'advisory', 'cells') if key in action}
+                ('target', 'requires', 'scope', 'advisory', 'cells', 'pending_count') if key in action}
                 for action in current.get('next_actions', [])[:2]]
             current['detail_omitted'] = True
             scope = current.get('scope', {})

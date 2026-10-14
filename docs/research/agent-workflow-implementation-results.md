@@ -1,5 +1,75 @@
 # Agent workflow implementation and acceptance
 
+
+<a id="delegated-handoff-2026-10-15"></a>
+
+## Delegated handoff and related-guide consumption, 2026-10-15
+
+This unit began at clean local `main@c765dddd` / 0.1.60 in the independent TEMP
+`skill-management-handoff-20261014` worktree. Runtime 0.1.61 adds derived action
+scopes and criterion-to-command/guide/raw connections in the existing workflow
+owner; no new ledger, dashboard, database or scheduler was introduced. Earlier
+product executions are retained history, not new execution in this unit.
+
+Fresh frozen 0.1.60 lookup/resume/audit on two actual Yeondoo tasks reproduced
+project-wide next actions without work scope: the generation replay had one direct
+target, two connected effects and nine project-wide rows. Catalog lookup/resume
+were BLOCKED by a plan prepared for another state while adjacent Feature checks
+were PASS; audit omitted that mismatch. All six calls ran zero checks and preserved
+linked state/plan/raw. Current lookup/resume/audit share saved plan/effect validation.
+
+The common owner now derives `request_required`, `impact_required`,
+`project_remaining` and `scope_undetermined` using existing targets, measured
+source/reference bases and shared consumers. Labels preserve all obligations and
+UNDECIDED applicability. Pending rows distinguish execution, Agent semantic review
+and applicability, with registered commands/expectations, requirement IDs, UI
+owners, retained evidence, validity and next actions. Summary retains denominators,
+omission markers and exact detail links. The hook keeps bounded action/blocker
+previews and separately names project status and task acceptance. Task binding or
+unknown effects govern acceptance even beside PASS; current individual checks do
+not establish semantic or product completion. Only project remainder can coexist
+with current-task READY_FOR_REVIEW. Existing pinned assertion-file drift reopens
+linked active consumers without reopening stale retired aliases.
+
+Focused RED/GREEN covers scopes, missing registration, real native execution,
+completed/unknown effects, plan mismatch, hook pressure, summary denominators,
+project-only PARTIAL and assertion-only STALE. Independent source review exposed
+and rechecked the latter gaps plus the hook status/preview edges. Final focused
+regression passed 12/12. The impacted 170-case run initially exposed one hook
+payload regression; it was repaired and rechecked. Full ran once for the shared
+verification-selection impact: **433 total / 432 passed / 1 environment cleanup
+error**, not Full PASS. The same timeout-tree case fails on unchanged main: native
+`taskkill` returns 1 and a live child locks its temporary directory. Source/test Git
+content is unchanged (working-tree LF/CRLF bytes differ). Later hook-only changes
+have final focused evidence; Full was not repeated. Resource drift, distribution,
+formatting and the 35-case documentation/package checks passed.
+
+A new Agent used the changed product guide on **staff-access**, independently of
+CatalogImport: guide prerequisites, shared-device tokens/components, registered
+native/browser commands, expected results, raw and cleanup were discovered from
+the project. The new isolated execution passed native 56/56 and browser 7/7 suites,
+including staff access, with owned server/browser cleanup and unchanged source.
+Semantic owner/screen review and applicability remain product task work; these are
+not missing plugin functions. Setup hints and assisted-after use of the revised
+common instructions are recorded separately. No UI candidate was approved or
+merged. Fresh-context retained-task consumption is also assisted and records all
+provided selectors/help/incidental exposure; it is not reported as blind success.
+
+The two 55-case producers remain registered. Three interleaved normal runs each
+passed, and both rejected the same injected generation defect (four failed cases).
+Means were 2.046s versus 1.966s, with overlapping ranges and different consumer /
+fixture contracts. No requirement retirement, structural replacement, consolidation,
+flaky repair or cost reduction was established; reconsider after equivalent full
+consumer/fixture bindings and retained failure/normal proofs.
+
+Evidence, exact commands, failed attempts, raw, retained snapshots, package and
+final delivery are under `.work/delegated-handoff-20261014/`. Original product
+checkouts, candidate branches and earlier `.work` records remain intact. Available
+native discovery was blocked by CODEX_HOME access; manual package-hook transport
+and CLI consumption are separate from native discovery, Skill invocation and host
+callback/protected acceptance. Installed plugin updates, provider actions, remote
+push/deploy and product-main integration were outside this unit.
+
 <a id="binding-and-guide-2026-10-14"></a>
 
 ## Check binding and guide follow-up, 2026-10-14

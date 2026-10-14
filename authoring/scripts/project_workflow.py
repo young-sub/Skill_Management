@@ -653,7 +653,7 @@ def connected_verification(root, project, state, path, work_id, action, *, outpu
     if (scope.get('root') != str(root) or scope.get('state') != path.relative_to(root).as_posix()
             or scope.get('work_id') != work_id or scope.get('task_identity') != task_identity(state)):
         raise ValueError('prepared_plan_task_mismatch')
-    if action in {'lookup', 'resume'}:
+    if action in {'lookup', 'resume', 'audit'}:
         directory = plan.parent / 'evidence'
         final = directory / 'bundle.json'
         checkpoints = sorted(directory.glob('checkpoint-*-bundle.json'), key=lambda p: int(p.name.split('-')[1]))
@@ -807,6 +807,8 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
     commands = dict(project.get('commands', {}))
     commands.update(project.get('impact', {}).get('feature_selectors', {}))
     bundle_cache = {}
+    assertion_path = local_path(root, config['assertions']) if isinstance(config.get('assertions'), str) else None
+    assertion_hash = file_hash(root, config['assertions']) if assertion_path else None
     result['feedback'] = inspect_feedback(root, config, state, bundle_cache=bundle_cache)
     covered = set()
     old = state.get('baseline', {})
@@ -948,14 +950,40 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
                 findings.extend(behavior['findings'])
         if repair_request and state.get('input_bases', {}).get(identity) == basis:
             findings.append(f'repair_not_observed:{identity}')
+        assertion_changed = []
+        if assertion_path and behavior:
+            for item in behavior.get('items', []):
+                if item['id'] not in required_feature['checks'] or not item.get('selected'):
+                    continue
+                hashes = item.get('conditions', {}).get('expected', {}).get('fixture', {}).get('file_hashes', {})
+                if any(Path(name) == assertion_path and value != assertion_hash for name, value in hashes.items()):
+                    assertion_changed = [config['assertions']]
+                    needs_behavior = True
+                    requires.append('verification')
+                    findings.extend(behavior.get('findings', []))
+                    break
         pending = not reviewed or findings or product_findings or (needs_behavior and (not behavior or behavior['status'] not in {'PASS', 'NOT_REQUIRED'}))
         rows = coverage_rows(feature, review, basis, behavior.get('items', []) if behavior else [],
                              semantic_valid=reviewed, scope_states=states)
         result['coverage']['rows'].extend(rows)
         matrix = scope_matrix(feature, review, basis, rows, scope_states=states)
         in_task = not state or state.get('intent') == 'init' or bool(affected) or needs_behavior
+        work_scope = ('request_required' if identity in state.get('targets', []) or state.get('intent') == 'init' else
+                      'impact_required' if state and (affected or verification_inputs_changed or assertion_changed) else
+                      'scope_undetermined' if not state.get('targets') or identity not in state.get('verification_bases', {})
+                          or unresolved_feedback or any(r['status'] != 'PRESERVED' for r in retirements) else
+                      'project_remaining')
+        scope_basis = {'targets': state.get('targets', []), 'changed': affected,
+                       'verification_inputs_changed': bool(state and verification_inputs_changed),
+                       'assertion_contract_changed': assertion_changed,
+                       'baseline_available': identity in state.get('verification_bases', {}),
+                       'references': sorted(refs), 'current_basis': basis,
+                       'request': state.get('request')}
         for cell in matrix:
             cell['in_task'] = in_task
+            cell['work_scope'] = work_scope
+        for row in rows:
+            row['work_scope'] = work_scope
         result['coverage']['matrix'].extend(matrix)
         scope_gaps = [row['id'] for row in rows if row['kind'] == 'review' and row['status'] not in {'PASS', 'NOT_REQUIRED'}
                       or row['status'] == 'MISSING']
@@ -977,6 +1005,7 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
                 'ui_systems': [system['id'] for system in ui_systems],
                 'prevention': feature.get('prevention', [])})
         result['features'].append({'id': identity, 'basis': basis, 'partition': feature['partition'],
+                                   'work_scope': work_scope, 'scope_basis': scope_basis,
                                    'verification_basis': verification_basis,
                                    'verification_status': ('NOT_REQUIRED' if not needs_behavior or not required_feature['checks'] and excluded else
                                        'PASS' if behavior and behavior['status'] == 'PASS' else 'REQUIRED'),
@@ -1046,7 +1075,105 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
                 'cells': [{key: cell[key] for key in ('perspective', 'area', 'status')} for cell in cells],
                 'references': feature['criteria'],
                 'detail': 'Review task applicability and evidence; justify N/A where appropriate. Existing valid checks remain reusable; this does not require six executions.'})
+    connect_next_actions(root, project, state, result)
     return result
+
+
+def connect_next_actions(root, project, state, result):
+    """Connect existing obligations to project contracts, without deciding semantic scope."""
+    config = configuration(project)
+    features = {f['id']: f for f in config['features']}
+    observed = {f['id']: f for f in result['features']}
+    commands = dict(project.get('commands', {}))
+    commands.update(project.get('impact', {}).get('feature_selectors', {}))
+    assertions, assertion_error = {}, None
+    if config.get('assertions'):
+        try:
+            spec = json.loads(local_path(root, config['assertions']).read_text(encoding='utf-8'))
+            for check in spec['checks']:
+                key = (check['feature_id'], check['id'])
+                if key in assertions:
+                    raise ValueError('duplicate_assertion_identity')
+                assertions[key] = check
+        except (OSError, ValueError, TypeError, KeyError) as error:
+            assertions, assertion_error = {}, str(error)
+    for action in result['next_actions']:
+        identity = action['target']
+        feature = features.get(identity, {})
+        current = observed.get(identity, {})
+        action['scope'] = current.get('work_scope', 'request_required' if identity in state.get('targets', []) else 'scope_undetermined')
+        action['scope_basis'] = deepcopy(current.get('scope_basis', {'targets': state.get('targets', []), 'reason': 'removed_owner_needs_reconciliation'}))
+        action['status'] = 'PENDING'
+        action['current_validity'] = 'CURRENT_OBSERVATION'
+        guides = [{key: system[key] for key in ('id', 'guide', 'tokens', 'components', 'status')}
+                  for system in result['ui_systems'] if identity in system['consumers']]
+        action['guides'] = guides
+        action['bundles'] = state.get('results', {}).get(identity, [])
+        action['pending'] = []
+        checks = {item['id']: item for item in current.get('check_results', [])}
+        rows = [r for r in result['coverage']['rows'] if r['feature'] == identity]
+        declared_checks = {r.get('check') for r in rows if r['kind'] == 'test'}
+        if current.get('verification_status') == 'REQUIRED':
+            rows += [dict(id=check, check=check, kind='test', status='NOT_RUN',
+                          requirement=None, outcome=None, reasons=['check_not_in_result'])
+                     for check in current['checks'] if check not in declared_checks]
+        for row in rows:
+            if row['status'] in {'PASS', 'NOT_REQUIRED'}:
+                continue
+            item = checks.get(row.get('check'), {}) if row['kind'] == 'test' else {}
+            status = row['status']
+            if item and row['kind'] == 'test':
+                status = ('STALE' if item.get('current_reuse') == 'STALE' else
+                          'NOT_RUN' if item.get('historical_status') == 'NOT_RUN' else
+                          'BLOCKED' if item.get('current_status') == 'UNKNOWN' else item.get('current_status', status))
+            if status in {'PASS', 'NOT_REQUIRED'}:
+                continue
+            check = row.get('check')
+            registered = check in feature.get('checks', []) and check in commands
+            contract = assertions.get((identity, check), {}) if registered else {}
+            pending = {'id': row['id'], 'kind': 'execution_check' if row['kind'] == 'test' else 'Agent_semantic_review',
+                'status': status, 'historical_status': item.get('historical_status', row.get('historical_status', 'NOT_RUN')),
+                'current_validity': item.get('current_reuse', status), 'reasons': row.get('reasons', []) or item.get('reasons', []),
+                'requirement': row.get('requirement'), 'outcome': row.get('outcome'),
+                'check': check, 'command': deepcopy(commands.get(check)) if registered else None,
+                'expected': contract.get('expected') or item.get('expected') if registered else None,
+                'raw_contract': deepcopy(contract.get('raw_observations', [])),
+                'contract_reference': config.get('assertions') if contract else None,
+                'contract_error': assertion_error if row['kind'] == 'test' else None,
+                'guides': [g['guide'] for g in guides], 'references': feature.get('criteria', []),
+                'evidence': deepcopy(item or row.get('evidence')),
+                'next_action': ('Reconcile the active check/registered contract before explicit preparation.' if not registered else
+                                'Inspect current conditions and raw, then explicitly prepare/execute the registered check if required.')
+                               if row['kind'] == 'test' else
+                               'Review the stated outcome against sources and guide; record analysis and references in scope_reviews. Execution PASS does not supply semantic judgment.'}
+            action['pending'].append(pending)
+        cells = [c for c in result['coverage']['matrix'] if c['feature'] == identity and c['in_task']
+                 and c['status'] not in {'PASS', 'NOT_REQUIRED'}]
+        for cell in cells:
+            action['pending'].append({'id': cell['perspective'] + ':' + cell['area'], 'kind': 'Agent_scope_decision',
+                'status': cell['status'], 'applicability': cell['applicability'], 'current_validity': cell['status'],
+                'coverage': cell['coverage'], 'evidence': cell['decision'], 'reasons': cell['reasons'],
+                'references': feature.get('criteria', []), 'guides': [g['guide'] for g in guides],
+                'command': None, 'next_action': 'Determine applicability from the request and changed owners/consumers; connect relevant coverage or justify exclusion. Undecided is not outside scope.'})
+        action['next_action'] = 'Inspect pending criteria and their contracts; perform only authorized work in this scope. Retain project obligations and unresolved scope.'
+    scopes = ('request_required', 'impact_required', 'project_remaining', 'scope_undetermined')
+    result['action_scope_counts'] = {scope: sum(a['scope'] == scope for a in result['next_actions']) for scope in scopes}
+
+
+def handoff_summary(result, verification=None):
+    blocked = (verification or {}).get('status') == 'BLOCKED'
+    return {'project_status': result['status'],
+        'task_acceptance': 'BLOCKED' if blocked else 'INCOMPLETE' if result['unmapped']
+            or any(a['scope'] != 'project_remaining' for a in result['next_actions']) else 'READY_FOR_REVIEW',
+        'check_acceptance': 'BLOCKED_BY_TASK_BINDING_OR_EFFECT' if blocked else 'CURRENT_CHECKS_ONLY',
+        'reusable_checks': [] if blocked else [{'feature': f['id'], 'check': item['id']}
+            for f in result['features'] for item in f['check_results']
+            if item.get('current_status') == 'PASS' and item.get('current_reuse') == 'REUSABLE'],
+        'current_request_actions': [a['target'] for a in result['next_actions']
+            if a['scope'] in {'request_required', 'impact_required'}],
+        'project_remaining': [a['target'] for a in result['next_actions'] if a['scope'] == 'project_remaining'],
+        'scope_undetermined': [a['target'] for a in result['next_actions'] if a['scope'] == 'scope_undetermined'],
+        'limit': 'Current individual checks cover only their registered criteria. Project PARTIAL and pending Agent judgments do not become task completion; blocked binding/effects prevent accepting these results as this task. Scope labels never discharge obligations.'}
 
 
 def retirement_references(proof):
@@ -2392,7 +2519,7 @@ def summarize_lookup(result, project, root):
     """Present already inspected facts; discovery never audits other task bundles."""
     summary = {key: deepcopy(result[key]) for key in ('status', 'mapping_status', 'coverage', 'read_only',
         'test_commands_executed', 'findings', 'product_findings', 'feedback', 'investigation',
-        'execution_selection', 'task_context') if key in result}
+        'execution_selection', 'task_context', 'action_scope_counts', 'handoff') if key in result}
     task = result.get('task', {})
     summary['task'] = {key: task.get(key) for key in ('state', 'work_id', 'task_id', 'intent', 'targets', 'request', 'base')}
     summary['detail_command'] = {'action': 'lookup', 'root': str(root),
@@ -2408,6 +2535,7 @@ def summarize_lookup(result, project, root):
     summary['features'] = []
     for feature in result.get('features', []):
         row = {key: deepcopy(feature[key]) for key in ('id', 'partition', 'verification_status', 'checks', 'excluded_checks', 'reviewed')}
+        row['work_scope'] = feature.get('work_scope', 'scope_undetermined')
         row.update({key: config[feature['id']][key] for key in ('sources', 'map', 'criteria')})
         row['in_task'] = feature['id'] in active
         row['bundles'] = task.get('results', {}).get(feature['id'], [])
@@ -2415,7 +2543,26 @@ def summarize_lookup(result, project, root):
             'UNAVAILABLE' if row['bundles'] else 'NOT_RUN' if feature['verification_status'] == 'REQUIRED' else 'NOT_REQUIRED')
         row['check_results'] = viewer['summarize_results']({'items': feature['check_results']})['items']
         summary['features'].append(row)
-    summary['next_actions'] = result['next_actions']
+    summary['next_actions'] = deepcopy(result['next_actions'])
+    for action in summary['next_actions']:
+        pending = action.get('pending', [])
+        action['pending_count'] = len(pending)
+        action['pending_ids'] = [{'id': p['id'], 'kind': p['kind'], 'status': p['status']} for p in pending]
+        action['pending'] = pending[:4] if action.get('scope') != 'project_remaining' else []
+        action['pending_omitted'] = len(pending) - len(action['pending'])
+        for entry in action['pending']:
+            if entry.get('evidence') and entry['kind'] == 'execution_check':
+                entry['evidence'] = viewer['summarize_results']({'items': [entry['evidence']]})['items'][0]
+    for coverage in (summary.get('coverage', {}), summary.get('verification', {}).get('coverage', {})):
+        for key, limit in (('rows', 8), ('matrix', 12)):
+            if key not in coverage:
+                continue
+            values = coverage[key]
+            coverage['row_count' if key == 'rows' else 'cell_count'] = len(values)
+            coverage[key + '_omitted'] = max(0, len(values) - limit)
+            if len(values) > limit:
+                coverage[key] = sorted(values, key=lambda v: v.get('work_scope') == 'project_remaining'
+                    or not v.get('in_task', True))[:limit]
     summary['detail_hint'] = 'Observed values are omitted after validation, not missing. Follow bundles/raw path/pointer or repeat exact lookup without --summary. Historical results do not imply current reuse or task completion.'
     return summary
 
@@ -2524,12 +2671,12 @@ def main(argv=None):
         verification = None
         if args.action in {'prepare', 'execute', 'review', 'feedback'} and configuration(project) is None:
             raise ValueError('workflow_not_configured; diagnosis supports investigate/connect/lookup/resume only')
-        if args.action in {'prepare', 'execute'} or args.action in {'lookup', 'resume'} and state.get('execution_plan'):
+        if args.action in {'prepare', 'execute'} or args.action in {'lookup', 'resume', 'audit'} and state.get('execution_plan'):
             try:
                 verification = connected_verification(root, project, state, state_path, args.work_id, args.action,
                     output=args.output, run_check=args.run_check, timeout=args.timeout, resume=args.resume)
             except (OSError, ValueError, TypeError, KeyError, subprocess.CalledProcessError) as error:
-                if args.action not in {'lookup', 'resume'}:
+                if args.action not in {'lookup', 'resume', 'audit'}:
                     raise
                 verification = {'status': 'BLOCKED', 'remaining': [str(error)],
                                 'read_only': True, 'test_commands_executed': 0}
@@ -2554,11 +2701,17 @@ def main(argv=None):
             result['task'] = {'state': state_path.relative_to(root).as_posix(), 'work_id': args.work_id,
                               **{key: state.get(key) for key in ('task_id', 'intent', 'targets', 'request', 'base', 'dirty_baseline',
                                                                'reviews', 'feedback', 'results', 'execution_plan', 'investigation')}}
-        if args.action in {'lookup', 'resume'} and (verification or {}).get('status') == 'BLOCKED':
+        if args.action in {'lookup', 'resume', 'audit'} and (verification or {}).get('status') == 'BLOCKED':
             result['status'] = 'BLOCKED'
             result['next_actions'].append({'target': state['task_id'],
+                'scope': 'request_required', 'status': 'BLOCKED',
+                'current_validity': 'BLOCKED', 'blockers': verification.get('remaining', []) or verification.get('unknown_launches', []),
+                'plan': state.get('execution_plan'),
                 'requires': ['execution_plan_reconciliation'],
                 'reason': 'Inspect verification blockers and existing effects before explicit prepare/execute; lookup never retries.'})
+            result['action_scope_counts']['request_required'] += 1
+        if state is not None:
+            result['handoff'] = handoff_summary(result, verification)
     except (OSError, ValueError, TypeError, KeyError, subprocess.CalledProcessError) as error:
         result = {'status': 'BLOCKED', 'findings': [str(error)], 'test_commands_executed': 0}
         if root is not None and project is not None:

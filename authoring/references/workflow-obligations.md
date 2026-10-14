@@ -140,6 +140,34 @@ Feature findings also remain visible. Prior task records are never rewritten.
 
 ## Connect the current request once
 
+Read `handoff`, `action_scope_counts` and each `next_actions[].scope` before
+accepting a delegated task. `request_required` follows explicit targets (or an
+init survey); `impact_required` follows changed owners, shared consumers or
+verification inputs; `project_remaining` requires an unchanged measured baseline
+outside explicit targets. Missing scope/baseline or unresolved ownership remains
+`scope_undetermined`. These are derived work labels, never scope exclusions or
+permission to remove existing obligations. Impact review can be required while
+individual business/architecture and FE/BE/API/Domain applicability is UNDECIDED.
+
+Each action's `pending` connects criterion ID/status, execution check versus Agent
+semantic review/scope decision, project-registered command and expectation,
+guide/token/component owners, retained bundle/raw and current validity. Missing
+commands or assertion contracts remain explicit; lookup does not invent an argv
+or expected result. The project owns commands/expectations; the Agent owns the
+meaning/applicability decision and must inspect the referenced sources/raw.
+`pending_ids`, counts and omission markers in `--summary` retain the denominator;
+use `detail_command` without `--summary` for all pending rows and observations.
+PASS checks do not discharge Agent reviews. STALE retains historical PASS;
+NOT_RUN, BLOCKED and UNDECIDED have different recovery actions. Lookup, task resume
+and audit validate plan binding and unknown launches without execution or writes.
+Task BLOCKED prevents adopting adjacent Feature PASS as this task's acceptance;
+otherwise `handoff.reusable_checks` permits only those current criteria, never a
+whole task/product PASS. Project-wide PARTIAL remains visible independently;
+when only measured `project_remaining` work remains, the current task can be
+READY_FOR_REVIEW without claiming project completion. A changed registered
+assertion file pinned by a linked active check reopens that consumer's verification
+and impact action; stale retired aliases do not reopen their replacement.
+
 `start --root <project> --intent change --target <feature>` creates ordinary task
 state under `.work/tasks/<task-id>/state.json`; no Harness contract is required.
 Use `--request-summary <text>` and repeatable `--outcome-ref <existing-project-file>`

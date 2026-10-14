@@ -1,5 +1,20 @@
 # Testing And Impact Selection
 
+Delegated-handoff regressions distinguish explicit request, measured shared/input
+impact, unchanged project remainder and missing-baseline scope. They preserve
+obligations and UNDECIDED applicability, connect pending checks/Agent reviews to
+registered expectations, guides and raw, and reject invented missing commands.
+Audit shares lookup/resume plan/effect validation. The native completed-run case
+now checks audit too, preserving state/raw and single execution of the effect.
+Hook tests preserve task action scopes and project counts under bounded output.
+Features: workflow-obligations, verification-results and agent-workflow. This
+changes common workflow projections and audit dispatch. Registered assertion-file
+drift also promotes linked active consumers into required verification using the
+existing bundle's pinned file hash, without changing execution/replay policy or
+Harness schema. The latter affects prepare/selection and downstream consumers;
+this delivery selects Full once after focused/impact failures are repaired, plus
+required resource, distribution and documentation checks.
+
 The check-identity migration cases use a clean Git-backed original plan and a fresh
 native replacement execution. They require unchanged assertions, criteria, fixtures,
 command behavior and other consumers; malformed, stale and colliding proof is rejected.

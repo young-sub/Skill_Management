@@ -22,6 +22,22 @@ Load [verification responsibilities](references/project-verification.md) for set
 
 For configured projects, [workflow obligations](references/workflow-obligations.md) provides the direct audit/resume CLI. Consume its affected references and perform the required semantic work. Local consistency and host-protected acceptance are distinct; the CLI reports the unsupported enforcement boundary explicitly.
 
+For delegated handoff, inspect `handoff` and action scopes before choosing work:
+current request, required impact, project remainder and unresolved scope stay
+separate. Follow each pending criterion to its existing command/guide/raw and
+current validity; repeat exact lookup without `--summary` when details are omitted.
+Do not accept task-misbound PASS, turn undecided cells into N/A, or count a current
+check as semantic review. Report the current request separately from overall debt.
+
+For guide reuse, discover the target Feature's project guide and registered
+UI systems before proposing a new procedure. Read their prerequisites, existing
+token/component consumers, command or interaction, expected outcome, raw location
+and cleanup. Reuse changed style/verification guidance in a different relevant
+follow-up when evaluating the guide itself; record discovery hints and assistance.
+Missing project-specific steps belong in the project guide/selector, while a
+failed common discovery instruction belongs here. Unapproved UI candidates stay
+draft; product screen review debt is not a missing plugin feature.
+
 Without configured workflow, use that same CLI's `start --intent diagnose
 --request-summary <request> --investigation <observations.json>`, as defined in
 [investigation without setup](references/workflow-obligations.md#investigation-without-workflow-setup).

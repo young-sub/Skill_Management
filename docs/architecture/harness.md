@@ -1,5 +1,13 @@
 # Harness Architecture
 
+The shared project-workflow owner derives request/impact/project/undetermined
+work labels from existing task targets, measured source/reference bases and owner
+links. It joins pending criteria to project commands/assertions and UI guides,
+without another ledger. Existing obligations and undecided scope are preserved.
+CLI lookup/resume/audit validate the same saved plan/effect binding; summaries and
+the prompt hook project these facts. Individual current checks remain separate
+from Agent review and task acceptance; a blocked task binding governs handoff.
+
 Workflow 0.1.46 keeps decision revisions, investigation scope and retirement proof
 in the existing task state. `project_workflow.py` owns those derived statuses;
 `workflow_context.py` supplies bounded read-only projections; the result viewer
