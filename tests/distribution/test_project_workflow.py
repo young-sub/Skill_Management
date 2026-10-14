@@ -14,6 +14,84 @@ SCRIPT = ROOT / 'authoring/scripts/project_workflow.py'
 
 
 class ProjectWorkflowTests(unittest.TestCase):
+    def test_lookup_reports_unknown_launch_after_completed_checkpoint(self):
+        import runpy
+        self.project['extensions']['workflow']['assertions'] = 'assertions.json'
+        self.project['extensions']['workflow']['features'][0]['checks'] = ['first', 'second']
+        self.project['extensions']['workflow']['features'][0]['sources'].append('src/run.py')
+        self.write('src/run.py', "import json,sys\nfrom pathlib import Path\n"
+            "Path(sys.argv[1]).parent.mkdir(parents=True,exist_ok=True)\n"
+            "Path(sys.argv[1]).write_text(json.dumps({'actual':11}))\n"
+            "with Path('.work/calls').open('a') as f:f.write(sys.argv[1]+'\\n')\n")
+        assertions = []
+        for name in ('first', 'second'):
+            report = '{report_dir}/' + name + '.json'
+            self.project['commands'][name] = [sys.executable, 'src/run.py', report]
+            assertions.append({'id': name, 'feature_id': 'api', 'expected': 'Eleven', 'required': True,
+                'selection': {'status': 'selected', 'reason': 'Two independent commands'},
+                'raw_observations': [{'path': report, 'pointer': '/actual',
+                                      'assertions': [{'pointer': '/actual', 'equals': 11}]}],
+                'dependency': {'file_refs': ['src/api.py']},
+                'fixture': {'file_refs': ['docs/requirement.md']}})
+        self.write('assertions.json', json.dumps({'schema_version': 1, 'checks': assertions}))
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        _, started = self.invoke('start', '--intent', 'change', '--target', 'api')
+        context = started['task_context']
+        _, prepared = self.invoke('prepare', context=context)
+        self.assertIn('verification', prepared)
+        self.assertEqual(prepared['verification']['status'], 'PREPARED', prepared)
+        state_path = self.root / started['task']['state']
+        state = json.loads(state_path.read_text())
+        plan = self.root / state['execution_plan']
+        evidence = plan.parent / 'evidence'
+        viewer = runpy.run_path(str(SCRIPT.with_name('verification_results.py')))
+        execute = viewer['execute_plan']
+        save = execute.__globals__['_save_execution_bundle']
+
+        def interrupt(*args, **kwargs):
+            result = save(*args, **kwargs)
+            if args[1] == 'checkpoint-0-':
+                raise KeyboardInterrupt('controller stopped after first completed command')
+            return result
+
+        with patch.dict(execute.__globals__, {'_save_execution_bundle': interrupt}):
+            with self.assertRaises(KeyboardInterrupt):
+                execute(plan, run_check_path=ROOT / 'scripts/run_check.py', evidence_dir=evidence)
+        # Simulate the durable launch intent written before the second external effect.
+        marker = evidence / 'command-1-started.json'
+        marker.write_text('{}')
+        before = {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()}
+        for action in ('lookup', 'resume'):
+            _, observed = self.invoke(action, '--summary', context=context)
+            self.assertEqual(observed['status'], 'BLOCKED', observed)
+            self.assertEqual(observed['verification']['items'][0]['current_status'], 'PASS')
+            self.assertEqual(observed['verification'].get('unknown_launches'), [marker.name])
+            self.assertEqual(observed['test_commands_executed'], 0)
+        checkpoint = evidence / 'checkpoint-0-bundle.json'
+        original = checkpoint.read_bytes()
+        descriptor = json.loads(original)
+        for indices in ([True], [0, 0], [-1], [2], [[]], None):
+            with self.subTest(completed_indices=indices):
+                checkpoint.write_text(json.dumps(dict(descriptor, completed_indices=indices)))
+                snapshot = checkpoint.read_bytes()
+                _, observed = self.invoke('lookup', '--summary', context=context)
+                self.assertEqual(observed['verification']['status'], 'BLOCKED')
+                self.assertIn('checkpoint_completed_indices_invalid', observed['verification']['remaining'])
+                self.assertEqual(observed['test_commands_executed'], 0)
+                self.assertEqual(checkpoint.read_bytes(), snapshot)
+        checkpoint.write_bytes(original)
+        malformed = evidence / 'command-bad-started.json'
+        malformed.write_text('{}')
+        _, observed = self.invoke('lookup', '--summary', context=context)
+        self.assertEqual(observed['verification']['unknown_launches'], [marker.name, malformed.name])
+        self.assertEqual(observed['test_commands_executed'], 0)
+        malformed.unlink()  # Restore this controlled malformed-marker fixture.
+        _, refused = self.invoke('execute', '--resume', '--run-check', str(ROOT / 'scripts/run_check.py'), context=context)
+        self.assertEqual(refused['verification']['status'], 'BLOCKED')
+        self.assertEqual(refused['test_commands_executed'], 0)
+        self.assertEqual(before, {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()})
+        self.assertEqual(len((self.root / '.work/calls').read_text().splitlines()), 1)
+
     def test_summary_distinguishes_unstarted_plan_from_unknown_external_effect(self):
         runtime = self.runtime()
         state = runtime.begin(self.root, self.project, 'change', ['api'])

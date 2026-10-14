@@ -1,5 +1,101 @@
 # Agent workflow implementation and acceptance
 
+<a id="binding-and-guide-2026-10-14"></a>
+
+## Check binding and guide follow-up, 2026-10-14
+
+This unit began at clean local `main@92b6ab2` / 0.1.59 and used the independent
+TEMP `skill-binding-repair-20261014` worktree. Earlier acceptance is retained as
+history, not counted as execution in this unit. Raw evidence is under
+`.work/binding-implementation-20261014/`.
+
+The checkpoint lookup defect was reproduced with two prepared native commands:
+the first actually completed, its controller stopped at the saved checkpoint,
+and a simulated durable second-launch marker remained. Lookup omitted the unknown
+launch even though execute/resume correctly refused replay. The shared workflow
+now preserves the first current PASS and reports unknown starts as BLOCKED.
+Malformed completion indices or marker names are not inferred complete. Normal
+completed runs retain zero-command reuse; no execution/replay policy changed.
+
+The native check identity repair adds an explicit `rebind/check_identity_migrated`
+decision, separate from removal/consolidation. It compares the clean Git-backed old
+plan with the current committed command, required assertions, criteria, fixtures,
+Feature/consumer/prevention links and a fresh native result. Only check identity
+and its explicit report output may change; shared old consumers remain registered.
+Missing/stale proof, relaxed contracts, unrelated configuration edits and existing
+target-ID collisions stay blocked. This is deliberately limited to the supported
+clean native alias case, not arbitrary rename inference.
+
+A new isolated Yeondoo replay retained the original plan before cherry-picking the
+existing report split: the old native producer ran 55 cases, then the committed
+target ran four producers (two native 55-case reports, six browser suites and nine
+reporter cases). Its actual CLI review reports PRESERVED with no remaining identity
+obligation, zero producer commands and unchanged raw evidence in 27.771 seconds;
+the overall task remains PARTIAL. The historical CatalogImport task stays BLOCKED:
+its source revision is not based on that task baseline, and independent inspection
+also could not reconstruct two recorded fixture hashes from Git or retained raw
+preimages. New replay evidence does not rehabilitate that historical record.
+
+The retained CatalogImport task's 23 review gaps were classified individually.
+Twelve source-owner reviews and the direct CatalogImport screen review were
+applied through the frozen 0.1.59 CLI to a new state copy; the Node-only generation
+screen row received a justified NOT_REQUIRED. Nine indirectly affected screens
+remain NOT_RUN and matrix applicability is still undecided. This is bounded
+change review, not whole-Feature correctness. Applying 12 reviews executed zero
+product commands, took 531.113 seconds in total, and preserved all 168 retained
+product state/plan/raw files byte-for-byte. The first application attempt used a
+caller-relative review path and failed without mutation; the retry used an
+absolute input path. Root review corrected irrelevant Modal boilerplate in the
+proposed generation/verification architecture boundaries before applying them.
+The unchanged two 55-case native reports have identical case/status tuples but
+different fixture bindings. No equivalent-condition consolidation or time saving
+was established, so these checks remain.
+
+A fresh-context worker independently found the existing CatalogImport guide,
+tokens/components and installed-Playwright fallback, then executed normal,
+invalid-to-valid, quota-error preservation/retry, keyboard and responsive paths.
+Raw screenshots and runtime observations cover 320, 768 and 1440 widths, with a
+separate 320x568 scroll/keyboard follow-up. The worker selected the same modal;
+this does not establish reuse on a different screen. Initial discovery/execution
+is separate from root-assisted connection repair. Root review also found that a
+reported title overlap used the full heading box; retained Range measurements
+separately test actual text against the close button, without rewriting the first
+raw observation. All data and staff-unlock fixtures were synthetic.
+
+Actual guide consumption found a product connection defect: CatalogImport listed
+the browser script as source but did not register it as an executable check. The
+separate `catalog-guide-connection-20261014` product worktree connects that existing
+script and synthetic fixture to the owned Vite/Chromium runner, fixed assertions,
+Feature coverage and executable guide. Its shared runner retains the six existing
+suites and requires the import suite too. Distinct fixture bindings still cause
+two browser producers; this repair does not claim reduced runtime. Root review
+caught a fixture-field mapping mismatch before acceptance. Actual guide execution
+also caught an incorrect abort on `start` exit 2/PARTIAL despite a valid task
+context; that failure is retained and the guide now distinguishes task setup from
+blocked input. Product candidates remain unmerged drafts.
+
+The guide repair candidate is committed at `f040641` (after `30607c2`) and
+retained unmerged. A fresh committed-HEAD prepare/execute ran four producers and
+all selected checks passed, including the seven-suite browser runner. Served
+source matched 13/13 files, source_changed was false, and browser/server cleanup
+reported no errors. Seven material root-assistance interventions are recorded
+separately from the initial independent consumption.
+
+Current source verification: workflow/refinement/hook **92 tests passed**
+(279.158s), viewer/execution **74 passed** (242.758s), package/catalog/resource/docs
+and cutover **39 passed** (16.947s). Independent review reran seven focused cases
+(63.234s) and found no remaining implementation counterexample. Resource drift,
+distribution validation and diff formatting passed. The bounded change leaves
+Harness lifecycle/schema and execution replay policy unchanged; Full was not
+repeated. These are source/package checks, not product or host acceptance.
+
+Native package discovery was rerun read-only: 12 installed plugins, with no
+`agentic-coding` entry. The initial sandbox read was unavailable; the authorized
+read-only retry succeeded. Native Skill invocation and hook delivery remain
+BLOCKED because installation/update was outside scope. Local CLI/package evidence
+does not replace these host observations or real user business-value evidence.
+
+
 <a id="product-consumption-2026-10-14"></a>
 
 ## Product consumption and read-only handoff, 2026-10-14

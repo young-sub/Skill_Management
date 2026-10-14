@@ -18,6 +18,225 @@ class WorkflowRefinementTests(unittest.TestCase):
     review = existing.ProjectWorkflowTests.review
     invoke = existing.ProjectWorkflowTests.invoke
 
+    def _native_rebind_case(self, *, target_collision=False):
+        """Build both sides from Git and let the native executor create target evidence."""
+        import runpy
+
+        runtime = self.runtime()
+        self.project['commands'] = {'legacy-native': {'argv': [sys.executable, 'src/native.py',
+            '{report_dir}/native.json'], 'working_directory': '.'}}
+        if target_collision:
+            self.project['commands']['native-generation'] = {'argv': [sys.executable, '-c', 'print("prior")'],
+                                                              'working_directory': '.'}
+        workflow = self.project['extensions']['workflow']
+        workflow['assertions'] = 'assertions.json'
+        feature = workflow['features'][0]
+        feature['checks'] = ['legacy-native']
+        feature['sources'] = ['src/api.py', 'src/native.py']
+        feature['map'] = ['docs/map.md']
+        feature['criteria'] = ['docs/requirement.md']
+        feature['prevention'] = [{'failure': 'Native output mismatch', 'check': 'legacy-native',
+                                  'normal_exception': 'The native check is explicitly not selected.'}]
+        # The old command remains live for another Feature while api migrates.
+        workflow['features'][1]['checks'] = ['legacy-native']
+        self.write('src/native.py',
+            'import json, sys\nfrom pathlib import Path\n'
+            "target = Path(sys.argv[1]); target.parent.mkdir(parents=True, exist_ok=True)\n"
+            "target.write_text(json.dumps({'status': 'PASS'}), encoding='utf-8')\n")
+        check_row = {'id': 'legacy-native', 'expected': 'Native command reports PASS',
+            'required': True, 'selection': {'status': 'selected', 'reason': 'Task check'},
+            'raw_observations': [{'path': '{report_dir}/native.json', 'pointer': '/status',
+                                  'assertions': [{'pointer': '/status', 'equals': 'PASS'}]}],
+            'dependency': {'file_refs': ['src/api.py']}, 'fixture': {'file_refs': ['docs/requirement.md']}}
+        self.write('assertions.json', json.dumps({'schema_version': 1, 'checks': [
+            dict(check_row, feature_id='api'), dict(check_row, feature_id='cli')]}))
+        self.write('docs/map.md', '| `api` API outcome | API outcome | src/api.py | legacy-native named case; browser review separate |\n'
+                                 '| `cli` CLI outcome | CLI outcome | src/cli.py | legacy-native named case; shared consumer |\n')
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        subprocess.run(['git', 'config', 'core.autocrlf', 'false'], cwd=self.root, check=True)
+        subprocess.run(['git', 'add', '-A'], cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Fixture', '-c', 'user.email=f@invalid',
+                        'commit', '-qm', 'register legacy native check'], cwd=self.root, check=True)
+
+        state = runtime.begin(self.root, self.project, 'change', ['api'])
+        state_path = self.root / '.work/task.json'
+        runtime.write_state(state_path, state)
+        viewer = runpy.run_path(str(existing.SCRIPT.with_name('verification_results.py')))
+        old_plan = self.root / '.work/old/plan.json'
+        old_report = self.root / '.work/old/native'
+        old_prepared = viewer['prepare_plan'](self.root, None, old_plan, report_dir=old_report,
+                                               pending_state=state_path.relative_to(self.root))
+        self.assertEqual(old_prepared['status'], 'PREPARED', old_prepared)
+        state['execution_plan'] = old_plan.relative_to(self.root).as_posix()
+        runtime.write_state(state_path, state)
+        old_run = viewer['execute_plan'](old_plan, run_check_path=existing.ROOT / 'scripts/run_check.py',
+                                          evidence_dir=old_plan.parent / 'evidence')
+        self.assertEqual(old_run['status'], 'PASS', old_run)
+
+        old_feature = deepcopy(feature)
+        old_spec = json.loads((self.root / 'assertions.json').read_text(encoding='utf-8'))
+        new_id = 'native-generation'
+        feature['checks'] = [new_id]
+        self.project['commands'][new_id] = {'argv': [sys.executable, 'src/native.py',
+            '{report_dir}/native-generation.json'], 'working_directory': '.'}
+        row = self.project['extensions']['workflow']['features'][0]
+        for item in row.get('coverage', []) + row.get('prevention', []):
+            if isinstance(item, dict) and item.get('check') == 'legacy-native':
+                item['check'] = new_id
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        spec = deepcopy(old_spec)
+        spec['checks'][0]['id'] = new_id
+        spec['checks'][0]['raw_observations'][0]['path'] = '{report_dir}/native-generation.json'
+        self.write('assertions.json', json.dumps(spec))
+        self.write('docs/map.md', '| `api` API outcome | API outcome | src/api.py | native-generation named case; browser review separate |\n'
+                                 '| `cli` CLI outcome | CLI outcome | src/cli.py | legacy-native named case; shared consumer |\n')
+        subprocess.run(['git', 'add', '-A'], cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Fixture', '-c', 'user.email=f@invalid',
+                        'commit', '-qm', 'rename native report binding'], cwd=self.root, check=True)
+
+        target_plan = self.root / '.work/new/plan.json'
+        target_report = self.root / '.work/new/native'
+        target_prepared = viewer['prepare_plan'](self.root, None, target_plan, report_dir=target_report,
+                                                  pending_state=state_path.relative_to(self.root))
+        self.assertEqual(target_prepared['status'], 'PREPARED', target_prepared)
+        target_run = viewer['execute_plan'](target_plan, run_check_path=existing.ROOT / 'scripts/run_check.py',
+                                             evidence_dir=target_plan.parent / 'evidence')
+        self.assertEqual(target_run['status'], 'PASS', target_run)
+        bundle = target_plan.parent / 'evidence/bundle.json'
+        return runtime, viewer, state, state_path, old_feature, new_id, old_plan, target_plan, bundle, target_run
+
+    def test_check_identity_rebind_accepts_a_clean_preimage_and_fresh_native_result(self):
+        runtime, viewer, state, state_path, old_feature, new_id, old_plan, target_plan, bundle, target_run = self._native_rebind_case()
+        target_view = viewer['view_bundle'](bundle, workflow_state=state_path.relative_to(self.root))
+        self.assertEqual(target_view['status'], 'PASS', target_view)
+        current_feature = self.project['extensions']['workflow']['features'][0]
+        audit = runtime.inspect_project(self.root, self.project, state)
+        feature_audit = next(item for item in audit['features'] if item['id'] == 'api')
+        review = {'feature': 'api', 'basis': feature_audit['basis'],
+            'analysis': 'Compared the preserved contract and the newly bound native command.',
+            'references': ['docs/map.md', 'src/api.py'], 'findings': [],
+            'check_decisions': {'legacy-native': {'action': 'rebind', 'reason': 'check_identity_migrated',
+                'rebind': {'target_check': new_id, 'source_plan': '.work/old/plan.json',
+                           'target_bundle': '.work/new/evidence/bundle.json'}}}}
+        accepted = runtime.record_review(self.root, self.project, state, review)
+        result = runtime.inspect_project(self.root, self.project, accepted)
+        row = next(item for item in result['check_retirements'] if item['check'] == 'legacy-native')
+        self.assertEqual(row['status'], 'PRESERVED', row)
+        self.assertEqual(row['remaining'], [])
+        references = accepted['reviews']['api']['reference_hashes']
+        self.assertIn('.work/old/plan.json', references)
+        self.assertIn('.work/new/evidence/bundle.json', references)
+        for artifact in (old_plan, bundle):
+            with self.subTest(changed_proof=artifact):
+                before = artifact.read_bytes()
+                artifact.write_bytes(before + b'\n')
+                stale = runtime.inspect_project(self.root, self.project, accepted)
+                stale_row = next(item for item in stale['check_retirements'] if item['check'] == 'legacy-native')
+                self.assertEqual(stale_row['status'], 'BLOCKED', stale_row)
+                self.assertIn('current_semantic_review_required', stale_row['remaining'])
+                artifact.write_bytes(before)
+
+    def test_check_identity_rebind_rejects_tampered_preimage_and_changed_consumers(self):
+        runtime, _, state, _, _, new_id, old_plan, _, _, _ = self._native_rebind_case()
+        api_feature = self.project['extensions']['workflow']['features'][0]
+        decision = {'rebind': {'target_check': new_id, 'source_plan': '.work/old/plan.json',
+                               'target_bundle': '.work/new/evidence/bundle.json'}}
+        original = old_plan.read_bytes()
+        mutations = {
+            'wrong_task': lambda plan: plan['workflow_scope'].__setitem__('task_identity', 'wrong-task'),
+            'required_false': lambda plan: plan['checks'][0].__setitem__('required', False),
+            'weaker_assertion': lambda plan: plan['checks'][0]['raw_observations'][0]['assertions'][0].__setitem__('equals', 'SKIP'),
+            'changed_fixture': lambda plan: plan['checks'][0]['conditions']['fixture']['file_hashes'].__setitem__(
+                next(iter(plan['checks'][0]['conditions']['fixture']['file_hashes'])), '0' * 64),
+        }
+        for name, mutate in mutations.items():
+            with self.subTest(proof=name):
+                plan = json.loads(original)
+                mutate(plan)
+                old_plan.write_text(json.dumps(plan), encoding='utf-8')
+                reasons = runtime.inspect_check_identity_rebind(self.root, self.project, api_feature, state,
+                                                                  'legacy-native', decision)
+                self.assertTrue(reasons, (name, reasons))
+                old_plan.write_bytes(original)
+
+        changed_prevention = deepcopy(self.project)
+        changed_prevention['extensions']['workflow']['features'][0]['prevention'][0]['failure'] = 'different failure'
+        reasons = runtime.inspect_check_identity_rebind(self.root, changed_prevention,
+            changed_prevention['extensions']['workflow']['features'][0], state, 'legacy-native', decision)
+        self.assertTrue(reasons)
+        changed_consumer = deepcopy(self.project)
+        changed_consumer['extensions']['workflow']['features'][1]['checks'] = []
+        reasons = runtime.inspect_check_identity_rebind(self.root, changed_consumer,
+            changed_consumer['extensions']['workflow']['features'][0], state, 'legacy-native', decision)
+        self.assertTrue(reasons)
+
+    def test_check_identity_rebind_rejects_unconsumed_target_command_collision(self):
+        runtime, _, state, _, _, new_id, old_plan, _, bundle, _ = self._native_rebind_case(target_collision=True)
+        feature = self.project['extensions']['workflow']['features'][0]
+        decision = {'rebind': {'target_check': new_id, 'source_plan': '.work/old/plan.json',
+                               'target_bundle': '.work/new/evidence/bundle.json'}}
+        reasons = runtime.inspect_check_identity_rebind(self.root, self.project, feature, state,
+                                                         'legacy-native', decision)
+        self.assertEqual(reasons, ['rebind_target_check_collision'])
+
+    def test_check_identity_rebind_is_a_supported_review_decision(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'change', ['api'])
+        feature = self.project['extensions']['workflow']['features'][0]
+        feature['checks'] = ['check-v2']
+        state = self.review(runtime, state, 'api')
+        review = deepcopy(state['reviews']['api'])
+        review['check_decisions'] = {'check': {
+            'action': 'rebind', 'reason': 'check_identity_migrated',
+            'rebind': {'target_check': 'check-v2', 'source_plan': '.work/source-plan.json',
+                       'target_bundle': '.work/target-bundle.json'}}}
+        self.write('.work/source-plan.json', '{}')
+        self.write('.work/target-bundle.json', '{}')
+
+        runtime.validate_review(self.root, review)
+
+    def test_rebind_contract_allows_only_check_and_explicit_report_identity(self):
+        runtime = self.runtime()
+        old_output = str((self.root / '.work/old/native.json').resolve())
+        new_output = str((self.root / '.work/new/native-generation.json').resolve())
+        old = {'id': 'local-native', 'feature_id': 'api', 'expected': 'Same outcome', 'required': True,
+               'selection': {'status': 'selected', 'reason': 'task'}, 'criteria_revision': 'criteria-hash',
+               'raw_observations': [{'path': old_output, 'pointer': '$', 'assertions': [{'pointer': '/status', 'equals': 'PASS'}]}],
+               'conditions': {'source': {'revision': 'a' * 40, 'diff': 'empty', 'status': '', 'untracked': 'empty'},
+                   'criteria': {'revision': 'criteria-hash'},
+                   'command': {'argv': ['node', '--report', old_output, 'scripts/*.test.mjs'],
+                               'cwd': str(self.root), 'report_dir': str(self.root / '.work/old')},
+                   'dependency': {'file_refs': ['package-lock.json'], 'file_hashes': {'lock': 'same'}},
+                   'runtime': {'executable': 'node', 'sha256': 'same'},
+                   'fixture': {'file_refs': ['src/input.ts'], 'file_hashes': {
+                       str(self.root / '.harness/project.yaml'): 'old-config',
+                       str(self.root / 'src/input.ts'): 'same-input'}}}}
+        new = deepcopy(old)
+        new['id'] = 'local-native-generation'
+        new['conditions']['source']['revision'] = 'b' * 40
+        new['conditions']['command']['argv'][2] = new_output
+        new['conditions']['command']['report_dir'] = str(self.root / '.work/new')
+        new['raw_observations'][0]['path'] = new_output
+        new['conditions']['fixture']['file_hashes'][str(self.root / '.harness/project.yaml')] = 'new-config'
+
+        normalize = runtime.normalize_rebind_check
+        allowed_metadata = {'.harness/project.yaml'}
+        self.assertEqual(normalize(self.root, old, allowed_metadata), normalize(self.root, new, allowed_metadata))
+        for field, value in (('expected', 'Weaker outcome'), ('required', False),
+                             ('criteria_revision', 'different'), ('raw_assertions', None)):
+            with self.subTest(field=field):
+                changed = deepcopy(new)
+                if field == 'raw_assertions':
+                    changed['raw_observations'][0]['assertions'][0]['equals'] = 'SKIP'
+                else:
+                    changed[field] = value
+                self.assertNotEqual(normalize(self.root, old, allowed_metadata),
+                                    normalize(self.root, changed, allowed_metadata))
+        changed = deepcopy(new)
+        changed['conditions']['dependency']['file_hashes']['lock'] = 'different'
+        self.assertNotEqual(normalize(self.root, old, allowed_metadata),
+                            normalize(self.root, changed, allowed_metadata))
+
     def difference(self):
         # Synthetic approval fixture, never an actual user's UI review.
         self.write('docs/decision.md', 'Fixture: explicitly allow candidate terminal-price.\n')

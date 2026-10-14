@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: 74fd6f404ea61c0f1f30cb447a2b1ef8e9e38cd4c48e22c1a6b74b248a47ba5f -->
+<!-- Source-SHA256: 6ee8e9b828f942794e8927913b22d116eed0ad3c7bd5dab00c42b590e2029ce9 -->
 
 # Project workflow obligations
 
@@ -165,13 +165,25 @@ environment variable. It is not a global setting, session ID or separate state
 ledger. Within an inherited process environment, subsequent commands need only:
 
 ```powershell
-$start = python <skill>/scripts/project_workflow.py start --root <project> --intent change --target <feature> | ConvertFrom-Json
+Remove-Item Env:AGENT_WORKFLOW_CONTEXT -ErrorAction SilentlyContinue
+$startJson = python <skill>/scripts/project_workflow.py start --root <project> --intent change --target <feature> | Out-String
+$startExit = $LASTEXITCODE
+$start = $startJson | ConvertFrom-Json
+if ($startExit -notin @(0, 2) -or $start.status -notin @('PARTIAL', 'READY_FOR_REVIEW') -or -not $start.task_context) {
+  throw "start did not return a valid task context (exit=$startExit, status=$($start.status))"
+}
 $env:AGENT_WORKFLOW_CONTEXT = $start.task_context
 python <skill>/scripts/project_workflow.py prepare
 python <skill>/scripts/project_workflow.py execute
 python <skill>/scripts/project_workflow.py lookup
 python <skill>/scripts/project_workflow.py resume
 ```
+
+`start` may exit 2 while returning a valid `PARTIAL` task context; this means work
+remains and is safe to continue only after the status/context guard above. A
+`prepare` or `execute` exit 2 reports a verification outcome such as BLOCKED,
+NOT_RUN or failed assertions; inspect its JSON and do not treat it as the start
+status.
 
 Preparation selects pending registered native-JSON assertions without launching
 commands and retains only the plan pointer in that same task state. Execution
@@ -371,6 +383,17 @@ Read-only `maintain` adds measured `maintenance` for explicitly linked bundles.
 Removing baseline checks from an active Feature retains `check_retirements` and
 `check_preservation` until a current reasoned review connects preserved defect and
 normal evidence. Details live in [verification responsibilities](project-verification.md).
+An explicitly reviewed `check_identity_migrated` rebind is narrower: the old plan
+must bind to the same task and a clean Git preimage, and a newly captured native
+bundle must be current and reusable. The registered command, required result,
+assertions, criteria, runtime, dependencies and fixture inputs remain equivalent;
+only that Feature's check ID and its explicit report-output path can change. The
+full project and assertion registries must match that exact transformation, and
+the map edit changes only the leading command-ID token while preserving labels
+and notes. Missing original Git bytes, stale proof, collisions or any unrelated
+consumer/prevention change keep the retirement BLOCKED. This is not a generic
+check-removal path. A shared old command remains registered for its other
+Features; rebinding one consumer does not retire those uses.
 
 The existing work JSON now retains `feedback` by incident ID. `feedback --feedback
 <entry.json>` merges an explicit complaint/repair stage; audit returns each chain's

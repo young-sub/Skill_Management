@@ -658,8 +658,33 @@ def connected_verification(root, project, state, path, work_id, action, *, outpu
         final = directory / 'bundle.json'
         checkpoints = sorted(directory.glob('checkpoint-*-bundle.json'), key=lambda p: int(p.name.split('-')[1]))
         if final.is_file() or checkpoints:
-            return viewer['view_bundle'](final if final.is_file() else checkpoints[-1],
-                                          workflow_state=path.relative_to(root))
+            saved = final if final.is_file() else checkpoints[-1]
+            result = viewer['view_bundle'](saved, workflow_state=path.relative_to(root))
+            try:
+                descriptor = json.loads(saved.read_text(encoding='utf-8'))
+                indices = descriptor.get('completed_indices') if isinstance(descriptor, dict) else None
+                checks = prepared.get('checks')
+                valid_indices = (isinstance(indices, list) and isinstance(checks, list)
+                    and len(indices) == len(set(indices))
+                    and all(type(index) is int and 0 <= index < len(checks) for index in indices))
+            except (OSError, ValueError, TypeError):
+                indices, valid_indices = None, False
+            completed = set(indices) if valid_indices else set()
+            unknown = []
+            for marker in sorted(directory.glob('command-*-started.json')):
+                match = re.fullmatch(r'command-(\d+)-started\.json', marker.name)
+                if match is None or not valid_indices or int(match.group(1)) not in completed:
+                    unknown.append(marker.name)
+            result['unknown_launches'] = unknown
+            result['test_commands_executed'] = 0
+            if not valid_indices or unknown:
+                reasons = (['checkpoint_completed_indices_invalid'] if not valid_indices else []) + [
+                    f'unknown_launch_outcome:{name}' for name in unknown]
+                result['status'] = 'BLOCKED'
+                result['remaining'] = sorted(set(result.get('remaining', [])) | set(reasons))
+                result['reason'] = ('Checkpoint completion indices are invalid; execution outcome remains unknown'
+                    if not valid_indices else 'An external command may have started; explicit recovery is required')
+            return result
         launches = [p.name for p in directory.glob('command-*-started.json')]
         return {'status': 'BLOCKED' if launches else 'NOT_RUN', 'plan': str(plan), 'unknown_launches': launches,
                 'test_commands_executed': 0, 'reason': 'Explicit execute/resume required; lookup never launches a command'}
@@ -900,7 +925,7 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
                                 ['criterion_revision', 'verification', 'normal_case'] if kind == 'requirement_change' else
                                 ['repair', 'regression', 'normal_case'])
             findings.extend(f'feedback_pending:{item["id"]}:{part}' for item in unresolved_feedback for part in item['remaining'])
-        retirements = inspect_check_retirements(root, feature, state, review, reviewed, bundle_cache=bundle_cache)
+        retirements = inspect_check_retirements(root, project, feature, state, review, reviewed, bundle_cache=bundle_cache)
         result['check_retirements'].extend(retirements)
         if any(item['status'] != 'PRESERVED' for item in retirements):
             requires.append('check_preservation')
@@ -1029,7 +1054,420 @@ def retirement_references(proof):
         name for field in ('entrypoints', 'callers') for item in proof.get(field, []) for name in item.get('references', [])]
 
 
-def inspect_check_retirements(root, feature, state, review, reviewed, *, bundle_cache=None):
+def check_decision_references(decision):
+    references = retirement_references(decision.get('retirement', {}))
+    if decision.get('action') == 'rebind':
+        proof = decision.get('rebind', {})
+        references.extend(proof.get(name) for name in ('source_plan', 'target_bundle') if isinstance(proof.get(name), str))
+    return references
+
+
+def normalize_rebind_check(root, check, changed_metadata):
+    """Mask only identity, clean source revision, explicit report paths and their metadata hashes."""
+    root = Path(root).resolve()
+    value = deepcopy(check)
+    if not isinstance(value, dict) or not isinstance(value.get('conditions'), dict):
+        raise ValueError('rebind_check_contract_invalid')
+    outputs = []
+    for raw in value.get('raw_observations', []):
+        candidate = Path(raw.get('path', ''))
+        output = (candidate if candidate.is_absolute() else root / candidate).resolve()
+        if not output.is_relative_to(root / '.work') or output in outputs:
+            raise ValueError('rebind_report_output_invalid')
+        outputs.append(output)
+        raw['path'] = '<explicit-report-output>'
+    if not outputs:
+        raise ValueError('rebind_explicit_report_output_required')
+    command = value['conditions'].get('command', {})
+    argv = command.get('argv')
+    if not isinstance(argv, list):
+        raise ValueError('rebind_command_registration_invalid')
+    cwd = Path(command.get('cwd', root))
+    cwd = (cwd if cwd.is_absolute() else root / cwd).resolve()
+    for output in outputs:
+        positions = [index for index, arg in enumerate(argv) if isinstance(arg, str) and
+                    ((Path(arg) if Path(arg).is_absolute() else cwd / arg).resolve() == output)]
+        if len(positions) != 1:
+            raise ValueError('rebind_report_output_not_bound_to_command')
+        argv[positions[0]] = '<explicit-report-output>'
+    if 'report_dir' in command:
+        report_dir = Path(command['report_dir'])
+        report_dir = (report_dir if report_dir.is_absolute() else root / report_dir).resolve()
+        if not report_dir.is_relative_to(root / '.work') or any(not output.is_relative_to(report_dir) for output in outputs):
+            raise ValueError('rebind_report_directory_invalid')
+        command['report_dir'] = '<explicit-report-directory>'
+    source = value['conditions'].get('source', {})
+    if not isinstance(source, dict):
+        raise ValueError('rebind_source_condition_invalid')
+    source['revision'] = '<source-revision>'
+    hashes = value['conditions'].get('fixture', {}).get('file_hashes', {})
+    if not isinstance(hashes, dict):
+        raise ValueError('rebind_fixture_hashes_invalid')
+    for absolute in hashes:
+        path = Path(absolute).resolve()
+        if path.is_relative_to(root) and path.relative_to(root).as_posix() in changed_metadata:
+            hashes[absolute] = '<explicit-metadata-revision>'
+    value['id'] = '<check-identity>'
+    return value
+
+
+def inspect_check_identity_rebind(root, project, feature, state, check, decision):
+    """Preserve one check binding only when Git, the old task and a fresh native bundle agree."""
+    root = Path(root).resolve()
+    proof = decision.get('rebind', {})
+
+    def need(value, reason):
+        if not value:
+            raise ValueError(reason)
+
+    def work_file(name):
+        need(isinstance(name, str) and name and not Path(name).is_absolute(), 'rebind_proof_path_invalid')
+        path = local_path(root, name)
+        need(path.resolve().is_relative_to(root / '.work') and path.is_file(), 'rebind_proof_path_invalid')
+        return path.resolve()
+
+    def bundle_file(name, base):
+        need(isinstance(name, str) and name.strip(), 'rebind_bundle_reference_invalid')
+        candidate = Path(name)
+        candidate = candidate if candidate.is_absolute() else base / candidate
+        candidate = candidate.resolve()
+        need(candidate.is_relative_to(root), 'rebind_bundle_reference_outside_project')
+        return work_file(candidate.relative_to(root).as_posix())
+
+    def repo_name(name):
+        need(isinstance(name, str) and name.strip(), 'rebind_repository_reference_invalid')
+        path = Path(name.replace('\\', '/'))
+        need(not path.is_absolute() and '..' not in path.parts and '.git' not in path.parts,
+             'rebind_repository_reference_invalid')
+        return path.as_posix()
+
+    def git_bytes(revision, name):
+        return git(root, 'show', f'{revision}:{repo_name(name)}')
+
+    def git_json(revision, name):
+        return json.loads(git_bytes(revision, name).decode('utf-8-sig'))
+
+    def is_ancestor(older, newer):
+        return subprocess.run(['git', '-C', str(root), 'merge-base', '--is-ancestor', older, newer],
+                              capture_output=True).returncode == 0
+
+    def source_revision(item):
+        source = item.get('conditions', {}).get('source', {})
+        revision = source.get('revision')
+        empty_diff = hashlib.sha256(b'').hexdigest()
+        empty_untracked = hashlib.sha256(b'{}').hexdigest()
+        need(isinstance(revision, str) and re.fullmatch(r'[0-9a-fA-F]{40,64}', revision)
+             and source.get('diff') == empty_diff and source.get('status') == ''
+             and source.get('untracked') == empty_untracked, 'rebind_source_preimage_not_clean')
+        return revision
+
+    def plan_check(plan, feature_id, identity, viewer):
+        rows = [item for item in viewer['_plan_checks'](plan, allow_unbound=True)
+                if item.get('feature_id') == feature_id and item.get('id') == identity]
+        need(len(rows) == 1, 'rebind_plan_check_missing_or_ambiguous')
+        return rows[0]
+
+    def scope_feature(plan, feature_id):
+        rows = [item for item in plan.get('workflow_scope', {}).get('features', [])
+                if item.get('id') == feature_id]
+        need(len(rows) == 1, 'rebind_plan_feature_missing_or_ambiguous')
+        return rows[0]
+
+    def feature_for(config, feature_id):
+        rows = [item for item in config['features'] if item.get('id') == feature_id]
+        need(len(rows) == 1, 'rebind_feature_registration_missing_or_ambiguous')
+        return rows[0]
+
+    def spec_check(spec, feature_id, identity):
+        rows = [item for item in spec.get('checks', []) if isinstance(item, dict)
+                and item.get('feature_id') == feature_id and item.get('id') == identity]
+        need(len(rows) == 1, 'rebind_assertion_registration_missing_or_ambiguous')
+        return rows[0]
+
+    def command_entry(project, identity):
+        locations = []
+        commands = project.get('commands', {})
+        selectors = project.get('impact', {}).get('feature_selectors', {})
+        if isinstance(commands, dict) and identity in commands:
+            locations.append(('commands', commands, commands[identity]))
+        if isinstance(selectors, dict) and identity in selectors:
+            locations.append(('impact.feature_selectors', selectors, selectors[identity]))
+        need(len(locations) == 1, 'rebind_command_registration_missing_or_ambiguous')
+        return locations[0]
+
+    def normalized_command(descriptor, spec_row):
+        value = deepcopy(descriptor)
+        argv = value.get('argv') if isinstance(value, dict) else value
+        need(isinstance(argv, list) and argv and all(isinstance(arg, str) for arg in argv),
+             'rebind_command_registration_invalid')
+        paths = [raw.get('path') for raw in spec_row.get('raw_observations', []) if isinstance(raw, dict)]
+        need(paths and all(isinstance(path, str) and path.strip() for path in paths),
+             'rebind_explicit_report_output_required')
+        for path in paths:
+            positions = [index for index, arg in enumerate(argv) if arg == path]
+            need(len(positions) == 1, 'rebind_report_output_not_bound_to_command')
+            argv[positions[0]] = '<explicit-report-output>'
+        return value
+
+    def bind_plan_check(project, identity, spec_row, item):
+        _, _, descriptor = command_entry(project, identity)
+        command = descriptor if isinstance(descriptor, dict) else {'argv': descriptor}
+        conditions = item['conditions']['command']
+        report_dir = conditions.get('report_dir')
+        argv = resolve_report_command(root, command.get('argv'), report_dir)
+        cwd = local_path(root, command.get('working_directory', '.')).resolve()
+        need(conditions.get('argv') == argv and conditions.get('cwd') == str(cwd),
+             'rebind_registered_command_mismatch')
+        raw_rows, spec_rows = item.get('raw_observations', []), spec_row.get('raw_observations', [])
+        need(len(raw_rows) == len(spec_rows) and raw_rows, 'rebind_raw_assertions_changed')
+        for raw, declared in zip(raw_rows, spec_rows):
+            need(isinstance(raw, dict) and isinstance(declared, dict)
+                 and {k: v for k, v in raw.items() if k != 'path'}
+                 == {k: v for k, v in declared.items() if k != 'path'}, 'rebind_raw_assertions_changed')
+            expected = Path(resolve_report_path(root, declared.get('path'), report_dir))
+            if not expected.is_absolute():
+                expected = cwd / expected
+            actual = Path(raw.get('path', ''))
+            actual = actual if actual.is_absolute() else cwd / actual
+            actual = actual.resolve()
+            expected = expected.resolve()
+            need(actual == expected and actual.is_relative_to(root / '.work'), 'rebind_report_output_mismatch')
+            need(any((Path(arg) if Path(arg).is_absolute() else cwd / arg).resolve() == actual for arg in argv),
+                 'rebind_report_output_not_bound_to_command')
+        if report_dir:
+            output_dir = Path(report_dir)
+            output_dir = (output_dir if output_dir.is_absolute() else root / output_dir).resolve()
+            need(output_dir.is_relative_to(root / '.work'), 'rebind_report_directory_invalid')
+        return True
+
+    def repository_hashes(item):
+        fixture = item.get('conditions', {}).get('fixture', {})
+        hashes = fixture.get('file_hashes')
+        need(isinstance(hashes, dict) and hashes, 'rebind_fixture_hashes_missing')
+        cwd = Path(item['conditions']['command']['cwd']).resolve()
+        names = set()
+        for ref in fixture.get('file_refs', []):
+            name = ref.get('path') if isinstance(ref, dict) else ref
+            need(isinstance(name, str) and not Path(name).is_absolute(), 'rebind_fixture_reference_invalid')
+            path = (cwd / name).resolve()
+            need(path.is_relative_to(root), 'rebind_fixture_reference_outside_project')
+            names.add(path.relative_to(root).as_posix())
+        for ref in fixture.get('repository_file_refs', []):
+            name = repo_name(ref)
+            local_path(root, name)
+            names.add(name)
+        result = {}
+        for absolute, value in hashes.items():
+            path = Path(absolute).resolve()
+            need(path.is_relative_to(root), 'rebind_fixture_path_outside_project')
+            name = path.relative_to(root).as_posix()
+            need(name not in result and isinstance(value, str), 'rebind_fixture_hashes_invalid')
+            result[name] = value
+        need(names == set(result), 'rebind_fixture_references_changed')
+        return result
+
+    def matches_git_preimage(name, expected, revision):
+        raw = git_bytes(revision, name)
+        crlf = raw.replace(b'\r\n', b'\n').replace(b'\n', b'\r\n')
+        return expected in {hashlib.sha256(raw).hexdigest(), hashlib.sha256(crlf).hexdigest()}
+
+    def transformed_map(old_raw, feature_id, old_id, new_id):
+        bom = old_raw.startswith(b'\xef\xbb\xbf')
+        text = old_raw.decode('utf-8-sig')
+        lines = text.splitlines(keepends=True)
+        matches = []
+        leading_identifier = re.compile(r'\s*(?P<quote>`?)(?P<id>[A-Za-z0-9][A-Za-z0-9._-]*)(?P=quote)(?P<suffix>\s.*)?')
+        for index, line in enumerate(lines):
+            body = line.rstrip('\r\n')
+            parts = body.split('|')
+            cells = parts[1:-1] if len(parts) >= 3 and not parts[0].strip() and not parts[-1].strip() else []
+            feature_token = leading_identifier.fullmatch(cells[0]) if cells else None
+            if feature_token and feature_token.group('id') == feature_id:
+                command_text, separator, note = cells[-1].partition(';')
+                entries, parsed, offset = command_text.split(','), [], 0
+                for entry in entries:
+                    token = leading_identifier.fullmatch(entry)
+                    need(token is not None, 'rebind_feature_map_command_ids_invalid')
+                    parsed.append((token.group('id'), offset + token.start('id')))
+                    offset += len(entry) + 1
+                positions = [start for name, start in parsed if name == old_id]
+                if positions:
+                    need(len(positions) == 1, 'rebind_feature_map_binding_missing_or_ambiguous')
+                    matches.append((index, parts, command_text, separator, note, positions[0]))
+        need(len(matches) == 1, 'rebind_feature_map_binding_missing_or_ambiguous')
+        index, parts, command_text, separator, note, token_start = matches[0]
+        command_text = command_text[:token_start] + new_id + command_text[token_start + len(old_id):]
+        parts[-2] = command_text + separator + note
+        ending = '\r\n' if lines[index].endswith('\r\n') else '\n' if lines[index].endswith('\n') else ''
+        lines[index] = '|'.join(parts) + ending
+        output = ('\ufeff' if bom else '') + ''.join(lines)
+        return output.encode('utf-8')
+
+    try:
+        target_id = proof.get('target_check')
+        need(isinstance(target_id, str) and re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]*', target_id)
+             and target_id != check,
+             'rebind_target_check_invalid')
+        source_path, bundle_path = work_file(proof.get('source_plan')), work_file(proof.get('target_bundle'))
+        old_plan = json.loads(source_path.read_text(encoding='utf-8-sig'))
+        viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
+        old_check = plan_check(old_plan, feature['id'], check, viewer)
+        old_scope = old_plan.get('workflow_scope', {})
+        need(Path(old_scope.get('root', '')).resolve() == root
+             and old_scope.get('task_identity') == task_identity(state), 'rebind_source_task_binding_mismatch')
+        old_state_path = work_file(old_scope.get('state'))
+        old_state = json.loads(old_state_path.read_text(encoding='utf-8-sig'))
+        need(task_identity(old_state) == task_identity(state) and old_state.get('base') == state.get('base'),
+             'rebind_source_task_preimage_mismatch')
+        old_revision = source_revision(old_check)
+        need(old_check.get('required') is True and old_check.get('selection', {}).get('status') == 'selected',
+             'rebind_source_check_not_required')
+        need(old_scope.get('selection') and any(row.get('feature') == feature['id']
+             and row.get('check') == check and row.get('selected') is True for row in old_scope['selection']),
+             'rebind_source_check_not_selected')
+        base = state.get('base')
+        need(isinstance(base, str) and is_ancestor(old_revision, base), 'rebind_source_not_based_on_task_baseline')
+        old_project = git_json(old_revision, '.harness/project.yaml')
+        old_config = configuration(old_project)
+        old_feature = feature_for(old_config, feature['id'])
+        need(scope_feature(old_plan, feature['id']) == old_feature, 'rebind_source_feature_preimage_mismatch')
+        old_links = old_state.get('check_links', {}).get(feature['id'], {})
+        current_links = state.get('check_links', {}).get(feature['id'], {})
+        need(old_links == current_links and check in current_links.get('checks', [])
+             and current_links.get('prevention', []) == old_feature.get('prevention', []),
+             'rebind_task_check_links_mismatch')
+        need(old_feature.get('checks', []).count(check) == 1, 'rebind_source_check_identity_missing')
+
+        wrapper = json.loads(bundle_path.read_text(encoding='utf-8-sig'))
+        bundle = wrapper.get('execution', {}).get('bundle', wrapper) if isinstance(wrapper, dict) else None
+        need(isinstance(bundle, dict), 'rebind_target_bundle_invalid')
+        new_plan_path = bundle_file(bundle.get('source_plan'), bundle_path.parent)
+        bound_plan_path = bundle_file(bundle.get('plan'), bundle_path.parent)
+        new_plan = json.loads(new_plan_path.read_text(encoding='utf-8-sig'))
+        new_check = plan_check(new_plan, feature['id'], target_id, viewer)
+        new_scope = new_plan.get('workflow_scope', {})
+        need(Path(new_scope.get('root', '')).resolve() == root
+             and new_scope.get('task_identity') == task_identity(state), 'rebind_target_task_binding_mismatch')
+        target_state_path = work_file(new_scope.get('state'))
+        target_state = json.loads(target_state_path.read_text(encoding='utf-8-sig'))
+        need(task_identity(target_state) == task_identity(state), 'rebind_target_state_mismatch')
+        target_revision = source_revision(new_check)
+        head = git(root, 'rev-parse', 'HEAD').decode().strip()
+        need(old_revision != target_revision and is_ancestor(old_revision, target_revision)
+             and isinstance(base, str) and is_ancestor(base, target_revision)
+             and target_revision == head and not git(root, 'status', '--porcelain').strip(),
+             'rebind_target_source_not_current_clean_lineage')
+        need(new_check.get('required') is True and new_check.get('selection', {}).get('status') == 'selected'
+             and new_scope.get('selection') and any(row.get('feature') == feature['id']
+                 and row.get('check') == target_id and row.get('selected') is True for row in new_scope['selection']),
+             'rebind_target_check_not_required')
+
+        new_project = git_json(target_revision, '.harness/project.yaml')
+        need(new_project == project, 'rebind_current_project_differs_from_git')
+        new_config = configuration(new_project)
+        new_feature = feature_for(new_config, feature['id'])
+        need(new_feature == feature and scope_feature(new_plan, feature['id']) == new_feature,
+             'rebind_target_feature_preimage_mismatch')
+        need(target_id not in old_project.get('commands', {})
+             and target_id not in old_project.get('impact', {}).get('feature_selectors', {})
+             and target_id not in {identity for item in old_config['features'] for identity in item.get('checks', [])}
+             and target_id not in {item.get('id') for item in git_json(old_revision, old_config['assertions']).get('checks', [])},
+             'rebind_target_check_collision')
+        transformed_feature = deepcopy(old_feature)
+        transformed_feature['checks'] = [target_id if value == check else value for value in transformed_feature['checks']]
+        for field in ('coverage', 'prevention'):
+            for row in transformed_feature.get(field, []) or []:
+                if isinstance(row, dict) and row.get('check') == check:
+                    row['check'] = target_id
+        need(transformed_feature == new_feature, 'rebind_feature_consumers_or_prevention_changed')
+
+        spec_path = old_config.get('assertions')
+        need(isinstance(spec_path, str) and spec_path == new_config.get('assertions'),
+             'rebind_assertion_source_changed')
+        old_spec, new_spec = git_json(old_revision, spec_path), git_json(target_revision, spec_path)
+        old_spec_row, new_spec_row = spec_check(old_spec, feature['id'], check), spec_check(new_spec, feature['id'], target_id)
+        need(not any(row.get('id') == target_id for row in old_spec.get('checks', []) if isinstance(row, dict)),
+             'rebind_target_assertion_collision')
+        normalized_old_spec, normalized_new_spec = deepcopy(old_spec_row), deepcopy(new_spec_row)
+        normalized_old_spec['id'] = normalized_new_spec['id'] = '<check-identity>'
+        for before, after in zip(normalized_old_spec.get('raw_observations', []),
+                                 normalized_new_spec.get('raw_observations', [])):
+            need(isinstance(before.get('path'), str) and isinstance(after.get('path'), str),
+                 'rebind_explicit_report_output_required')
+            before['path'] = after['path'] = '<explicit-report-output>'
+        need(len(old_spec_row.get('raw_observations', [])) == len(new_spec_row.get('raw_observations', []))
+             and normalized_old_spec == normalized_new_spec, 'rebind_assertion_or_requirement_changed')
+        transformed_spec = deepcopy(old_spec)
+        old_rows = transformed_spec.get('checks', [])
+        old_index = old_rows.index(old_spec_row)
+        transformed_spec['checks'][old_index] = new_spec_row
+        need(transformed_spec == new_spec, 'rebind_assertion_registry_changed')
+
+        old_registry, old_mapping, old_descriptor = command_entry(old_project, check)
+        new_registry, _, new_descriptor = command_entry(new_project, target_id)
+        need(old_registry == new_registry
+             and normalized_command(old_descriptor, old_spec_row) == normalized_command(new_descriptor, new_spec_row),
+             'rebind_registered_command_changed')
+        bind_plan_check(old_project, check, old_spec_row, old_check)
+        bind_plan_check(new_project, target_id, new_spec_row, new_check)
+        for item, spec_row in ((old_check, old_spec_row), (new_check, new_spec_row)):
+            need(item.get('expected') == spec_row.get('expected'), 'rebind_expected_outcome_changed')
+
+        expected_project = deepcopy(old_project)
+        expected_config = configuration(expected_project)
+        expected_feature = feature_for(expected_config, feature['id'])
+        expected_feature['checks'] = [target_id if value == check else value for value in expected_feature['checks']]
+        for field in ('coverage', 'prevention'):
+            for row in expected_feature.get(field, []) or []:
+                if isinstance(row, dict) and row.get('check') == check:
+                    row['check'] = target_id
+        if old_registry == 'commands':
+            expected_project.setdefault('commands', {})[target_id] = deepcopy(new_descriptor)
+        else:
+            expected_project.setdefault('impact', {}).setdefault('feature_selectors', {})[target_id] = deepcopy(new_descriptor)
+        need(expected_project == new_project, 'rebind_project_changed_beyond_identity')
+
+        metadata = {'.harness/project.yaml', repo_name(spec_path),
+                    *(repo_name(name) for name in old_feature.get('map', []))}
+        for name in old_feature.get('map', []):
+            old_map = git_bytes(old_revision, name)
+            new_map = git_bytes(target_revision, name)
+            need(transformed_map(old_map, feature['id'], check, target_id) == new_map,
+                 'rebind_feature_map_changed_beyond_check_identity')
+        old_fixture, new_fixture = repository_hashes(old_check), repository_hashes(new_check)
+        need(set(old_fixture) == set(new_fixture) and metadata <= set(old_fixture),
+             'rebind_fixture_references_changed')
+        for name, value in old_fixture.items():
+            need(matches_git_preimage(name, value, old_revision), 'rebind_fixture_preimage_mismatch')
+            if name not in metadata:
+                need(value == new_fixture[name], 'rebind_fixture_inputs_changed')
+        changed = set(git(root, 'diff', '--name-only', '-z', old_revision, target_revision).decode('utf-8').split('\0')) - {''}
+        source_paths = old_feature['sources'] + new_feature['sources']
+        criteria_paths = set(old_feature.get('criteria', []))
+        for name in changed:
+            need(not any(fnmatchcase(name, pattern) for pattern in source_paths)
+                 and name not in criteria_paths, 'rebind_source_or_criteria_changed')
+            need(name in metadata or (name.startswith('docs/') and name.endswith('.md')),
+                 'rebind_unrelated_source_change')
+
+        need(normalize_rebind_check(root, old_check, metadata)
+             == normalize_rebind_check(root, new_check, metadata), 'rebind_check_contract_changed')
+        viewed = viewer['view_bundle'](bundle_path, workflow_state=target_state_path.relative_to(root))
+        matches = [item for item in viewed.get('items', [])
+                   if item.get('feature') == feature['id'] and item.get('id') == target_id]
+        need(viewed.get('test_commands_executed') == 0 and len(matches) == 1,
+             'rebind_target_evidence_missing')
+        item = matches[0]
+        need(viewed.get('status') == 'PASS' and item.get('historical_status') == 'PASS'
+             and item.get('current_status') == 'PASS' and item.get('current_reuse') == 'REUSABLE'
+             and item.get('selected') is True and item.get('capture', {}).get('execution') == 'exited'
+             and item.get('capture', {}).get('exit_code') == 0, 'rebind_target_evidence_not_current_pass')
+        return []
+    except (OSError, ValueError, TypeError, KeyError, AttributeError, subprocess.CalledProcessError) as error:
+        return [str(error) if isinstance(error, ValueError) and str(error) else 'rebind_evidence_unavailable']
+
+
+def inspect_check_retirements(root, project, feature, state, review, reviewed, *, bundle_cache=None):
     prior = state.get('check_links', {}).get(feature['id'], {})
     result = []
     for check in sorted(set(prior.get('checks', [])) - set(feature['checks'])):
@@ -1037,6 +1475,11 @@ def inspect_check_retirements(root, feature, state, review, reviewed, *, bundle_
         remaining = []
         if not reviewed:
             remaining.append('current_semantic_review_required')
+        if decision.get('action') == 'rebind' and decision.get('reason') == 'check_identity_migrated':
+            remaining.extend(inspect_check_identity_rebind(root, project, feature, state, check, decision))
+            result.append({'feature': feature['id'], 'check': check, 'decision': decision,
+                           'status': 'BLOCKED' if remaining else 'PRESERVED', 'remaining': sorted(set(remaining))})
+            continue
         if decision.get('action') not in {'remove', 'consolidate'} or not decision.get('reason'):
             remaining.append('preservation_decision_missing')
         if decision.get('action') == 'remove' and decision.get('reason') == 'requirement_retired':
@@ -1783,10 +2226,25 @@ def validate_review(root, review):
     if not isinstance(decisions, dict):
         raise ValueError('check_decisions_must_be_object')
     for entry in decisions.values():
-        if not isinstance(entry, dict) or entry.get('action') not in {'retain', 'remove', 'consolidate'} or not entry.get('reason'):
+        if not isinstance(entry, dict) or entry.get('action') not in {'retain', 'remove', 'consolidate', 'rebind'} or not entry.get('reason'):
             raise ValueError('check_decision_requires_action_reason')
         if not isinstance(entry.get('preservation', []), list) or any(not isinstance(p, dict) for p in entry.get('preservation', [])):
             raise ValueError('check_preservation_must_be_list')
+        if entry.get('action') == 'rebind':
+            proof = entry.get('rebind')
+            if (entry.get('reason') != 'check_identity_migrated' or not isinstance(proof, dict)
+                    or set(proof) != {'target_check', 'source_plan', 'target_bundle'}
+                    or any(not isinstance(proof.get(field), str) or not proof[field].strip()
+                           for field in ('target_check', 'source_plan', 'target_bundle'))
+                    or entry.get('preservation', []) or 'retirement' in entry):
+                raise ValueError('check_rebind_requires_identity_and_execution_proof')
+            for field in ('source_plan', 'target_bundle'):
+                try:
+                    path = local_path(root, proof[field])
+                except (OSError, ValueError):
+                    raise ValueError('check_rebind_proof_path_invalid') from None
+                if not path.resolve().is_relative_to((root / '.work').resolve()) or not path.is_file():
+                    raise ValueError('check_rebind_proof_path_invalid')
         if 'retirement' in entry:
             proof = entry['retirement']
             if not isinstance(proof, dict):
@@ -1923,7 +2381,7 @@ def record_review(root, project, state, review):
     updated[key][review['feature']]['reference_hashes'] = {
         name: file_hash(root, name) for name in dict.fromkeys(review['references'] + [name
             for decision in review.get('check_decisions', {}).values()
-            for name in retirement_references(decision.get('retirement', {}))])}
+            for name in check_decision_references(decision)])}
     for entry in updated[key][review['feature']].get('scope_reviews', {}).values():
         entry['reference_hashes'] = {name: file_hash(root, name) for name in dict.fromkeys(
             entry['references'] + architecture_references(entry.get('architecture', {})))}

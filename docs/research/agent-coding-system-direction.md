@@ -1,6 +1,6 @@
 # Agent Coding 업무 위임·검증·지속 개선 체계
 
-현재 기준은 **2026-10-14 / local main `09d8834` / runtime 0.1.59**다. [직전 구현·검증 결과](agent-workflow-implementation-results.md#product-consumption-2026-10-14)는 실제 이관·조회 수리·제품 검증과 비용 측정을 소유한다. 이번 설계 재검토는 현재 코드와 그 근거를 대조해 §2의 남은 범위, §8의 검사 변경 분류, §10의 다음 작업을 갱신한다. **설계 보완을 새 runtime 구현으로 계산하지 않는다.** §12는 당시 평가 합의, §13은 지속 목표다.
+현재 기준은 **2026-10-14 / local main `92b6ab2` / previous local-main runtime 0.1.59**다. 별도 `wp-20261014-binding-repair` worktree의 **0.1.60 candidate**에는 check-binding migration implementation과 fresh actual replay가 포함된다. Candidate의 mapped regressions는 통과했지만 frozen-package consumption/final delivery가 남아 있다. [현재 candidate 결과](agent-workflow-implementation-results.md#binding-and-guide-2026-10-14)와 [직전 0.1.59 결과](agent-workflow-implementation-results.md#product-consumption-2026-10-14)를 구분한다. §2·§8·§10은 현재 candidate와 남은 인수를 다룬다. §12는 당시 평가 합의, §13은 지속 목표다.
 
 **목적은 플러그인 고도화이며 연두링크는 실제 사용 평가 대상이다.** 연두링크 화면만 개선하고 종료하지 않는다. 기존 [연두링크 평가](plugin-improvement-next-session.md)와 [지속 고도화 요청](plugin-continuous-improvement-next-session.md)은 수행 범위를 보존한다. 다음 개선 선정은 현재 근거와 §10을 따른다. 과거 `agent-workflow-next-session.md`와 `agent-coding-next-session.md`의 실행 블록도 이미 수행된 범위의 기록이다.
 
@@ -47,15 +47,15 @@ Agent는 요구·원인·시각·검사 가치의 의미 판단을, CLI는 상�
 
 ## 2. 현재 구현, 보완한 오류와 남은 한계
 
-설계의 책임 분리는 유지하되 **구현 결함, 미수행 인수, 외부 근거/권한, 의도된 보호**를 구분한다. 직전 실행은 0.1.59와 문서까지 로컬 main에 병합하고 완료된 플러그인 worktree를 정리했다. CatalogImport 평가 후보 `1d9457b`는 미병합 draft다. 과거 명령 실행을 이번 설계 검토의 실행 결과로 다시 계산하지 않는다.
+설계의 책임 분리는 유지하되 **구현 결함, 미수행 인수, 외부 근거/권한, 의도된 보호**를 구분한다. 0.1.59는 previous local-main runtime이며, 별도 plugin worktree의 0.1.60 candidate는 migration implementation과 actual replay를 거쳐 final review 중이다. Yeondoo Link CatalogImport 연결 수리 `f040641`도 미병합 product draft로 남아 있다.
 
 | 사용자 관점 | 구현·관찰된 범위 | 남은 한계와 다음 판단 |
 | --- | --- | --- |
 | 많은 task 위임·검증 조회 | 정확한 task 선택, 당시/현재 결과, 무효 계획에서도 task·피드백 표시, read-only 조회, 중단/unknown-launch 재실행 거절을 한정 검증 | 묶음 비교는 Agent 취합이다. 실제 다수 업무의 우선 조치 판단·통합·후속 인수 효과와 장기 무인 운영은 미입증. 512개 이력 fixture를 실제 동시 업무 수로 읽지 않음 |
 | 업무 규칙·아키텍처 × FE/BE/API/Domain | 기존 Labeler의 UI→API→Domain→D1→새 조회, 동일 값/ID, 주입 FE 오류/BE PASS, 계정 격리·실패 보존·복구를 실제 확인 | 한 흐름의 근거다. 별도 예제와 구분하며 전 제품·사업 가치·사용자 개입 감소로 확대하지 않음. 6셀은 적용 판단이지 검사 6개 할당이 아님 |
 | 불편·피드백·실질 가드레일 | 0.1.58 이관을 실제 동일 사건의 격리 복사에서 소비. 후속 근거 누락·기준 변경·철회 시 OPEN, 새 문맥 조회/재사용 확인 | SUPERSEDED는 원본 수리 성공이 아니다. 원본과 현재 담당의 근거를 유지. 복사 상태의 실행 계획 불일치는 자동 재연결하지 않는 보호이며 이관 실패와 구분 |
-| UIUX 기준의 생성·고도화 | CatalogImport 공유 Modal의 Tab/disabled 포커스 수리, 기존 가이드 연결, 4개 viewport·키보드·오류/복구 관찰 | 해당 화면은 더 이상 미검증 다음 후보가 아님. 도움받은 소비와 작성자 가이드 재실행까지 확인했으나 보완된 가이드의 독립 무도움 후속 소비는 미완료. UI 승인은 별도 |
-| 실행 가능한 검증 가이드 | 프로젝트 report 충돌을 고쳐 커밋된 후보에서 4개 producer·18개 선택 검사 PASS. 0.1.59 조회도 현재 PASS/전체 PARTIAL/명령 0개 | 23개 owner/screen 검토 NOT_RUN은 같은 task의 더 넓은 미인수 범위. native host 전달과 외부 provider는 별도. bundle 최적화를 전체 CLI 215.984초의 개선으로 환산하지 않음 |
+| UIUX 기준의 생성·고도화 | CatalogImport 공유 Modal 수리 이후 새 문맥 작업자가 같은 화면의 guide/token/component와 명령을 독립 소비했다. 연결 결함과 start 가드의 후속 수리는 도움받은 실행으로 기록했다 | 다른 화면의 독립 재사용과 사용자 UI 승인은 미완료. 제품 후보는 draft |
+| 실행 가능한 검증 가이드 | `f040641` 제품 후보에서 4 producer와 7-suite browser runner PASS. 기존 23개 검토를 분류해 14개를 근거로 처리했다 | 간접 화면 9개 NOT_RUN 및 matrix 적용성 미결정. 새 연결 task의 의미 검토는 별도 PARTIAL. native host/provider와 사업 가치는 별도 |
 | 필요한 검사 유지·고도화·제거 | bundle 3쌍의 출력 동일, Git 143→49회, 평균 13.775→5.710초. 제품 검사는 유지 | 검사 ID/출력 경로 변경이 삭제로 취급되어 과거 prevention 없는 이번 task에서 BLOCKED가 남는 공통 분류 공백을 발견. §8의 동작 보존 변경과 실제 검출 축소를 구분할 필요 |
 
 담당 정정 경로 부재는 0.1.58에서 수리됐고 실제 소비도 끝났으므로 다음 구현으로 반복하지 않는다. 이번 재검토에서 확인한 공백은 [검사 retirement 코드](../../authoring/scripts/project_workflow.py)의 분류다. `inspect_check_retirements`는 옛 check ID가 사라지면 삭제로 취급하고, `prevention` 이력이 없으면 `prior_detection_scope_unknown`을 남긴다. 실제 CatalogImport 후보는 같은 7개 assertion과 조건을 유지하고 ID/결과 경로만 바꿨는데도 이에 걸렸다. 단순히 검토하지 않아서가 아니라 **동작 보존 변경을 표현·입증할 경로가 부족한 문제**다. 이번 문서 변경으로 이 BLOCKED를 해제하지 않는다.
@@ -243,6 +243,16 @@ Plugin은 검증된 공통 Router·Playbook·Skill·capture 등의 **생성 패�
 <a id="next-improvements-0158"></a>
 
 ## 10. 다음 개선의 순서와 인수
+
+### 0.1.60 구현으로 갱신한 현재 상태
+
+- native ID/명시적 결과 경로 이관은 구현했고 새 격리 제품 replay에서 PRESERVED를 확인했다. task는 PARTIAL이며 legacy 기록은 baseline 연결 및 fixture preimage 부족으로 BLOCKED다. clean Git 원본·새 native 실행·동일 계약이 없는 일반 이관으로 확장하지 않는다.
+- 완료 checkpoint 뒤 미확인 launch를 lookup/resume이 누락하던 결함을 수리했다. 완료된 PASS를 유지하고 미확인 효과를 BLOCKED로 표시하며 재실행하지 않는다.
+- 23개 검토를 분류해 12개 owner, 직접 화면 1개, 근거 있는 N/A 1개를 복사 상태에 반영했다. 간접 화면 9개 NOT_RUN과 matrix 적용성 미결정은 남아 있다.
+- 새 문맥 작업자가 같은 CatalogImport 가이드를 독립 소비했다. 이후 도움받은 연결 수리는 별도로 기록했고 제품 후보 `f040641`에서 4 producer·7 browser suite를 실행했다. 다른 화면의 독립 재사용과 사용자 승인은 아직 입증하지 않았다.
+- 중복처럼 보이는 55-case 검사는 fixture 조건이 달라 유지했다. 속도 개선·검사 제거 효과를 주장하지 않는다. native host Skill/hook 전달 및 실제 사업 가치는 별도 근거가 필요하다.
+
+아래 표는 0.1.59 설계 검토 당시의 출발점이다. 현재 완료 여부는 위 갱신과 [실행 결과](agent-workflow-implementation-results.md#binding-and-guide-2026-10-14)를 우선한다.
 
 0.1.59에서 실제 피드백 이관·무효화, 잘못된 계획에서도 근거 조회, 기존 Labeler API/D1 흐름, CatalogImport 수리와 반복 Git 관측 감소를 수행했다. [실행 결과](agent-workflow-implementation-results.md#product-consumption-2026-10-14)를 완료 범위로 고정하고 아래 잔여만 이어간다. 현재 요청은 설계 검토·보완이며 아래 runtime 후보를 구현했다는 뜻이 아니다.
 

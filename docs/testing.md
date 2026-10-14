@@ -1,5 +1,17 @@
 # Testing And Impact Selection
 
+The check-identity migration cases use a clean Git-backed original plan and a fresh
+native replacement execution. They require unchanged assertions, criteria, fixtures,
+command behavior and other consumers; malformed, stale and colliding proof is rejected.
+This preserves an identity-only move and does not weaken removal/consolidation evidence.
+
+The checkpoint lookup regression executes the first of two native commands, interrupts
+its controller, and retains an unresolved second launch marker. Lookup/resume must
+preserve the first current PASS while exposing the unknown effect as BLOCKED; they
+execute zero commands and preserve state/raw. Malformed completion indices and marker
+names remain unknown, while ordinary completed-run markers do not prevent reuse.
+The execution replay refusal is unchanged and checked alongside the lookup repair.
+
 The current consumption regression in `test_project_workflow` preserves task and
 feedback visibility for unavailable/misbound/malformed prepared plans in lookup/resume,
 including summary output. Both return BLOCKED with a reconciliation action while
