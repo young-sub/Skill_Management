@@ -244,50 +244,50 @@ Plugin은 검증된 공통 Router·Playbook·Skill·capture 등의 **생성 패�
 
 ## 10. 다음 개선의 순서와 인수
 
-### 0.1.60 구현으로 갱신한 현재 상태
+<a id="design-review-2026-10-15"></a>
 
-- native ID/명시적 결과 경로 이관은 구현했고 새 격리 제품 replay에서 PRESERVED를 확인했다. task는 PARTIAL이며 legacy 기록은 baseline 연결 및 fixture preimage 부족으로 BLOCKED다. clean Git 원본·새 native 실행·동일 계약이 없는 일반 이관으로 확장하지 않는다.
-- 완료 checkpoint 뒤 미확인 launch를 lookup/resume이 누락하던 결함을 수리했다. 완료된 PASS를 유지하고 미확인 효과를 BLOCKED로 표시하며 재실행하지 않는다.
-- 23개 검토를 분류해 12개 owner, 직접 화면 1개, 근거 있는 N/A 1개를 복사 상태에 반영했다. 간접 화면 9개 NOT_RUN과 matrix 적용성 미결정은 남아 있다.
-- 새 문맥 작업자가 같은 CatalogImport 가이드를 독립 소비했다. 이후 도움받은 연결 수리는 별도로 기록했고 제품 후보 `f040641`에서 4 producer·7 browser suite를 실행했다. 다른 화면의 독립 재사용과 사용자 승인은 아직 입증하지 않았다.
-- 중복처럼 보이는 55-case 검사는 fixture 조건이 달라 유지했다. 속도 개선·검사 제거 효과를 주장하지 않는다. native host Skill/hook 전달 및 실제 사업 가치는 별도 근거가 필요하다.
+### 0.1.61 현재 판단과 완료 경계
 
-아래 표는 0.1.59 설계 검토 당시의 출발점이다. 현재 완료 여부는 위 갱신과 [실행 결과](agent-workflow-implementation-results.md#binding-and-guide-2026-10-14)를 우선한다.
+2026-10-15 검토 기준은 clean local `main@bf9203a` / runtime **0.1.61**이다. [직전 구현 결과](agent-workflow-implementation-results.md#delegated-handoff-2026-10-15)와 이번 `.work/design-review-20261015/`의 두 독립 검토·환경 실행을 구분한다. 이번 변경은 설계와 안내의 보완이며 아래 미래 runtime 변경을 구현한 것은 아니다. 기존 0.1.59–0.1.60 설계 당시 잔여표는 현재 지시로 사용하지 않는다. 당시 상태와 원본 실패는 Git 이력 및 해당 구현 결과에 보존한다.
 
-0.1.59에서 실제 피드백 이관·무효화, 잘못된 계획에서도 근거 조회, 기존 Labeler API/D1 흐름, CatalogImport 수리와 반복 Git 관측 감소를 수행했다. [실행 결과](agent-workflow-implementation-results.md#product-consumption-2026-10-14)를 완료 범위로 고정하고 아래 잔여만 이어간다. 현재 요청은 설계 검토·보완이며 아래 runtime 후보를 구현했다는 뜻이 아니다.
+완료된 검사 ID/출력 경로 이관, checkpoint 이후 미확인 launch의 BLOCKED 표시, 실제 제품 replay와 고정 패키지 소비를 다시 구현하지 않는다. 0.1.61은 요청/필수 영향/프로젝트 잔여/미결정 분류, 미충족 기준의 명령·guide·raw·현재성 연결, lookup/resume/audit 공통 차단 판정, assertion 파일 변경 감지를 추가했다. 실제 세 task의 네 selector를 도움받은 새 문맥에서 소비했고, 다른 staff-access 업무에서 기존 guide/token/component와 native 56/56·browser 7-suite를 사용했다. 이는 무도움 성공·동시 다수 Agent 운영·스타일 기준 변경 후 재사용·사용자 UI 승인을 입증하지 않는다.
 
-### 남은 범위와 이번에 끝나지 않은 이유
+기본 설계는 유지한다. 프로젝트는 요구·기준·등록 명령·기대 결과·token을, Agent는 적용성·업무/시각 의미·원인을, CLI는 실행 사실·연결·현재성을 소유한다. `business`는 **업무 결과·규칙**이며 사업 모델의 수익성·전환·사용자 개입 감소와 다르다. 6셀은 필요한 책임을 발견하는 지도이고, E2E는 층 사이의 연결을 확인하는 방법이다. 모든 작업에 6개 검사나 전체 제품 조사를 강제하지 않는다.
 
-| 남은 항목 | 분류·실제 이유 | 다음에 할 일과 종료 조건 |
+### 구체적인 개선과 종료 조건
+
+| 우선순위·상태 | 소유 위치와 최소 개선 | 실제 인수와 반례 |
 | --- | --- | --- |
-| 검사 ID/출력 경로 이관 BLOCKED | 공통 설계 공백. 이름 변경을 삭제로 처리하고 과거 prevention이 없으면 차단. 실행 말미 실제 소비에서 발견했지만 공통 수리는 끝내지 못함 | §8의 좁은 동등 계약 이관을 구현·반례 검증. 과거 RED를 꾸미거나 실제 삭제 보호를 완화하지 않음 |
-| CatalogImport task의 23개 NOT_RUN 검토 | 미수행 의미 인수. 선택 검사 18개 PASS가 owner/screen 판단까지 대신하지 못함. 23개가 모두 현재 요청의 필수 항목인지도 아직 항목별 결론을 내리지 않음 | 기존 기준/요청과 각 행을 대조해 필수·요청 밖·미결정을 분류. 필수 검토는 실제 증거로 수행; 이유 없는 N/A나 전체 프로젝트 scope 축소 금지 |
-| 보완 가이드의 독립 무도움 재사용 | 미수행 인수. 기존 가이드 소비와 보완 후 작성자 재실행까지 했고 새 작업자 인수는 완료하지 못함. 환경상 불가능한 것으로 확인되지 않음 | 새 문맥 작업자가 자연어 과제로 관련 미검토 화면의 guide/token/component·명령을 찾아 사용. 필요한 도움은 기록하고 별도 도움받은 결과로 판정 |
-| 복사 피드백 state의 계획 불일치 | 의도된 보호. 원본 plan의 task/path는 새 복사 state와 다름. 조회 오류는 수리됐으며 실행 재연결을 자동화하지 않음 | 조회 목적이면 원래 BLOCKED와 현재 feedback 결과를 함께 설명. 실제 추가 실행이 필요할 때만 복사 state에서 새 prepare; 옛 plan/raw와 이미 시작한 효과를 보존 |
-| native package 발견·Skill 호출·hook 전달 | 외부 실행 경계. 현재 설치 목록에 패키지가 없고 기존 설치 갱신은 허용 범위 밖 | 지원 host/허용된 격리 경로에서 세 단계를 별도 관찰. 설치/설정 변경이 필요한 경우에만 그 구체 변경의 권한 확보. CLI 성공으로 대체 금지 |
-| UI 후보 사용자 승인·제품 통합 | 사용자 판단/권한. 구현 부족과 구분. `1d9457b`는 draft·미병합 | 후보 화면과 의미 있는 variant를 사용자가 검토하고 제품 통합 범위를 결정. 플러그인 수정의 선행 차단 조건은 아님 |
-| 실제 사업 가치·개입/재작업 감소 | 사용자/운영 관찰 부재. synthetic flow는 실제 업무 편익을 입증하지 못함 | 기존 요구 문서에 대상 업무·기대 가치·관찰 방법·판정 기준을 합의하고 실제 업무를 관찰. 코드 추가만으로 완료 불가 |
-| 같은 state 동시 쓰기·장기 무인 운영 | 현재 미지원 범위. 여러 독립 task와 동일 record 경쟁 쓰기는 다름 | 우선 task별 writer 하나와 순차 통합. 실제 수요/충돌이 확인되면 기존 write 경계의 revision 비교·충돌 거절부터 검토. scheduler/DB를 먼저 만들지 않음 |
+| P1 · 재현된 조회 사용성 공백 | 공통 lookup/resume/audit summary와 hook에서 현재 task의 인수 가능 범위·차단 원인·필수 다음 행동을 먼저 보여주고 상세/raw로 연결. 전체 분모·생략 수·ID를 남기며 full JSON은 보존. 서로 다른 task의 묶음은 우선 기존 CLI와 Agent 취합 사용 | 실제 A/B/C/D summary가 108,151 / 160,013 / 61,012 / 120,539자로 커서 리스트별 제한만으로 부족했다. 후속 Agent가 개별 PASS를 전체 task PASS로 읽지 않고 직접/필수 영향/프로젝트/미결정 행동을 찾는지 비교. 동일 상태의 full 내용·분모·차단 판정 보존, 조회 producer 0회·state/raw 불변, 다음 호출의 기준 변경 감지 |
+| P1 · 재현된 지연, native 영향 미검증 | 같은 호출의 중복 inspect/lookup/파일 읽기를 기존 읽기 경계에서 공유. 별도 지속 cache/DB를 먼저 만들지 않음. 요약 출력 축소와 원본 조사 비용은 별도로 측정 | 직전 수동 고정 hook A는 26.888초이며 설정 timeout은 30초다. native timeout 발생을 관찰한 것은 아니다. 같은 대상·fixture·host에서 반복 시간/편차·읽기 수·출력 동등성 비교; 원본·guide·assertion·dependency 변경 및 누락을 다음 호출이 계속 감지. 작은 payload만으로 지연 해결을 주장하지 않음 |
+| P2 · 사업 모델 인수 미수행 | 기존 request/outcome_refs·요구 문서에 대상 사용자/업무, 가치 가설, 기존 방법, 관찰 기간/단위, 허용 기준·도움 조건을 연결. 별도 metrics 저장소나 `business` 셀 의미 변경은 하지 않음 | 같은 조건의 실제 업무에서 완료율·잘못된 인수·사용자 개입·재작업·시간을 관찰. 테스트 수/coverage/모델 합의는 대체 지표가 아님. 사업 근거가 없으면 미관찰로 남기고 기술 PASS와 구분; 기존보다 차이가 없으면 개선 효과 주장 철회 |
+| P2 · 연결된 full-stack 후속 인수 미수행 | 기존 Feature/guide의 기대 출처·scope·architecture flow·raw 참조 사용. 변경된 입력/직렬화/저장 경로에는 같은 값·ID를 잇는 프로젝트 소유 검사 또는 실제 관찰을 선택 | 한 실제 업무에서 UI 입력→API 계약→Domain 규칙→저장→새 조회의 같은 ID/값을 확인. 저장 실패 뒤 데이터 보존, 거절·허용, 가까운 정상 사례를 실제 영향에 맞게 선정. 각 층 PASS나 흐름 설명만으로 연결 PASS를 계산하지 않음. 표현만 바뀐 UI/행동 보존 refactor에는 무관한 DB 검사를 강제하지 않음 |
+| P2 · 피드백 예방의 일반 효과 미입증 | 기존 diagnose→feedback→prevention→관련 task 재사용 연결 유지. 기대 출처와 최초 상태/값 이탈을 실제 caller에서 확인하고 원인 owner를 수리. 의미 판단은 Agent가 담당 | 다음 실제 불편 하나에서 원래 실패 RED·가까운 정상·관련 우회 경로 GREEN과 다른 후속 요청의 예방 재사용을 관찰. 제품 오류/요구 변경/oracle 오류/환경 실패를 구분. `RESOLVED`·hash·연결 상태 자체가 원인 판단 인증은 아님. 중요한 권한/데이터/결제 영향에는 독립 반례 검토 |
+| P2 · 스타일 변경 재사용 미검증 | 공유 스타일 기준은 제품의 기존 guide/token/component에 두고 버전/영향 consumer와 관련 의미 검토를 대조. 공통 Skill은 발견·연결이 실패할 때만 수정 | staff-access는 변경된 검증 가이드를 소비했지만 스타일 기준 자체는 변경하지 않았다. 격리 후보에서 실제 공유 기준 하나를 바꾸고 다른 관련 업무의 새 Agent가 자연어 요청으로 발견·적용하는지 평가. 옛 관련 판단의 STALE/필수 재검토, 전제조건→조작/명령→기대 결과→raw→cleanup을 확인. 해법·token명·명령 힌트와 도움을 기록하고 UI 후보는 draft 유지 |
+| P3 · 검사 통합은 근거 부족으로 유지 | 기존 maintenance로 실제 공동 선택 task와 공유 소비자를 먼저 조사. 같은 실행을 재사용할 때도 Feature별 assertion·fixture·유효 조건을 보존 | 두 55-case alias는 소비자/fixture 계약이 달라 유지했다. 각 3회 정상 실행과 같은 결함 주입은 비교했지만 단일 실행으로 통합한 전후 효과는 측정하지 않았다. 실제 함께 선택될 때 producer 수·실행/유지 비용·편차부터 측정. 요구 폐기/구조 예방/중복 통합/flaky 수리를 구분하고 결함 검출·정상 허용이 동등할 때만 축소 |
+| 조건부 · native 인수 일부만 수행 | 지원 host의 발견·Skill 호출·hook 전달·보호된 acceptance를 각각 확인. 설치·전역 설정 변경 없이 가능한 읽기 경로부터 사용 | 이번 권한 상승 목록 조회 성공, 대상 plugin 미설치. 임시 app-server의 추가 roots로 고정 0.1.61 Skill 19개를 `user` scope로 발견; `pluginId=null`이므로 설치본 발견과 다름. 실제 모델 Skill 호출·UserPromptSubmit callback·보호된 host 인수는 미수행. 신뢰/설치/실행 허용 조건을 구체화하고 CLI PASS로 대체하지 않음 |
 
-“다음에 구현”은 첫 행에 직접 해당한다. 두 번째·세 번째는 기존 기능으로 인수를 마칠 일이며, 계획 불일치는 필요한 실행이 생겼을 때 안전하게 다시 준비할 일이다. 사용자/호스트/사업 관찰은 각 조건이 있어야 한다. 회차 종료를 환경 제한으로 포장하거나 남은 항목 전부를 새 기능으로 만들지 않는다.
+P1은 구현할 공통 제품 공백, 나머지는 기존 기능으로 수행할 인수 또는 증거에 따라 선택할 좁은 수정이다. full-stack 검사나 UI 의미 검토가 프로젝트에 아직 없다는 사실을 그대로 플러그인 미구현 목록으로 만들지 않는다. 사업성 관찰·사용자 승인·외부 서비스 조건도 같은 목록으로 묶지 않는다.
 
-### 우선순위와 최소 변경
+지연 표의 26.888초는 `.work/delegated-handoff-20261014/final-hook-records.json`의 `case=replay`, 고정 패키지 `hooks/workflow_context.py` 직접 호출 측정이다. `.work/delegated-handoff-20261014/fresh-handoff/FINAL-A-lookup.json`의 `lookup --summary` 26.842초와 서로 다른 호출이며, 어느 쪽도 native hook callback 측정이 아니다.
 
-| 순서 | 소유자·최소 작업 | 통과해야 할 반례/실제 인수 |
-| --- | --- | --- |
-| 1 · 안전한 검사 바인딩 이관 | 공통 workflow의 기존 check decision·baseline/plan 참조. §8의 계약 동등성만 허용 | 실제 CatalogImport blocked 사례→동등 이관 허용; assertion 약화/required 해제/fixture·source 변경/소비자 누락/preimage 부재는 거절; 실제 검사 삭제·요구 폐기 회귀 유지. 원본 state/raw 불변, 다음 조회에서 변경 감지 |
-| 2 · 여러 task 인수의 사용성 | 기존 lookup/summary + Agent 취합. 위 23개 검토를 실제 사용 사례로 삼아 요청 범위와 프로젝트 잔여를 구분 | 다른 요청·기준의 task에서 완료 가능/막힘/다음 담당·행동을 후속 작업자가 정확히 찾음. 현재 PASS·STALE·BLOCKED·NOT_RUN·미조사를 원본까지 추적, producer 0회·state/raw 불변. 불편이 재현된 필드만 출력 보완 |
-| 3 · 후속 가이드 소비 완결 | 제품의 기존 guide/token/component·실행 명령. 새 문맥에서 다음 실제 화면 작업 | 전제조건→명령/조작→기대 결과→raw→cleanup을 발견·사용. 정상/오류/복구·keyboard·해당 viewport/variant 확인. 도움·재시도·소유자별 수정 기록. 기존 18개 검사를 수량 목적으로 반복하지 않음 |
-| 4 · 원인 예방과 검증 가치 | 다음 실제 사용자 피드백 하나를 기존 diagnose/feedback/maintenance로 끝까지 처리 | 기대 출처→최초 값/상태 이탈→owner 수리→원래 실패·가까운 정상·관련 우회→후속 재사용. 검사 축소는 같은 결함 검출/정상 허용과 비용 대조가 가능한 후보만; 후보가 없으면 유지 |
-| 조건부 · 사업·호스트·운영 규모 | 기존 요구 문서/지원 host/기존 Git·위임 도구 | 사용자 업무 효과, 실제 Skill/hook 전달, 공유 owner 변경·중단·통합을 각각 관찰. 지원 규모와 한계 명시; 새로운 orchestration 서비스의 필요를 먼저 입증 |
+### 환경 실패를 숨기지 않는 실행 원칙과 이번 시도
 
-현재 결과 연결은 `요청 → 기대 출처/기준 → 영향 책임 → 선택 검사/관찰 → 실행/raw → 현재성 → 남은 일`로 유지한다. 사용자가 원하는 것은 많은 검사 목록이 아니라 인수 판단과 다음 조치다. 사업 가치·업무 규칙·아키텍처의 구분은 §4, 여러 task의 판단 기준은 §5, 피드백과 UI 기준은 §6–7을 따른다. 동일 근거를 여러 장부에 복제하지 않는다.
+동일 명령의 default sandbox 실패와 승인된 `require_escalated` 실행을 별도 raw로 보존한다. 권한 상승은 명령 단위 권한이며 Windows Administrator 실행, sandbox backend 설정 변경, 설치 변경과 같지 않다. 명령이 이미 외부 효과를 시작했는지 확인한 뒤 재시도 여부를 정한다. 조회·검사로 해결되는 문제에 전역 sandbox 설정이나 trust bypass를 추가하지 않는다.
 
-독립 검토의 **checkpoint 뒤 후속 unknown launch 표시 누락** 후보는 아직 runtime 재현 전이다. 다음 중단 인수에서 “첫 명령 완료→두 번째 시작→controller 중단”을 조회하고, 실제 execute의 재실행 거절과 조회 설명을 함께 대조한다. 재현되면 기존 connected lookup 소유 코드에서 수리하고, 재현되지 않으면 확인 결과로 닫는다. 현재 확인된 자동 중복 실행 결함이라고 보고하지 않는다. 다중 cwd의 보수적 전체 STALE도 정상 업무 재실행 비용이 실제 문제로 확인되기 전에는 완화하지 않는다.
+- timeout child cleanup 검사: default에서는 `taskkill` exit 1과 임시 디렉터리 정리 오류로 실패했고, 동일 unit을 권한 상승해 **1/1 PASS**했다. 원본 실패와 PASS raw는 각각 `environment/timeout-sandbox.json`, `timeout-escalated.json`에 있다. 이전 Full 433개 중 432 PASS/1 ERROR를 전체 PASS로 소급하지 않으며 이번에는 Full을 재실행하지 않았다. 향후 진단 보완이 필요하면 기존 capture record에 cleanup 명령·stdout/stderr를 남기는 최소 변경을 먼저 검토; cleanup 실패를 성공으로 처리하거나 자동 승격하지 않음.
+- `codex plugin list --json`: default의 CODEX_HOME 접근 거부 뒤 권한 상승으로 **조회 성공**, 설치된 plugin 12개와 대상 plugin 미설치를 확인했다. 설치본 변경은 없으며 raw는 `native-discovery-sandbox.json`, `native-discovery-escalated.json`이다.
+- codex-cli 0.160.0의 생성 schema를 먼저 확인하고, 임시 CODEX_HOME과 `--no-daemon app-server --stdio`에서 `initialize`→`skills/extraRoots/set`→`skills/list`→`hooks/list`를 실행했다. 고정 패키지 19개 외 기존 `.agents`/system Skill 21개도 발견돼 완전한 Skill 격리로 보고하지 않는다. 패키지 247파일 hash는 전후 불변, model turn 0회. hooks는 빈 목록이며 project trust 경고와 TEMP home의 PATH helper 생성 거부 경고를 `native-isolated-readonly.json`에 보존했다. helper 경고가 이 발견 조회를 막지는 않았다. plugin hook을 등록/신뢰하거나 실행한 결과가 아니다.
 
-각 변경은 focused RED 또는 동작 보존 baseline GREEN → 최소 owner 수리 → 실패/정상·영향 회귀 → 실제 소비 → 독립 반례 판단으로 검증한다. 기준을 고정한 비교에서는 모델/호스트·제품 base·fixture·도움 조건을 기록하고, 진단한 문제와 다른 후속 과제로 재사용을 확인한다. 한 과제의 성공·모델 합의·테스트 개수로 일반 신뢰도를 계산하지 않는다.
+현재 [공식 Windows sandbox 문서](https://developers.openai.com/codex/windows)는 권한 profile/approval과 backend를 구분하고, MXC 시험 예시는 CLI 0.162.0 이상을 요구한다. 현재 0.160.0에 이를 가정하거나 도구를 갱신하지 않았다. [공식 hooks 문서](https://learn.chatgpt.com/docs/hooks)는 plugin 설치만으로 hook을 신뢰하지 않으며 변경된 hash의 검토가 필요하다고 설명한다. 따라서 다음 native callback 인수에는 지원 버전·정확한 plugin source·승인된 등록/신뢰와 실제 이벤트 조건을 먼저 준비해야 한다. 전역 설치·provider 변경·신뢰 우회·모델 비용 발생을 이번 읽기 검증의 연장으로 수행하지 않는다.
 
-고정 6개/10개 검사, 매번 Full, 고정 Agent 수, 전 화면 screenshot, 범용 runner/parser, 자동 규칙 축적은 추가하지 않는다. 근거가 부족한 제거는 보류하지만, 동작 보존 변경까지 과잉 차단하는 절차는 반례로 수리한다. 일반 설정·설치·provider·배포·비용 권한은 기존 경계를 유지한다.
+### 여러 업무의 인수와 검증 비용을 판단하는 방법
+
+기존 상태를 한 writer로 관리하고 독립 task는 기존 host 위임/Git worktree로 분리한다. 동시 소유 파일 변경·중단 후 인수·통합에서 실패가 실제 확인되면 revision 비교와 충돌 거절 같은 기존 write 경계부터 보완한다. 많은 task를 조회할 수 있다는 이유로 장기 무인 scheduler나 동시 writer 안전성을 완료로 주장하지 않는다.
+
+각 후속 평가는 task ID/root/base, 요구·기준 revision, 필요한 책임과 제외 이유, 명령/guide, raw, 현재 유효성, 제공한 힌트·도움·재시도를 연결한다. 구현자와 검토자가 같은 잘못된 oracle을 공유할 수 있으므로 사용자 기대 출처와 원래 실패/정상 반례를 고정한다. 위험·독립성이 필요한 곳에만 별도 Agent를 사용하며 Agent 수나 테스트 수를 목표로 삼지 않는다.
+
+비자명한 구현은 focused RED 또는 동작 보존 baseline GREEN→최소 owner 수리→실패/정상·영향 회귀→실제 소비 순서로 검증한다. 조회 최적화에는 출력 동등성과 다음 호출의 변경 감지가 필요하다. 반복 측정은 조건·편차와 함께 기록하며 효과가 없거나 근거가 부족하면 유지한다. 새 대시보드·DB·스케줄러·범용 정답 판정·자동 승인·고정 6/10개 검사·매번 Full은 추가하지 않는다.
 
 
 ## 11. 요구사항 검토로 구체화한 실행 연결
@@ -365,7 +365,7 @@ Mode/Router는 의도 선택, Playbook은 조건부 순서, Skill은 재사용 �
 | --- | --- | --- |
 | 기록의 정합성과 업무의 정답 사이에 간격이 있음 | 구조적 한계. Agent가 만든 기준과 테스트가 함께 틀리는 가능성을 hash로 해결할 수 없음 | 기대 기준의 출처·권한·revision, 실제 사용자 경로, 원래 결함과 정상 사례를 대조. 중요한 결과는 작성자와 다른 검토자가 직접 확인 |
 | 검토 준비·미결정 범위·빈 다음 행동이 공존 | §2의 패키지 CLI에서 재현됨 | 미결정 이유와 다음 판단을 표시. 현재 유효한 검사 결과는 보존하고, 모든 작은 작업에 6셀 실행·전체 setup을 요구하지 않음 |
-| 자연어 진입과 정확한 task 전달이 호스트까지 입증되지 않음 | 직접 패키지·새 문맥 사용은 확인, 현재 native 발견은 접근 오류로 BLOCKED | 설치본 발견·Skill 호출·hook context와 직접 CLI를 별도 확인. 설치·인증·전역 설정 변경으로 우회하지 않음 |
+| 자연어 진입과 정확한 task 전달이 호스트까지 입증되지 않음 | 당시 native 발견은 접근 오류로 BLOCKED였다. 이후 직접 패키지·새 문맥 사용과 이번 읽기 권한 재시도 결과는 §2·§10을 따름 | 설치본 발견·Skill 호출·hook context와 직접 CLI를 별도 확인. 설치·인증·전역 설정 변경으로 우회하지 않음 |
 | 짧은 hook payload가 작은 조사량을 보장하지 않음 | 두 Feature fixture에서 inspect/inventory 각각 2회, file hash 51회. 대규모 지연 측정은 아님 | 같은 호출의 중복 계산부터 줄이고 실제 읽기·bundle 평가·시간을 비교. 의존 완전성 증명 없이 stale 방어를 줄이지 않음 |
 | 여러 task 조회와 여러 Agent 운영의 범위가 다름 | 전자는 구현·한정 인수, 작업자 큐·인수·장기 운영은 미입증 | 우선 소수 독립 작업, 공유 owner 변경, 작업 중단·인수와 통합 상태를 확인. 운영 실패가 없는 상태에서 새 coordinator를 만들지 않음 |
 | UI 연결 기록이 시각적 일관성·사용성 증명이 아님 | 0.1.47 당시 T5는 한정 근거였고 연두링크 live 감사는 미수행이었다. 이후 CatalogImport 등 실제 관찰과 현재 한계는 §2를 따름 | 사용자가 검토할 대표 화면과 실제 상태를 제시하고 다음 화면의 새 문맥 재사용 확인. 코드 테스트 PASS를 UI 승인으로 표시하지 않음 |
