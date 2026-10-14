@@ -89,6 +89,31 @@ distribution validation and diff formatting passed. The bounded change leaves
 Harness lifecycle/schema and execution replay policy unchanged; Full was not
 repeated. These are source/package checks, not product or host acceptance.
 
+Commands and raw receipts are retained in `plugin-evidence/` below the current
+evidence root. The principal commands were:
+
+```powershell
+python -m unittest tests.distribution.test_project_workflow tests.distribution.test_workflow_refinement tests.distribution.test_workflow_hook
+python -X utf8 -m unittest tests.distribution.test_verification_results tests.distribution.test_verification_execution
+powershell -NoProfile -File scripts/sync-skill-resources.ps1 -Check
+powershell -NoProfile -File scripts/validate-distribution.ps1
+```
+
+`product-replay/` retains old/new prepare/execute, the native migration review
+receipt, and immutable pre-review state. `guide-followup/result.md` owns exact
+browser commands, assistance, failed attempts and the retained product commits.
+`scope-application-summary.json` and `scope-review/23-row-classification.json`
+own the scope denominator and the 12 zero-producer CLI review applications.
+
+Implementation commit `ade1ab2` produced the clean frozen **0.1.60** package at
+`.work/binding-implementation-20261014/frozen-0.1.60` (19 Skills, 247 files).
+Its consumption suite passed **11 tests in 82.781s**, covering native rebind,
+unknown/completed checkpoints, normal reuse, retirement and consolidation guards.
+All 247 package files remained unchanged. The package is retained, not installed.
+The fresh-context consumer's frozen CLI queries returned replay PARTIAL with
+verification PASS, and copied CatalogImport BLOCKED with its plan mismatch;
+both executed zero commands. Their exact outputs are in `fresh-handoff/`.
+
 Native package discovery was rerun read-only: 12 installed plugins, with no
 `agentic-coding` entry. The initial sandbox read was unavailable; the authorized
 read-only retry succeeded. Native Skill invocation and hook delivery remain

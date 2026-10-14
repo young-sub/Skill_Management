@@ -1,6 +1,6 @@
 # Agent Coding 업무 위임·검증·지속 개선 체계
 
-현재 기준은 **2026-10-14 / local main `92b6ab2` / previous local-main runtime 0.1.59**다. 별도 `wp-20261014-binding-repair` worktree의 **0.1.60 candidate**에는 check-binding migration implementation과 fresh actual replay가 포함된다. Candidate의 mapped regressions는 통과했지만 frozen-package consumption/final delivery가 남아 있다. [현재 candidate 결과](agent-workflow-implementation-results.md#binding-and-guide-2026-10-14)와 [직전 0.1.59 결과](agent-workflow-implementation-results.md#product-consumption-2026-10-14)를 구분한다. §2·§8·§10은 현재 candidate와 남은 인수를 다룬다. §12는 당시 평가 합의, §13은 지속 목표다.
+현재 source는 **2026-10-14 / runtime 0.1.60**이다. clean local main `92b6ab2` / 0.1.59에서 별도 worktree로 시작해 검사 바인딩 이관과 미확인 launch 조회를 구현했다. [이번 구현·실행 결과](agent-workflow-implementation-results.md#binding-and-guide-2026-10-14)는 현재 회귀·고정 패키지·실제 제품 replay와 남은 인수의 근거를 소유한다. [직전 0.1.59 결과](agent-workflow-implementation-results.md#product-consumption-2026-10-14)를 이번 실행으로 계산하지 않는다. §12는 당시 평가 합의, §13은 지속 목표다.
 
 **목적은 플러그인 고도화이며 연두링크는 실제 사용 평가 대상이다.** 연두링크 화면만 개선하고 종료하지 않는다. 기존 [연두링크 평가](plugin-improvement-next-session.md)와 [지속 고도화 요청](plugin-continuous-improvement-next-session.md)은 수행 범위를 보존한다. 다음 개선 선정은 현재 근거와 §10을 따른다. 과거 `agent-workflow-next-session.md`와 `agent-coding-next-session.md`의 실행 블록도 이미 수행된 범위의 기록이다.
 
@@ -47,7 +47,7 @@ Agent는 요구·원인·시각·검사 가치의 의미 판단을, CLI는 상�
 
 ## 2. 현재 구현, 보완한 오류와 남은 한계
 
-설계의 책임 분리는 유지하되 **구현 결함, 미수행 인수, 외부 근거/권한, 의도된 보호**를 구분한다. 0.1.59는 previous local-main runtime이며, 별도 plugin worktree의 0.1.60 candidate는 migration implementation과 actual replay를 거쳐 final review 중이다. Yeondoo Link CatalogImport 연결 수리 `f040641`도 미병합 product draft로 남아 있다.
+설계의 책임 분리는 유지하되 **구현 결함, 미수행 인수, 외부 근거/권한, 의도된 보호**를 구분한다. 0.1.60의 공통 수리는 영향 회귀·독립 검토·실제 replay를 통과했다. 아래 이전 한계는 §10의 현재 결과와 함께 읽는다. Yeondoo Link CatalogImport 연결 수리 `f040641`은 미병합 product draft로 남아 있다.
 
 | 사용자 관점 | 구현·관찰된 범위 | 남은 한계와 다음 판단 |
 | --- | --- | --- |
@@ -58,7 +58,7 @@ Agent는 요구·원인·시각·검사 가치의 의미 판단을, CLI는 상�
 | 실행 가능한 검증 가이드 | `f040641` 제품 후보에서 4 producer와 7-suite browser runner PASS. 기존 23개 검토를 분류해 14개를 근거로 처리했다 | 간접 화면 9개 NOT_RUN 및 matrix 적용성 미결정. 새 연결 task의 의미 검토는 별도 PARTIAL. native host/provider와 사업 가치는 별도 |
 | 필요한 검사 유지·고도화·제거 | bundle 3쌍의 출력 동일, Git 143→49회, 평균 13.775→5.710초. 제품 검사는 유지 | 검사 ID/출력 경로 변경이 삭제로 취급되어 과거 prevention 없는 이번 task에서 BLOCKED가 남는 공통 분류 공백을 발견. §8의 동작 보존 변경과 실제 검출 축소를 구분할 필요 |
 
-담당 정정 경로 부재는 0.1.58에서 수리됐고 실제 소비도 끝났으므로 다음 구현으로 반복하지 않는다. 이번 재검토에서 확인한 공백은 [검사 retirement 코드](../../authoring/scripts/project_workflow.py)의 분류다. `inspect_check_retirements`는 옛 check ID가 사라지면 삭제로 취급하고, `prevention` 이력이 없으면 `prior_detection_scope_unknown`을 남긴다. 실제 CatalogImport 후보는 같은 7개 assertion과 조건을 유지하고 ID/결과 경로만 바꿨는데도 이에 걸렸다. 단순히 검토하지 않아서가 아니라 **동작 보존 변경을 표현·입증할 경로가 부족한 문제**다. 이번 문서 변경으로 이 BLOCKED를 해제하지 않는다.
+담당 정정 경로 부재는 0.1.58에서 수리됐고 실제 소비도 끝났으므로 반복 구현하지 않는다. 0.1.60은 [공통 runtime](../../authoring/scripts/project_workflow.py)에 동작 보존 ID 이관을 별도 분류해 추가했다. 새 격리 제품 replay는 계약과 현재 실행을 입증해 PRESERVED가 됐다. 보존 CatalogImport 기록은 baseline/preimage 근거가 부족하므로 BLOCKED를 유지한다. 새 성공을 과거 기록의 정당성으로 소급하지 않는다.
 
 직전 완료 보고의 남은 항목을 모두 “다음 구현”이나 “환경 BLOCKED”로 묶어서는 안 된다. 독립 가이드 소비와 23개 검토의 요청 내/밖 분류는 수행 가능한 인수 잔여다. 시간·회차 종료는 외부 장애가 아니다. host는 현재 패키지 미설치와 설치 변경 금지, 사용자 시안 승인은 실제 사용자 판단, 사업 가치는 실사용 관찰이 각각 필요하다. 전체 인수까지 완료하지 못했다는 한계를 유지한다.
 
@@ -203,13 +203,13 @@ UI guide를 만들 때 현재 화면을 정답으로 복사하지 않는다. 실
 - 요구 폐기: 유효한 요구 변경, 제거/변경/유지되는 진입점·호출자, 남은 계약·소비자 영향, 활성 연결 정리와 이력. 규칙만 폐기하면 API는 남을 수 있으며 없는 대체 검사를 강제하지 않는다.
 - 구조적 예방 이동: 실제 거부·정상 허용과 해당 우회/호출 경로를 확인한다. type/constraint가 있다는 선언만으로 detector를 제거하지 않는다.
 - flaky/도구 오류: 제품 실패와 분리해 관찰 수단을 수리한다. 재시도 중 한 번의 PASS나 skip으로 공백을 숨기지 않는다.
-- 동작 보존 바인딩 이관: 같은 검사의 이름/결과 저장 경로 변경은 삭제·중복 제거와 다르다. 아래 동등성 인수가 구현되기 전에는 기존 BLOCKED를 임의 해제하지 않는다.
+- 동작 보존 바인딩 이관: 같은 검사의 이름/결과 저장 경로 변경은 삭제·중복 제거와 다르다. 0.1.60은 아래 조건의 clean Git/native 경로를 구현했다. 근거가 없는 legacy BLOCKED는 해제하지 않는다.
 - 검출 이력이 없거나 오래됐다는 이유만으로 고유 예방 검사를 삭제하지 않는다.
 - 소비자 schema·manifest·배포 계약은 문자열 검사처럼 보여도 필요하다. 문구 검사로 Agent 품질을 증명하는 주장과 구분한다.
 
 전수 정리나 mutation framework부터 만들지 않는다. 한 개의 근거 있는 통합·축소로 충분하다. 후보 발견과 삭제 완료를 구분한다.
 
-0.1.59의 공백에 대한 최소 설계는 기존 check decision 안의 좁은 **바인딩 이관**이다. 옛 task에 고정된 plan/commit preimage에서 command·cwd·runtime·dependency·fixture·source·criteria·required·assertion 식별자/기대값·coverage/예방 연결을 비교한다. 허용 차이는 check ID와 명시적으로 연결된 결과 경로뿐이다. argv 전체의 임의 문자열 정규화나 참조 파일 전체 무시는 금지한다. 새 경로의 실제 실행 결과도 필요하며 연결된 모든 소비자가 유지돼야 한다.
+0.1.60의 `rebind/check_identity_migrated`는 기존 check decision 안의 좁은 **바인딩 이관**이다. 옛 task에 고정된 plan/commit preimage에서 command·cwd·runtime·dependency·fixture·source·criteria·required·assertion 식별자/기대값·coverage/예방 연결을 비교한다. 허용 차이는 check ID와 명시적으로 연결된 결과 경로뿐이다. argv 전체의 임의 문자열 정규화나 참조 파일 전체 무시는 금지한다. 새 경로의 실제 실행 결과도 필요하며 연결된 모든 소비자가 유지돼야 한다. 기존 shared command는 보존하며 일반적인 단독 명령 삭제나 dirty preimage까지 지원한다고 주장하지 않는다.
 
 현재 `check_links`에는 옛 ID/prevention/criteria hash만 있어 일반적인 계약 동등성을 복원하기에 부족하다. 기존 bound plan이 있으면 재사용하고, 없으면 task 시작의 최소 계약 preimage 보존을 검토한다. legacy의 누락은 현재 값으로 채워 과거 값인 것처럼 쓰지 않는다. 이름·경로 외 조건 변경, assertion 제거·완화, required 해제, 소비자 누락, preimage 부재는 이관 경로로 통과시키지 않는다. 기존 failure/prevention이 있으면 그 연결도 보존한다. 이관 성공은 과거에 없던 RED 검출 이력을 만들어 주지 않으며 실제 삭제·통합의 검출 보존 요구는 그대로 유지한다.
 
