@@ -6,7 +6,7 @@ pstack의 스킬, 작업 절차, 서브에이전트, 자동화 팩과 실행 도
 
 이 문서는 외부 플러그인의 조사 기록이다. 이 저장소의 실행 지침은 [Agent workflow](../agents/workflow.md)와 기존 Harness 문서가 정한다.
 
-현재 채택·제외 기준과 다음 개선 순서는 [Agent Coding 체계 방향](agent-coding-system-direction.md#next-improvements-0158), 실제 후속 구현은 [현재 구현 결과](agent-workflow-implementation-results.md#feedback-reconciliation-2026-10-14)에 정리했다. [과거 실행 프롬프트](agent-coding-next-session.md)는 수행 범위의 기록이며 새 실행 지시가 아니다. 이전 배포 비교·Router 보류 판단은 [아카이브](archive/index.md)에 보존한다. 이 문서는 2026-10-03에 고정한 외부 소스의 조사 기록이며, 후보 전체의 품질 효과나 현재 플러그인 호스트 지원을 보증하지 않는다.
+현재 채택·제외 기준과 다음 개선 순서는 [Agent Coding 체계 방향](agent-coding-system-direction.md#next-improvements-0158), 실제 후속 구현은 [0.1.59 제품 소비 결과](agent-workflow-implementation-results.md#product-consumption-2026-10-14)에 정리했다. [과거 실행 프롬프트](agent-coding-next-session.md)는 수행 범위의 기록이며 새 실행 지시가 아니다. 이전 배포 비교·Router 보류 판단은 [아카이브](archive/index.md)에 보존한다. 이 문서는 2026-10-03에 고정한 외부 소스의 조사 기록이며, 후보 전체의 품질 효과나 현재 플러그인 호스트 지원을 보증하지 않는다.
 
 ## 조사 범위와 근거
 
@@ -246,6 +246,8 @@ poteto-mode의 외부 쓰기 자율성 지침, reflect의 일부 후속 처리, 
 ## 우리 작업 방식에 참고할 적용 후보
 
 이 항목은 조사에서 도출한 제안이다. 현재 저장소의 구현 상태나 승인된 변경 계획을 뜻하지 않는다.
+
+2026-10-14의 로컬 적용 재검토에서는 실행 가능한 가이드, 고정 기대와 실제 결과의 대조, 전달 시 현재성 확인을 계속 채택한다. 다음 우선순위는 새 절차 수가 아니라 **과잉 차단을 일으킨 검사 바인딩 이관 분류**, **여러 task의 인수 판단**, **새 작업자의 독립 가이드 소비**다. 직전 실행에서 가이드 작성자의 재실행은 확인했지만 독립 무도움 인수는 끝나지 않았다. 기존 소스 조사에 대한 적용 판단이며 pstack 최신판 조회·실행·동일 과제 성능 비교를 새로 했다는 뜻이 아니다. 상세 반례와 인수는 방향 문서 §8·§10 한 곳에서 관리한다.
 
 | 우선순위 | 적용 후보 | 도입 조건 |
 | --- | --- | --- |

@@ -20,7 +20,7 @@ retain the 0.1.47 classification/criterion-set/context scope; linked older revie
 - [Triage labels](agents/triage-labels.md) — current issue vocabulary.
 - [Skill inventory](architecture/skill-inventory.md) — public distribution inventory.
 - [Agentic Coding plugin](plugins.md) — reproducible local package, installed CLI paths, and separate host/task acceptance boundaries.
-- [Agent Coding direction](research/agent-coding-system-direction.md) — 2026-10-14 current six-outcome review, corrected feedback lifecycle, concrete next acceptance work and retained historical agreements.
+- [Agent Coding direction](research/agent-coding-system-direction.md) — 0.1.59 design re-review: completed work versus remaining implementation/acceptance/external conditions, narrow check-binding migration proposal, task acceptance and independent guide consumption priorities. Proposed runtime changes are not implemented by this documentation update.
 - [Continuous plugin improvement request](research/plugin-continuous-improvement-next-session.md) — applied six-outcome execution scope; current implementation, actual-product evidence and remaining native-host and product acceptance boundaries are recorded in the results.
 - [Executed plugin improvement prompt](research/plugin-improvement-next-session.md) — retained authorization/scope for the completed 0.1.48 pilot; use the continuous request for new execution.
 - [Agent workflow refinement review](research/agent-workflow-refinement-review.md#post-0146-review) — historical 0.1.46 review: classification-roundtrip approval revival, newly added criterion omission and task/global hook-gap mixing; fixes and bounded acceptance are recorded in the 0.1.47 results.
