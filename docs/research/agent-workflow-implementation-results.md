@@ -118,6 +118,9 @@ Separate accounts could not list/read each other's item; wrong account headers
 returned 409. No external request or browser error was observed. The server was
 stopped and D1/WAL/SHM snapshots hashed. Earlier selector, response-body and wrong
 Wrangler-state failures remain raw evidence, not passing product results.
+Root rechecking confirmed DB and WAL hashes but detected a changed SHM index after
+the snapshot's SQLite inspection. The old manifest is preserved; snapshot-wide
+immutability is not claimed, and a separate current-hash receipt records the limit.
 
 The business rule checked is preservation of a merchant's selected category and
 sales-unit price, with account-owned persistence and recoverable validation failure.
@@ -125,6 +128,71 @@ Real merchant intervention, rework and economic value were not observed; synthet
 local success does not establish business-model value. Full commands, raw API/D1
 results, screenshots and scripts are in `product-investigation/` in the retained
 execution evidence.
+
+### Frozen package and final independent review
+
+Clean source `cca3b984564638ace4d501c5d7f6d1ebfc96e513` built 0.1.59 with 19
+public Skills and 247 files. Ten selected tests consumed that package, including
+actual packaged hook-program invocation, feedback invalidation, blocked-plan
+visibility, source changes and interruption safety: **10 passed in 38.176s**;
+all 247 file hashes/inventory remained identical. The initial harness assumed the
+repository hook layout and failed; the corrected harness maps only that executable
+path to the package's `hooks/workflow_context.py`, retaining all original assertions.
+This is program invocation, not proof of native-host hook delivery.
+
+Final resource drift and distribution validation passed. Package/update/resource/
+documentation tests passed **35 in 20.640s**; a preceding invocation with two wrong
+module names is preserved as a collection failure. The independent final source
+review found no concrete false-PASS or read-only execution path. It records the
+conservative limit that one changed cwd invalidates the whole joined view, including
+otherwise unchanged cwd items; no transactional precision is claimed. A source-only
+checkpoint/later-launch-marker visibility candidate was not runtime-reproduced and
+remains unverified, separate from the passing no-replay interruption cases.
+
+A fresh-context consumer received only package/root/state pointers and read the
+packaged Skill, actual lookup and resume output. It distinguished SUPERSEDED with
+current successor proof from whole-task completion, identified plan-binding
+reconciliation and uncovered task/project scope as next work, and compared the
+separate survey request. The final resume required a process-local safe-directory
+entry for exactly the retained cross-owner worktree; the initial ownership failure
+is retained. All calls executed zero producer checks. Its before/after inventory
+contains **993 unchanged files**: 247 package, 743 original task/raw and three
+selected state/incident files. Original and intentionally revised copied state
+remain different from each other, each unchanged during consumption. This is
+assisted fresh-context reuse, not native discovery or unassisted Agent success.
+
+### CatalogImport guide consumption and draft candidate
+
+A separately started consumer received the product/package locations and a natural
+language CatalogImport task. It found the existing Skill, shared-device guide,
+tokens, Modal owner and project commands. The shared system was valid; the Feature
+lacked its own `ui` guide link and did not name the shared App dialog owner. The
+candidate adds those existing references, not another component system. A suspected
+garbled guide path was disproved by UTF-8 inspection and is not a product defect.
+
+Actual Chromium found Tab escaping the empty modal to the background. The shared
+Modal in App now wraps first/last keyboard focus. Root review then found disabled
+controls were still candidates; a real disabled-last-Apply browser counterexample
+failed before excluding `:disabled` and passed afterward. Existing first-import and
+already-imported flows remain; invalid-to-valid recovery clears the alert, failed
+storage preserves the prior catalog and retry succeeds. The audit covers 320×568,
+390×844, 768×1024 and 1440×900, mobile scrolling to Apply, keyboard/Escape/focus return
+and intended one/two-column variants. Root inspected mobile and desktop screenshots.
+
+This consumer was assisted: product/package pointers, reuse of already-installed
+dependencies through an isolated junction/cache, review feedback, and driver fixes
+are recorded. Missing Vite, a detached-dialog test assertion, selector/select
+interaction errors and one wrongly named screenshot are retained as evaluation
+rework, not product defects. No zero-assistance or user-approved design claim is
+made. The unmerged product candidate remains draft. Product behavior runs use the
+existing Playwright runtime without installation; an unexecuted optional
+playwright-cli recipe is distinct from the recorded runtime invocation.
+The existing native suite passed **55/55**, build/typecheck passed, and the final
+68-action browser audit passed. The exact evaluation-wrapper command added to the
+guide was executed successfully after the guide edit. Its retained wrapper/evidence
+location and prerequisite are explicit; the optional CLI is absent, not installed
+or silently replaced in the claimed command result. The original consumer's
+`missing_ui_standard` finding is absent after linking the existing guide.
 
 
 <a id="feedback-reconciliation-2026-10-14"></a>
