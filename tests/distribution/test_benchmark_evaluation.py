@@ -135,6 +135,25 @@ class BenchmarkEvaluationCaptureTests(unittest.TestCase):
                 self.assertIsNotNone(capture['evaluator_report']['error'])
                 self.assertIsNone(capture['external_verdict'])
 
+    def test_off_has_no_package_and_rejects_contradictory_package_identity(self):
+        self.manifest['plugin'] = {'condition': 'A', 'version': None, 'source_commit': None, 'package': None}
+        self.write_manifest()
+        result = self.invoke()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        capture = json.loads(self.output.read_bytes())
+        self.assertNotIn('plugin_package', capture['artifacts'])
+        self.assertIsNone(capture['plugin']['package'])
+        self.output.unlink()
+        self.report.unlink()
+        Path(str(self.output) + '.run-check.json').unlink()
+        self.marker.unlink()
+        self.manifest['plugin']['package'] = {'path': 'plugin.zip', 'sha256': self.digest(self.package)}
+        self.write_manifest()
+        result = self.invoke()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('OFF', result.stderr)
+        self.assertFalse(self.marker.exists())
+
     def test_unavailable_evaluator_is_incomplete(self):
         self.manifest['execution']['argv'] = [str(self.root / 'missing-evaluator')]
         self.write_manifest()

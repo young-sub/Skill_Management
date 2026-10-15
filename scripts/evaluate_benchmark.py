@@ -109,9 +109,14 @@ def _validate_manifest(manifest, manifest_path):
     plugin = manifest.get('plugin')
     if not isinstance(plugin, dict):
         raise InputError('plugin condition and fixed-package identity are required')
-    for key in ('condition', 'version', 'source_commit'):
-        _nonempty_text(plugin.get(key), f'plugin.{key}')
-    artifacts['plugin_package'] = _artifact(root, plugin.get('package'), 'plugin.package')
+    _nonempty_text(plugin.get('condition'), 'plugin.condition')
+    if plugin['condition'] == 'A':
+        if any(plugin.get(key) is not None for key in ('version', 'source_commit', 'package')):
+            raise InputError('OFF condition A must have no plugin version, source commit or package')
+    else:
+        for key in ('version', 'source_commit'):
+            _nonempty_text(plugin.get(key), f'plugin.{key}')
+        artifacts['plugin_package'] = _artifact(root, plugin.get('package'), 'plugin.package')
     if 'usage' not in manifest or 'cost' not in manifest:
         raise InputError('usage and cost must be explicit; use null when uncollected')
 

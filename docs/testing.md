@@ -16,8 +16,11 @@ patch/trace/package paths with SHA-256, plugin condition/version/source, model/C
 budget/permissions and explicit cost/usage (`null` when uncollected). It calls
 `run_check.py`, retains its native JSON report and raw external verdict, and
 reports capture completeness separately. Exit zero never implies a solved task.
-Existing reports/results are rejected to prevent accidental cached trials. Pins
-are supplied metadata and measured artifact identities; the connector does not
+Existing reports/results are rejected to prevent accidental cached trials.
+OFF uses `plugin.condition: "A"` with null version/source/package; supplying
+an ON package identity for A is rejected. ON conditions retain the package hash
+requirement. OFF capture still pins the task patch, trace and evaluator inputs.
+Pins are supplied metadata and measured artifact identities; the connector does not
 attest upstream checkouts, enforce model budgets, authenticate an evaluator, or
 isolate hidden tests. Those belong to the evaluation environment. The
 `benchmark-evaluation` selector exercises synthetic transport only; it never uses
