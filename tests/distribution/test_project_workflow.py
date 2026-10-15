@@ -1,5 +1,7 @@
 """Real repository changes drive resumable obligations, never submitted PASS flags."""
 import importlib.util
+import contextlib
+import io
 import json
 import os
 from pathlib import Path
@@ -14,6 +16,36 @@ SCRIPT = ROOT / 'authoring/scripts/project_workflow.py'
 
 
 class ProjectWorkflowTests(unittest.TestCase):
+    def test_read_only_lookup_shares_measured_project_basis_with_nested_viewer(self):
+        self.test_connected_prepare_execute_lookup_and_completed_execution_resume()
+        runtime = self.runtime()
+        state_path = next((self.root / '.work/tasks').glob('*/state.json'))
+        calls = []
+        def profile(frame, event, arg):
+            if event == 'call' and frame.f_code.co_name == 'inspect_project':
+                calls.append(frame.f_code.co_filename)
+        output = io.StringIO()
+        before = {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()}
+        try:
+            sys.setprofile(profile)
+            with contextlib.redirect_stdout(output):
+                runtime.main(['lookup', '--root', str(self.root), '--state', str(state_path.relative_to(self.root))])
+        finally:
+            sys.setprofile(None)
+        self.assertEqual(len(calls), 1, calls)
+        self.assertEqual(json.loads(output.getvalue())['test_commands_executed'], 0)
+        self.assertEqual(before, {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()})
+        self.write('.work/alternate-project.json', json.dumps(self.project))
+        calls.clear()
+        try:
+            sys.setprofile(profile)
+            with contextlib.redirect_stdout(io.StringIO()):
+                runtime.main(['lookup', '--root', str(self.root), '--project', '.work/alternate-project.json',
+                              '--state', str(state_path.relative_to(self.root))])
+        finally:
+            sys.setprofile(None)
+        self.assertGreater(len(calls), 1, 'Alternate project bases cannot stand in for the bundle default project')
+
     def test_action_scope_retains_project_obligations_and_unknown_legacy_scope(self):
         runtime = self.runtime()
         state = runtime.begin(self.root, self.project, 'change', ['api'])
@@ -135,6 +167,8 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertEqual(coverage.get('row_count'), 24)
         self.assertLessEqual(len(coverage['rows']), 8)
         self.assertEqual(coverage['rows_omitted'], 24 - len(coverage['rows']))
+        self.assertEqual(len(coverage['rows_ids']), 24)
+        self.assertEqual(len(coverage['matrix_ids']), 12)
         self.assertEqual(len(coverage['gaps']), 24)
         project = next(a for a in summary['next_actions'] if a['scope'] == 'project_remaining')
         self.assertEqual(project['pending_count'], 12)
@@ -175,6 +209,56 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertEqual(current.get('project_status'), 'PARTIAL')
         self.assertEqual(current.get('task_acceptance'), 'READY_FOR_REVIEW')
         self.assertEqual(current['next_action_count'], 0)
+
+    def test_summary_deduplicates_evidence_and_leads_with_task_handoff(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'change', ['api'])
+        result = runtime.inspect_project(self.root, self.project, state)
+        result['task'] = dict(state, state='.work/task.json')
+        result['handoff'] = runtime.handoff_summary(result)
+        evidence = {'feature': 'api', 'id': 'check', 'historical_status': 'PASS',
+            'current_status': 'PASS', 'current_reuse': 'REUSABLE', 'selected': True,
+            'conditions': {'fixture': {'large': 'x' * 3000}}, 'reasons': [],
+            'raw': [{'path': '.work/raw.json', 'pointer': '/price', 'observations': []}]}
+        result['features'][0]['check_results'] = [evidence]
+        result['verification'] = {'status': 'PASS', 'items': [evidence], 'coverage': result['coverage']}
+        result['next_actions'][0]['pending'] = [dict(id='price', kind='execution_check', status='STALE',
+            command=['native'], expected='Ten', evidence=evidence, guides=['docs/style.md'],
+            raw_contract=[{'path': '.work/raw.json', 'pointer': '/price',
+                           'assertions': [{'pointer': '/price', 'equals': 'x' * 3000}]}])]
+        before = json.dumps(result, sort_keys=True)
+        short = runtime.summarize_lookup(result, self.project, self.root)
+        self.assertEqual(next(iter(short)), 'handoff')
+        self.assertEqual(short['verification']['items'][0]['evidence_ref'], 'api/check')
+        self.assertEqual(short['verification']['coverage_ref'], 'coverage')
+        pending = short['next_actions'][0]['pending'][0]
+        self.assertEqual(pending['evidence_ref'], 'api/check')
+        self.assertEqual(pending['raw_contract'][0]['assertion_count'], 1)
+        self.assertEqual(pending['guides'], ['docs/style.md'])
+        self.assertEqual(pending['command'], ['native'])
+        self.assertEqual(short['features'][0]['check_results'][0]['raw'][0]['path'], '.work/raw.json')
+        self.assertEqual(short['handoff']['task_acceptance'], 'INCOMPLETE')
+        self.assertLess(len(json.dumps(short)), len(before) * .6)
+        self.assertEqual(json.dumps(result, sort_keys=True), before)
+
+    def test_summary_bounds_pending_previews_across_affected_features_without_losing_ids(self):
+        from copy import deepcopy
+        runtime = self.runtime()
+        template = self.project['extensions']['workflow']['features'][0]
+        features = [dict(deepcopy(template), id='feature-' + str(n), coverage=[dict(
+            id='review-' + str(row), requirement='docs/requirement.md', outcome='Owner review',
+            perspectives=['business'], areas=['Domain'], kind='review') for row in range(12)]) for n in range(10)]
+        self.project['extensions']['workflow']['features'] = features
+        state = runtime.begin(self.root, self.project, 'change', [f['id'] for f in features])
+        result = runtime.inspect_project(self.root, self.project, state)
+        result['task'] = dict(state, state='.work/task.json')
+        result['handoff'] = runtime.handoff_summary(result)
+        summary = runtime.summarize_lookup(result, self.project, self.root)
+        self.assertLessEqual(sum(len(a['pending']) for a in summary['next_actions']), 6)
+        self.assertEqual(sum(a['pending_count'] for a in summary['next_actions']),
+                         sum(len(a['pending_ids']) for a in summary['next_actions']))
+        self.assertLess(list(summary).index('next_actions'), list(summary).index('features'))
+        self.assertEqual(summary['coverage']['row_count'], 120)
 
     def test_assertion_only_drift_reopens_linked_consumer_without_execution(self):
         runtime = self.runtime()
@@ -726,13 +810,14 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertEqual(result['status'], 'PARTIAL')
         self.assertEqual(result['coverage']['rows'][0]['evidence']['run_id'], 'run')
         summary = runtime.summarize_lookup(result, self.project, self.root)
-        raw = summary['coverage']['rows'][0]['evidence']['raw'][0]
+        self.assertEqual(summary['coverage']['rows'][0]['evidence']['evidence_ref'], 'api/check')
+        raw = summary['features'][0]['check_results'][0]['raw'][0]
         self.assertNotIn('observations', raw, 'Coverage must not leak the raw values omitted by summary results')
         self.assertEqual((raw['observation_count'], raw['observations_omitted']), (1, True))
         self.assertEqual((raw['path'], raw['pointer']), ('.work/native.json', '/values'))
         self.assertEqual(summary['coverage']['matrix'], result['coverage']['matrix'])
         self.assertEqual(summary['coverage']['rows'][0]['status'], 'PASS')
-        self.assertEqual(summary['coverage']['rows'][0]['evidence']['run_id'], 'run')
+        self.assertEqual(summary['features'][0]['check_results'][0]['run_id'], 'run')
         self.assertIn('observations', result['coverage']['rows'][0]['evidence']['raw'][0])
         self.assertNotIn('conditions', summary['features'][0]['check_results'][0])
         self.assertIn('conditions', result['features'][0]['check_results'][0])

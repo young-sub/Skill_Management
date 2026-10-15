@@ -53,15 +53,36 @@ def main():
                 record.update(execution='exited', exit_code=process.returncode, stdout=stdout, stderr=stderr)
                 code = process.returncode
             except subprocess.TimeoutExpired:
-                cleanup_exit = None
+                cleanup = {'command': None, 'status': 'not_attempted', 'exit_code': None,
+                           'stdout': '', 'stderr': ''}
                 if process.poll() is None:
-                    if os.name == 'nt':
-                        cleanup_exit = subprocess.run(['taskkill', '/PID', str(process.pid), '/T', '/F'], capture_output=True).returncode
-                    else:
-                        os.killpg(process.pid, signal.SIGKILL)
-                        cleanup_exit = 0
+                    cleanup['command'] = (['taskkill', '/PID', str(process.pid), '/T', '/F']
+                                          if os.name == 'nt' else
+                                          ['os.killpg', str(process.pid), 'SIGKILL'])
+                    try:
+                        if os.name == 'nt':
+                            result = subprocess.run(
+                                cleanup['command'], capture_output=True, text=True,
+                                encoding='utf-8', errors='replace',
+                            )
+                            cleanup.update(
+                                status='succeeded' if result.returncode == 0 else 'failed',
+                                exit_code=result.returncode, stdout=result.stdout, stderr=result.stderr,
+                            )
+                        else:
+                            os.killpg(process.pid, signal.SIGKILL)
+                            cleanup.update(status='succeeded', exit_code=0)
+                    except OSError as error:
+                        cleanup.update(status='failed', error=str(error))
                     if process.poll() is None:
-                        process.kill()
+                        try:
+                            process.kill()
+                        except OSError as error:
+                            cleanup['status'] = 'failed'
+                            cleanup['error'] = '; '.join(filter(None, (
+                                cleanup.get('error'), f'process.kill: {error}')))
+                    if cleanup['status'] == 'failed':
+                        record['cleanup_incomplete'] = True
                 try:
                     stdout, stderr = process.communicate(timeout=5)
                 except subprocess.TimeoutExpired as error:
@@ -71,7 +92,14 @@ def main():
                     stdout = stdout.decode('utf-8', errors='replace') if isinstance(stdout, bytes) else stdout
                     stderr = stderr.decode('utf-8', errors='replace') if isinstance(stderr, bytes) else stderr
                     record['cleanup_incomplete'] = True
-                record.update(execution='timeout', exit_code=None, stdout=stdout, stderr=stderr, timeout_tree_cleanup_exit=cleanup_exit)
+                except OSError as error:
+                    stdout, stderr = '', ''
+                    cleanup['pipe_drain_error'] = str(error)
+                    record['cleanup_incomplete'] = True
+                record.update(
+                    execution='timeout', exit_code=None, stdout=stdout, stderr=stderr,
+                    timeout_tree_cleanup_exit=cleanup['exit_code'], timeout_tree_cleanup=cleanup,
+                )
                 code = 124
         except OSError as error:
             record.update(execution='unavailable', exit_code=None, stdout='', stderr=str(error))

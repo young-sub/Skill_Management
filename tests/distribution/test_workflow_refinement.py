@@ -18,6 +18,102 @@ class WorkflowRefinementTests(unittest.TestCase):
     review = existing.ProjectWorkflowTests.review
     invoke = existing.ProjectWorkflowTests.invoke
 
+    def test_environment_tag_does_not_resolve_product_failure(self):
+        self.test_environment_recovery_keeps_failure_and_reopens_on_target_or_manual_disable(product_failure=True)
+
+    def test_environment_recovery_keeps_failure_and_reopens_on_target_or_manual_disable(self, product_failure=False):
+        runtime = self.runtime()
+        config = self.project['extensions']['workflow']
+        config['assertions'] = 'assertions.json'
+        self.project['commands']['engine-start'] = {'argv': [sys.executable, '-c',
+            "from pathlib import Path;Path('.work/engine-ready').write_text('started')"],
+            'working_directory': '.', 'capability': 'engine'}
+        self.project['commands']['check'] = {'argv': [sys.executable, 'src/environment.py', '{report_dir}/native.json'],
+            'working_directory': '.', 'capability': 'engine'}
+        config['environment_recovery'] = {'engine': {'check': 'check', 'recovery_command': 'engine-start',
+            'target_pointer': '/target', 'failure_pointer': '/failure', 'environment_pointer': '/environment',
+            'target': {'context': 'desktop-linux', 'endpoint': 'local-engine'}, 'environment_variables': ['ENGINE_CONTEXT']}}
+        self.write('src/environment.py', "import json,sys,os\nfrom pathlib import Path\n"
+            "ready=Path('.work/engine-ready').exists()\n"
+            "Path(sys.argv[1]).write_text(json.dumps({'status':'PASS' if ready else ('ISSUES' if Path('.work/product-failure').exists() else 'BLOCKED'),"
+            "'target':{'context':'desktop-linux','endpoint':'local-engine'},'environment':{'ENGINE_CONTEXT':os.environ.get('ENGINE_CONTEXT')},'failure':'none' if ready else 'endpoint_missing','ready':ready}))\n"
+            "sys.exit(0 if ready else 2)\n")
+        config['features'][0]['sources'].append('src/environment.py')
+        self.write('assertions.json', json.dumps({'schema_version': 1, 'checks': [{
+            'id': 'check', 'feature_id': 'api', 'expected': 'Configured engine ready', 'required': True,
+            'selection': {'status': 'selected', 'reason': 'Environment prerequisite'},
+            'raw_observations': [{'path': '{report_dir}/native.json', 'pointer': '$',
+                'assertions': [{'pointer': '/ready', 'equals': True}]}],
+            'dependency': {'file_refs': ['src/environment.py']}, 'fixture': {'file_refs': ['docs/requirement.md']}}]}))
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        if product_failure:
+            self.write('.work/product-failure', 'ordinary failure with an unrelated environment label')
+        _, started = self.invoke('start', '--target', 'api')
+        context = started['task_context']
+        _, prepared = self.invoke('prepare', context=context)
+        self.assertIn('verification', prepared, prepared)
+        _, red = self.invoke('execute', context=context)
+        self.assertIn('verification', red, red)
+        red_bundle = (existing.Path(red['verification']['execution']['bundle']['plan']).parent / 'bundle.json').relative_to(self.root).as_posix()
+        state_path = self.root / started['task']['state']
+        state = json.loads(state_path.read_text())
+        entry = dict(id='engine-down', feature='api', kind='environment_limit', expected='Engine ready',
+            observed='Configured endpoint absent', reproduction='Run registered check', scope='local engine',
+            reason='Endpoint observation', evidence_refs=[red_bundle], owner_refs=['src/environment.py'],
+            reconsider='Context or descriptor changes', root_cause='Endpoint absent; not host/container OS mismatch',
+            red_bundle=red_bundle)
+        state = runtime.record_feedback(self.root, self.project, state, entry)
+        attempt = self.root / '.work/start-capture.json'
+        subprocess.run([sys.executable, str(existing.ROOT / 'scripts/run_check.py'), '--cwd', str(self.root),
+                        '--output', str(attempt), '--', *self.project['commands']['engine-start']['argv']],
+                       capture_output=True, check=True)
+        state_path.write_text(json.dumps(state))
+        self.invoke('prepare', context=context)
+        _, green = self.invoke('execute', context=context)
+        green_bundle = (existing.Path(green['verification']['execution']['bundle']['plan']).parent / 'bundle.json').relative_to(self.root).as_posix()
+        state = json.loads(state_path.read_text())
+        recovery = dict(check='check', capability='engine', classification='endpoint_missing',
+            recovery_command='engine-start',
+            target_pointer='/target', target={'context': 'desktop-linux', 'endpoint': 'local-engine'},
+            configuration_refs=['.harness/project.yaml'], attempt_captures=[attempt.relative_to(self.root).as_posix()])
+        state = runtime.record_feedback(self.root, self.project, state, dict(id=entry['id'], feature='api',
+            green_bundle=green_bundle, environment_recovery=recovery))
+        row = runtime.inspect_feedback(self.root, runtime.configuration(self.project), state)[0]
+        if product_failure:
+            self.assertEqual(row['status'], 'OPEN', row)
+            self.assertIn('environment_original_failure_required', row['remaining'])
+            return
+        self.assertEqual(row['status'], 'RESOLVED', row)
+        self.assertEqual(row['environment_status'], 'AVAILABLE')
+        self.assertEqual(row['red_bundle'], red_bundle)
+        self.assertTrue((self.root / red_bundle).is_file())
+        before = deepcopy(state)
+        recovery['target']['context'] = 'other-context'
+        wrong = runtime.record_feedback(self.root, self.project, state, dict(id=entry['id'], feature='api', environment_recovery=recovery))
+        self.assertEqual(runtime.inspect_feedback(self.root, runtime.configuration(self.project), wrong)[0]['status'], 'OPEN')
+        self.assertEqual(state, before)
+        with patch.dict(os.environ, {'ENGINE_CONTEXT': 'other-context'}):
+            self.assertIn('environment_context_changed', runtime.inspect_feedback(
+                self.root, runtime.configuration(self.project), state)[0]['remaining'])
+        unknown = deepcopy(state)
+        unknown['feedback'][entry['id']]['environment_recovery']['classification'] = 'access_denied'
+        self.assertIn('environment_original_cause_mismatch', runtime.inspect_feedback(
+            self.root, runtime.configuration(self.project), unknown)[0]['remaining'])
+        descriptor = self.project['commands']['check']
+        descriptor['env'] = {'ENGINE_CONTEXT': 'different'}
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        self.assertIn('environment_recovery_configuration_or_attempt_stale', runtime.inspect_feedback(
+            self.root, runtime.configuration(self.project), state)[0]['remaining'])
+        descriptor.pop('env')
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        self.write('.harness/environment-exceptions.json', json.dumps({'schema_version': 1, 'exceptions': [
+            dict(capability='engine', retry='skip_until_manual_reenable')]}))
+        blocked = runtime.inspect_feedback(self.root, runtime.configuration(self.project), state)[0]
+        self.assertEqual(blocked['status'], 'OPEN')
+        self.assertIn('environment_manually_disabled', blocked['remaining'])
+        self.assertEqual(json.loads((self.root / '.harness/environment-exceptions.json').read_text())['exceptions'][0]['retry'],
+                         'skip_until_manual_reenable')
+
     def _native_rebind_case(self, *, target_collision=False):
         """Build both sides from Git and let the native executor create target evidence."""
         import runpy

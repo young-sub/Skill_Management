@@ -1,5 +1,15 @@
 # Harness Architecture
 
+Read-only task CLI calls reuse the measured Feature bases in nested
+verification-scope projection; standalone viewer calls still inspect them.
+The snapshot is invocation-local and each later call measures source, references
+and raw again. Full results retain existing facts and decisions; lookup is not
+a filesystem transaction. Environment feedback can resolve availability from a
+current registered same-target native recheck while retaining failure and attempt
+history. Manual disables remain authoritative. Capability captures separate the
+declared target from host context; project probes own actual backend/container
+identity and diagnosis.
+
 The shared project-workflow owner derives request/impact/project/undetermined
 work labels from existing task targets, measured source/reference bases and owner
 links. It joins pending criteria to project commands/assertions and UI guides,

@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: 475c6d89d23015cff05722cb1362e627fe90bcab8844a5d3f66a2a942419910c
+# Source-SHA256: 77a698733495d4b5790910d8766dc2da93df80dd5b05423cfd72849af7dccbdc
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -628,7 +628,7 @@ def resolve_task(root, state=None, work_id=None, context=None):
 
 
 def connected_verification(root, project, state, path, work_id, action, *, output=None, run_check=None,
-                           timeout=300, resume=False):
+                           timeout=300, resume=False, workflow_bases=None):
     """Compose the existing prepare/execute API, retaining only its plan pointer."""
     viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
     if action == 'prepare':
@@ -663,7 +663,7 @@ def connected_verification(root, project, state, path, work_id, action, *, outpu
         checkpoints = sorted(directory.glob('checkpoint-*-bundle.json'), key=lambda p: int(p.name.split('-')[1]))
         if final.is_file() or checkpoints:
             saved = final if final.is_file() else checkpoints[-1]
-            result = viewer['view_bundle'](saved, workflow_state=path.relative_to(root))
+            result = viewer['_view_bundle'](saved, workflow_state=path.relative_to(root), workflow_bases=workflow_bases)
             try:
                 descriptor = json.loads(saved.read_text(encoding='utf-8'))
                 indices = descriptor.get('completed_indices') if isinstance(descriptor, dict) else None
@@ -1885,7 +1885,7 @@ def record_feedback(root, project, state, entry):
     if feature is None:
         raise ValueError('feedback_feature_unknown')
     updated = dict(previous, **deepcopy(entry))
-    for field in ('decision_hashes', 'decision_binding', 'decision_history', 'confirmation_hashes'):
+    for field in ('decision_hashes', 'decision_binding', 'decision_history', 'confirmation_hashes', 'recovery_hashes', 'environment_history'):
         if field in entry:
             raise ValueError('feedback_decision_basis_is_read_only')
     kinds = {'requirement_violation', 'requirement_change', 'intentional_difference', 'oracle_tool_error',
@@ -1942,6 +1942,20 @@ def record_feedback(root, project, state, entry):
     else:
         # Classification confirmation cannot rewrite an existing exception decision.
         updated['confirmation_hashes'] = {name: file_hash(root, name) for name in references}
+    if updated.get('kind') == 'environment_limit' and updated.get('environment_recovery'):
+        if previous.get('red_bundle') and previous['red_bundle'] != updated.get('red_bundle'):
+            raise ValueError('environment_original_failure_is_read_only')
+        proof = updated['environment_recovery']
+        if not isinstance(proof, dict):
+            raise ValueError('environment_recovery_must_be_object')
+        names = ['.harness/project.yaml', *feature['criteria'], *proof.get('configuration_refs', []), *proof.get('attempt_captures', [])]
+        if not names or any(not isinstance(name, str) or file_hash(root, name) is None for name in names):
+            raise ValueError('environment_recovery_references_required')
+        updated['recovery_hashes'] = {name: file_hash(root, name) for name in names}
+        updated['environment_history'] = deepcopy(previous.get('environment_history', []))
+        if previous.get('environment_recovery') and previous['environment_recovery'] != proof:
+            updated['environment_history'].append({key: deepcopy(previous.get(key)) for key in
+                ('environment_recovery', 'recovery_hashes', 'green_bundle')})
     result = deepcopy(state)
     result.setdefault('feedback', {})[entry['id']] = updated
     return result
@@ -2001,6 +2015,89 @@ def feedback_evidence(root, feature, entry, *, original_check=None, bundle_cache
     return reasons
 
 
+def environment_recovery_remaining(root, feature, entry, *, bundle_cache=None):
+    """Validate a project-owned same-target recheck; no diagnostic or repair is executed."""
+    proof = entry.get('environment_recovery', {})
+    if not proof or not entry.get('red_bundle') or not entry.get('green_bundle') or not entry.get('root_cause'):
+        return ['environment_resume_required']
+    try:
+        if proof.get('classification') not in {'command_missing', 'endpoint_missing', 'access_denied', 'os_mismatch', 'architecture_mismatch'}:
+            return ['environment_cause_unconfirmed']
+        if not proof.get('configuration_refs') or not proof.get('attempt_captures') or not isinstance(proof.get('target'), dict) or not proof['target']:
+            return ['environment_recovery_contract_required']
+        hashes = entry.get('recovery_hashes', {})
+        names = ['.harness/project.yaml', *feature['criteria'], *proof['configuration_refs'], *proof['attempt_captures']]
+        if any(name not in hashes or file_hash(root, name) != hashes[name] for name in names):
+            return ['environment_recovery_configuration_or_attempt_stale']
+        exceptions = local_path(root, '.harness/environment-exceptions.json')
+        if exceptions.exists():
+            document = json.loads(exceptions.read_text(encoding='utf-8'))
+            if document.get('schema_version') != 1 or not isinstance(document.get('exceptions'), list):
+                return ['environment_exception_document_invalid']
+            if any(item.get('capability') == proof.get('capability') and item.get('retry') == 'skip_until_manual_reenable'
+                   for item in document['exceptions']):
+                return ['environment_manually_disabled']
+        project = json.loads((root / '.harness/project.yaml').read_text(encoding='utf-8'))
+        contract = configuration(project).get('environment_recovery', {}).get(proof.get('capability'), {})
+        if (not contract or contract.get('check') != proof.get('check') or
+                contract.get('recovery_command') != proof.get('recovery_command') or
+                contract.get('target_pointer') != proof.get('target_pointer') or contract.get('target') != proof['target']):
+            return ['environment_project_target_contract_required']
+        commands = dict(project.get('commands', {}))
+        commands.update(project.get('impact', {}).get('feature_selectors', {}))
+        descriptor = commands.get(proof.get('check'))
+        if (proof.get('check') not in feature['checks'] or not isinstance(descriptor, dict)
+                or not proof.get('capability') or descriptor.get('capability') != proof['capability']):
+            return ['environment_registered_capability_required']
+        viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
+        red = bundle_observation(viewer, local_path(root, entry['red_bundle']), include_scope=False, bundle_cache=bundle_cache)
+        green = inspect_evidence(root, feature, commands, entry['green_bundle'], bundle_cache=bundle_cache)
+        old = next(i for i in red['items'] if i['feature'] == feature['id'] and i['id'] == proof['check'] and i['selected'])
+        new = next(i for i in green['items'] if i['feature'] == feature['id'] and i['id'] == proof['check'] and i['selected'])
+        if new['current_status'] != 'PASS' or new['current_reuse'] != 'REUSABLE' or old.get('run_id') == new.get('run_id'):
+            return ['environment_current_recheck_required']
+        if old['capture']['execution'] == 'exited' and old['capture']['exit_code'] == 0:
+            return ['environment_original_failure_required']
+        expected_cwd = local_path(root, descriptor.get('working_directory', '.')).resolve()
+        for item in (old, new):
+            condition = item['conditions']['expected']['command']
+            if (Path(item['capture']['cwd']).resolve() != expected_cwd or item['capture']['argv'] !=
+                    resolve_report_command(root, descriptor['argv'], condition.get('report_dir'))):
+                return ['environment_recheck_target_changed']
+            targets = []
+            for raw in item['raw']:
+                path = local_path(root, Path(raw['path']).relative_to(root).as_posix())
+                data, content = viewer['_read_json'](path)
+                if viewer['_sha256'](content) != raw['sha256']:
+                    return ['environment_target_evidence_stale']
+                if item is old and data.get('status') != 'BLOCKED':
+                    return ['environment_original_failure_required']
+                targets.append(viewer['_json_pointer'](data, proof['target_pointer']))
+                if item is old and viewer['_json_pointer'](data, contract['failure_pointer']) != proof['classification']:
+                    return ['environment_original_cause_mismatch']
+                if item is new:
+                    names = contract.get('environment_variables')
+                    if not isinstance(names, list) or any(not isinstance(name, str) for name in names):
+                        return ['environment_context_contract_required']
+                    observed_environment = viewer['_json_pointer'](data, contract['environment_pointer'])
+                    current_environment = {name: os.environ.get(name) for name in names}
+                    if observed_environment != current_environment:
+                        return ['environment_context_changed']
+            if not targets or any(target != proof['target'] for target in targets):
+                return ['environment_recheck_target_changed']
+        for name in proof['attempt_captures']:
+            capture = json.loads(local_path(root, name).read_text(encoding='utf-8'))
+            recovery = commands.get(proof.get('recovery_command'), {})
+            if (not isinstance(recovery, dict) or recovery.get('capability') != proof['capability'] or
+                    not capture.get('run_id') or capture.get('argv') != recovery.get('argv') or
+                    Path(capture.get('cwd', '')).resolve() != local_path(root, recovery.get('working_directory', '.')).resolve() or
+                    capture.get('execution') not in {'exited', 'timeout', 'unavailable'}):
+                return ['environment_attempt_capture_required']
+        return []
+    except (OSError, ValueError, KeyError, TypeError, StopIteration, AttributeError):
+        return ['environment_recovery_evidence_unavailable']
+
+
 def inspect_feedback(root, config, state, *, bundle_cache=None):
     if bundle_cache is None:
         bundle_cache = {}
@@ -2044,7 +2141,8 @@ def inspect_feedback(root, config, state, *, bundle_cache=None):
                         file_hash(root, name) != value for name, value in criteria.items()):
                     remaining.append('decision_criteria_stale')
             if kind in {'environment_limit', 'unknown'}:
-                remaining.append('environment_resume_required' if kind == 'environment_limit' else 'cause_unconfirmed')
+                remaining.extend(environment_recovery_remaining(root, feature, entry, bundle_cache=bundle_cache)
+                                 if kind == 'environment_limit' and feature is not None else ['cause_unconfirmed'])
             if kind in {'requirement_change', 'oracle_tool_error'} and feature is not None:
                 if kind == 'requirement_change' and not entry.get('authorization_refs'):
                     remaining.append('requirement_change_authorization_required')
@@ -2076,6 +2174,10 @@ def inspect_feedback(root, config, state, *, bundle_cache=None):
                         remaining.append('confirmation_evidence_unavailable')
             result.append(dict(entry, status='OPEN' if remaining else 'ACCEPTED' if kind == 'intentional_difference' else 'RESOLVED',
                                remaining=sorted(set(remaining))))
+            if kind == 'environment_limit':
+                result[-1]['environment_status'] = 'BLOCKED' if remaining else 'AVAILABLE'
+                result[-1]['next_action'] = ('Inspect original failure, project target/configuration and attempted recovery; explicitly recheck the same target.'
+                    if remaining else 'Reuse only while target/configuration and current recheck remain valid; retain the original failure and recovery raw.')
             continue
         remaining = [key for key in ('trace', 'root_cause', 'failed_prevention', 'repair_paths', 'guardrail', 'red_bundle', 'green_bundle')
                      if not entry.get(key)]
@@ -2521,19 +2623,15 @@ def record_review(root, project, state, review):
 
 def summarize_lookup(result, project, root):
     """Present already inspected facts; discovery never audits other task bundles."""
-    summary = {key: deepcopy(result[key]) for key in ('status', 'mapping_status', 'coverage', 'read_only',
+    summary = {key: deepcopy(result[key]) for key in ('handoff', 'status', 'mapping_status', 'read_only',
         'test_commands_executed', 'findings', 'product_findings', 'feedback', 'investigation',
-        'execution_selection', 'task_context', 'action_scope_counts', 'handoff') if key in result}
+        'task_context', 'action_scope_counts') if key in result}
     task = result.get('task', {})
     summary['task'] = {key: task.get(key) for key in ('state', 'work_id', 'task_id', 'intent', 'targets', 'request', 'base')}
     summary['detail_command'] = {'action': 'lookup', 'root': str(root),
         'state': task.get('state'), 'work_id': task.get('work_id'), 'summary': False}
     viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
-    if 'verification' in result:
-        summary['verification'] = viewer['summarize_results'](result['verification'])
-    for row in summary['coverage'].get('rows', []):
-        if row.get('evidence'):
-            row['evidence'] = viewer['summarize_results']({'items': [row['evidence']]})['items'][0]
+    summary['coverage'] = deepcopy(result['coverage'])
     config = {f['id']: f for f in (configuration(project) or {}).get('features', [])}
     active = {c['feature'] for c in result.get('coverage', {}).get('matrix', []) if c.get('in_task', True)}
     summary['features'] = []
@@ -2546,18 +2644,69 @@ def summarize_lookup(result, project, root):
         row['evidence_status'] = ('AVAILABLE' if feature['check_results'] else
             'UNAVAILABLE' if row['bundles'] else 'NOT_RUN' if feature['verification_status'] == 'REQUIRED' else 'NOT_REQUIRED')
         row['check_results'] = viewer['summarize_results']({'items': feature['check_results']})['items']
+        for item in row['check_results']:
+            for key in ('historical_source', 'historical_statuses', 'assessment', 'observation', 'criteria_revision'):
+                item.pop(key, None)
+            for key in ('argv', 'cwd'):
+                item.get('capture', {}).pop(key, None)
+            for raw in item.get('raw', []):
+                raw.pop('producer', None)
         summary['features'].append(row)
-    summary['next_actions'] = deepcopy(result['next_actions'])
+    evidence_ids = {f['id'] + '/' + item['id'] for f in summary['features'] for item in f['check_results']}
+
+    def evidence_preview(item):
+        identity = str(item.get('feature')) + '/' + str(item.get('id'))
+        if identity not in evidence_ids:
+            return viewer['summarize_results']({'items': [item]})['items'][0]
+        return dict({key: deepcopy(item[key]) for key in ('feature', 'id', 'historical_status',
+            'current_status', 'current_reuse', 'selected', 'reasons') if key in item}, evidence_ref=identity)
+
+    for row in summary['coverage'].get('rows', []):
+        if row.get('evidence') and row.get('kind') == 'test':
+            row['evidence'] = evidence_preview(dict(row['evidence'], feature=row['feature'], id=row['check']))
+
+    if 'verification' in result:
+        summary['verification'] = {key: deepcopy(value) for key, value in result['verification'].items()
+                                   if key not in {'items', 'coverage'}}
+        summary['verification']['items'] = [evidence_preview(item) for item in result['verification'].get('items', [])]
+        if 'coverage' in result['verification']:
+            summary['verification']['coverage_ref'] = 'coverage'
+            summary['verification']['coverage'] = {key: deepcopy(value) for key, value in result['verification']['coverage'].items()
+                                                   if key not in {'rows', 'matrix', 'gaps'}}
+            for key in ('rows', 'matrix', 'gaps'):
+                values = result['verification']['coverage'].get(key, [])
+                summary['verification']['coverage'][key + '_count'] = len(values)
+                summary['verification']['coverage'][key + '_ids'] = [
+                    {k: v[k] for k in ('feature', 'id', 'perspective', 'area', 'status') if k in v} for v in values]
+    priority = {'request_required': 0, 'impact_required': 1, 'scope_undetermined': 2, 'project_remaining': 3}
+    summary['next_actions'] = sorted(deepcopy(result['next_actions']), key=lambda a: priority.get(a.get('scope'), 2))
+    preview_remaining = 6
     for action in summary['next_actions']:
         pending = action.get('pending', [])
         action['pending_count'] = len(pending)
         action['pending_ids'] = [{'id': p['id'], 'kind': p['kind'], 'status': p['status']} for p in pending]
-        action['pending'] = pending[:4] if action.get('scope') != 'project_remaining' else []
+        action['pending'] = pending[:min(2, preview_remaining)] if action.get('scope') != 'project_remaining' else []
+        preview_remaining -= len(action['pending'])
         action['pending_omitted'] = len(pending) - len(action['pending'])
+        action.pop('scope_basis', None)
+        for key in ('basis', 'changed', 'verification_changed', 'verification_inputs_changed', 'ui_systems', 'prevention'):
+            action.pop(key, None)
+        if action.get('scope') == 'project_remaining':
+            for key in ('guides', 'bundles', 'references', 'next_action'):
+                action.pop(key, None)
         for entry in action['pending']:
             if entry.get('evidence') and entry['kind'] == 'execution_check':
-                entry['evidence'] = viewer['summarize_results']({'items': [entry['evidence']]})['items'][0]
+                preview = evidence_preview(entry.pop('evidence'))
+                entry.update({'evidence_ref': preview['evidence_ref']} if 'evidence_ref' in preview else {'evidence': preview})
+            if entry.get('raw_contract'):
+                entry['raw_contract'] = [{key: raw[key] for key in ('path', 'pointer') if key in raw} |
+                    {'assertion_count': len(raw.get('assertions', []))} for raw in entry['raw_contract']]
     for coverage in (summary.get('coverage', {}), summary.get('verification', {}).get('coverage', {})):
+        for key in ('rows', 'matrix', 'gaps'):
+            if key in coverage:
+                coverage[key + '_ids'] = [{name: value[name] for name in
+                    ('feature', 'id', 'perspective', 'area', 'status') if name in value}
+                    if isinstance(value, dict) else value for value in coverage[key]]
         for key, limit in (('rows', 8), ('matrix', 12)):
             if key not in coverage:
                 continue
@@ -2567,8 +2716,9 @@ def summarize_lookup(result, project, root):
             if len(values) > limit:
                 coverage[key] = sorted(values, key=lambda v: v.get('work_scope') == 'project_remaining'
                     or not v.get('in_task', True))[:limit]
-    summary['detail_hint'] = 'Observed values are omitted after validation, not missing. Follow bundles/raw path/pointer or repeat exact lookup without --summary. Historical results do not imply current reuse or task completion.'
-    return summary
+    summary['detail_hint'] = 'Evidence refs name features/check_results by feature/check; verification coverage IDs retain its own denominator. Observed/assertion values and scope bases are omitted after validation. Follow bundles/raw path/pointer or repeat exact lookup without --summary. Check PASS is not task acceptance.'
+    leading = ('handoff', 'task', 'status', 'action_scope_counts', 'next_actions', 'detail_command')
+    return {key: summary[key] for key in leading if key in summary} | {key: value for key, value in summary.items() if key not in leading}
 
 
 def main(argv=None):
@@ -2673,19 +2823,25 @@ def main(argv=None):
             if changed:
                 write_state(state_path, state, staging=root / '.work' if args.work_id else None)
         verification = None
+        result = None
+        if args.action in {'lookup', 'resume', 'audit'}:
+            result = inspect_project(root, project, state)
         if args.action in {'prepare', 'execute', 'review', 'feedback'} and configuration(project) is None:
             raise ValueError('workflow_not_configured; diagnosis supports investigate/connect/lookup/resume only')
         if args.action in {'prepare', 'execute'} or args.action in {'lookup', 'resume', 'audit'} and state.get('execution_plan'):
             try:
                 verification = connected_verification(root, project, state, state_path, args.work_id, args.action,
-                    output=args.output, run_check=args.run_check, timeout=args.timeout, resume=args.resume)
+                    output=args.output, run_check=args.run_check, timeout=args.timeout, resume=args.resume,
+                    workflow_bases={f['id']: f['basis'] for f in result['features']} if result is not None and
+                        local_path(root, args.project) == local_path(root, '.harness/project.yaml') else None)
             except (OSError, ValueError, TypeError, KeyError, subprocess.CalledProcessError) as error:
                 if args.action not in {'lookup', 'resume', 'audit'}:
                     raise
                 verification = {'status': 'BLOCKED', 'remaining': [str(error)],
                                 'read_only': True, 'test_commands_executed': 0}
             state, state_path = task_state(root, None if args.work_id else state_path.relative_to(root), args.work_id)
-        result = inspect_project(root, project, state)
+        if result is None:
+            result = inspect_project(root, project, state)
         result['test_commands_executed'] = (verification or {}).get('test_commands_executed', 0)
         result['read_only'] = args.action in {'connect', 'resume', 'lookup', 'audit', 'maintain', 'accept'}
         if verification is not None:
@@ -2726,7 +2882,7 @@ def main(argv=None):
                 pass
     if args.summary and result.get('features') is not None:
         result = summarize_lookup(result, project, root)
-    print(json.dumps(result, sort_keys=True))
+    print(json.dumps(result, sort_keys=not args.summary))
     if args.action in {'prepare', 'execute'} and result.get('verification'):
         return {'PREPARED': 0, 'NOT_REQUIRED': 0, 'PASS': 0, 'ISSUES': 1}.get(result['verification']['status'], 2)
     return 0 if result['status'] in {'READY_FOR_REVIEW', 'NOT_CONFIGURED'} else 2

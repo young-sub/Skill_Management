@@ -1,6 +1,6 @@
 # Agent Coding 업무 위임·검증·지속 개선 체계
 
-현재 source는 **2026-10-15 / runtime 0.1.61**이다. clean local main `c765dddd` / 0.1.60에서 별도 TEMP worktree로 시작해 현재 요청·필수 영향·프로젝트 잔여·미결정 범위와 미충족 기준의 명령/가이드/raw/유효성/다음 행동을 연결했다. [이번 구현·검증 결과](agent-workflow-implementation-results.md#delegated-handoff-2026-10-15)가 실제 task 소비, 다른 관련 업무의 가이드 재사용, 검사 유지 판단 및 Full/native-host 한계를 소유한다. [직전 0.1.60 결과](agent-workflow-implementation-results.md#binding-and-guide-2026-10-14)는 이번 실행으로 계산하지 않는다. §12는 당시 평가 합의, §13은 지속 목표다.
+현재 source는 **2026-10-15 / runtime 0.1.62**이다. clean local main `eb6a0b2` / 0.1.61에서 별도 TEMP worktree로 시작해 task 우선 summary, 호출 내부 읽기 공유, 환경 실패·복구·현재 가용성 연결과 공식 평가기의 얇은 실행 연결을 구현했다. [이번 구현·검증 결과](agent-workflow-implementation-results.md#handoff-runtime-2026-10-15)가 Full 447/447, 실제 task의 full 동등성·반복 측정, 새 문맥 소비와 남은 인수를 소유한다. Docker는 사용자가 보류했다. 공식 oracle 대조·유료 A/B·native Skill/hook/보호 host 인수는 수행하지 않았다. [직전 0.1.61 결과](agent-workflow-implementation-results.md#delegated-handoff-2026-10-15)는 과거 기록으로 보존하며 이번 실행으로 계산하지 않는다. §12는 당시 평가 합의, §13은 지속 목표다.
 
 **목적은 플러그인 고도화이며 연두링크는 실제 사용 평가 대상이다.** 연두링크 화면만 개선하고 종료하지 않는다. 기존 [연두링크 평가](plugin-improvement-next-session.md)와 [지속 고도화 요청](plugin-continuous-improvement-next-session.md)은 수행 범위를 보존한다. 다음 개선 선정은 현재 근거와 §10을 따른다. 과거 `agent-workflow-next-session.md`와 `agent-coding-next-session.md`의 실행 블록도 이미 수행된 범위의 기록이다.
 
@@ -47,7 +47,7 @@ Agent는 요구·원인·시각·검사 가치의 의미 판단을, CLI는 상�
 
 ## 2. 현재 구현, 보완한 오류와 남은 한계
 
-설계의 책임 분리는 유지하되 **구현 결함, 미수행 인수, 외부 근거/권한, 의도된 보호**를 구분한다. 0.1.61은 위임 인수 조회와 hook의 공통 소유 코드를 보완했다. 최종 focused 12/12가 통과했고, Full은 433개 중 432개 통과·기존 main에서도 재현되는 Windows timeout cleanup 오류 1개로 남는다. 아래 이전 한계는 최신 구현 결과와 함께 읽는다. 제품 후보는 미병합 draft다.
+설계의 책임 분리는 유지하되 **구현 결함, 미수행 인수, 외부 근거/권한, 의도된 보호**를 구분한다. 0.1.62의 Full은 447/447 통과했고, lookup/resume/audit는 검사·복구를 실행하지 않는다. 기존 환경 실패와 원인에 맞는 복구·동일 대상 재검사를 연결하되 수동 비활성화를 해제하지 않는다. 아래 표와 0.1.61 Full cleanup 오류는 이전 범위의 기록이며 최신 결과와 함께 읽는다. 제품 후보는 미병합 draft이고 전체 평가 목표는 미완료다.
 
 | 사용자 관점 | 구현·관찰된 범위 | 남은 한계와 다음 판단 |
 | --- | --- | --- |

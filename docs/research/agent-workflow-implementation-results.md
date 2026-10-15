@@ -1,5 +1,70 @@
 # Agent workflow implementation and acceptance
 
+<a id="handoff-runtime-2026-10-15"></a>
+
+## Task-first lookup, shared reads and environment reuse, 2026-10-15
+
+Runtime **0.1.62** starts from clean local `main@eb6a0b2` / 0.1.61 in an
+independent TEMP worktree. New observations on retained actual tasks reproduced
+108,150-character lookup summary output and duplicate project inspection. The
+common owner now leads with task acceptance, blockers and required actions,
+references one canonical check record, and bounds previews while retaining all
+IDs, denominators, omissions and full/raw paths. Project and undecided obligations
+remain; an individual PASS does not establish task acceptance. Full facts and
+verdicts are preserved.
+
+The existing read boundary shares measured Feature bases only with its nested
+same-project viewer. Alternate-project and standalone viewers remeasure. There
+is no persistent cache. Three interleaved old/new actual-task full queries produced
+identical JSON; 664 linked state/plan/raw files stayed unchanged. Instrumented
+Path.open reads were 5,765 versus 3,961 per call; means/sample standard deviations
+were 36.07s/1.82s versus 27.59s/2.87s. Concurrent host work and profiler overhead
+limit these local measurements; they do not establish general Agent performance.
+All four retained selectors were queried anew; past product checks are not new
+executions. The assisted fresh-context source handoff distinguished four reusable
+checks with semantic remainder, a misbound BLOCKED plan, NOT_RUN, and historical
+PASS/current STALE, and found registered commands, guides and raw.
+
+Windows timeout capture preserves taskkill stdout/stderr, argv and cleanup status
+separately from the original check timeout. Capability capture separates the host
+from declared platform/runtime and configured environment. Existing environment
+feedback can link a native BLOCKED failure, a project-owned target/cause/recovery
+command, captured recovery and fresh same-target PASS. Config, criteria or selected
+environment drift and manual disables keep it open; original failures remain.
+These are local evidence-consistency checks, not authenticated causal diagnosis
+or live endpoint attestation. Lookup performs no recovery or diagnostic probes.
+
+Focused RED/GREEN and independent counterexample review covered summary pressure,
+duplicate reads, alternate project isolation, recovery drift/manual disable,
+product failures mislabeled as environment, and cleanup errors. **Full passed
+447/447 in 983.995s** with identical source hashes before/after. Resource drift and
+distribution checks passed. The earlier 300s impacted-run timeout is retained as
+incomplete evidence, not PASS. Generated resources and version are aligned.
+
+The new repository tool `scripts/evaluate_benchmark.py` invokes explicit official
+evaluator argv through the existing capture, retaining native JSON verdicts,
+revision/image pins, patch/trace/package hashes, usage and unknown cost. Its seven
+synthetic transport tests passed, including exit zero with a false native verdict;
+they are not official oracle controls. No unittest-only adapter interprets another
+benchmark. Metadata pins do not attest evaluator installation or oracle isolation.
+
+This unit's packages, final consumption, independent follow-ups, exact commands,
+raw and local integration receipts are retained in
+`.work/handoff-runtime-20261015/`. A synthetic style requirement on an isolated
+real product has actual browser RED/GREEN; its UI candidate remains draft and
+unmerged. The product has no API/backend, so it does not prove full-stack feedback.
+Installed resources and original product state remain unchanged.
+
+Official gold/no-patch/defect evaluations and paid A/B runs are **0**; solved,
+regression and false-completion rates remain unmeasured. Five public task IDs are
+confirmed, three FeatureBench Fast IDs and all immutable images remain unconfirmed.
+The proposed 72-run OFF/ON matrix and optional 36 old-version units are planning
+only. Paid execution has no approval. Docker work was explicitly deferred by the
+user. Native Skill invocation, host hook delivery/protected acceptance, official
+oracle isolation and cost-calibrated paired evaluation remain unperformed; CLI
+and local synthetic success do not replace them. This implementation delivery is
+not completion of the entire evaluation goal.
+
 
 <a id="delegated-handoff-2026-10-15"></a>
 

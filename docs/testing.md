@@ -1,5 +1,31 @@
 # Testing And Impact Selection
 
+Runtime 0.1.62 tests task-first bounded summaries, all omitted IDs, same-call
+Feature-basis reuse and alternate-project isolation, structured same-target
+environment recovery, manual disable/context/config drift, and Windows cleanup
+stdout/stderr with the original timeout intact. Source/guide/assertion/raw changes
+must still invalidate reuse on the next call. This changes shared workflow/viewer
+and capability collection logic; Full is selected once after focused failures,
+plus required resource, distribution and documentation checks. A prior 300-second
+impact-run timeout is incomplete evidence, not a failed product assertion.
+
+`python scripts/evaluate_benchmark.py --manifest <run.json> --output <new-result.json>`
+is the separate official-evaluator connection. The manifest owns exact argv/cwd,
+task/data/evaluator revisions, image digest, report path/verdict JSON pointer,
+patch/trace/package paths with SHA-256, plugin condition/version/source, model/CLI,
+budget/permissions and explicit cost/usage (`null` when uncollected). It calls
+`run_check.py`, retains its native JSON report and raw external verdict, and
+reports capture completeness separately. Exit zero never implies a solved task.
+Existing reports/results are rejected to prevent accidental cached trials. Pins
+are supplied metadata and measured artifact identities; the connector does not
+attest upstream checkouts, enforce model budgets, authenticate an evaluator, or
+isolate hidden tests. Those belong to the evaluation environment. The
+`benchmark-evaluation` selector exercises synthetic transport only; it never uses
+the repository unittest assessor to grade another evaluator. Official gold,
+no-patch and defect controls must run before model trials with solution/tests
+outside Agent-readable mounts. If prerequisites or costs are not authorized,
+keep the official trials unperformed with their original planned denominators.
+
 Delegated-handoff regressions distinguish explicit request, measured shared/input
 impact, unchanged project remainder and missing-baseline scope. They preserve
 obligations and UNDECIDED applicability, connect pending checks/Agent reviews to
@@ -148,7 +174,7 @@ The verdict includes the evidence path/hash and command identity. Before and aft
 
 For runners whose stdout only names a separate JSON report, pass `--json-report <new-path>` to `run_check.py` and give that same path to the native reporter. Relative report paths resolve against `--cwd`. The capture rejects an existing report before execution and embeds the resulting JSON, raw-file SHA-256 and path in the execution record. Missing or malformed reports record an error; they do not rewrite the native exit or assign PASS. A project adapter must interpret its runner's actual selected cases, skips, errors and counts. This binds the collected report to a fresh invocation without authenticating an editable record or proving which process wrote it. Report contents, like argv/stdout/stderr, must contain no secrets. The repository unittest adapter remains unittest-specific; do not fabricate unittest output for Vitest or browser checks.
 
-Timeout requests termination of the owned foreground process/tree (Windows taskkill, POSIX process group), preserves partial output, and records the cleanup exit when attempted. A detached child or an exited parent retaining child pipes may escape; `cleanup_incomplete` means pipe draining timed out. A zero cleanup-tool exit does not prove all descendants terminated. The helper does not provide a process sandbox or replace the deferred Agent eval supervisor. No model/provider call is needed for these native checks.
+Timeout requests termination of the owned foreground process/tree (Windows taskkill, POSIX process group), preserves partial output, and records cleanup command, stdout/stderr, native exit and status in `timeout_tree_cleanup`. The check remains `execution: timeout` when cleanup raises an OS error. Failed cleanup or failed/timed-out pipe drain sets `cleanup_incomplete`. A detached child or an exited parent retaining child pipes may escape; a zero cleanup-tool exit does not prove all descendants terminated. The helper does not provide a process sandbox or replace the deferred Agent eval supervisor. No model/provider call is needed for these native checks.
 
 The unittest adapter distinguishes discovery/import failure as BLOCKED and retains its raw cause; other nonzero native failures remain check-scoped ISSUES and require interpretation. Product-level consumers must inspect the raw failure and retain unavailable or unknown observations as `BLOCKED`, rather than calling every command failure a product defect. The current `--evidence` command reassesses one record against current Git identity; it is not a task-history viewer or a multi-layer result aggregator. Task selection and multi-layer scope lookup now use the workflow/result CLIs; their bounded acceptance evidence and remaining limits are recorded in the [implementation results](research/agent-workflow-implementation-results.md).
 # Native unittest workflow connection

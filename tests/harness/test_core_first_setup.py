@@ -448,6 +448,40 @@ module.apply_transaction(Path(sys.argv[2]), plan, approval_digest=plan['digest']
             self.assertEqual(collected["source_revision"], "abc123")
             self.assertGreaterEqual(collected["duration_seconds"], 0)
 
+    def test_dynamic_baseline_separates_declared_target_from_host_and_redacts_env_values(self) -> None:
+        core = load_core()
+        descriptor = {
+            "id": "linux-container", "capability": "auth",
+            "argv": [sys.executable, "-c", "print('ok')"],
+            "working_directory": ".", "platform": "linux", "runtime": "python",
+            "env": {"DOCKER_CONTEXT": "desktop-linux", "API_TOKEN": "descriptor-secret"},
+        }
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            with mock.patch.dict(core.os.environ, {
+                "DOCKER_CONTEXT": "default", "DOCKER_HOST": "npipe://private-endpoint",
+                "DOCKER_API_VERSION": "1.49", "DOCKER_TLS_VERIFY": "1",
+                "API_TOKEN": "inherited-secret",
+            }):
+                result = core.run_dynamic_baseline(root, descriptor, approved_capabilities=["auth"])
+
+        self.assertEqual(result["status"], "passed")
+        context = result["environment_context"]
+        self.assertEqual(context["host_platform"], sys.platform)
+        self.assertEqual(context["host_runtime"], sys.implementation.name)
+        self.assertEqual(context["declared_platform"], "linux")
+        self.assertEqual(context["declared_runtime"], "python")
+        self.assertEqual(context["capability"], "auth")
+        self.assertEqual(context["environment_override_names"], ["API_TOKEN", "DOCKER_CONTEXT"])
+        self.assertEqual(context["safe_context"], {
+            "DOCKER_CONTEXT": "desktop-linux", "DOCKER_HOST": "set",
+            "DOCKER_API_VERSION": "1.49", "DOCKER_TLS_VERIFY": "1",
+        })
+        serialized = json.dumps(result)
+        self.assertNotIn("private-endpoint", serialized)
+        self.assertNotIn("descriptor-secret", serialized)
+        self.assertNotIn("inherited-secret", serialized)
+
     def test_semantic_test_inventory_ignores_paths_but_preserves_outcomes(self) -> None:
         core = load_core()
         before = [{"capability": "auth", "suite": "Login", "test": "accepts", "parameter": "admin", "path": "tests/old.py", "outcome": "passed"}]

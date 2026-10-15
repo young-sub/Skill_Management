@@ -14,8 +14,13 @@ See [request context](workflow-obligations.md#connect-the-current-request-once).
 Its plan pointer belongs to the existing task; the original viewer commands and
 project-specific adapters remain usable independently.
 
-Both workflow task `lookup --summary` and viewer `--summary` retain raw
-path/hash/pointer/producer descriptors. A positive `observation_count` with
+Workflow task `lookup/resume/audit --summary` leads with task handoff and
+request/impact actions. It retains pending IDs, scope denominators and omission
+counts. Repeated check evidence uses `evidence_ref: feature/check` into
+`features[].check_results`; verification's own coverage IDs/counts stay separate
+from project coverage. Full output retains producer and condition details.
+Viewer `--summary` keeps its original producer descriptors. Both retain raw
+path/hash/pointer descriptors. A positive `observation_count` with
 `observations_omitted: true` means validated values were omitted from presentation,
 not that runtime was unobserved. Repeat the same lookup without `--summary` to
 see assertions and actual values. Summary `raw_availability: UNAVAILABLE`

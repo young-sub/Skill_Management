@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/verification_results.py
-# Source-SHA256: c7168cb1bf7f8c223736d97755ca5f2cb31f9ae6895e52dc629fa1a48f504c9f
+# Source-SHA256: f8526332d079809201d9d767aab3fe1d418b2c4b3ecb95680c1c96d53f5575d7
 
 """Read-only viewer for plan-bound verification captures and observations.
 
@@ -1285,7 +1285,12 @@ def _validate_bundle_report_paths(plan: dict[str, Any], evidence_dir: Path | Non
 
 def view_bundle(bundle: dict[str, Any] | str | Path, *, workflow_state: Path | None = None,
                 include_scope: bool = True) -> dict[str, Any]:
-    """Revalidate an execution bundle read-only against the current project state."""
+    return _view_bundle(bundle, workflow_state=workflow_state, include_scope=include_scope)
+
+
+def _view_bundle(bundle: dict[str, Any] | str | Path, *, workflow_state: Path | None = None,
+                 include_scope: bool = True, workflow_bases: dict[str, str] | None = None) -> dict[str, Any]:
+    """Internal workflow callers may share bases measured from the same default project."""
     bundle_value: Any = bundle
     bundle_file: Path | None = None
     base = Path.cwd().resolve()
@@ -1354,6 +1359,7 @@ def view_bundle(bundle: dict[str, Any] | str | Path, *, workflow_state: Path | N
             source_cache=source_cache,
             workflow_state=workflow_state,
             include_scope=include_scope,
+            workflow_bases=workflow_bases,
         )
         result["bundle"] = copy.deepcopy(bundle_value)
         result["bundle_view"] = {"read_only": True, "source_plan": str(source_plan), "source_plan_sha256": source_hash}
@@ -1810,6 +1816,7 @@ def _view_results(
     source_cache: dict[Path, dict[str, str]] | None = None,
     workflow_state: Path | None = None,
     include_scope: bool = True,
+    workflow_bases: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Join evidence against a fresh, invocation-local view of current source."""
     plan_file = Path(plan_path).resolve()
@@ -1850,7 +1857,7 @@ def _view_results(
         "remaining": sorted({reason for item in items for reason in item["reasons"] if reason}),
     }
     result['status_scope'] = 'required selected checks; task completion is reported separately by workflow audit'
-    result['coverage'] = _view_coverage(plan, items, workflow_state=workflow_state) if include_scope else {
+    result['coverage'] = _view_coverage(plan, items, workflow_state=workflow_state, workflow_bases=workflow_bases) if include_scope else {
         'status': 'NOT_CONFIGURED', 'rows': [], 'matrix': []}
     for cwd, observed in source_cache.items():
         try:
@@ -1862,7 +1869,7 @@ def _view_results(
     return result
 
 
-def _view_coverage(plan, items, *, workflow_state=None):
+def _view_coverage(plan, items, *, workflow_state=None, workflow_bases=None):
     workflow = runpy.run_path(str(Path(__file__).with_name('project_workflow.py')))
     scope = plan.get('workflow_scope')
     if not scope:
@@ -1890,8 +1897,11 @@ def _view_coverage(plan, items, *, workflow_state=None):
     matrix = []
     try:
         project, _ = _read_json(_safe_path('.harness/project.yaml', root=root, label='project'))
-        current = workflow['inspect_project'](root, project)
-        bases = {feature['id']: feature['basis'] for feature in current['features']}
+        if workflow_bases is None:
+            current = workflow['inspect_project'](root, project)
+            bases = {feature['id']: feature['basis'] for feature in current['features']}
+        else:
+            bases = workflow_bases
     except (OSError, ValueError, KeyError, subprocess.CalledProcessError):
         bases = {}
     bundle_cache = {}

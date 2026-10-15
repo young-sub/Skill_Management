@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/core_harness.py
-# Source-SHA256: a6182fd48cbc2d46691cd808d058b9286698145917c61fb40cc4e068bed111a8
+# Source-SHA256: ae72bf9818c7cb88a306365f4b73987a80aa85c8297b62df80e6fde3e694888d
 
 #!/usr/bin/env python3
 """Deterministic Core-First Agent Harness contracts and compatibility checks."""
@@ -1447,6 +1447,21 @@ def run_dynamic_baseline(
         if not isinstance(key, str) or not isinstance(value, str):
             return {"status": "invalid_descriptor", "errors": ["env_must_be_string_map"]}
         environment[key] = value
+    safe_context = {
+        key: environment[key] for key in ("DOCKER_CONTEXT", "DOCKER_API_VERSION", "DOCKER_TLS_VERIFY")
+        if key in environment
+    }
+    for key in ("DOCKER_HOST", "DOCKER_CERT_PATH"):
+        if key in environment:
+            safe_context[key] = "set"
+    execution_context = {
+        "host_platform": sys.platform, "host_runtime": sys.implementation.name,
+        "declared_platform": descriptor.get("platform"),
+        "declared_runtime": descriptor.get("runtime"), "capability": capability,
+        "inherit_env": inherit_env,
+        "environment_override_names": sorted(descriptor.get("env", {})),
+        "safe_context": safe_context,
+    }
     started = time.monotonic()
     try:
         result = subprocess.run(
@@ -1459,7 +1474,8 @@ def run_dynamic_baseline(
             "argv": argv, "working_directory": str(working_directory),
             "source_revision": descriptor.get("source_revision"),
             "runtime": descriptor.get("runtime", sys.implementation.name),
-            "platform": sys.platform, "returncode": result.returncode,
+            "platform": sys.platform, "environment_context": execution_context,
+            "returncode": result.returncode,
             "duration_seconds": round(time.monotonic() - started, 6),
             "stdout": result.stdout, "stderr": result.stderr,
         }
@@ -1468,6 +1484,7 @@ def run_dynamic_baseline(
             "status": "collection_error", "capability": capability, "argv": argv,
             "working_directory": str(working_directory), "source_revision": descriptor.get("source_revision"),
             "runtime": descriptor.get("runtime", sys.implementation.name), "platform": sys.platform,
+            "environment_context": execution_context,
             "duration_seconds": round(time.monotonic() - started, 6), "error": str(error),
         }
 

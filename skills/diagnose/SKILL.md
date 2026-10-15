@@ -4,7 +4,7 @@ description: Investigate a reproducible implementation or verification failure, 
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/diagnose/SKILL.md -->
-<!-- Source-SHA256: c3f166407e91880454c29ae7f20bb46f9901e04034529e7c9a06d237be41a270 -->
+<!-- Source-SHA256: 3ce5de0bfc303439f32fc301d7e85d7211cd46cc9a148b03a88af36bd84cc4d4 -->
 
 
 # Diagnose
@@ -26,6 +26,12 @@ oracle/tool error, environment limit or unknown cause. User agreement does not
 prove a cause or authorize more changes. Keep deferred reviews and unknown causes
 open; retain candidate IDs and evidence. Reuse the available feedback record's
 reason-specific completion and subsequent-consumption checks.
+
+Environment failures also need repair evidence: distinguish required target from
+host/backend/container identity, preserve the failed command and cleanup output,
+bind attempts to project-owned capability actions, then recheck the same target.
+Use the existing environment feedback contract to retain failure history and
+current availability. Lookup never diagnoses, repairs or clears a manual disable.
 
 1. Reproduce the reported input/entry point and failing output with the smallest relevant check. Confirm the current checkout, runtime, and endpoint when using existing logs or a running server.
 2. Trace the failing behavior through its callers and state owner. Form a falsifiable hypothesis; instrument only what distinguishes likely causes. Separate code failure, missing evidence, and environment failure.

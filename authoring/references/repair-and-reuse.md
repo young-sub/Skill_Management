@@ -77,7 +77,32 @@ an unseen UI candidate as user-approved.
 | `requirement_change` | `scope`, `reason`, `evidence_refs`, `owner_refs`, `reconsider`, `authorization_refs`; criteria bytes must change from registration, with fresh prepared `green_bundle` and `confirmation` for new and retained contracts. No old-oracle RED is invented. |
 | `intentional_difference` | Scope/reason/evidence/owner/reconsider identify a common variant or explicit exception. The explicit subject/disposition/revision binding above plus current decision evidence yields ACCEPTED; generic agreement, absent/deferred/opinion/legacy review stays OPEN. Related criteria or decision changes reopen it in current and subsequent tasks. Feedback ACCEPTED is separate from Feature/product verification. |
 | `oracle_tool_error` | Independent `evidence_refs`, scope/reason/owner/reconsider, `trace`, `root_cause`, changed `repair_paths` at the declared source/criteria owner, and fresh green confirmation. Repair the runner/oracle; preserve the actual original failure separately. |
-| `environment_limit`, `unknown` | Preserve failure, conditions and next action. Always OPEN; agreement or a green file cannot manufacture a confirmed cause or resolution. |
+| `environment_limit` | Preserve original failure and attempts. OPEN until `environment_recovery` links the registered capability, explicit cause classification, same observed target and fresh current PASS recheck. Configuration/attempt drift and manual disable reopen it. Environment availability is separate from product/task acceptance. |
+| `unknown` | Preserve failure, conditions and next action. Always OPEN; agreement or a green file cannot confirm the cause. |
+
+For environment recovery, retain `red_bundle`, `green_bundle`, `root_cause` and
+the existing evidence/owner/scope/reconsider fields. `environment_recovery` names
+`check`, `capability`, `classification` (`command_missing`, `endpoint_missing`,
+`access_denied`, `os_mismatch`, `architecture_mismatch`), a nonempty `target`, its
+`target_pointer` in both native raw reports, `configuration_refs` and
+`attempt_captures`. Project runners own target/context/override observations and
+expected results; the CLI never infers a tool command or a cause from one message.
+The failed native capture and fresh current success use the same registered
+command/cwd and distinct runs. Reference hashes and prior recovery attempts
+remain in feedback. Missing raw/target or unresolved cause stays OPEN.
+The project declares `extensions.workflow.environment_recovery[capability]`:
+`check`, `recovery_command`, `target`, `target_pointer`, `failure_pointer`,
+`environment_pointer` and `environment_variables`. Its native report must contain
+the actual target, structured original cause and current selected nonsecret
+environment values. Recovery feedback names that registered action; attempt
+captures must match its argv/cwd/capability. Project config and criteria hashes
+are pinned automatically. Changed inherited overrides reopen availability even
+if an old green report is still present. Do not emit credentials in native reports.
+Record Windows host, execution backend and container OS/architecture separately;
+a Linux Docker context on Windows is valid. Inspect context and overrides,
+retain original stdout/stderr, try a cause-matched command-level escalation when
+authorized, and recheck the same endpoint after a real condition change. Avoid
+unchanged retries, preserve manual disables and keep lookup read-only.
 
 `confirmation` names active `check`, `expected_pointer`, and a distinct
 `normal_pointer`. Both must be matched assertions in a current PASS prepared

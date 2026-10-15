@@ -1,12 +1,16 @@
 from pathlib import Path
-import json
+import contextlib
 import hashlib
+import io
+import json
 import os
+import runpy
 import subprocess
 import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 
 RUNNER = Path(__file__).resolve().parents[2] / 'scripts/run_check.py'
 
@@ -126,6 +130,47 @@ class CheckCaptureTests(unittest.TestCase):
             self.assertIsNone(data['behavior_verdict'])
             self.assertIn('started', data['stdout'])
 
+    @unittest.skipUnless(os.name == 'nt', 'Windows taskkill')
+    def test_timeout_keeps_taskkill_failure_output_and_cleanup_error(self):
+        for failure in ('result', 'oserror'):
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                record = root / 'execution.json'
+                with mock.patch.object(sys, 'path', [str(RUNNER.parent), *sys.path]):
+                    runner = runpy.run_path(str(RUNNER), run_name='run_check_test')
+                runner_subprocess = runner['subprocess']
+                original_run = runner_subprocess.run
+
+                def run(argv, *args, **kwargs):
+                    if argv and argv[0] == 'taskkill':
+                        if failure == 'oserror':
+                            raise PermissionError('taskkill denied by test')
+                        return subprocess.CompletedProcess(
+                            argv, 5, stdout='taskkill output', stderr='taskkill error')
+                    return original_run(argv, *args, **kwargs)
+
+                args = [str(RUNNER), '--cwd', str(root), '--output', str(record),
+                        '--timeout', '0.1', '--', sys.executable, '-c',
+                        'import time; time.sleep(30)']
+                with mock.patch.object(runner_subprocess, 'run', side_effect=run), \
+                     mock.patch.object(sys, 'argv', args), \
+                     contextlib.redirect_stdout(io.StringIO()):
+                    code = runner['main']()
+
+                data = json.loads(record.read_text(encoding='utf-8'))
+                self.assertEqual(code, 124)
+                self.assertEqual((data['execution'], data['exit_code']), ('timeout', None))
+                cleanup = data['timeout_tree_cleanup']
+                self.assertEqual(cleanup['command'][0], 'taskkill')
+                self.assertEqual(cleanup['status'], 'failed')
+                self.assertTrue(data['cleanup_incomplete'])
+                self.assertEqual(data['timeout_tree_cleanup_exit'], 5 if failure == 'result' else None)
+                if failure == 'oserror':
+                    self.assertIn('taskkill denied by test', cleanup['error'])
+                else:
+                    self.assertEqual((cleanup['stdout'], cleanup['stderr']),
+                                     ('taskkill output', 'taskkill error'))
+
     def test_timeout_stops_owned_child_activity_and_preserves_unrelated_process(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -149,6 +194,11 @@ class CheckCaptureTests(unittest.TestCase):
                 child_pid = int((root / 'child-pid').read_text())
                 self.assertEqual(result.returncode, 124)
                 self.assertEqual(data['timeout_tree_cleanup_exit'], 0)
+                cleanup = data['timeout_tree_cleanup']
+                self.assertEqual(cleanup['command'][0], 'taskkill')
+                self.assertEqual((cleanup['status'], cleanup['exit_code']), ('succeeded', 0))
+                self.assertIsInstance(cleanup['stdout'], str)
+                self.assertIsInstance(cleanup['stderr'], str)
                 heartbeat = (root / 'heartbeat').read_text()
                 time.sleep(.3)
                 self.assertEqual((root / 'heartbeat').read_text(), heartbeat)
