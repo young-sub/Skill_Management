@@ -95,14 +95,20 @@ the selected second defective control fails. FeatureBench empty-patch rejection
 is retained separately from negatives that ran native tests. The model pilot
 is **0/9** and the main evaluation **0/108**, with null rates rather than zero
 success rates. Repeated runs are not independent tasks.
-ABC Compose setup exposed an invalid daemon host-gateway address; only private
-task copies receive the recorded numeric bridge-address compatibility amendment.
+Earlier ABC Compose attempts used a recorded numeric host-gateway compatibility
+amendment in private task copies. The later private-VM grader timed out without
+a verdict; different Compose and daemon bridge addresses alone do not prove a
+network failure. The original test scripts and failed attempts are retained.
 The first ABC gold failures exposed identical 13-byte, comment-only solution.sh
 files, not usable reference implementations. Dataset-wide inspection confirmed
 all 224 scripts have those identical bytes. ABC's six planned controls remain
-unvalidated. The user was asked to choose an independent isolated Luna reference,
-ABC exclusion, or another official gold source; no replacement or weaker oracle
-was silently substituted. The required 24-control gate is not satisfied.
+unvalidated. An earlier reference-method question is retained, but the original
+authorization already covers correct reference patches and necessary paid Luna
+calls. Preparation therefore continues toward isolated Luna/medium development
+references, without changing the eight public tasks or official criteria. No
+user answer is inferred. Reference attempts/costs remain separate from pilot/main,
+and neither solutions nor debugging hints may reach compared candidates. The
+required 24-control gate is not satisfied.
 Automatic review rejected pre-audit public-asset copying before execution. The
 safer preparation audits image payload hashes and metadata asset roles first,
 copies only the verified per-file allowlist, and removes unclassified asset roots
@@ -160,6 +166,16 @@ available; initial setup took about seven minutes. This is a runtime smoke,
 not full TerminalBench grading or model readiness. Private grading must use
 a different overlay from every candidate VM.
 
+The oracle-free ABC template subsequently initialized native Codex 0.160.0 over
+strictly pinned SSH. A five-second host watchdog control terminated its owned
+QEMU process and closed SSH; its production budget remains 1,200 seconds including
+setup. This did not call a model. The audited public application contexts now
+retain 125 Azat and 611 Azure files, excluding the two private grader test files
+from each application while preserving public documentation and tutorial code.
+Their original upstream Git bases are absent from the archive; archive revision,
+file hashes/modes and fresh source commits identify the baseline. SDK/cache
+preparation and actual candidate/scoring consumption remain incomplete.
+
 `metrics/setup-cost-ledger.json` records 13 completed capability Agent units:
 587,898 input and 5,704 output tokens, with 1,156 reasoning tokens already within
 output and 403,968 cached-input tokens. These are setup observations, not pilot
@@ -172,7 +188,16 @@ Missing upstream Content-Type exposed a provider usage parser bug. Earlier null
 provider counters are preserved. Focused fake-upstream checks and a subsequent
 real minimal call verified the repair: native/provider counters match at 9,246
 input and five output tokens. Cache-write values remain null when unreported.
-Parent/subagent/infrastructure and failed-wrapper usage remain unknown. The
+An additional metadata-only snapshot reconciles 426 unique coordinator response
+receipts with its latest native thread cumulative value: 70,400,578 input,
+389,709 output and 69,241,728 cached-input tokens; 184,710 reasoning tokens are
+already within output. This is infrastructure work on gpt-6.1-sol/xhigh, separate
+from compared Luna task Agents. No pre-task cumulative baseline was available,
+and the live session continues, so the snapshot is not a complete incremental
+cost total. The older token-count events lagged the response receipts and were
+not summed. A real-extractor fixture reproduced and fixed timestamp-only duplicate
+receipt rejection. Exact child links were absent from the 29 same-day headers
+checked; child and failed-wrapper usage remain unknown. The
 shared 61,104.046561 credit snapshot is non-attributable. Actual credits, USD and
 complete API-equivalent estimates are null. Solved rates, false completion,
 reuse accuracy and whole plugin cost effects remain unmeasured.
