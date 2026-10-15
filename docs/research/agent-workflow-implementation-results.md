@@ -1,5 +1,18 @@
 # Agent workflow implementation and acceptance
 
+## Luna benchmark execution in progress, 2026-10-16
+
+The common Codex Agent runner is implemented and its 42 impacted tests, resource
+drift and distribution checks passed. Real isolated Luna/medium calls verified
+OFF/0.1.61/0.1.62 discovery and hook delivery; an ON Skill-read omission is retained.
+A separate native Windows fixed-task handoff accepted correct output, rejected
+defective output, blocked changed candidate bytes and performed read-only lookup.
+These are new bounded observations, not reuse of the previous 447-test result.
+Official evaluator controls and isolation preparation continue; pilot9/main108
+have not started. See the [execution record](luna-benchmark-execution.md) for source,
+evidence, original failures, package pins and current limits. No plugin performance
+or total-cost advantage has been established.
+
 <a id="handoff-runtime-2026-10-15"></a>
 
 ## Task-first lookup, shared reads and environment reuse, 2026-10-15

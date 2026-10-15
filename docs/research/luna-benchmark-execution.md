@@ -50,6 +50,28 @@ is retained and excluded from OFF acceptance. Native host discovery, callback
 delivery, external filesystem isolation and protected-host acceptance remain
 separate claims.
 
+The independent A/C/B probes all selected Luna/medium. A discovered zero plugin
+Skills; B and C discovered 19 each, alongside the same five bundled system
+Skills. B read agent-workflow natively in that general request; C delivered hook
+context but did not read a Skill file in that request. The earlier explicit C
+probe did read it. The unused activation is retained, not converted to success.
+Direct egress, oracle-host CONNECT, config mutation and signalling the root-owned
+deadline were denied. A real six-second deadline stopped an effect-writing child;
+its persisted marker stopped changing after the container exited.
+
+A separate real Windows protected-host trial installed canonical fixed-task
+verifiers under a new directory below the already protected profile parent,
+without account setup or existing ACL changes. Normal output was ACCEPTED,
+defective output REJECTED, and changed candidate bytes BLOCKED handoff. Lookups
+did not change retained run files. The first TEMP-parent attempt was correctly
+BLOCKED: that parent's inherited candidate write permissions allowed mutation.
+This is bounded synthetic saved-value acceptance, not whole-product acceptance.
+
+The repository runner's 42 impacted tests passed, plus resource drift and
+distribution checks. Frozen 0.1.61 and 0.1.62 inputs were revalidated and copied
+into this run's fixed-packages directory with deterministic ZIP/file hashes;
+their distributed bytes and original source commits remain unchanged.
+
 The first PrismJS gold control ran the official evaluator and exited zero but
 produced no report. Native tests passed 8/8; the pinned official JSON parser
 could not handle JavaScript preceding the Mocha JSON. This is an evaluator
@@ -64,9 +86,17 @@ The original 20-minute Metaflow image preparation timed out while downloading
 large layers; this is setup evidence, not an Agent time limit or model failure.
 Official gold/no-change/omitted-fix controls are being prepared in independent
 evaluator-only work roots. The nine pilot and 108 main units have not started.
-Lighthouse's three official controls now report true/false/false as expected.
+Lighthouse and Grommet's six official controls report true/false/false as expected;
+Metaflow's gold and two native-test negatives also discriminate correctly.
 ABC Compose setup exposed an invalid daemon host-gateway address; only private
 task copies receive the recorded numeric bridge-address compatibility amendment.
+The first ABC gold failures exposed identical 13-byte, comment-only solution.sh
+files, not usable reference implementations. Dataset-wide provenance checking is
+pending; no positive gold gate is inferred from a completed CLI invocation.
+Automatic review rejected pre-audit public-asset copying before execution. The
+safer preparation audits image payload hashes and metadata asset roles first,
+copies only the verified per-file allowlist, and removes unclassified asset roots
+and repository history from the candidate image before access.
 Solved rates, false completion and plugin cost effects are unmeasured. Subscription
 credits and actual USD have not been collected; API-price equivalents, if used,
 must be labeled estimates and cannot replace those missing values.
