@@ -21,6 +21,7 @@ retain the 0.1.47 classification/criterion-set/context scope; linked older revie
 - [Skill inventory](architecture/skill-inventory.md) — public distribution inventory.
 - [Agentic Coding plugin](plugins.md) — reproducible local package, installed CLI paths, and separate host/task acceptance boundaries.
 - [Agent Coding direction](research/agent-coding-system-direction.md) — current 0.1.61 design review, task-focused summary and latency gaps, business-value/full-stack/guardrail/style-change acceptance, and actual environment retry results.
+- [Harness benchmark review and next work](research/agentic-harness-benchmark-plan.md) — reviewed public evaluators, Windows/container diagnosis, code-first improvement order, and paired benchmark plan with unperformed acceptance and cost boundaries.
 - [Continuous plugin improvement request](research/plugin-continuous-improvement-next-session.md) — applied six-outcome execution scope; current implementation, actual-product evidence and remaining native-host and product acceptance boundaries are recorded in the results.
 - [Executed plugin improvement prompt](research/plugin-improvement-next-session.md) — retained authorization/scope for the completed 0.1.48 pilot; use the continuous request for new execution.
 - [Agent workflow refinement review](research/agent-workflow-refinement-review.md#post-0146-review) — historical 0.1.46 review: classification-roundtrip approval revival, newly added criterion omission and task/global hook-gap mixing; fixes and bounded acceptance are recorded in the 0.1.47 results.
