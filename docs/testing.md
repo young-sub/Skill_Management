@@ -26,6 +26,42 @@ no-patch and defect controls must run before model trials with solution/tests
 outside Agent-readable mounts. If prerequisites or costs are not authorized,
 keep the official trials unperformed with their original planned denominators.
 
+`python scripts/run_benchmark_agent.py --manifest <agent.json> --output <new-result.json>`
+starts a dedicated app-server and a fresh thread for each phase. The manifest format
+is `codex-benchmark-agent-v1`: `task_id`, condition `A`/`B`/`C`, local `cwd`, optional
+container `server_cwd`, `server_argv`, `model: gpt-6-luna`,
+`reasoning_effort: medium`, positive `timeout_seconds`, and nonempty `phases`
+containing unique IDs and prompts. `environment` configures only the launched
+server; never put credentials in a manifest or argv. A phase may declare a
+candidate-relative `interrupt_when_file`: after the actual effect marker appears,
+the controller requests native interruption before starting the next fresh thread.
+The marker is evidence to inspect; it does not prove effect correctness.
+
+The runner checks the server-selected model/effort before sending the task,
+preserves discovery, hook/tool notifications and failures in a new JSONL trace,
+and sums each thread's final cumulative usage once. Missing usage, credits and
+USD stay unknown. Reasoning output is a subset of output, never added twice.
+`run_check.py` enforces one local process-tree wall budget across all phases;
+the controller's capture directory stays outside candidate mounts. Remote
+execution requires `snapshot_argv`, a controller-owned transport/helper running
+`run_benchmark_agent.py --snapshot <candidate-cwd>` inside that same sandbox.
+Candidate Git configuration must never execute in the host controller. The helper
+captures the initial commit and final binary patch, including untracked files,
+without changing the candidate index. Tokens have no enforced cap.
+A Docker exec transport requires an external
+container lifetime limit because killing its local client cannot attest remote
+cleanup. Keep this controller, result files and evaluator outside candidate
+mounts. The runner captures tracked and untracked Git changes against the initial
+HEAD using a temporary index, preserving the candidate's index and source state.
+Its trace and patch hashes can feed the existing evaluator manifest directly.
+
+This repository-only runner is common to all conditions; it is not added to one
+plugin condition. The fixed plugin runtime remains 0.1.62 unless its distributed
+behavior changes. The current impact is benchmark execution/capture plus docs and
+selector routing, so scoped runner/evaluator/capture and documentation/cutover
+checks apply. The current [execution record](research/luna-benchmark-execution.md)
+separates real native probes from official controls, pilot and main results.
+
 Delegated-handoff regressions distinguish explicit request, measured shared/input
 impact, unchanged project remainder and missing-baseline scope. They preserve
 obligations and UNDECIDED applicability, connect pending checks/Agent reviews to
