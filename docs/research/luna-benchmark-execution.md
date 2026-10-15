@@ -130,7 +130,28 @@ SQLite, HTTP/API/Domain and browser fixtures. The fourth task is not a real
 product incident. Private gold, unchanged, Domain-fault and private-file-link
 controls exercised the connected path and oracle boundary. Rubric self-check
 traces are synthetic; they do not prove actual Agent reuse or matrix consumption.
+Actual fake-transport consumers now connect all four callbacks to the frozen
+runner. Case 2 interrupted after its first durable effect and a fresh thread
+completed two distinct effects with zero redundant attempts. Case 1 and 3
+passed their callback checks. Case 4's real runtime passed both connected-value
+checks, but a missing phase-two UI-source read correctly prevented reuse
+acceptance. These are infrastructure controls, not model scores. A signal-timeout
+probe also stopped the trusted child and removed its exact owned container.
 Product UI candidates stay draft. End-to-end model outcomes remain unperformed.
+
+The serial matrix entry point now exercises the actual per-cell loop with
+injected model-free adapters. It retains timeout/setup failures in the planned
+denominator, makes no automatic retries, and records native metadata and official
+captures separately. An indexed-record argument-order bug in aggregation was
+reproduced and fixed. Pilot and main preflights verify underlying report hashes
+and actual verdicts, then refuse at the current ABC gate. Main additionally needs
+a hash-bound actual pilot and measured budget decision. Official grading has a
+separate 1,800-second cap; combined elapsed is recorded and is not claimed to fit
+the 1,200-second Agent-unit cap. A bounded collector now retains safe metadata
+for completed broker requests matching the exact unit, with deduplication,
+non-200 outcomes and null missing usage. Its retained native/provider comparison
+matches 9,246 input and five output tokens. In-flight/parent attribution and
+whole cost remain incomplete. There is no ABC candidate-scoring connector yet.
 
 ABC rootless Docker failed in bounded namespace/permission probes. A new QEMU
 TCG Ubuntu VM subsequently booted, ran Docker 29.1.3/hello-world and passed
@@ -160,10 +181,23 @@ reuse accuracy and whole plugin cost effects remain unmeasured.
 24-control denominator. The nine- and 108-cell indexes preserve NOT_RUN cells.
 The initial retained Linux evidence mirror has 884 manifest entries and SHA256
 `992b3ea4ef8cc6aaaca7925339ea406c7b41038daa15db930e3a0dc71f9982f1`.
-Its files are read-only, not WORM. Later records require a separate supplement;
-authentication, private homes, VM keys/disks and oracle payloads are excluded.
+Its files are read-only, not WORM. A subsequent supplement detected two live
+record changes and correctly remained an incomplete copy. Both are preserved.
+Earlier controller-only copies also include compiled private verifier bytes and
+the synthetic handoff oracle JSON, so they are not entirely oracle-payload-free.
+Neither copy is mounted in candidates. New supplements explicitly exclude those
+files as well as authentication, private homes, VM keys/disks and task sources.
+The stable supplement subsequently copied and rehashed all 896 manifest entries
+with zero missing/changed/unmanifested files; its manifest SHA256 is
+`d27838ef41dd2a6a53eb492a339f01849aa8eb69ddd6def4c64bf3b6edd2b083`.
+Nine run-specific support files are pinned separately in
+`run-support-files-v1.json`; its SHA256 is
+`f2ff3549a03bd8530b429335faf384b6fe5a322b888bbc53299f07daa0858fb4`.
+These are control-plane identities, not another plugin runtime version or
+evidence that pilot/main evaluation occurred.
 
 Sources: [official Luna model](https://developers.openai.com/api/docs/models/gpt-6-luna),
 [hook trust](https://learn.chatgpt.com/docs/hooks),
 [native plugin packaging](https://developers.openai.com/plugins/build/plugins),
+[native credit snapshots](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/codex-api/src/rate_limits.rs),
 and [API pricing](https://developers.openai.com/api/docs/pricing).
