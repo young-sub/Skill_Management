@@ -41,9 +41,12 @@ probe delivered the unique Feature ID, PARTIAL mapping and BLOCKED enforcement
 context; the Agent reported that context and the pending actions. Probes are not
 pilot or benchmark success evidence.
 
-Candidate networking uses an internal bridge and TLS CONNECT proxy limited to
-model endpoints. An oracle-host request actually received CONNECT 403; host
-drive/evaluator/socket mounts were absent. Canonical controller traces and
+Current candidates use an internal bridge and a root-owned private Responses
+broker, with no authentication file/token mounted in the candidate. The earlier
+CONNECT proxy was stopped and its records preserved. Actual probes denied host
+drives, evaluator/oracle paths, credentials, Docker sockets, direct outbound
+connections, external DNS, configuration writes and hosted search. An inactive
+unit's broker request is denied before upstream access. Canonical traces and
 official oracles stay outside candidate mounts. Windows CODEX_HOME alone was
 insufficient isolation: its probe still discovered 16 user Skills. That result
 is retained and excluded from OFF acceptance. Native host discovery, callback
@@ -67,7 +70,7 @@ did not change retained run files. The first TEMP-parent attempt was correctly
 BLOCKED: that parent's inherited candidate write permissions allowed mutation.
 This is bounded synthetic saved-value acceptance, not whole-product acceptance.
 
-The repository runner's 42 impacted tests passed, plus resource drift and
+The repository runner's 43 impacted tests passed, plus resource drift and
 distribution checks. Frozen 0.1.61 and 0.1.62 inputs were revalidated and copied
 into this run's fixed-packages directory with deterministic ZIP/file hashes;
 their distributed bytes and original source commits remain unchanged.
@@ -84,22 +87,81 @@ cleanup; subsequent official commands explicitly pin the native Linux PATH.
 
 The original 20-minute Metaflow image preparation timed out while downloading
 large layers; this is setup evidence, not an Agent time limit or model failure.
-Official gold/no-change/omitted-fix controls are being prepared in independent
-evaluator-only work roots. The nine pilot and 108 main units have not started.
-Lighthouse and Grommet's six official controls report true/false/false as expected;
-Metaflow's gold and two native-test negatives also discriminate correctly.
+The current official control count is **18/24**: all nine SWE controls for
+Lighthouse/Grommet/Carbon and all nine FeatureBench controls for
+Metaflow/Astropy/Matplotlib discriminate correctly. Carbon's first defective
+control unexpectedly passed and remains retained as an invalid discriminator;
+the selected second defective control fails. FeatureBench empty-patch rejection
+is retained separately from negatives that ran native tests. The model pilot
+is **0/9** and the main evaluation **0/108**, with null rates rather than zero
+success rates. Repeated runs are not independent tasks.
 ABC Compose setup exposed an invalid daemon host-gateway address; only private
 task copies receive the recorded numeric bridge-address compatibility amendment.
 The first ABC gold failures exposed identical 13-byte, comment-only solution.sh
-files, not usable reference implementations. Dataset-wide provenance checking is
-pending; no positive gold gate is inferred from a completed CLI invocation.
+files, not usable reference implementations. Dataset-wide inspection confirmed
+all 224 scripts have those identical bytes. ABC's six planned controls remain
+unvalidated. The user was asked to choose an independent isolated Luna reference,
+ABC exclusion, or another official gold source; no replacement or weaker oracle
+was silently substituted. The required 24-control gate is not satisfied.
 Automatic review rejected pre-audit public-asset copying before execution. The
 safer preparation audits image payload hashes and metadata asset roles first,
 copies only the verified per-file allowlist, and removes unclassified asset roots
 and repository history from the candidate image before access.
-Solved rates, false completion and plugin cost effects are unmeasured. Subscription
-credits and actual USD have not been collected; API-price equivalents, if used,
-must be labeled estimates and cannot replace those missing values.
+Six public and four continuous task inputs now have fixed tree, prompt, base and
+image identities. FeatureBench source images exclude their original full-solution
+copy. Matplotlib has a recorded build-metadata compatibility amendment for its
+masked source; its canonical tree stayed stable in a disposable import probe.
+The common controller's five exact files are preserved outside its TEMP worktree
+at `/opt/skill-benchmark-20261016/common-controller-f4584f7/`, manifest SHA256
+`ab73ee228cafb27424ae8179d3e20cce82d12efd4e28288faa509e1f12a188b7`.
+The frozen controller source commit is
+`f4584f764605d8aa4c3b3ff12f5efcfc16e560ae`, merged into local main. The package
+runtime is still 0.1.62; benchmark-only controller changes do not change its bytes.
+
+A real whole-unit wall-limit RED control exceeded a 60-second budget at 74.001s
+because intermediate verification was outside the limit. A Linux real timer
+with a five-second cleanup reserve fixed it: GREEN stopped at 55.002s, with the
+container stopped and verification child no longer writing. This covers setup,
+phases, verification and snapshot capture. No enforced token limit is claimed.
+The initial unit budget is 1,200s; the main budget awaits pilot measurements.
+
+The four continuous tasks use synthetic evidence/feedback and isolated real
+SQLite, HTTP/API/Domain and browser fixtures. The fourth task is not a real
+product incident. Private gold, unchanged, Domain-fault and private-file-link
+controls exercised the connected path and oracle boundary. Rubric self-check
+traces are synthetic; they do not prove actual Agent reuse or matrix consumption.
+Product UI candidates stay draft. End-to-end model outcomes remain unperformed.
+
+ABC rootless Docker failed in bounded namespace/permission probes. A new QEMU
+TCG Ubuntu VM subsequently booted, ran Docker 29.1.3/hello-world and passed
+restricted-network/no-host-mount checks, then shut down. No KVM device is
+available; initial setup took about seven minutes. This is a runtime smoke,
+not full TerminalBench grading or model readiness. Private grading must use
+a different overlay from every candidate VM.
+
+`metrics/setup-cost-ledger.json` records 13 completed capability Agent units:
+587,898 input and 5,704 output tokens, with 1,156 reasoning tokens already within
+output and 403,968 cached-input tokens. These are setup observations, not pilot
+results. The first CLI smoke proves only requested settings; later native phase
+records prove actual Luna/medium selection. Six brokered units generated 21
+deduplicated HTTP attempts, including one 503; HTTP requests are not Agent units.
+Durations retain their measured scope and are not added as total wall time.
+
+Missing upstream Content-Type exposed a provider usage parser bug. Earlier null
+provider counters are preserved. Focused fake-upstream checks and a subsequent
+real minimal call verified the repair: native/provider counters match at 9,246
+input and five output tokens. Cache-write values remain null when unreported.
+Parent/subagent/infrastructure and failed-wrapper usage remain unknown. The
+shared 61,104.046561 credit snapshot is non-attributable. Actual credits, USD and
+complete API-equivalent estimates are null. Solved rates, false completion,
+reuse accuracy and whole plugin cost effects remain unmeasured.
+
+`metrics/official-controls-current.json` links native reports and hashes to the
+24-control denominator. The nine- and 108-cell indexes preserve NOT_RUN cells.
+The initial retained Linux evidence mirror has 884 manifest entries and SHA256
+`992b3ea4ef8cc6aaaca7925339ea406c7b41038daa15db930e3a0dc71f9982f1`.
+Its files are read-only, not WORM. Later records require a separate supplement;
+authentication, private homes, VM keys/disks and oracle payloads are excluded.
 
 Sources: [official Luna model](https://developers.openai.com/api/docs/models/gpt-6-luna),
 [hook trust](https://learn.chatgpt.com/docs/hooks),

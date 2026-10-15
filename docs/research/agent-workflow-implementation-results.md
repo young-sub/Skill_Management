@@ -2,14 +2,18 @@
 
 ## Luna benchmark execution in progress, 2026-10-16
 
-The common Codex Agent runner is implemented and its 42 impacted tests, resource
+The common Codex Agent runner is implemented and its 43 impacted tests, resource
 drift and distribution checks passed. Real isolated Luna/medium calls verified
 OFF/0.1.61/0.1.62 discovery and hook delivery; an ON Skill-read omission is retained.
 A separate native Windows fixed-task handoff accepted correct output, rejected
 defective output, blocked changed candidate bytes and performed read-only lookup.
 These are new bounded observations, not reuse of the previous 447-test result.
-Official evaluator controls and isolation preparation continue; pilot9/main108
-have not started. See the [execution record](luna-benchmark-execution.md) for source,
+Official controls validate 18/24 (SWE 9/9, FeatureBench 9/9); ABC's 224 official
+solution scripts are comment-only placeholders, so its positive gate is open.
+Credential-free candidates passed actual filesystem/network denial controls.
+QEMU Docker fallback passed a runtime smoke, not full ABC grading. The 13
+completed capability units are setup telemetry; pilot9/main108 remain 0/9 and
+0/108. See the [execution record](luna-benchmark-execution.md) for source,
 evidence, original failures, package pins and current limits. No plugin performance
 or total-cost advantage has been established.
 
