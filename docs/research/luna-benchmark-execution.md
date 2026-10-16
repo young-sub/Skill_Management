@@ -1,228 +1,239 @@
-# Luna benchmark execution, 2026-10-16
+# Luna A/B/C benchmark, 2026-10-16
 
-This run started from clean local `main@a557237872eddddd5707bb9ceb3845a67a8363de`,
-runtime 0.1.62. Implementation is in independent TEMP worktree
-`skill-management-luna-20261016`. New raw evidence lives under
-`.work/luna-benchmark-20261016/`; prior PASS records are historical inputs only.
-The user authorized paid model calls, benchmark-only installations and local
-plugin delivery. Earlier installation/cost deferrals do not apply to this run.
+The 24 official control cells, nine actual pilot attempts and 108 actual main
+attempts ended. An additional 18 fresh follow-up phases completed after recovery
+of a common UI scoring connection error. Original failures remain immutable;
+recovered outcomes are secondary results. No trial is removed for failure,
+timeout, setup error or lack of a recognized Skill read.
 
-The repository-only `run_benchmark_agent.py` connects fresh native app-server
-threads to the existing foreground capture. It verifies the selected Luna/medium
-settings, records usage without inventing missing cost, preserves interruption
-and failed/unknown launches, and captures patches without changing the candidate
-index. `evaluate_benchmark.py` retains the official evaluator's native report and
-verdict. These tools are common to OFF, frozen 0.1.61 and frozen 0.1.62; their
-addition does not change one condition's distributed runtime.
+The observed public coding solve rates did not improve with either plugin.
+The revised plugin improved the synthetic handoff result, while UI guide/reuse
+acceptance regressed. Ledger resumption and connected functionality worked in
+all conditions. These repeated tasks do not establish a population effect.
 
-Actual preparation completed: PyArrow and all three pinned official evaluators
-are installed. FeatureBench requires POSIX `fcntl`, so its Windows install is not
-an executable evaluator environment. A new WSL distribution on D: provides
-Linux amd64 Docker 28.1.1, Python 3.12 and Codex CLI 0.160.0. Existing Docker
-Desktop/WSL disks, credentials, product checkouts and old artifacts are preserved.
-The bootstrap daemon created for diagnosis was stopped after the dedicated
-environment became available; its data was retained.
+## Frozen inputs and actual consumption
 
-Both pinned parquet hashes match. Metadata-only projection selected three
-FeatureBench Fast lv1 instances from distinct repositories, excluding all five
-previously exposed tasks. The two ABC task directories were safely extracted
-from the pinned 2,636,028,855-byte archive, SHA256
-`b62911921d76fcbd6b4559c232f57cc16f19260d8299c7b39f8705dad4cf880d`.
-Task/image pins and oracle exposure remain separate readiness conditions.
+| Condition | Plugin | Source commit | ZIP SHA256 |
+| --- | --- | --- | --- |
+| A | OFF | null | null |
+| B | ON 0.1.61 | `65f5c38f6d0410289a99a6b43e1b4b4934831c55` | `dba723bc3bd461300530427e058686da8f7e939b18a17506071ccc409df59023` |
+| C | ON 0.1.62 | `a557237872eddddd5707bb9ceb3845a67a8363de` | `3d3adbe7ff16f2578f828e8ac83ac6886d966a8a72390fcaa5ed63a1775f09f7` |
 
-The requested `gpt-6-luna` / `medium` is supported by the account/CLI and completed
-real availability calls. A container probe selected that exact model/effort,
-discovered 19 native plugin Skills with the expected pluginId, and the Agent
-itself read the supplied agent-workflow Skill. The native UI reviewed and trusted
-the exact hook hash; callback start/completion was observed without a trust-bypass
-flag. That first probe had no Git project and produced no additional context,
-so that probe establishes callback execution only. A second real Git-project
-probe delivered the unique Feature ID, PARTIAL mapping and BLOCKED enforcement
-context; the Agent reported that context and the pending actions. Probes are not
-pilot or benchmark success evidence.
-
-Current candidates use an internal bridge and a root-owned private Responses
-broker, with no authentication file/token mounted in the candidate. The earlier
-CONNECT proxy was stopped and its records preserved. Actual probes denied host
-drives, evaluator/oracle paths, credentials, Docker sockets, direct outbound
-connections, external DNS, configuration writes and hosted search. An inactive
-unit's broker request is denied before upstream access. Canonical traces and
-official oracles stay outside candidate mounts. Windows CODEX_HOME alone was
-insufficient isolation: its probe still discovered 16 user Skills. That result
-is retained and excluded from OFF acceptance. Native host discovery, callback
-delivery, external filesystem isolation and protected-host acceptance remain
-separate claims.
-
-The independent A/C/B probes all selected Luna/medium. A discovered zero plugin
-Skills; B and C discovered 19 each, alongside the same five bundled system
-Skills. B read agent-workflow natively in that general request; C delivered hook
-context but did not read a Skill file in that request. The earlier explicit C
-probe did read it. The unused activation is retained, not converted to success.
-Direct egress, oracle-host CONNECT, config mutation and signalling the root-owned
-deadline were denied. A real six-second deadline stopped an effect-writing child;
-its persisted marker stopped changing after the container exited.
-
-A separate real Windows protected-host trial installed canonical fixed-task
-verifiers under a new directory below the already protected profile parent,
-without account setup or existing ACL changes. Normal output was ACCEPTED,
-defective output REJECTED, and changed candidate bytes BLOCKED handoff. Lookups
-did not change retained run files. The first TEMP-parent attempt was correctly
-BLOCKED: that parent's inherited candidate write permissions allowed mutation.
-This is bounded synthetic saved-value acceptance, not whole-product acceptance.
-
-The repository runner's 43 impacted tests passed, plus resource drift and
-distribution checks. Frozen 0.1.61 and 0.1.62 inputs were revalidated and copied
-into this run's fixed-packages directory with deterministic ZIP/file hashes;
-their distributed bytes and original source commits remain unchanged.
-
-The first PrismJS gold control ran the official evaluator and exited zero but
-produced no report. Native tests passed 8/8; the pinned official JSON parser
-could not handle JavaScript preceding the Mocha JSON. This is an evaluator
-failure, not a solved task or candidate failure. Original raw and independent
-infrastructure review are retained. Before any public model outcome, the task
-was replaced by metadata-selected `GoogleChrome__lighthouse-10176`; its base and
-selection rule are in `metadata/selection-amendment01.json`. No oracle was
-weakened. A separate incorrect inherited Windows Docker path also prevented
-cleanup; subsequent official commands explicitly pin the native Linux PATH.
-
-The original 20-minute Metaflow image preparation timed out while downloading
-large layers; this is setup evidence, not an Agent time limit or model failure.
-The current official control count is **18/24**: all nine SWE controls for
-Lighthouse/Grommet/Carbon and all nine FeatureBench controls for
-Metaflow/Astropy/Matplotlib discriminate correctly. Carbon's first defective
-control unexpectedly passed and remains retained as an invalid discriminator;
-the selected second defective control fails. FeatureBench empty-patch rejection
-is retained separately from negatives that ran native tests. The model pilot
-is **0/9** and the main evaluation **0/108**, with null rates rather than zero
-success rates. Repeated runs are not independent tasks.
-Earlier ABC Compose attempts used a recorded numeric host-gateway compatibility
-amendment in private task copies. The later private-VM grader timed out without
-a verdict; different Compose and daemon bridge addresses alone do not prove a
-network failure. The original test scripts and failed attempts are retained.
-The first ABC gold failures exposed identical 13-byte, comment-only solution.sh
-files, not usable reference implementations. Dataset-wide inspection confirmed
-all 224 scripts have those identical bytes. ABC's six planned controls remain
-unvalidated. An earlier reference-method question is retained, but the original
-authorization already covers correct reference patches and necessary paid Luna
-calls. Preparation therefore continues toward isolated Luna/medium development
-references, without changing the eight public tasks or official criteria. No
-user answer is inferred. Reference attempts/costs remain separate from pilot/main,
-and neither solutions nor debugging hints may reach compared candidates. The
-required 24-control gate is not satisfied.
-Automatic review rejected pre-audit public-asset copying before execution. The
-safer preparation audits image payload hashes and metadata asset roles first,
-copies only the verified per-file allowlist, and removes unclassified asset roots
-and repository history from the candidate image before access.
-Six public and four continuous task inputs now have fixed tree, prompt, base and
-image identities. FeatureBench source images exclude their original full-solution
-copy. Matplotlib has a recorded build-metadata compatibility amendment for its
-masked source; its canonical tree stayed stable in a disposable import probe.
-The common controller's five exact files are preserved outside its TEMP worktree
-at `/opt/skill-benchmark-20261016/common-controller-f4584f7/`, manifest SHA256
+The source runtime was already committed and integrated into local plugin main.
+Its Full result is 447/447. The common repository-only native runner is commit
+`f4584f764605d8aa4c3b3ff12f5efcfc16e560ae`, with 43 scoped tests and actual
+resource/distribution checks. Its frozen controller manifest SHA256 is
 `ab73ee228cafb27424ae8179d3e20cce82d12efd4e28288faa509e1f12a188b7`.
-The frozen controller source commit is
-`f4584f764605d8aa4c3b3ff12f5efcfc16e560ae`, merged into local main. The package
-runtime is still 0.1.62; benchmark-only controller changes do not change its bytes.
+Run support V3 has 13 pinned files and manifest SHA256
+`b5fd1ecfb3eca3acc46bc48dc7290774b7421a96644c9e6b88a061f851269e8c`.
+Run-specific reporting/recovery code does not change either distributed package.
 
-A real whole-unit wall-limit RED control exceeded a 60-second budget at 74.001s
-because intermediate verification was outside the limit. A Linux real timer
-with a five-second cleanup reserve fixed it: GREEN stopped at 55.002s, with the
-container stopped and verification child no longer writing. This covers setup,
-phases, verification and snapshot capture. No enforced token limit is claimed.
-The initial unit budget is 1,200s; the main budget awaits pilot measurements.
+Native Codex CLI 0.160.0 actually installed/consumed B/C in fresh isolated homes.
+Package file hashes were verified after consumption. A had the same five bundled
+system Skills and zero plugin Skills; B/C discovered 19 plugin Skills. Discovery,
+hook execution/context delivery and Skill-body reads are separate observations.
+All main ON attempts had no recognized simple-shell Skill-body read. They remain
+in the denominator; this heuristic does not establish absence of every contextual
+use or hook effect. In the fresh UI/connected follow-ups, recognized body reads
+occurred in B 1/6 and C 4/6: five of 12 ON phases read a Skill body and seven did
+not have a recognized read. The six OFF follow-ups discovered no plugin Skills.
 
-The four continuous tasks use synthetic evidence/feedback and isolated real
-SQLite, HTTP/API/Domain and browser fixtures. The fourth task is not a real
-product incident. Private gold, unchanged, Domain-fault and private-file-link
-controls exercised the connected path and oracle boundary. Rubric self-check
-traces are synthetic; they do not prove actual Agent reuse or matrix consumption.
-Actual fake-transport consumers now connect all four callbacks to the frozen
-runner. Case 2 interrupted after its first durable effect and a fresh thread
-completed two distinct effects with zero redundant attempts. Case 1 and 3
-passed their callback checks. Case 4's real runtime passed both connected-value
-checks, but a missing phase-two UI-source read correctly prevented reuse
-acceptance. These are infrastructure controls, not model scores. A signal-timeout
-probe also stopped the trusted child and removed its exact owned container.
-Product UI candidates stay draft. End-to-end model outcomes remain unperformed.
+All 143 captured native phase threads selected `gpt-6-luna` / `medium`: pilot 9,
+original main 116 and fresh follow-up 18. Thread IDs are unique. No native
+collaboration items or nested Codex CLI candidates were observed. All 1,475
+successful, assigned broker requests also recorded Luna/medium; the broker
+rejects other task model/effort settings. Azat A repetition1 failed before a
+native phase, so its requested configuration is not counted as observed selection.
+The gpt-6.1-sol/xhigh coordinator handled infrastructure only. Independent
+reference, review and accounting Agents used Luna/medium; their usage is separate.
 
-The serial matrix entry point now exercises the actual per-cell loop with
-injected model-free adapters. It retains timeout/setup failures in the planned
-denominator, makes no automatic retries, and records native metadata and official
-captures separately. An indexed-record argument-order bug in aggregation was
-reproduced and fixed. Pilot and main preflights verify underlying report hashes
-and actual verdicts, then refuse at the current ABC gate. Main additionally needs
-a hash-bound actual pilot and measured budget decision. Official grading has a
-separate 1,800-second cap; combined elapsed is recorded and is not claimed to fit
-the 1,200-second Agent-unit cap. A bounded collector now retains safe metadata
-for completed broker requests matching the exact unit, with deduplication,
-non-200 outcomes and null missing usage. Its retained native/provider comparison
-matches 9,246 input and five output tokens. In-flight/parent attribution and
-whole cost remain incomplete. There is no ABC candidate-scoring connector yet.
+The dedicated `SkillBenchmark20261016` WSL/Docker environment, common CPU/memory
+limits, pinned sources/images, fresh homes and Latin-rotated serial ordering were
+shared by A/B/C. ABC used separate oracle-free candidate VM overlays and a private
+grader VM. Candidates had no host drives, official test/reference mounts,
+credentials, Docker socket, direct external egress or hosted tools. Real probes
+checked these boundaries and native hook trust. Existing product checkouts,
+installed user Skills, other WSL distributions and manual-disable policy were
+preserved. Page caches were not flushed; external provider latency was not fixed.
 
-ABC rootless Docker failed in bounded namespace/permission probes. A new QEMU
-TCG Ubuntu VM subsequently booted, ran Docker 29.1.3/hello-world and passed
-restricted-network/no-host-mount checks, then shut down. No KVM device is
-available; initial setup took about seven minutes. This is a runtime smoke,
-not full TerminalBench grading or model readiness. Private grading must use
-a different overlay from every candidate VM.
+## Official controls and pilot
 
-The oracle-free ABC template subsequently initialized native Codex 0.160.0 over
-strictly pinned SSH. A five-second host watchdog control terminated its owned
-QEMU process and closed SSH; its production budget remains 1,200 seconds including
-setup. This did not call a model. The audited public application contexts now
-retain 125 Azat and 611 Azure files, excluding the two private grader test files
-from each application while preserving public documentation and tutorial code.
-Their original upstream Git bases are absent from the archive; archive revision,
-file hashes/modes and fresh source commits identify the baseline. SDK/cache
-preparation and actual candidate/scoring consumption remain incomplete.
+All eight selected public tasks have positive, unchanged-source and relevant-defect
+controls: SWE 9 + Feature 9 + ABC 6 = **24/24 validated cells**. Native official test
+results decide correctness. No reference-patch, file-layout or implementation-path
+equality condition is added.
 
-`metrics/setup-cost-ledger.json` records 13 completed capability Agent units:
-587,898 input and 5,704 output tokens, with 1,156 reasoning tokens already within
-output and 403,968 cached-input tokens. These are setup observations, not pilot
-results. The first CLI smoke proves only requested settings; later native phase
-records prove actual Luna/medium selection. Six brokered units generated 21
-deduplicated HTTP attempts, including one 503; HTTP requests are not Agent units.
-Durations retain their measured scope and are not added as total wall time.
+ABC's comment-only `solution.sh` supplies no runnable reference implementation;
+the official tests still exist. Existing independent Luna references, explicitly
+separate from officially supplied answers, passed Azat 12/12 and Users 16/16.
+Unchanged sources failed 4 tests each; MD5 and deletion defects failed one test
+each. Earlier empty-patch/setup/IPv6 failures and an inadequate Carbon defect
+that unexpectedly passed remain recorded. They are not counted as discriminating
+controls. A valid replacement defect was actually graded. The Azat positive
+wrapper's post-test cleanup error is retained alongside its native passing tests.
 
-Missing upstream Content-Type exposed a provider usage parser bug. Earlier null
-provider counters are preserved. Focused fake-upstream checks and a subsequent
-real minimal call verified the repair: native/provider counters match at 9,246
-input and five output tokens. Cache-write values remain null when unreported.
-An additional metadata-only snapshot reconciles 426 unique coordinator response
-receipts with its latest native thread cumulative value: 70,400,578 input,
-389,709 output and 69,241,728 cached-input tokens; 184,710 reasoning tokens are
-already within output. This is infrastructure work on gpt-6.1-sol/xhigh, separate
-from compared Luna task Agents. No pre-task cumulative baseline was available,
-and the live session continues, so the snapshot is not a complete incremental
-cost total. The older token-count events lagged the response receipts and were
-not summed. A real-extractor fixture reproduced and fixed timestamp-only duplicate
-receipt rejection. Exact child links were absent from the 29 same-day headers
-checked; child and failed-wrapper usage remain unknown. The
-shared 61,104.046561 credit snapshot is non-attributable. Actual credits, USD and
-complete API-equivalent estimates are null. Solved rates, false completion,
-reuse accuracy and whole plugin cost effects remain unmeasured.
+Users' private worker gained only an APT IPv4 configuration after an IPv6 setup
+failure. RootFS-prefix, configuration/package and 88 task-file equivalence checks
+and actual control revalidation distinguish this environment change from a
+functional result. Image-ID differences alone do not invalidate a passing result.
+The same frozen grader environment served all main A/B/C attempts.
 
-`metrics/official-controls-current.json` links native reports and hashes to the
-24-control denominator. The nine- and 108-cell indexes preserve NOT_RUN cells.
-The initial retained Linux evidence mirror has 884 manifest entries and SHA256
-`992b3ea4ef8cc6aaaca7925339ea406c7b41038daa15db930e3a0dc71f9982f1`.
-Its files are read-only, not WORM. A subsequent supplement detected two live
-record changes and correctly remained an incomplete copy. Both are preserved.
-Earlier controller-only copies also include compiled private verifier bytes and
-the synthetic handoff oracle JSON, so they are not entirely oracle-payload-free.
-Neither copy is mounted in candidates. New supplements explicitly exclude those
-files as well as authentication, private homes, VM keys/disks and task sources.
-The stable supplement subsequently copied and rehashed all 896 manifest entries
-with zero missing/changed/unmanifested files; its manifest SHA256 is
-`d27838ef41dd2a6a53eb492a339f01849aa8eb69ddd6def4c64bf3b6edd2b083`.
-Nine run-specific support files are pinned separately in
-`run-support-files-v1.json`; its SHA256 is
-`f2ff3549a03bd8530b429335faf384b6fe5a322b888bbc53299f07daa0858fb4`.
-These are control-plane identities, not another plugin runtime version or
-evidence that pilot/main evaluation occurred.
+Pilot `20261016T001048Z-255b3726` executed all nine model attempts. Original SWE
+scoring errors and Feature reports without completed tests remain unknown in the
+original records. Six actual grade-only recoveries reused those exact patches,
+without model retries: SWE A/B/C unresolved; Feature A/B resolved, C unresolved.
+ABC A/B/C passed 12/12. Four implementation-completion claims disagreed with the
+recovered official outcomes. Recovery grading added 268.85 seconds.
 
-Sources: [official Luna model](https://developers.openai.com/api/docs/models/gpt-6-luna),
-[hook trust](https://learn.chatgpt.com/docs/hooks),
-[native plugin packaging](https://developers.openai.com/plugins/build/plugins),
-[native credit snapshots](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/codex-api/src/rate_limits.rs),
-and [API pricing](https://developers.openai.com/api/docs/pricing).
+The measured maximum pilot Agent-unit duration was 461.569510307 seconds. The
+common main budget was confirmed at 1,200 seconds, without a token cap, including
+setup, task tools, intermediate verification and capture. Official public grading
+has its separate cap: ABC tests 1,800 / private controller 2,100 / matrix scorer 2,250
+seconds; other public scorers 1,800 seconds. Combined elapsed is retained separately.
+
+## Main results
+
+Main `20261016T010920Z-a78334d9` ended with 108/108 indexed attempts; its supervisor
+exited 0 after 27,103.650550205 seconds. Original statuses are 70 SCORED,
+19 SETUP_FAILED, 1 MODEL_ERROR, 14 CONTINUOUS_COMPLETE and 4 CONTINUOUS_INCOMPLETE.
+SCORED describes capture, not success. The public official outcomes are:
+
+| Benchmark | A | B | C |
+| --- | --- | --- | --- |
+| SWE-bench Multimodal | 3/9 resolved | 3/9 | 3/9 |
+| FeatureBench | 3/9 resolved | 3/9 | 3/9 |
+| ABC-Bench | 5/6 confirmed; 1 unknown | 6/6 | 5/6 confirmed; 1 unknown |
+
+Azat A1 had an npm/V8 setup crash before model selection. Users C3 selected
+Luna/medium but produced no answer during an observed broker/parent-cgroup freeze.
+Both functional outcomes and missing usage remain unknown, not functional failures
+or zero cost. A scoped ownership-checked freezer repair restored the owned broker
+and pending handoff container. Their original delays/errors were retained; no
+service/distro restart, global configuration change or public model retry occurred.
+
+Known paired public outcomes have zero gains and zero outcome regressions for
+B/C versus A. Unknown ABC pairs are not gains. No failing official PASS_TO_PASS
+checks were observed: SWE coverage 6/9 trials per condition (the other 3 had no P2P
+tests), Feature 9/9, and all completed ABC trials' baseline-passing tests.
+This is not whole-product regression coverage.
+
+## Continuous fixtures and recovery
+
+These four fixtures are synthetic evidence/feedback tasks with real SQLite,
+browser, HTTP/API/Domain and storage verification; they are not live product
+incidents. Functionality, handoff accuracy, duplicate effects and reuse have
+different criteria and denominators.
+
+| Criterion | A | B | C | Execution basis |
+| --- | --- | --- | --- | --- |
+| Accurate scoped handoff | 0/3 | 2/3 | 3/3 | Original main |
+| Interrupted ledger reconciliation | 3/3 | 3/3 | 3/3 | Original main, two fresh threads |
+| UI functionality, both phases | 3/3 | 3/3 | 3/3 | Secondary recovered grading/follow-up |
+| UI guide plus reuse acceptance | 1/3 | 1/3 | 0/3 | Secondary recovered grading/follow-up |
+| Connected functionality, both phases | 3/3 | 3/3 | 3/3 | Secondary recovered grading/follow-up |
+| Related zero-scope follow-up acceptance | 1/3 | 0/3 | 1/3 | Secondary recovered grading/follow-up |
+
+Every ledger cell had exactly two distinct durable effects and zero redundant
+attempts. The first effect was checked before deliberate native interruption,
+then a fresh thread reconciled the actual database. No plugin benefit was observed
+for this task. A truthful incomplete handoff is expected; none of its nine Agents
+claimed the whole project complete, even when the handoff itself was inaccurate.
+
+All 18 original UI/connected cells completed phase1, then a common controller's
+uppercase UTC run-ID label was rejected before trusted runtime verification and
+phase2. Those original setup errors remain immutable. The first recovery's 18
+read-only Git snapshot checks also failed before any grader/follow-up model call;
+all failures and elapsed times are retained. Actual isolated RED/GREEN reproduced
+that failure and verified an identical patch from a writable temporary copy,
+inside a network-disabled container with a read-only original source mount.
+Candidate Git never executed on the host.
+
+The separate second continuation regraded every retained phase1 result and ran
+each original phase2 prompt once in a fresh home/thread, with unchanged packages,
+private verifier/oracle and task requirements. Only the controller's trusted label
+was normalized. Original elapsed, failed-check elapsed and continuation work were
+all charged to the measured 1,200-second execution budget; all 18 met it. Full
+interruption/repair wall spans are retained separately. These are secondary
+continuations, not uninterrupted primary runs or replacement primary successes.
+All 36 runtime reports passed. Reuse rejection does not turn those into functional
+errors. Read-recognition and guide-rubric limits remain explicit.
+
+## Completion claims and resource cost
+
+The public main review found 35 completion-claim/official-outcome discrepancies:
+SWE A/B/C 6/9 each; Feature A 6/9, B 6/9, C 5/9 plus one honest incomplete report;
+ABC 0 with its two no-message failures retained. The metric requires an actual
+unconditional implementation-completion claim and a completed official unresolved
+outcome. It does not establish intent or fabricated candidate-owned passing tests.
+
+The 63 continuous phase messages had 45 functional-completion claims and zero
+functional-completion discrepancies; handoff/partial-effect scopes account for
+the 18 functionally unknown rows. Separate acceptance/reuse-completion claims had
+11 explicit discrepancies and 5 ambiguous cases. Twenty-nine candidate-owned
+verification claims remain claims, not independent proof. Luna reviewed the
+messages; the parent verified references/outcomes against actually rehashed raw
+evidence. No missing guide read alone establishes a false functional completion.
+
+| Main measured native tokens, input / output | A | B | C |
+| --- | --- | --- | --- |
+| SWE | 2,386,860 / 18,532 | 2,373,543 / 18,007 | 2,624,303 / 19,923 |
+| Feature | 1,495,996 / 23,275 | 2,841,692 / 127,495 | 2,432,044 / 84,804 |
+| ABC | 300,076 / 4,179 + unknown | 386,658 / 4,872 | 363,960 / 3,880 + unknown |
+| Continuous, including all fresh follow-ups | 3,227,148 / 37,201 | 5,074,686 / 44,482 | 12,606,160 / 85,034 |
+
+SWE Agent-unit seconds were A 531.94 / B 580.55 / C 671.94; Feature A 430.47 / B 1,816.54 / C 866.83. No public solve-rate improvement accompanied those C time increases.
+Provider waits and infrastructure failures are retained; these small repeated
+samples do not establish that the plugin caused every latency difference.
+
+Pilot/main/follow-up scopes contain 143 native phases, 142 complete usage captures
+and two units with unknown usage. Known native subtotals are 37,891,949 input,
+489,326 output and 18,430,208 cached-input tokens. Reasoning 71,772 is already within
+output. Provider/native counters agree for 128 fully comparable units, with zero
+known differences; seven comparisons lack complete counters. They describe the
+same requests and are never added twice.
+
+Shared infrastructure is substantial and separate: the prior coordinator's
+observed cumulative session has 70,400,578 input/389,709 output tokens. The current
+coordinator plus two exactly linked Luna helpers has 192,009,633 input/709,050
+output tokens across 1,083 unique response receipts at 2026-10-16 09:26 UTC,
+including 189,278,976 cached input. These are observed session cumulatives, not
+strict task-only deltas; pre-task baselines are missing. Later delivery/final
+response usage remains unknown. Older cumulative snapshots are not added again.
+
+The 13 preparation units, independent reference attempts (including failed ones),
+three failed wrappers, grade-only recovery, both UI recovery attempts, diagnostics,
+freezer repairs, parent/reviewer/help/wait intervals and runtime costs are retained
+in separate ledgers. Their intervals can overlap and are not summed as wall time.
+Actual USD, credits, complete API-equivalent estimates and a cross-scope grand
+total remain null. Missing cache-write/context-tier/billing attribution and shared
+account balance cannot support zero-cost claims or a complete monetary comparison.
+
+## Evidence and delivery scope
+
+Evidence root: `C:/Users/YS/Desktop/python/Skill_Management/.work/luna-benchmark-20261016/`.
+The actual indices remain under `/opt/skill-benchmark-20261016/matrix-runs/`;
+both UI attempts remain under `matrix-continuation/`. Isolated candidate checkouts,
+VM disks, original Linux evidence and all older Windows mirrors are preserved.
+
+Key retained records under `metrics/`: `official-controls-current.json`,
+`pilot9-budget-decision.json`, `main108-final-primary-analysis.json`,
+`main108-final-primary-conformance.json`, `continuous-ui18-secondary-analysis.json`,
+`final-model-provider-audit.json`, `matrix-final-native-usage-scope.json`,
+`cost-scope-reconciliation-final.json` and the claim reviews/parent verifications.
+Primary conformance retains one explicit gap: Azat A1 has no captured native
+phase/selection. Other pinned package/support and 18 private dependency identities
+match; this gap is not hidden behind a blanket conformance PASS.
+
+The final selective Windows mirror has 3,817 rehashed read-only files, zero missing,
+changed, unmanifested or forbidden-secret paths. Manifest SHA256:
+`3c3c9cd2cf514aa7bccee6d039e6aefedcf588d69f86952b6158de08124836e9`.
+It excludes authentication, task sources, private oracle payloads and VM disks;
+their protected Linux originals remain. Older mirrors with controller-only
+compiled verifier/oracle bytes remain preserved and were never candidate mounts.
+Read-only copies are not WORM storage.
+
+Delivery is local plugin source/documentation integration and consumption of the
+hash-pinned benchmark packages. No remote push, deployment, product-main merge or
+installed user-Skill update is part of this delivery. Protected-host acceptance
+and unrelated live-product acceptance remain separate. See [testing](../testing.md)
+for the runner boundary and [feature map](../feature-map.md) for ownership.

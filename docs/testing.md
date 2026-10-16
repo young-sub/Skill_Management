@@ -63,7 +63,19 @@ plugin condition. The fixed plugin runtime remains 0.1.62 unless its distributed
 behavior changes. The current impact is benchmark execution/capture plus docs and
 selector routing, so scoped runner/evaluator/capture and documentation/cutover
 checks apply. The current [execution record](research/luna-benchmark-execution.md)
-separates real native probes from official controls, pilot and main results.
+contains 24 actually validated official control cells, nine pilot and 108 main
+attempts, with original setup/model/scoring errors and explicit unknowns retained.
+The 18 secondary UI continuations reuse first-phase artifacts and preserve both
+failed snapshot checks and their consumed time; they do not overwrite primary
+results. Official tests determine functional correctness, without reference-patch
+or implementation-path equality. Synthetic fixture runtime, handoff, duplicate
+effects, guide/reuse acceptance and completion claims have distinct scopes.
+The 143 actual native threads and safe broker metadata verify Luna/medium consumption;
+one pre-model setup failure has no selected-model evidence. Usage scopes include
+parents/helpers/preparation/retries, with missing monetary cost null. Documentation
+reconciliation changes no frozen runtime, grader, package or task inputs, so its
+checks are repository-docs, core-first-cutover and diff formatting; it does not
+repeat the already valid 447-test runtime or 43-test runner units.
 
 Delegated-handoff regressions distinguish explicit request, measured shared/input
 impact, unchanged project remainder and missing-baseline scope. They preserve
