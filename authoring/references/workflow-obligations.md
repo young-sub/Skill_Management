@@ -1,9 +1,9 @@
 # Project workflow obligations
 
-The prompt hook exposes the bundled `agent-workflow` Skill and runnable CLI in
-configured and fresh unconfigured Git projects. This is a discovery connection;
-the hook never chooses a task, creates configuration or runs project checks.
-Follow the Skill to the project's existing guides, owners and native runners.
+The prompt hook projects existing project/task obligations; it never chooses a
+task, creates configuration or runs project checks. Fresh projects without work
+retain ordinary Skill discovery and project guides without an automatic prompt
+to initialize workflow. Use the existing guides, owners and native runners.
 The hook and task handoff keep an investigation INCOMPLETE while requested
 observations, inventory or reference bindings are incomplete or stale. A current
 complete source-only investigation can be ready without running product checks;

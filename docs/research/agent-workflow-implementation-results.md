@@ -4,14 +4,13 @@
 
 ## Natural-language discovery and investigation handoff, 2026-10-17
 
-Runtime **0.1.64** starts from clean local `main@f2b59c4` in
-`wp-20261017-natural-verification`, using a separate TEMP worktree. Observed
-common defects are repaired in their existing owners:
+Runtime **0.1.65** starts from clean local `main@f2b59c4` in
+`wp-20261017-natural-verification`, using a separate TEMP worktree. Observed defects are repaired in their existing owners:
 
-- A fresh unconfigured Git checkout returned an empty prompt-hook result despite
-  a bundled runnable workflow. The hook now exposes the actual Skill and CLI
-  paths in unconfigured and configured checkouts. It reads existing state and
-  leaves task creation, scope selection and execution explicit.
+- Candidate 0.1.63 tested a fresh-project Skill/CLI prompt nudge. It connected
+  discovery to real CLI use but did not improve solves and increased usage.
+  Final 0.1.65 removes that nudge/extra entrypoint projection. Ordinary Skill
+  discovery, project guides and existing task/project hook context remain.
 - An investigation with an unobserved entry returned `READY_FOR_REVIEW` in its
   handoff. The existing handoff now retains INCOMPLETE for partial/stale
   investigations, and the unconfigured hook carries that same judgment. Complete
@@ -24,7 +23,7 @@ common defects are repaired in their existing owners:
   Feature feedback/review before mutation. Fresh no-task audit also retains its
   read-only NOT_CONFIGURED result instead of dereferencing absent state.
 
-The original empty-hook assertion and incomplete/ready mismatch were observed
+The candidate discovery assertion and actual incomplete/ready mismatch were observed
 before implementation. Six focused checks passed after repair, including current
 complete inspection, later source drift, configured inspection and read-only
 continuity. Resource drift and distribution checks passed. Full ran 459 tests in
@@ -53,11 +52,48 @@ versus B 243,636 (2.33 times), and whole-unit time was 181.337 versus 165.524
 seconds. No solve-rate gain is demonstrated. An earlier B infrastructure attempt
 was rejected before model execution for an image identity mismatch; it remains
 separate from the valid matched pair. Candidate 0.1.63 and all failures remain
-retained. The 0.1.64 repair is evaluated in new output rather than overwriting it.
+retained. Final 0.1.64 was consumed in a new D unit with the same input and fresh
+follow-up. Both phases passed upstream 24/24 and independent HTTP/SQLite checks.
+The initial Agent successfully created and updated real observations and test
+output; the follow-up read that record/output, the bundled Skill and verification
+guide, preserved the deletion check and added update persistence/authorization/
+blank-title checks. It explicitly excluded browser interaction. No false CLI
+block or unsupported final completion claim was observed in these two phases;
+exact-state lookup continuity is additionally covered by the regression control.
+
+| Original natural task | B: 0.1.62 | C: 0.1.63 | D: 0.1.64 |
+| --- | ---: | ---: | ---: |
+| Independently passing functional phases | 2/2 | 2/2 | 2/2 |
+| Observed false workflow blocks | 0 (no CLI attempt) | 3 | 0 |
+| Final report claim mismatches | 0/2 | 1/2 (empty task record) | 0/2 |
+| Native input plus output tokens | 243,636 | 567,758 | 460,756 |
+| Whole-unit elapsed seconds | 165.524 | 181.337 | 173.613 |
+
+D still used 1.89 times B's tokens and 4.89% more unit time. This single matched
+task demonstrates common CLI correctness and an actual retained-evidence handoff,
+not a general solve-rate, user-intervention or business-value gain. No user help
+or model retry was observed in these valid units. D retained a bare-pytest import
+failure and corrected the invocation; the follow-up's two successful runs were
+before/after adding new assertions. Two additional D infrastructure attempts
+failed before any model call: missing adjacent auth-refresh helper, then the
+immutable native runner's A/B/C-only condition validator. A manifest-only C alias
+allows final D to use the unchanged runner; outer D and actual 0.1.64 package
+hashes remain distinct from the original C/0.1.63. All failures and aliases are
+retained. Parent/helper preparation and substantial usage are separate from these
+native counters; total monetary cost remains unknown.
 After the native-consumption finding, all 45 refinement/hook tests passed in
 200.279 seconds; resource drift, distribution and 13 documentation/cutover checks
 passed. This focused recheck covers the changed CLI boundary and configured
 continuity; the preceding Full result is retained without relabeling it green.
+
+The retained, consumed 0.1.64 candidate package is frozen at source
+`1763249369cceca37a14c550f9de262d31f9090e` (clean). Its `package-files.json`
+SHA-256 is `47fecff5e0d7a48322806fe6650c76da2612718b8ce100d2731c6750f3b95648`;
+the retained ZIP SHA-256 is
+`0eac4bb14bf35a02f67cc3d3405c9327da870d911beb3ecc96927cb09eb84b6e`.
+Build pin, original/native traces, independent grades, claim reviews and failures
+are under `.work/natural-verification-20261017/`. A later documentation commit
+does not change that consumed source identity or package bytes.
 
 Features are **workflow-obligations** and **agent-workflow**. The existing hook
 owns discovery projection and the workflow runtime owns derived acceptance;
@@ -4717,3 +4753,13 @@ The map's whole-document dependency still reopens eleven semantic reviews for a
 one-row edit; no token or review-cost reduction is claimed. U1 mapping work for
 this observed snapshot is now reviewed; full U1-U7 task and protected acceptance
 remain incomplete, and the pending native UI trial was not granted new trust.
+
+Final adoption 0.1.65 retains the proven runtime corrections and the existing
+unconfigured investigation acceptance projection. It removes the candidate's
+automatic fresh-project prompt nudge and added entrypoint fields because the
+matched natural task did not establish an outcome benefit. Skill metadata,
+project guides, registered checks and existing hook state remain the discovery
+paths. Candidate 0.1.63/0.1.64 packages and all negative observations remain.
+The final package is separately frozen and consumed by a fresh read-only Agent
+against the retained real configured-project handoff; that consumption is not a
+new paired performance experiment.

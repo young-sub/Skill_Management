@@ -1,6 +1,6 @@
 # Testing And Impact Selection
 
-Runtime 0.1.64 repairs fresh-project hook discovery and investigation handoff,
+Runtime 0.1.65 retains investigation handoff correctness,
 including unconfigured start/lookup before observations and no-task audit.
 Focused failures reproduce an empty hook in an unconfigured Git checkout and a
 ready handoff with a pending observation. Normal complete source inspection stays
