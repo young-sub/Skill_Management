@@ -2910,6 +2910,11 @@ def summarize_lookup(result, project, root):
     summary['task'] = {key: task.get(key) for key in ('state', 'work_id', 'task_id', 'intent', 'targets', 'request', 'base')}
     summary['detail_command'] = {'action': 'lookup', 'root': str(root),
         'state': task.get('state'), 'work_id': task.get('work_id'), 'summary': False}
+    summary['feedback'] = [{key: deepcopy(entry[key]) for key in
+        ('id', 'feature', 'kind', 'status', 'expected', 'root_cause', 'remaining',
+         'owner_refs', 'repair_paths', 'evidence_refs', 'red_bundle', 'green_bundle',
+         'supersession', 'successor_status') if key in entry} | {'detail_omitted': True}
+        for entry in result.get('feedback', [])]
     import verification_results as viewer
     summary['coverage'] = deepcopy(result['coverage'])
     config = {f['id']: f for f in (configuration(project) or {}).get('features', [])}
@@ -2940,15 +2945,20 @@ def summarize_lookup(result, project, root):
         if identity not in evidence_ids:
             return viewer.summarize_results({'items': [item]})['items'][0]
         return dict({key: deepcopy(item[key]) for key in ('feature', 'id', 'historical_status',
-            'current_status', 'current_reuse', 'selected', 'reasons') if key in item}, evidence_ref=identity)
+            'current_status', 'current_reuse', 'selected') if key in item}, evidence_ref=identity)
 
     for row in summary['coverage'].get('rows', []):
         if row.get('evidence') and row.get('kind') == 'test':
             row['evidence'] = evidence_preview(dict(row['evidence'], feature=row['feature'], id=row['check']))
+        elif row.get('evidence'):
+            row.pop('evidence')
+            row['evidence_omitted'] = True
 
     if 'verification' in result:
         summary['verification'] = {key: deepcopy(value) for key, value in result['verification'].items()
-                                   if key not in {'items', 'coverage'}}
+                                   if key not in {'items', 'coverage', 'bundle'}}
+        if 'bundle' in result['verification']:
+            summary['verification']['bundle_omitted'] = True
         summary['verification']['items'] = [evidence_preview(item) for item in result['verification'].get('items', [])]
         if 'coverage' in result['verification']:
             summary['verification']['coverage_ref'] = 'coverage'
@@ -2979,6 +2989,9 @@ def summarize_lookup(result, project, root):
             if entry.get('evidence') and entry['kind'] == 'execution_check':
                 preview = evidence_preview(entry.pop('evidence'))
                 entry.update({'evidence_ref': preview['evidence_ref']} if 'evidence_ref' in preview else {'evidence': preview})
+            elif entry.get('evidence'):
+                entry.pop('evidence')
+                entry['evidence_omitted'] = True
             if entry.get('raw_contract'):
                 entry['raw_contract'] = [{key: raw[key] for key in ('path', 'pointer') if key in raw} |
                     {'assertion_count': len(raw.get('assertions', []))} for raw in entry['raw_contract']]
@@ -2997,7 +3010,30 @@ def summarize_lookup(result, project, root):
             if len(values) > limit:
                 coverage[key] = sorted(values, key=lambda v: v.get('work_scope') == 'project_remaining'
                     or not v.get('in_task', True))[:limit]
-    summary['detail_hint'] = 'Evidence refs name features/check_results by feature/check; verification coverage IDs retain its own denominator. Observed/assertion values and scope bases are omitted after validation. Follow bundles/raw path/pointer or repeat exact lookup without --summary. Check PASS is not task acceptance.'
+    summary['detail_hint'] = 'Evidence refs name features/check_results by feature/check; coverage IDs retain denominators. Raw values, semantic review bodies, feedback bindings and bundle descriptors are omitted after validation. Follow bundles/raw path/pointer or repeat exact lookup without --summary. Check PASS is not task acceptance.'
+    # Large projects need a decision view, not repeated previews of the same facts.
+    if len(json.dumps(summary)) > 32000:
+        summary['detail_omitted'] = True
+        for coverage in (summary['coverage'], summary.get('verification', {}).get('coverage', {})):
+            for key in ('rows', 'matrix'):
+                if key in coverage:
+                    coverage[key + '_omitted'] = coverage.get(key + '_omitted', 0) + len(coverage[key])
+                    coverage[key] = []
+        for action in summary['next_actions']:
+            action['pending_omitted'] = action['pending_count']
+            action['pending'] = []
+            if action.get('scope') == 'project_remaining':
+                for key in ('references', 'reason', 'requires', 'current_validity'):
+                    action.pop(key, None)
+        for feature in summary['features']:
+            feature.pop('sources', None)
+            feature['detail_omitted'] = True
+            for item in feature['check_results']:
+                item.pop('selection', None)
+                item.get('capture', {}).pop('sha256', None)
+                for raw in item.get('raw', []):
+                    for key in ('sha256', 'origin'):
+                        raw.pop(key, None)
     leading = ('handoff', 'task', 'status', 'action_scope_counts', 'next_actions', 'detail_command')
     return {key: summary[key] for key in leading if key in summary} | {key: value for key, value in summary.items() if key not in leading}
 

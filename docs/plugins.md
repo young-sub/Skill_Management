@@ -5,6 +5,14 @@ Skill distribution, plus native capture and guarded-update scripts. It does not 
 Feature Map, business criteria, UI tokens, credentials, or repository state.
 The package identity and version are owned by `distribution/plugin.json`.
 
+Version 0.1.73 reduces read-only lookup output by omitting semantic review bodies,
+feedback bindings and repeated bundle descriptors after validation. Large-project
+summaries retain verdicts, criterion/cell IDs, counts, reasons and exact detail
+pointers while omitting additional previews. This changes presentation, not
+execution selection, freshness checks or task acceptance. There is no fixed byte
+ceiling: capture a detailed lookup and select relevant fields instead of printing
+an entire report into the model context.
+
 ## Build
 
 ```powershell

@@ -4,7 +4,7 @@ description: Coordinate a coding task from a natural-language request through re
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: 34774d79ca88405fbd38491e03702e9f1d2fb42b88409f78007b6747c97665b7 -->
+<!-- Source-SHA256: 3fc2ed5615774a862249cd8d3d04e4e6b7c594728b013e45451eec4dbbf823ec -->
 
 
 # Agent Workflow
@@ -46,7 +46,7 @@ For registered native JSON, use the [verification CLI](scripts/verification_resu
 
 Inspect `handoff` first: current request, measured impact, project remainder and unresolved scope are separate. Follow pending criteria to their existing command, guide, raw observation and current validity. Required unexecuted/failed checks and required semantic reviews remain obligations. An undeclared six-cell matrix is an impact map, not six compulsory declarations or executions. It stays UNDECIDED; do not report it as full-stack completion.
 
-The summary omits detail, not evidence. `observations_omitted` with a positive count points to raw; repeat the exact lookup without `--summary` or read the raw pointer. Historical PASS/current STALE is not current success. Task-misbound evidence is not acceptance. Semantic review after execution joins the existing bundle/state without rerunning unchanged commands.
+The summary omits detail, not evidence. It retains verdicts, counts, criterion IDs and exact detail pointers; large-project previews, semantic review bodies and feedback bindings may be omitted. `observations_omitted` with a positive count points to raw. Capture the exact lookup without `--summary` when needed and read only the relevant JSON fields or raw pointer, rather than printing the whole report. Historical PASS/current STALE is not current success. Task-misbound evidence is not acceptance. Semantic review after execution joins the existing bundle/state without rerunning unchanged commands.
 
 When stdout must be retained, use the package's existing `scripts/run_check.py --cwd <project> --output <new-capture.json> -- <lookup argv>`. It refuses overwrite. Read completed `stdout` JSON; exit zero is not task acceptance. A capture with `execution: running` is unfinished: wait on its owning process/tool and inspect the same path. If the owner stopped, preserve unknown status and reconcile instead of launching another capture.
 

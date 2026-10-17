@@ -457,6 +457,35 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertLess(len(json.dumps(short)), len(before) * .6)
         self.assertEqual(json.dumps(result, sort_keys=True), before)
 
+    def test_summary_omits_review_bindings_but_preserves_verdict_and_detail(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'change', ['api'])
+        result = runtime.inspect_project(self.root, self.project, state)
+        result['task'] = dict(state, state='.work/task.json')
+        result['handoff'] = runtime.handoff_summary(result)
+        proof = {'analysis': 'Detailed owner review ' * 2000,
+                 'reference_hashes': {'src/api.py': 'hash'}}
+        result['feedback'] = [dict(id='repair', feature='api', status='OPEN',
+            expected='Keep price', root_cause='Shared owner', remaining=['review_stale'],
+            prevention_binding=proof, prevention_review=proof)]
+        result['coverage']['rows'] = [dict(id='owner', feature='api', kind='review',
+            status='STALE', historical_status='PASS', evidence=proof)]
+        result['next_actions'][0]['pending'] = [dict(id='owner', kind='semantic_review',
+            status='STALE', evidence=proof)]
+        result['verification'] = {'status': 'BLOCKED', 'bundle': proof, 'items': []}
+        before = json.dumps(result, sort_keys=True)
+        short = runtime.summarize_lookup(result, self.project, self.root)
+        self.assertNotIn('reference_hashes', json.dumps(short))
+        self.assertNotIn('Detailed owner review', json.dumps(short))
+        self.assertEqual(short['feedback'][0]['remaining'], ['review_stale'])
+        self.assertEqual(short['coverage']['rows'][0]['status'], 'STALE')
+        self.assertEqual(short['coverage']['rows'][0]['historical_status'], 'PASS')
+        self.assertTrue(short['coverage']['rows'][0]['evidence_omitted'])
+        self.assertEqual(short['next_actions'][0]['pending_ids'][0]['id'], 'owner')
+        self.assertEqual(short['verification']['status'], 'BLOCKED')
+        self.assertEqual(short['detail_command']['state'], '.work/task.json')
+        self.assertEqual(json.dumps(result, sort_keys=True), before)
+
     def test_summary_bounds_pending_previews_across_affected_features_without_losing_ids(self):
         from copy import deepcopy
         runtime = self.runtime()
@@ -471,6 +500,9 @@ class ProjectWorkflowTests(unittest.TestCase):
         result['handoff'] = runtime.handoff_summary(result)
         summary = runtime.summarize_lookup(result, self.project, self.root)
         self.assertLessEqual(sum(len(a['pending']) for a in summary['next_actions']), 6)
+        self.assertTrue(summary['detail_omitted'])
+        self.assertEqual(summary['coverage']['rows_omitted'], 120)
+        self.assertEqual(summary['detail_command']['state'], '.work/task.json')
         self.assertEqual(sum(a['pending_count'] for a in summary['next_actions']),
                          sum(len(a['pending_ids']) for a in summary['next_actions']))
         self.assertLess(list(summary).index('next_actions'), list(summary).index('features'))
