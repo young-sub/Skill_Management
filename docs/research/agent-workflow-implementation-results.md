@@ -29,6 +29,64 @@ Package/fresh-Agent and bounded product consumption are recorded separately in
 `.work/verification-rework-20261017/`. No large Agent A/B or Full is selected for
 this bounded input/discovery change, and no solve-rate or cost gain is inferred.
 
+The clean source commit `4f4bbe4c6883f28627014a82bf005afe06daa89b` produced
+the consumed **0.1.67** package (247 files including its inventory). Manifest
+SHA-256 `d40182ec2fc45527aafab4ecca8b6cf4cd28a1dea6d2f095f6c0ce1abcacb272`;
+ZIP SHA-256 `a771b4c8af639e91d156fd2c60a027575ac100e4430d72d6b1b7b2a405b77781`.
+All 246 inventoried files and the ZIP remain unchanged. A parent refusal check
+created one unlisted Python bytecode cache; it is recorded, not packaged source.
+The packaged absolute-state replay matches the relative summary exactly on the
+first call, with zero product commands. An attempted capture-path reuse returns
+FileExistsError before its marker command can launch.
+
+One fresh **gpt-6-luna / medium** Agent discovered and used that existing capture
+for full and summary queries of two retained Yeondoo tasks. Six completed lookups
+all report zero product commands, distinct run IDs and preserved full/summary files.
+CatalogImport's task stays BLOCKED by `prepared_plan_task_mismatch`; individual
+native observations do not override task binding. Staff's two checks remain
+reusable, while task acceptance stays INCOMPLETE with owner/screen review and six
+undecided scope cells. Original project/evidence bytes are unchanged.
+The Agent chose relative selectors, so absolute-input correctness is established
+by the deterministic package replay, not attributed to fresh-Agent behavior.
+
+Negative consumption result: the Agent saw reserved captures while their original
+commands were still running and repeated two full lookups into new files. Those
+duplicates are retained and counted. Output overwrites and path-error retries were
+zero; duplicate discovery/execution has not been solved, and total rework/cost
+improvement is not established. No parent preservation reminder was needed.
+Supplied paths, Windows/Python/Git ownership guidance and project-guide access
+are recorded; this is bounded actual consumption, not a blinded paired benchmark.
+
+In a separately authorized follow-up, the same new Agent found the project guide,
+Feature and native reporter and ran only the existing `staff-lock.test.mjs` case:
+1 passed, zero failures/skips, no retry or service, 0.875s capture. Its original
+lookup records and task state remain unchanged; the direct native result is not
+backfilled as a new workflow bundle. This proves native PIN rule reuse, not a new
+browser flow or server authentication.
+
+Flask consumption used an independent copy of the retained control-D candidate
+and the same pinned image. Only existing create/update pytest cases ran: **4 passed,
+8 deselected**. They cover rendered forms, POST handlers, SQLite writes and fresh
+connection reads; no browser/live-server/restart acceptance is added. The first
+container attempt timed out at 90s before product execution because the existing
+Docker parent cgroup was frozen. Its exact owned init/runc were removed. The
+bounded retry placed only the new task container under `/`, preserving all existing
+freezer values and original 152 Flask files; no installation or global configuration
+changed. This was an execution-environment cause, not a product/plugin defect.
+Neither product case reproduced unnecessary whole-project setup or a new false
+blocker, so no additional common routing/guard/schema change was adopted.
+
+The source verification also passed 45 refinement/hook tests, package/resource/
+distribution checks and documentation/cutover checks. Retained preservation checks
+cover 5,449 prior product/Flask-consumption/history files and 303 benchmark-control/
+metadata/metric files. Actual session metadata confirms the selected Luna/medium
+and records **2,475,848 tokens** for consumption plus PIN follow-up, including
+**2,363,648 cached input tokens** (a subset). The Agent's own prose could not name
+its exact variant; native metadata resolves that reporting limit. Parent/review
+tokens and monetary/full cost remain unknown. Failures, timeout, help, retries
+and duplicate lookups are retained; no comparison to the historical 28.97x ratio
+or causal cost/speed/solve-rate gain is claimed. No new Full or large Agent A/B.
+
 <a id="reviewed-improvement-2026-10-17"></a>
 
 ## Independently reviewed scope and observed blocker explanation, 2026-10-17
