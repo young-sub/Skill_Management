@@ -59,6 +59,13 @@ usage and assistance are retained in
 [native trials](../../.work/native-plugin-use-20261017/followthrough/native-trials-final.json);
 currency cost remains unknown. No benchmark was needed for these uncertainties.
 
+The later human confirmation is also joined through public `review` to the new
+task's StaffGate and CatalogImport source references:
+[human review binding](../../.work/native-plugin-use-20261017/followthrough/human-review-binding.json).
+It does not grant PASS to broader declared owner/screen criteria. The final
+read-only lookup preserves existing task/evidence bytes and executes no product
+commands; previous native outputs are retained with their observation-time limits.
+
 The final lookup also executes zero product commands and preserves all existing
 P `.work` files byte-for-byte:
 [lookup preservation](../../.work/native-plugin-use-20261017/followthrough/final-lookup-preservation.json).

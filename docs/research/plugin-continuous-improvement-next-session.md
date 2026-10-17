@@ -6,7 +6,7 @@
 
 하나의 계획으로 추적한 결과: (1) 최소 재현은 완료했으나 native Node pipe EPERM으로 전체 실행은 미완료, (2) 공개 feedback/task 결합·오래된 근거 재개방·새 Codex 요청의 계승·무실행 조회는 확인, (3) focus 관찰기 교정과 UTF-8 파일 stdin 전달은 실제 사용에서 한정된 예방 확인, (4) 시작 메뉴 내레이터로 두 오류 음성·키보드 복구를 사용자 확인, (5) 격리 Labeler 동시 수정 손실을 수리하고 화면→API→Domain→D1→새 조회 확인, (6) 공유 캡처의 label-only 재실행 요구를 제거하고 실패·도움·정상 허용을 평가했다. 0.1.75를 테스트 지역에만 설치해 새 native 요청이 소비한 bytes를 고정한다. 세부 직접 근거·한계는 결과 문서 한 곳에서 유지한다. 별도 장부·dashboard·범용 실행기는 만들지 않는다.
 
-현재 작업 branch는 `wp-20261017-native-followthrough`이며 새 worktree는 만들지 않았다. 이번 raw는 기존 지속 폴더의 `followthrough/` 하위에 보존한다. 최신 결과는 [native 결과](native-plugin-use-results.md)에 반영한다.
+구현 branch는 `wp-20261017-native-followthrough`이며 검증된 변경은 로컬 main에 통합한다. 새 worktree는 만들지 않았다. 이번 raw는 기존 지속 폴더의 `followthrough/` 하위에 보존한다. 최신 결과와 사용자 음성 확인의 task 연결은 [native 결과](native-plugin-use-results.md)에 반영한다.
 
 최신 재개 기준은 [0.1.75 후속 구현 결과](native-plugin-use-results.md#followthrough-implementation--0175)다. 동일 테스트 home의 로그인·hook 전달과 자연어 요청의 가이드 발견·후속 재사용은 관찰했다. 다시 설치하거나 로그인하지 않는다. native sandbox의 subprocess `EPERM`과 부모 호스트 개입을 무도움 완료로 바꾸지 않는다. 사용자는 한 프로세스의 elevated 비교만 승인했으며 계정/ACL/setup 변경은 승인하지 않았다. 최초 비교 CLI는 permission profile 인자가 없어 실행 전 실패했고, 이후 기존 preflight에서 같은 home의 setup marker와 sandbox user 파일 부재를 확인했다. 적합한 profile과 기존 준비된 권한 경계가 확인되거나 필요한 설정 변경을 구체화해 별도 승인받아야 다음 비교가 가능하다. native 전체 완료는 그 뒤 동일 runner의 테스트·브라우저·빌드·정리까지 실제 수행한 경우에만 판단한다. 0.1.73 조회 축소 및 이번 0.1.75 근거 재사용 수리는 새 반례 없이 재구현하지 않는다.
 
