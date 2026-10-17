@@ -1,6 +1,6 @@
 # Agent Documentation Index
 
-- [Native plugin use](research/native-plugin-use-results.md): Codex/Claude discovery, invocation, hook delivery and remaining model-use boundaries.
+- [Native plugin use](research/native-plugin-use-results.md): 0.1.75 actual Codex reuse, feedback/Unicode repairs, isolated product race fix, user-confirmed Narrator flows and remaining native subprocess boundary; Claude Code excluded from the latest verification by user choice.
 
 Read applicable AGENTS and `.harness/project.yaml` first. Load ignored `.harness/environment-exceptions.json` once per task; honor `skip_until_manual_reenable` and its fallback.
 

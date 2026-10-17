@@ -1,6 +1,14 @@
 # 현재 플러그인 개선 실행 지시서
 
-최신 재개 기준은 [0.1.73 native 후속 결과](native-plugin-use-results.md#authenticated-codex-follow-up-0173)다. 동일 테스트 home의 로그인·hook 전달과 자연어 요청의 가이드 발견·후속 재사용은 관찰했다. 다시 설치하거나 로그인하는 절차를 반복하지 않는다. native sandbox의 subprocess `EPERM`, 모델이 만든 검사 가정/문서 인코딩 오류와 부모 호스트 개입을 무도움 완료로 바꾸지 않는다. 다음 native 전체 완료 확인은 같은 환경에서 child process가 허용되는 실행 경계가 확인될 때 진행한다. 조회 중복 출력 수리는 이미 0.1.73에 반영됐으며 출력 크기의 고정 상한을 보장한 것은 아니다.
+## 2026-10-17 후속 구현 범위와 진행 계획
+
+출발점은 재확인한 clean `main@0d546c8`, 테스트 설치 0.1.73이다. 이번 실행은 Claude Code 검증을 사용자 결정으로 제외하며 지원 코드는 유지한다. 기존 인증 home, 신뢰 설정, candidate-marketplace, 격리 제품의 미커밋 변경과 raw evidence를 보존한다.
+
+하나의 계획으로 추적한 결과: (1) 최소 재현은 완료했으나 native Node pipe EPERM으로 전체 실행은 미완료, (2) 공개 feedback/task 결합·오래된 근거 재개방·새 Codex 요청의 계승·무실행 조회는 확인, (3) focus 관찰기 교정과 UTF-8 파일 stdin 전달은 실제 사용에서 한정된 예방 확인, (4) 시작 메뉴 내레이터로 두 오류 음성·키보드 복구를 사용자 확인, (5) 격리 Labeler 동시 수정 손실을 수리하고 화면→API→Domain→D1→새 조회 확인, (6) 공유 캡처의 label-only 재실행 요구를 제거하고 실패·도움·정상 허용을 평가했다. 0.1.75를 테스트 지역에만 설치해 새 native 요청이 소비한 bytes를 고정한다. 세부 직접 근거·한계는 결과 문서 한 곳에서 유지한다. 별도 장부·dashboard·범용 실행기는 만들지 않는다.
+
+현재 작업 branch는 `wp-20261017-native-followthrough`이며 새 worktree는 만들지 않았다. 이번 raw는 기존 지속 폴더의 `followthrough/` 하위에 보존한다. 최신 결과는 [native 결과](native-plugin-use-results.md)에 반영한다.
+
+최신 재개 기준은 [0.1.75 후속 구현 결과](native-plugin-use-results.md#followthrough-implementation--0175)다. 동일 테스트 home의 로그인·hook 전달과 자연어 요청의 가이드 발견·후속 재사용은 관찰했다. 다시 설치하거나 로그인하지 않는다. native sandbox의 subprocess `EPERM`과 부모 호스트 개입을 무도움 완료로 바꾸지 않는다. 사용자는 한 프로세스의 elevated 비교만 승인했으며 계정/ACL/setup 변경은 승인하지 않았다. 최초 비교 CLI는 permission profile 인자가 없어 실행 전 실패했고, 이후 기존 preflight에서 같은 home의 setup marker와 sandbox user 파일 부재를 확인했다. 적합한 profile과 기존 준비된 권한 경계가 확인되거나 필요한 설정 변경을 구체화해 별도 승인받아야 다음 비교가 가능하다. native 전체 완료는 그 뒤 동일 runner의 테스트·브라우저·빌드·정리까지 실제 수행한 경우에만 판단한다. 0.1.73 조회 축소 및 이번 0.1.75 근거 재사용 수리는 새 반례 없이 재구현하지 않는다.
 
 [현재 설계](agent-coding-system-direction.md)의 여섯 목표를 하나의 업무 흐름으로 구현·검증한다. 계획·문서·스키마·테스트에서 끝내지 않는다. 이 문서는 과거 작업을 다시 실행하는 목록이 아니다.
 
