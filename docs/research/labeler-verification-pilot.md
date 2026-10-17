@@ -2,7 +2,7 @@
 
 실행일: 2026-10-04~05 KST. [당시 실행 프롬프트](archive/agent-coding-next-session.md)를 수행한 결과다. 고정 소스의 실제 사용자 흐름, 통제 결함, Agent 위임을 확인하고 공통 캡처와 복제 프로젝트의 검증 연결을 구현했다. 원본 제품에 반영하거나 공개 배포한 결과는 아니다.
 
-2026-10-05 이후 논의의 현재 결정은 [업무 위임 체계](agent-coding-system-direction.md), 신규 구현은 [다음 세션 프롬프트](agent-coding-next-session.md)에 있다. 아래 Router·후보 Skill·Plugin 판단은 파일럿 당시 범위의 권고다. 단일 업무 진입점과 축소 setup/product maintain 도입에 관한 후속 합의가 이를 대체하며, 그 신규 체계의 효과까지 이 파일럿이 입증한 것은 아니다.
+2026-10-05 이후 논의의 현재 결정은 [업무 위임 체계](agent-coding-system-direction.md), 신규 구현은 [다음 세션 프롬프트](archive/agent-coding-next-session-through-0.1.68.md)에 있다. 아래 Router·후보 Skill·Plugin 판단은 파일럿 당시 범위의 권고다. 단일 업무 진입점과 축소 setup/product maintain 도입에 관한 후속 합의가 이를 대체하며, 그 신규 체계의 효과까지 이 파일럿이 입증한 것은 아니다.
 
 ## 기준과 보존 범위
 
@@ -149,7 +149,7 @@ node scripts/verify-flows.mjs ../new-browser all
 
 ## 2026-10-05 요구사항 검토의 근거 재확인
 
-[요구사항 검토](agent-coding-requirements-review.md)에서 기존 파일만 읽었다. 앱·브라우저·DB·모델 평가를 새로 실행하거나 fixture를 바꾸지 않았다. 따라서 다음은 기록의 재확인이고 현재 제품 동작의 재검증은 아니다.
+[요구사항 검토](archive/agent-coding-requirements-review-through-0.1.68.md)에서 기존 파일만 읽었다. 앱·브라우저·DB·모델 평가를 새로 실행하거나 fixture를 바꾸지 않았다. 따라서 다음은 기록의 재확인이고 현재 제품 동작의 재검증은 아니다.
 
 - 독립 repo HEAD `ecd7db768aef3c17c0ffc9834759944cf013b0f0`와 clean 상태, `committed-browser.json`의 run `4d5f6b6d-351f-4c1b-a2d4-43b993e80b37`·exit 0·28개 browser check를 확인했다. native product/design/print는 29/5/7 성공을 기록하며 capture에 담긴 JSON report 해시가 보존된 원문과 일치했다. 이 수치는 실행 범위이지 전체 품질 지표가 아니다.
 - UI 가격 결함의 `3201 !== 3200`, Domain 금액 결함의 native exit 1·29개 중 5개 실패, skip의 exit 0·실행 성공 0개/pending 1개, zero의 0개, 잘못된 대상·서버 미준비의 exit 2 기록이 남아 있다. 요약 PASS 대신 이 원본 출력과 관찰을 확인했다.

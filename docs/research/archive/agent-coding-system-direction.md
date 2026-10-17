@@ -1,6 +1,6 @@
 # Agent Coding 체계의 수정 방향과 플러그인 확장 기반
 
-> 아카이브: 2026-10-05 논의로 대체된 설계입니다. 현재 구현 지시로 사용하지 않습니다. [현재 결론](../agent-coding-system-direction.md)과 [다음 세션 프롬프트](../agent-coding-next-session.md)를 따릅니다. 변경 전 내용은 Git 이력에 보존됩니다.
+> 아카이브: 2026-10-05 논의로 대체된 설계입니다. 현재 구현 지시로 사용하지 않습니다. [현재 결론](../agent-coding-system-direction.md)과 [다음 세션 프롬프트](agent-coding-next-session-through-0.1.68.md)를 따릅니다. 변경 전 내용은 Git 이력에 보존됩니다.
 
 검토일: 2026-10-04. 이 문서는 사용자가 요청한 종합 설계와 후속 작업 기준이다. 현재 구현의 설명, 과거 후보본의 관찰 결과, 앞으로 만들 기능을 구분한다. 일반 기능 개발마다 이 문서 전체를 읽거나 같은 보고서를 만들 필요는 없다. 현재 실행·권한 정책은 [Agent workflow](../../agents/workflow.md), 검증 선택은 [Testing](../../testing.md)을 따른다.
 

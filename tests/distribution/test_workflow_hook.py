@@ -16,6 +16,82 @@ WORKFLOW = ROOT / 'authoring/scripts/project_workflow.py'
 
 
 class WorkflowHookTests(unittest.TestCase):
+    def test_prompt_context_prioritizes_target_ui_guides_and_feature_ui_paths(self):
+        runtime = runpy.run_path(str(WORKFLOW))
+        hook = runpy.run_path(str(HOOK))['context']
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            (root / '.harness').mkdir()
+            (root / 'src').mkdir()
+            (root / 'docs').mkdir()
+            (root / '.gitignore').write_text('.work/\n')
+            files = {
+                'src/price.py': 'price = 10\n', 'src/cart.py': 'cart = []\n',
+                'src/tokens.css': ':root {}\n', 'src/cart_widget.py': 'class CartWidget: pass\n',
+                'docs/map.md': 'Features\n', 'docs/testing.md': 'Run relevant checks.\n',
+                'docs/ui-price.md': 'Price UI states.\n', 'docs/ui-cart.md': 'Cart UI states.\n',
+            }
+            for index in range(4):
+                files[f'docs/ui-unused-{index}.md'] = 'Unused shared UI guide.\n'
+            for index in range(1, 5):
+                files[f'docs/ui-cart-{index}.md'] = 'Shared cart UI states.\n'
+            for name, content in files.items():
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(content)
+            systems = {f'unused-{index}': {'guide': f'docs/ui-unused-{index}.md',
+                'tokens': ['src/tokens.css'], 'components': ['src/cart_widget.py'],
+                'consumers': [], 'exceptions': []}
+                for index in range(4)}
+            systems['shared-cart'] = {'guide': 'docs/ui-cart.md', 'tokens': ['src/tokens.css'],
+                'components': ['src/cart_widget.py'], 'consumers': ['cart'], 'exceptions': []}
+            for index in range(1, 5):
+                systems[f'shared-cart-{index}'] = {'guide': f'docs/ui-cart-{index}.md',
+                    'tokens': ['src/tokens.css'], 'components': ['src/cart_widget.py'],
+                    'consumers': ['cart'], 'exceptions': []}
+            project = {'commands': {}, 'extensions': {'workflow': {
+                'roots': ['src'], 'state': '.work/task.json',
+                'features': [
+                    {'id': 'price', 'partition': 'domain', 'sources': ['src/price.py'],
+                     'map': ['docs/map.md'], 'criteria': ['docs/testing.md'], 'checks': [],
+                     'ui': ['docs/ui-price.md']},
+                    {'id': 'cart', 'partition': 'ui', 'sources': ['src/cart.py'],
+                     'map': ['docs/map.md'], 'criteria': ['docs/testing.md'], 'checks': []},
+                ],
+                'ui_systems': systems,
+            }}}
+            (root / '.harness/project.yaml').write_text(json.dumps(project))
+            for argv in (['git', 'init', '-q'], ['git', 'add', '.'],
+                         ['git', '-c', 'user.name=Fixture', '-c', 'user.email=f@invalid',
+                          'commit', '-qm', 'base']):
+                subprocess.run(argv, cwd=root, capture_output=True, check=True)
+            state = runtime['begin'](root, project, 'change', ['price', 'cart'])
+            state_path = root / '.work/task.json'
+            state_path.parent.mkdir(parents=True)
+            state_path.write_text(json.dumps(state))
+            binding = runtime['task_context'](root, state, state_path)
+            with mock.patch.dict(os.environ, AGENT_WORKFLOW_CONTEXT=binding):
+                output = hook({'hook_event_name': 'UserPromptSubmit', 'cwd': str(root)})
+            additional_context = output['hookSpecificOutput']['additionalContext']
+            self.assertLess(len(additional_context), 6000)
+            detail = json.loads(additional_context.split('\n', 1)[1])
+            current = detail['current_task']
+            features = {feature['id']: feature for feature in current['features']}
+            self.assertEqual(features['price'].get('ui'), ['docs/ui-price.md'])
+            self.assertEqual(current['ui_system_count'], 5)
+            self.assertEqual(current['ui_system_omitted'], 1)
+            self.assertEqual(len(current['ui_systems']), 4)
+            self.assertEqual(current['ui_system_detail'], current['detail'])
+            self.assertEqual(current.get('ui_systems', [])[0]['guide'], 'docs/ui-cart.md')
+            if detail.get('ui_systems'):
+                self.assertEqual(detail['ui_systems'][0]['id'], 'shared-cart')
+                self.assertEqual(detail['ui_system_count'], 9)
+                self.assertEqual(detail['ui_system_omitted'], 5)
+                self.assertEqual(detail['ui_system_detail'], current['detail'])
+            else:
+                self.assertTrue(detail.get('ui_system_detail_omitted'))
+                self.assertEqual(detail['ui_system_omitted'], detail['ui_system_count'])
+
     def test_fresh_unconfigured_checkout_keeps_hook_read_only_without_a_task(self):
         hook = runpy.run_path(str(HOOK))['context']
         with tempfile.TemporaryDirectory() as temporary:

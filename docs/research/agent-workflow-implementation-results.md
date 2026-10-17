@@ -111,7 +111,7 @@ it does not establish a speed, solve-rate or user-intervention improvement.
 The focused regression failed in four assertions before the fix (PASS, NOT_RUN,
 ISSUES warning; missing actual mismatch reason), then the three focused tests
 passed, including real lookup/resume/audit mismatch and project-only remainder.
-The [confirmed next-step criteria](agent-coding-system-direction.md#reviewed-improvement-2026-10-17)
+The [confirmed next-step criteria](archive/agent-coding-system-direction-through-0.1.68.md#reviewed-improvement-2026-10-17)
 retain existing-runner reuse and evidence-driven scope. No new A/B matrix is selected.
 New evidence is retained separately in `.work/verification-review-20261017/`;
 old benchmark results and package pins are not overwritten.
@@ -915,7 +915,7 @@ a separate product-consumption check. Supersession supports one direct active-ow
 successor, not dismissal of a retired requirement with no successor. Native host,
 concurrent same-record writers, long autonomous operation, UI approval and business
 outcomes remain unverified. No product checks were deleted: this review found no
-equivalent-defect/normal-case proof justifying removal. The [current design](agent-coding-system-direction.md#next-improvements-0158)
+equivalent-defect/normal-case proof justifying removal. The [current design](archive/agent-coding-system-direction-through-0.1.68.md#next-improvements-0158)
 sets concrete next steps and acceptance criteria for those gaps.
 
 <a id="continuous-plugin-improvement-2026-10-13"></a>
@@ -1767,8 +1767,8 @@ captures are `native-discovery.json` and `native-discovery-authorized.json`.
 
 ## Scope guidance, hook reuse and Yeondoo Link pilot, 2026-10-12
 
-The [authorized prompt](plugin-improvement-next-session.md) applies
-[direction §12](agent-coding-system-direction.md#plugin-maturity-yeondoo-link).
+The [authorized prompt](archive/plugin-improvement-next-session-through-0.1.68.md) applies
+[direction §12](archive/agent-coding-system-direction-through-0.1.68.md#plugin-maturity-yeondoo-link).
 Both checkouts initially were clean: plugin main `1d7462e`, version 0.1.47;
 Yeondoo Link main `220c945`. Plugin fetch succeeded: local main was 103 commits
 ahead of origin/main, with no remote-only commits. Yeondoo Link's existing remote
@@ -1936,7 +1936,7 @@ retains `7270537` → `fbe16ab` → `e1b8a09`. Product main remains `220c945`,
 with no product main merge, branch deletion or push. The separate local source
 changes, product drafts and package/native-host limits must remain distinct.
 
-The [0.1.46 design review](agent-workflow-refinement-review.md#post-0146-review)
+The [0.1.46 design review](archive/agent-workflow-refinement-review-through-0.1.68.md#post-0146-review)
 reproduced additional kind-roundtrip, newly added criterion and task/global hook-gap
 cases. Version 0.1.47 fixes them at their existing owners. Earlier results below
 retain their historical scope; they do not retroactively cover the new cases.
@@ -2863,9 +2863,9 @@ raw-preservation join. Other project runners need their own compatible bindings,
 not a new universal parser. New native Agent behavior and the latest protected
 handoff installation/execution were deliberately not evaluated in this session.
 
-Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876fb9f8922e0cade072469ddc9a51267df`, with a clean worktree. This implements the [execution prompt](agent-coding-next-session.md); the prior review-only restriction does not apply to this authorized implementation. Source/distribution `c7c064a`, viewer soundness repairs `7e9eb8d`, and UI reuse/selection-reason follow-up `95eed81` are committed. T1–T6 were performed within the independent pilot. The whole delegation system remains PARTIAL/BLOCKED for the host and evidence limits below.
+Execution began 2026-10-05 on `wp-20261004-agent-coding-foundation` at `aa536876fb9f8922e0cade072469ddc9a51267df`, with a clean worktree. This implements the [execution prompt](archive/agent-coding-next-session-through-0.1.68.md); the prior review-only restriction does not apply to this authorized implementation. Source/distribution `c7c064a`, viewer soundness repairs `7e9eb8d`, and UI reuse/selection-reason follow-up `95eed81` are committed. T1–T6 were performed within the independent pilot. The whole delegation system remains PARTIAL/BLOCKED for the host and evidence limits below.
 
-Subsequent user requirements are specified in the [completion design](agent-workflow-completion-design.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
+Subsequent user requirements are specified in the [completion design](archive/agent-workflow-completion-design-through-0.1.68.md): all-feature initial mapping with partition/resume, mandatory map updates, Agent judgment versus enforced environmental boundaries, and demonstrated task benefit. The U1-U7 implementation below now reports against those criteria; T1-T6 remain earlier, separately bounded evidence. In particular, R04/R12 and T1 below establish bounded first-flow/lifecycle behavior; they do not satisfy complete initial mapping or non-bypassable enforcement. Labeler remains the test environment for plugin capabilities, not the product-development objective.
 
 ## Native recurring verification adoption, 2026-10-06
 
@@ -4737,7 +4737,7 @@ host boundary, and the full U1-U7 task acceptance remains incomplete.
 
 ## U1-U7 implementation, 2026-10-05
 
-This continuation started from clean `wp-20261004-agent-coding-foundation` at `864ee4f053463e843e2a41d4ad57799446113f70`. The coupled runtime/evidence/distribution unit is committed locally as `b1b710c`. The current design is [completion design](agent-workflow-completion-design.md), and the authorized execution is [next-session prompt](agent-workflow-next-session.md). New temporary evidence is under `.work/agent-workflow-foundation-20261005/`; earlier T1-T6 raw remains unchanged. Local source delivery, temporary installation, product observations, supervised Agent behavior and protected host acceptance are separate outcomes. Overall status remains **PARTIAL / BLOCKED**, not completion of the whole system.
+This continuation started from clean `wp-20261004-agent-coding-foundation` at `864ee4f053463e843e2a41d4ad57799446113f70`. The coupled runtime/evidence/distribution unit is committed locally as `b1b710c`. The current design is [completion design](archive/agent-workflow-completion-design-through-0.1.68.md), and the authorized execution is [next-session prompt](archive/agent-workflow-next-session-through-0.1.68.md). New temporary evidence is under `.work/agent-workflow-foundation-20261005/`; earlier T1-T6 raw remains unchanged. Local source delivery, temporary installation, product observations, supervised Agent behavior and protected host acceptance are separate outcomes. Overall status remains **PARTIAL / BLOCKED**, not completion of the whole system.
 
 ### Implemented responsibility and execution boundaries
 
@@ -4879,7 +4879,7 @@ Resume the CLI task only when this host can execute a task-local model request t
 
 ## Requirement status
 
-R01–R16 are the acceptance criteria in the [requirements review](agent-coding-requirements-review.md). The table distinguishes implemented responsibility and bounded observation from general effectiveness. It does not upgrade the old design-review verdicts into production acceptance.
+R01–R16 are the acceptance criteria in the [requirements review](archive/agent-coding-requirements-review-through-0.1.68.md). The table distinguishes implemented responsibility and bounded observation from general effectiveness. It does not upgrade the old design-review verdicts into production acceptance.
 
 | Requirement | Status within this pilot | Current implementation / observed evidence | Remaining scope |
 | --- | --- | --- | --- |

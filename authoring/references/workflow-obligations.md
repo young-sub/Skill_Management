@@ -51,12 +51,7 @@ Without a host-provided context, candidates are discovery only, not selection or
 proof of automatic host delivery. Whole-map/Git changes remain conservatively stale;
 complete Feature-local dependency coverage has not been established.
 
-`READY_FOR_REVIEW` describes retained review readiness, not scope completion.
-`next_actions` includes task-local applicability/evidence guidance even when
-legacy undeclared scope leaves no blocking obligations. Such guidance is
-advisory: it preserves current reusable checks and source-only/small work;
-reasoned NOT_REQUIRED remains valid and six executions are never inferred.
-Explicit declared scope gaps retain their existing blocking obligations.
+`READY_FOR_REVIEW` describes retained request review readiness, not complete project or full-stack coverage. Undeclared matrix cells remain UNDECIDED in the coverage view; they do not create six mandatory next actions. Declared criteria, current check requirements and explicit cell decisions still block when missing/stale/failed. Unchanged unmapped project inventory remains project debt; new/changed unmapped sources block scoped request acceptance. Full initialization still accounts for all unmapped sources.
 The hook preserves selected Feature references, current check reuse and an exact
 read-only detail pointer when trimming. It shares one source inventory and audits
 identical selected/active task state within a single invocation. New invocations

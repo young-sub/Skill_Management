@@ -18,6 +18,117 @@ class WorkflowRefinementTests(unittest.TestCase):
     review = existing.ProjectWorkflowTests.review
     invoke = existing.ProjectWorkflowTests.invoke
 
+    def test_structural_prevention_uses_reviewed_native_captures_and_reopens_on_drift(self):
+        self.exercise_structural_prevention()
+
+    def test_structural_shared_owner_can_complete_current_checkless_repair_only(self):
+        self.exercise_structural_prevention(shared=True)
+
+    def exercise_structural_prevention(self, shared=False):
+        runtime = self.runtime()
+        config = self.project['extensions']['workflow']
+        feature = config['features'][0]
+        feature['sources'].append('src/verify.py')
+        owner = 'src/owner.py' if shared else 'src/api.py'
+        if shared:
+            feature['checks'] = []
+            self.write('docs/ui.md', 'Shared owner owns quantity constraints')
+            config['ui_systems'] = {'shared': {'guide':'docs/ui.md', 'tokens':[owner],
+                'components':[owner], 'consumers':['api']}}
+        self.write(owner, 'def quantity(value):\n    return value\n')
+        self.write('src/verify.py',
+            f"from {'owner' if shared else 'api'} import quantity\n"
+            "for call in (quantity, lambda x: quantity(x)):\n"
+            " try: call(-1)\n"
+            " except ValueError: pass\n"
+            " else: raise AssertionError('negative quantity accepted at shared owner/bypass')\n"
+            "assert quantity(0) == 0 and quantity(2) == 2\n"
+            "print('shared owner and alternate caller reject negative; zero and positive remain valid')\n")
+        guardrail = dict(mechanism='type_constraint' if shared else 'structure', failure='negative quantity accepted', scope='quantity owner',
+            owner_refs=[owner], normal_exception='zero and positive remain valid', reconsider='quantity rules change')
+        feature['prevention'] = [guardrail]
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        state = runtime.begin(self.root, self.project, 'feedback', ['api'])
+        entry = dict(id='quantity', feature='api', expected='negative quantities are rejected',
+            observed='negative accepted', reproduction='call shared owner and alternate caller with -1')
+        state = runtime.record_feedback(self.root, self.project, state, entry)
+        def capture(name):
+            path = self.root / ('.work/' + name + '.json')
+            result = subprocess.run([sys.executable, str(existing.ROOT / 'scripts/run_check.py'),
+                '--cwd', str(self.root), '--output', str(path), '--feature', 'api', '--',
+                sys.executable, '-B', 'src/verify.py'], capture_output=True, text=True)
+            return result.returncode, path.relative_to(self.root).as_posix()
+        red_code, red = capture('red')
+        self.assertEqual(red_code, 1)
+        self.write(owner, 'def quantity(value):\n    if value < 0: raise ValueError("negative")\n    return value\n')
+        green_code, green = capture('green')
+        self.assertEqual(green_code, 0)
+        review = dict(id='quantity-review', analysis='Both callers reach the shared validator; inspected actual native output',
+            original_failure=dict(analysis='Original negative accepted at shared owner', references=[red]),
+            bypass=dict(analysis='Direct and alternate caller both reject -1', references=[green, 'src/verify.py']),
+            normal=dict(analysis='Zero and positive are retained', references=[green, 'src/verify.py']), captures=[green])
+        state = runtime.record_feedback(self.root, self.project, state, dict(entry,
+            trace='direct/alternate caller -> quantity', root_cause='Missing validation in shared owner',
+            failed_prevention='Caller-only checks were bypassable', repair_paths=[owner],
+            guardrail=guardrail, prevention_review=review))
+        accepted = runtime.inspect_project(self.root, self.project, state)
+        self.assertEqual(accepted['feedback'][0]['status'], 'RESOLVED', accepted['feedback'][0]['remaining'])
+        self.assertFalse(any('prevention:' in f for f in accepted['findings']))
+        if shared:
+            historical = deepcopy(state['feedback']['quantity'])
+            historical['id'] = 'earlier-resolved-incident'
+            historical['prevention_binding']['task_identity'] = 'earlier-task'
+            state['feedback'][historical['id']] = historical
+        state = self.review(runtime, state, 'api')
+        current = runtime.inspect_project(self.root, self.project, state)
+        if shared:
+            self.assertEqual(runtime.handoff_summary(current)['task_acceptance'], 'READY_FOR_REVIEW', current['findings'])
+            self.assertEqual(current['features'][0]['structural_evidence'], [green])
+        else:
+            self.assertEqual(current['features'][0]['verification_status'], 'REQUIRED')
+        # Stage/commit of the verified bytes must not invent a new execution obligation.
+        subprocess.run(['git', 'add', '.'], cwd=self.root, check=True, capture_output=True)
+        self.assertEqual(runtime.inspect_project(self.root, self.project, state)['feedback'][0]['status'], 'RESOLVED')
+        subprocess.run(['git', '-c', 'user.name=Fixture', '-c', 'user.email=f@invalid', 'commit', '-qm', 'verified repair'],
+                       cwd=self.root, check=True, capture_output=True)
+        self.assertEqual(runtime.inspect_project(self.root, self.project, state)['feedback'][0]['status'], 'RESOLVED')
+        self.write('src/new-caller.py', 'unknown_new_path = True\n')
+        self.assertEqual(runtime.inspect_project(self.root, self.project, state)['feedback'][0]['status'], 'OPEN')
+        (self.root / 'src/new-caller.py').unlink()
+        before = {p: p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()}
+        subsequent = runtime.begin(self.root, self.project, 'change', ['api'], prior_state=state)
+        self.assertEqual(runtime.inspect_project(self.root, self.project, subsequent)['feedback'][0]['status'], 'RESOLVED')
+        self.assertEqual(runtime.inspect_project(self.root, self.project, subsequent)['features'][0]['verification_status'], 'REQUIRED')
+        # A hand-written PASS-shaped object is not an observed run_check capture.
+        original = (self.root / green).read_bytes()
+        minimal = {key:value for key,value in json.loads(original).items() if key in
+                   {'run_id','argv','feature','cwd','execution','exit_code','before','after'}}
+        self.write('.work/minimal.json', json.dumps(minimal))
+        fake_review = deepcopy(review); fake_review['id'] = 'minimal-shape'
+        fake_review['captures'] = ['.work/minimal.json']
+        for key in ('bypass', 'normal'):
+            fake_review[key]['references'] = ['.work/minimal.json']
+        fake = runtime.record_feedback(self.root, self.project, state,
+            dict(id='quantity', feature='api', prevention_review=fake_review))
+        self.assertEqual(runtime.inspect_project(self.root, self.project, fake)['feedback'][0]['status'], 'OPEN')
+        (self.root / '.work/minimal.json').unlink()
+        self.assertEqual(before, {p: p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()})
+        # A status flag, incomplete observations, or inactive owner cannot discharge repair.
+        for key in ('original_failure', 'bypass', 'normal', 'captures'):
+            broken = deepcopy(state); broken['feedback']['quantity']['prevention_review'].pop(key)
+            self.assertEqual(runtime.inspect_project(self.root, self.project, broken)['feedback'][0]['status'], 'OPEN')
+        raw_path = self.root / green; raw = raw_path.read_bytes()
+        raw_path.write_bytes(raw + b'\n')
+        self.assertEqual(runtime.inspect_project(self.root, self.project, state)['feedback'][0]['status'], 'OPEN')
+        raw_path.write_bytes(raw)
+        self.write(owner, 'def quantity(value):\n    return value\n')
+        reopened = runtime.inspect_project(self.root, self.project, subsequent)
+        self.assertEqual(reopened['feedback'][0]['status'], 'OPEN')
+        self.assertIn('repair', next(a for a in reopened['next_actions'] if a['target'] == 'api')['requires'])
+        # Resubmitting metadata or the same review cannot bless changed code/capture bytes.
+        refreshed = runtime.record_feedback(self.root, self.project, subsequent, {'id':'quantity', 'feature':'api', 'prevention_review':review})
+        self.assertEqual(runtime.inspect_project(self.root, self.project, refreshed)['feedback'][0]['status'], 'OPEN')
+
     def test_environment_tag_does_not_resolve_product_failure(self):
         self.test_environment_recovery_keeps_failure_and_reopens_on_target_or_manual_disable(product_failure=True)
 

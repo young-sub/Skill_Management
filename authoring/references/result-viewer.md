@@ -235,9 +235,9 @@ executes a command from the scope or reviews.
 the declared task scope; neither attests that every requirement was discovered.
 `coverage.matrix` projects business/architecture × FE/BE/API/Domain independently,
 with `in_task` identifying the current work's impact. Method remains direct,
-cross-layer or e2e. Empty cells are UNDECIDED, never PASS or an automatic exclusion.
+cross-layer or e2e. Empty cells are UNDECIDED, never PASS or an automatic exclusion. They are an impact map, not a compulsory six-cell completion form. Required checks and declared criterion reviews remain obligations independently of these cells.
 
-In the existing Feature review's `scope_reviews`, use cell keys such as
+When explicit cell-level applicability is useful, use the existing Feature review's `scope_reviews` with keys such as
 `business:Domain`. Each cell decision has `status: REQUIRED`, `coverage: [row IDs]`,
 `analysis` and existing-file `references`, or `status: NOT_REQUIRED` with a nonblank
 `reason`, analysis and references. Required cells must account for every matching

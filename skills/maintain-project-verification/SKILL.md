@@ -4,7 +4,7 @@ description: Audit and repair drift in a project's Feature Map, executable verif
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/maintain-project-verification/SKILL.md -->
-<!-- Source-SHA256: 1114be517f9758ea009ca33cc8bd7f84c7367ec7961c8ed4f3eeb49d2314d410 -->
+<!-- Source-SHA256: 4840279644e5c69b1f3f048a1cd97e3bd0bc4b4b021b60939406120b6c006682 -->
 
 
 # Maintain Project Verification
@@ -19,15 +19,7 @@ Audit-only ends with findings and their evidence, without writes, launches or si
 
 Use [workflow obligations](references/workflow-obligations.md) for configured project links and resumable review. Its audit computes omissions and changed consumers without executing tests; Harness maintenance consumes the same calculation. Unconfigured projects can retain read-only investigations in that same task/context without setup.
 
-Distinguish consolidation from an authorized requirement retirement inside a
-living Feature. The latter proves changed requirements and the actual changed or
-retained entrypoints/callers, remaining contracts and inactive check links without
-inventing a replacement detector. A rule-only retirement may retain its API/callers.
-Keep unknown or unique detection; stale proof remains open. See the reason-specific
-proof in the shared verification reference. Feature-wide retirement remains its
-existing reconciliation.
-
-Consume `coverage.gaps` and `ui_systems` from the same audit. Repair affected requirement/check/review connections and shared UI consumer references at their existing owners. A missing guide needs project-specific intent/state/responsive/accessibility writing with the existing UI capability; keep token values in the linked code. Preserve declared UI exceptions and inspect whether their reason still applies. Re-audit the actual shared change to find consumer obligations rather than maintaining a second screen list.
+Consume task-relevant `coverage.gaps` and `ui_systems` from the same audit; retain project remainder separately. Unknown matrix cells do not require six declarations for a small task. Repair affected requirement/check/review connections and shared UI consumer references at their existing owners. A missing guide needs project-specific intent/state/responsive/accessibility writing with the existing UI capability; keep token values in the linked code. Preserve declared UI exceptions and inspect whether their reason still applies. Re-audit the actual shared change to find consumer obligations rather than maintaining a second screen list.
 
 Keep feature additions/changes/removals and their map/guide/active selectors in the same functional change. Confirm removed entrypoints really have no callers; remove only active connections and retain historical runs. Execute repaired commands and the affected flow without lowering requirements, assertions, skips or visual baselines. Preserve both verified work and remaining BLOCKED areas.
 

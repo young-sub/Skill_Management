@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/repair-and-reuse.md -->
-<!-- Source-SHA256: f8573fd1c998f50677648dde8eca0905c08b45c84851efcd7dee0cb23a6f7685 -->
+<!-- Source-SHA256: 9fdc05c917e1664e680b07c6bc7c08b93894d53cdb766ea7a315ec960f08a03d -->
 
 # Repair and subsequent reuse
 
@@ -77,7 +77,7 @@ an unseen UI candidate as user-approved.
 
 | Kind | Evidence and disposition |
 | --- | --- |
-| `requirement_violation` | Existing fixed-oracle RED/GREEN/normal and active prevention chain below; source owner repair required. |
+| `requirement_violation` | Source owner repair plus mechanism-appropriate evidence: fixed-oracle regression or reviewed structural/type constraint prevention. |
 | `requirement_change` | `scope`, `reason`, `evidence_refs`, `owner_refs`, `reconsider`, `authorization_refs`; criteria bytes must change from registration, with fresh prepared `green_bundle` and `confirmation` for new and retained contracts. No old-oracle RED is invented. |
 | `intentional_difference` | Scope/reason/evidence/owner/reconsider identify a common variant or explicit exception. The explicit subject/disposition/revision binding above plus current decision evidence yields ACCEPTED; generic agreement, absent/deferred/opinion/legacy review stays OPEN. Related criteria or decision changes reopen it in current and subsequent tasks. Feedback ACCEPTED is separate from Feature/product verification. |
 | `oracle_tool_error` | Independent `evidence_refs`, scope/reason/owner/reconsider, `trace`, `root_cause`, changed `repair_paths` at the declared source/criteria owner, and fresh green confirmation. Repair the runner/oracle; preserve the actual original failure separately. |
@@ -117,7 +117,7 @@ active prevention; stale/missing observations reopen required work. Unrelated wo
 does not acquire a Full requirement. UI guide owns intent/variants/state/responsive
 and accessibility references; actual values and behavior remain in shared code.
 
-For a requirement violation, after diagnosis add `trace`, `root_cause`, `failed_prevention`, `repair_paths` (the
+For automatic regression prevention, after diagnosis add `trace`, `root_cause`, `failed_prevention`, `repair_paths` (the
 actual existing source owner), `red_bundle`, `green_bundle`, and `guardrail`:
 
 ```json
@@ -136,6 +136,20 @@ can require revalidation after a commit or unrelated condition change under the
 existing conservative identity policy; preserved red evidence stays historical.
 Other native adapters remain usable evidence, but this automatic feedback evidence
 join currently requires prepared native-JSON bundles; absent bindings stay OPEN.
+
+## Structural or type/constraint prevention
+
+Use an existing Feature `prevention` row and matching feedback `guardrail` with `mechanism: structure` or `type_constraint`, `failure`, `scope`, existing source `owner_refs`, `normal_exception` and `reconsider`. No new registered check, JSON assertion adapter or fabricated RED/GREEN pair is required. The source owner must actually change. Automatic regression prevention keeps its fixed-oracle contract above.
+
+Record `trace`, `root_cause`, `failed_prevention`, `repair_paths` and `prevention_review` after inspecting actual evidence:
+
+```json
+{"id":"quantity-review-1","analysis":"Both callers reach the shared validator; native output inspected.","original_failure":{"analysis":"Negative input was accepted.","references":[".work/original-observation.json"]},"bypass":{"analysis":"Direct and alternate caller now reject negative input.","references":[".work/validation.json","src/quantity.py"]},"normal":{"analysis":"Zero and positive remain valid.","references":[".work/validation.json"]},"captures":[".work/validation.json"]}
+```
+
+Use existing `run_check.py` for project-owned foreground validation, with `--feature <id>` and project-root cwd. Current captures must exit normally with zero, complete cleanup and identical before/after source identity and unchanged effective source bytes since capture (staging/committing those same bytes is allowed; the captured Git base must remain available). The Agent interprets native assertions, skips, screenshots or type/constraint results; capture exit alone never proves behavior. Original failure may be a report or directly observed artifact rather than an identical registered failing check. Bypass and normal observations reference actual execution and explain what it establishes.
+
+The CLI pins the subject, owner/criteria/config and evidence bytes in read-only `prevention_binding`. Missing observations, inactive owner/link, changed evidence/source or running/failed/stale captures keep OPEN. New reviewed observations use a new review ID; resubmitting metadata or the same review cannot refresh old proof. Lookup executes nothing. Linked UI token/component paths count as source owners. A current structural repair with no registered checks can use these captures for this feedback task; required registered checks are never bypassed. Related tasks inherit prevention and reopen it when conditions change, but inherited proof cannot complete their new request. `resolution_basis` identifies Agent-reviewed prevention separately from automatic fixed-oracle joins. Capture shape and retained hashes reject incomplete or stale submissions; editable local files do not authenticate execution or semantic review. These are local consistency records, not protected attestation or general product acceptance. Ignored runtime/dependency conditions need project evidence.
 
 Use expected outcome → reproduced observation → actual caller/state/data flow → cause owner → focused fix/prevention → original criterion and nearby normal case. When the task requests repair, continue through verification within authorization. An explanation/audit does not authorize mutation.
 

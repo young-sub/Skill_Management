@@ -1,10 +1,12 @@
+> Historical record through 0.1.68; not current execution instructions. See [current design](../agent-coding-system-direction.md) and [current work](../plugin-continuous-improvement-next-session.md). Original bytes: Git ea7e11d.
+
 # 다음 세션: 연두링크 실제 사용을 통한 플러그인 고도화
 
-작성일: 2026-10-12. 상태: **사용자가 이번 실행 요청으로 적용한 범위다. 0.1.48 공통 수리와 실제 저장소 평가·독립 후속 재사용 결과는 [실행 기록](agent-workflow-implementation-results.md#yeondoo-plugin-improvement-2026-10-12)에 남긴다.**
+작성일: 2026-10-12. 상태: **사용자가 이번 실행 요청으로 적용한 범위다. 0.1.48 공통 수리와 실제 저장소 평가·독립 후속 재사용 결과는 [실행 기록](../agent-workflow-implementation-results.md#yeondoo-plugin-improvement-2026-10-12)에 남긴다.**
 
-이 문서의 블록은 수행된 0.1.48 요청을 보존한다. 이후 실제 구현에는 [지속 고도화 다음 세션 프롬프트](plugin-continuous-improvement-next-session.md)를 적용한다. 새 목표와 완료 기준은 [설계 §13](agent-coding-system-direction.md#continuous-plugin-improvement)에 있으며 이 과거 블록을 다시 실행하는 요청은 아니다.
+이 문서의 블록은 수행된 0.1.48 요청을 보존한다. 이후 실제 구현에는 [지속 고도화 다음 세션 프롬프트](plugin-continuous-improvement-next-session-through-0.1.68.md)를 적용한다. 새 목표와 완료 기준은 [설계 §13](agent-coding-system-direction-through-0.1.68.md#continuous-plugin-improvement)에 있으며 이 과거 블록을 다시 실행하는 요청은 아니다.
 
-현재 판단·부족한 점·책임 분리·평가 기준은 [설계 문서 §12](agent-coding-system-direction.md#plugin-maturity-yeondoo-link)가 소유한다. 이 문서는 다음 세션에서 실행할 요청이다. 문서를 읽은 것만으로 실행하지 않으며, 사용자가 아래 블록이나 이 문서를 명시적으로 실행 요청으로 전달했을 때 적용한다. 과거 `agent-workflow-next-session.md`와 `agent-coding-next-session.md`의 완료된 실행 블록은 다시 수행하지 않는다.
+현재 판단·부족한 점·책임 분리·평가 기준은 [설계 문서 §12](agent-coding-system-direction-through-0.1.68.md#plugin-maturity-yeondoo-link)가 소유한다. 이 문서는 다음 세션에서 실행할 요청이다. 문서를 읽은 것만으로 실행하지 않으며, 사용자가 아래 블록이나 이 문서를 명시적으로 실행 요청으로 전달했을 때 적용한다. 과거 `agent-workflow-next-session.md`와 `agent-coding-next-session.md`의 완료된 실행 블록은 다시 수행하지 않는다.
 
 아래 프롬프트의 실행 전 기준은 플러그인 0.1.47 / `d8068eb`, 마지막 실행 코드 `eb76c6a`, 연두링크 `220c945`였다. 이번 실행에서 실제 플러그인 기준은 clean main `1d7462e`, 연두링크는 clean main `220c945`로 재확인했다. 완료된 공통 수리와 평가를 이 보존된 블록만 보고 반복하지 않는다. 현재 source·commit·패키지·검증 범위와 남은 UI/호스트 판단은 실행 기록에서 확인한다.
 

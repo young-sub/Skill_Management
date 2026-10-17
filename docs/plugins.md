@@ -131,7 +131,7 @@ lookup, feedback repair, UI standards, or maintenance. `setup-project-verificati
 and `maintain-project-verification` connect and improve the project's own guides
 and commands. Existing diagnosis, execution, review and UI Skills are reused.
 See the [system direction](research/agent-coding-system-direction.md) and
-[acceptance design](research/agent-workflow-completion-design.md) for the complete
+[current design](research/agent-coding-system-direction.md) for the complete
 required behavior; packaging alone does not satisfy those requirements.
 
 Version 0.1.40 connects project-declared full-stack scope to prepare/execute/lookup,

@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/result-viewer.md -->
-<!-- Source-SHA256: 93d34a0c33caf3073a7ad1e035a6c026f45832811b967146088ac7ed2b00feeb -->
+<!-- Source-SHA256: b310f369dd9c4224c286126a076a20064762d8ff11bf6ad534c508a206ce390e -->
 
 # Existing-result lookup
 
@@ -239,9 +239,9 @@ executes a command from the scope or reviews.
 the declared task scope; neither attests that every requirement was discovered.
 `coverage.matrix` projects business/architecture × FE/BE/API/Domain independently,
 with `in_task` identifying the current work's impact. Method remains direct,
-cross-layer or e2e. Empty cells are UNDECIDED, never PASS or an automatic exclusion.
+cross-layer or e2e. Empty cells are UNDECIDED, never PASS or an automatic exclusion. They are an impact map, not a compulsory six-cell completion form. Required checks and declared criterion reviews remain obligations independently of these cells.
 
-In the existing Feature review's `scope_reviews`, use cell keys such as
+When explicit cell-level applicability is useful, use the existing Feature review's `scope_reviews` with keys such as
 `business:Domain`. Each cell decision has `status: REQUIRED`, `coverage: [row IDs]`,
 `analysis` and existing-file `references`, or `status: NOT_REQUIRED` with a nonblank
 `reason`, analysis and references. Required cells must account for every matching

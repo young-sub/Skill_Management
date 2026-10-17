@@ -1,6 +1,6 @@
 # Agent Coding 기반 구현 상태와 Labeler 검증 파일럿
 
-> 아카이브: 수행 완료된 기반·파일럿 프롬프트입니다. 현재 구현 지시로 사용하지 않습니다. [현재 결론](../agent-coding-system-direction.md)과 [다음 세션 프롬프트](../agent-coding-next-session.md)를 따릅니다. 변경 전 내용은 Git 이력에 보존됩니다.
+> 아카이브: 수행 완료된 기반·파일럿 프롬프트입니다. 현재 구현 지시로 사용하지 않습니다. [현재 결론](../agent-coding-system-direction.md)과 [다음 세션 프롬프트](agent-coding-next-session-through-0.1.68.md)를 따릅니다. 변경 전 내용은 Git 이력에 보존됩니다.
 
 2026-10-04에 기반 이식 프롬프트를 수행했다. 아래 완료 기록은 그 로컬 구현에 관한 것이다. 설계와 역사적 비교는 [수정 방향](agent-coding-system-direction.md), 현재 직접 명령은 [Testing](../../testing.md), 저장소 기능 지도는 [Feature Map](../../feature-map.md)에 있다. 완료된 기반을 다시 구현하지 않는다.
 

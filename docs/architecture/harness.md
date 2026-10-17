@@ -126,3 +126,11 @@ architecture findings remain independent of approval freshness. Architecture
 carry is read-only input to the next review; resolution uses validated current
 scope evidence. Reintroducing a retired Feature supersedes its old retirement
 review, while a retirement retains the active finding baseline for stale checks.
+
+## Request scope and mechanism-appropriate prevention
+
+The current workflow keeps undeclared matrix cells visible as UNDECIDED without adding six mandatory scope actions. Registered criteria and explicit cell decisions still require evidence; new/changed unmapped sources still require ownership. Unchanged project debt is separate from current request readiness. The prompt context prioritizes selected Feature UI references and consumer-linked UI systems before unrelated project entries.
+
+Structural/type-constraint prevention uses the existing feedback/Feature prevention link and existing foreground captures. A semantic review explains original failure, bypass resistance and nearby normal behavior; the runtime pins its subject, owner/criteria/config and evidence bytes, and validates current source/capture identity. Staging or committing identical bytes preserves reuse; observed content drift still reopens prevention. It does not parse arbitrary native output or infer correctness from exit zero. Automatic regression prevention retains fixed-oracle RED/GREEN joins. Both reopen on changed evidence/ownership; neither is protected-host attestation. See the [repair/reuse contract](../../authoring/references/repair-and-reuse.md).
+
+Task start snapshots only dirty, nonignored paths outside inventory roots; local lookup compares those paths and newly changed Git paths with that baseline. Preexisting unchanged dirty files do not block a bounded request. Known reference documents retain their existing Feature bindings. Private/aliased paths are reported without reading contents; ignored files require explicit project evidence. Host-injected inventory remains authoritative and never triggers this local Git adapter.

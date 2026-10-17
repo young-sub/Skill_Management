@@ -2,7 +2,7 @@
 
 검토일: 2026-10-15. 저장소 기준: clean local `main@fc04f7099ac8ce427892765cfd8d1406fdbd9ab7`, runtime **0.1.61**. 다음 세션은 실제 branch·HEAD·dirty baseline·worktree를 다시 확인한다.
 
-이 문서는 사용자 제공 리서치, 이번 대화에서 확인한 공개 문서·평가 코드, 현재 플러그인 코드와 읽기 전용 환경 조사에 근거한다. **벤치마크 설치·oracle 실행·모델 평가와 아래 runtime 수정은 아직 수행하지 않았다.** 외부 자료는 당시 main/웹 문서의 관찰이며 commit을 고정한 실행 증거가 아니다. 실행 전 데이터 revision·평가기 commit·이미지 digest를 고정한다. 현재 구현과 과거 인수는 [방향 문서](agent-coding-system-direction.md#design-review-2026-10-15)와 [0.1.61 결과](agent-workflow-implementation-results.md#delegated-handoff-2026-10-15)를 따른다.
+이 문서는 사용자 제공 리서치, 이번 대화에서 확인한 공개 문서·평가 코드, 현재 플러그인 코드와 읽기 전용 환경 조사에 근거한다. **벤치마크 설치·oracle 실행·모델 평가와 아래 runtime 수정은 아직 수행하지 않았다.** 외부 자료는 당시 main/웹 문서의 관찰이며 commit을 고정한 실행 증거가 아니다. 실행 전 데이터 revision·평가기 commit·이미지 digest를 고정한다. 현재 구현과 과거 인수는 [방향 문서](archive/agent-coding-system-direction-through-0.1.68.md#design-review-2026-10-15)와 [0.1.61 결과](agent-workflow-implementation-results.md#delegated-handoff-2026-10-15)를 따른다.
 
 ## 결정
 

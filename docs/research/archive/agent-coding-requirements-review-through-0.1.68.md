@@ -1,8 +1,10 @@
+> Historical record through 0.1.68; not current execution instructions. See [current design](../agent-coding-system-direction.md) and [current work](../plugin-continuous-improvement-next-session.md). Original bytes: Git ea7e11d.
+
 # Agent Coding 요구사항 충족 검토와 구현 준비
 
-후속 상태: 사용자의 별도 실행 승인으로 `c7c064a`에서 구현을 시작했다. 아래 표는 수정 전 설계 검토 기록으로 보존하며, 현재 R01–R16의 실제 구현·업무 수용·미검증 상태는 [구현 결과](agent-workflow-implementation-results.md)가 소유한다.
+후속 상태: 사용자의 별도 실행 승인으로 `c7c064a`에서 구현을 시작했다. 아래 표는 수정 전 설계 검토 기록으로 보존하며, 현재 R01–R16의 실제 구현·업무 수용·미검증 상태는 [구현 결과](../agent-workflow-implementation-results.md)가 소유한다.
 
-추가 합의: 전체 기능의 최초 Feature Map, 분할·재개·통합, 모든 고도화의 필수 갱신, Agent 판단/환경 강제의 구분과 제약의 실익은 [완성 기준과 후속 구현](agent-workflow-completion-design.md)에 반영했다. 특히 R04/R12의 범위가 확대되었으므로 아래 역사적 검토나 T1의 첫 흐름 연결로 새 요구 충족을 주장하지 않는다.
+추가 합의: 전체 기능의 최초 Feature Map, 분할·재개·통합, 모든 고도화의 필수 갱신, Agent 판단/환경 강제의 구분과 제약의 실익은 [완성 기준과 후속 구현](agent-workflow-completion-design-through-0.1.68.md)에 반영했다. 특히 R04/R12의 범위가 확대되었으므로 아래 역사적 검토나 T1의 첫 흐름 연결로 새 요구 충족을 주장하지 않는다.
 
 검토일: 2026-10-05. 검토 기준은 사용자가 제시한 **R01–R16의 세부 요구**다. 수정 전 기준은 `wp-20261004-agent-coding-foundation`의 `53865b02d9563c8135b1ad51428c13be227c49fe`, dirty 없음이다. 다음 세션 구현 프롬프트를 실행하지 않았다. 소스·설정·설치·기존 fixture를 변경하거나 앱/모델 평가를 새로 실행하지 않고 문서, 기존 소스/테스트, Git 이력, 보존 raw를 읽었다. 이 문서는 사용자가 요청한 검토·준비 기록이며 일상 작업마다 같은 보고서를 만들라는 지침이 아니다.
 
@@ -12,18 +14,18 @@
 
 이미 충분한 내용도 분명하다. 조회/수정 구분, 작은 작업의 직접 완료, 선택적 Full/계약/위임, 피드백 원인 분류와 구조적 예방, UI 기준과 코드 소유권, 검출력 보존 후 테스트 정리, 실제 Agent 평가가 막히면 전체 완료 금지는 기존 문서에 있다. 이들을 누락이라고 판정하거나 검사 삭제·고정 인원·새 관리 체계를 추가하지 않았다.
 
-이번 문서 보완으로 [현재 설계 §11](agent-coding-system-direction.md#11-요구사항-검토로-구체화한-실행-연결)과 [다음 프롬프트](agent-coding-next-session.md)에 책임/계기/입력/행동/산출물/소비자/실패 처리 및 아래 T1–T6을 연결했다. **문서상 구현 준비는 완료했으나 구현·효과는 미입증**이다. 다음 실행 요청에서 이 기준을 사용하고, 실제 host/권한/자료를 확인한 뒤 허용된 구현을 진행한다. 이번 검토가 설치·운영 적용의 승인이나 성공을 뜻하지 않는다.
+이번 문서 보완으로 [현재 설계 §11](agent-coding-system-direction-through-0.1.68.md#11-요구사항-검토로-구체화한-실행-연결)과 [다음 프롬프트](agent-coding-next-session-through-0.1.68.md)에 책임/계기/입력/행동/산출물/소비자/실패 처리 및 아래 T1–T6을 연결했다. **문서상 구현 준비는 완료했으나 구현·효과는 미입증**이다. 다음 실행 요청에서 이 기준을 사용하고, 실제 host/권한/자료를 확인한 뒤 허용된 구현을 진행한다. 이번 검토가 설치·운영 적용의 승인이나 성공을 뜻하지 않는다.
 
 ## B. 요구사항 추적표
 
 아래 판정은 문서 보완 **이전** `53865b0` 기준이다. 줄 번호는 `git show 53865b0:<파일>`로 재현한다. 보완 뒤 상태를 원래 설계의 충족으로 소급하지 않는다.
 
-- **D** = [docs/research/agent-coding-system-direction.md](agent-coding-system-direction.md)
-- **N** = [docs/research/agent-coding-next-session.md](agent-coding-next-session.md)
-- **L** = [docs/research/labeler-verification-pilot.md](labeler-verification-pilot.md)
-- **P** = [docs/research/pstack-analysis.md](pstack-analysis.md)
-- **A** = [docs/research/archive/agent-coding-system-direction.md](archive/agent-coding-system-direction.md)
-- **M** = [docs/feature-map.md](../feature-map.md), **V** = [docs/testing.md](../testing.md)
+- **D** = [docs/research/agent-coding-system-direction.md](agent-coding-system-direction-through-0.1.68.md)
+- **N** = [docs/research/agent-coding-next-session.md](agent-coding-next-session-through-0.1.68.md)
+- **L** = [docs/research/labeler-verification-pilot.md](../labeler-verification-pilot.md)
+- **P** = [docs/research/pstack-analysis.md](../pstack-analysis.md)
+- **A** = [docs/research/archive/agent-coding-system-direction.md](agent-coding-system-direction.md)
+- **M** = [docs/feature-map.md](../../feature-map.md), **V** = [docs/testing.md](../../testing.md)
 
 `충족`은 설계 반영의 판정이며 설치/실행/효과 입증과 다르다. 각 효과 칸은 기존 근거, 구현 예정, 근거 부족의 적용 범위를 구분한다. T1–T6은 이번에 구체화한 수용 과업이고 아직 실행하지 않았다.
 
@@ -81,7 +83,7 @@ PStack의 Mode/Router는 요청 분류, Playbook은 필요한 순서, Skill은 �
 | `agent-red/green`, `independent-browser`, native text/diff, `agent-implementation.json`, `independent-verdict.json` | 실제 RED/12개 GREEN/독립 관찰 12개 및 diff/출력이 남음 | 마지막 두 JSON은 요약 카드. 이번에 확인한 자료에는 새 Skill 자동 발견/선택을 입증할 raw model/tool transcript가 없음. 절차상 역할 분리와 기술적 격리를 구분 |
 | plugin probe package·host/CLI 기록 | 과거 임시 설치/discovery/cache 실행·버전 시험 자료가 남음 | 이번 host 재시험을 하지 않았고 일반 설치/모델 선택/지침 이행/hook 효과로 확대하지 않음 |
 
-DB 연결 공백은 새 앱/fixture 평가로 메우지 않았다. 기존 raw도 고치지 않았다. [파일럿 문서의 재확인 절](labeler-verification-pilot.md#2026-10-05-요구사항-검토의-근거-재확인)에 제한을 붙였다. 원본 readback/API의 가치 전체를 부정하는 것이 아니라 producer 추적이 불완전한 지점을 한정한 판단이다. `.work` 자료의 만료 가능성과 manifest 기반 보존 등록 여부는 별개이며 임시 폴더가 영구 아카이브인 것처럼 쓰지 않는다.
+DB 연결 공백은 새 앱/fixture 평가로 메우지 않았다. 기존 raw도 고치지 않았다. [파일럿 문서의 재확인 절](../labeler-verification-pilot.md#2026-10-05-요구사항-검토의-근거-재확인)에 제한을 붙였다. 원본 readback/API의 가치 전체를 부정하는 것이 아니라 producer 추적이 불완전한 지점을 한정한 판단이다. `.work` 자료의 만료 가능성과 manifest 기반 보존 등록 여부는 별개이며 임시 폴더가 영구 아카이브인 것처럼 쓰지 않는다.
 
 ## C. 중요한 간극과 가장 작은 보완
 
@@ -130,7 +132,7 @@ DB 연결 공백은 새 앱/fixture 평가로 메우지 않았다. 기존 raw도
 
 ## F. 다음 세션 프롬프트 교정안
 
-다음 문구는 실제 [교정한 실행 프롬프트](agent-coding-next-session.md)에 반영했다. 기존 RED/GREEN, 독립 시험·원본 보존, source/generated, BLOCKED, 검출력 보존, 실제 Agent 필수 조건은 유지했다.
+다음 문구는 실제 [교정한 실행 프롬프트](agent-coding-next-session-through-0.1.68.md)에 반영했다. 기존 RED/GREEN, 독립 시험·원본 보존, source/generated, BLOCKED, 검출력 보존, 실제 Agent 필수 조건은 유지했다.
 
 ```text
 세 Skill이라는 파일 수를 완료 조건으로 삼지 마라. 업무 조정/최초 검증 연결/제품 기준 유지 책임을 기존 능력으로 충족하고, 부족한 판단만 얇게 추가해라. 프로젝트 verify-product/ui-system도 기존 안내로 충분하면 재사용해라.

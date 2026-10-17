@@ -1,12 +1,14 @@
+> Historical record through 0.1.68; not current execution instructions. See [current design](../agent-coding-system-direction.md) and [current work](../plugin-continuous-improvement-next-session.md). Original bytes: Git ea7e11d.
+
 # 다음 세션: Agent Coding 업무 위임 체계 구현·실제 검증
 
-작성일: 2026-10-05. 상태: **명시적 실행 요청에 따라 source/generated 구현과 독립 제품·Agent 수용 검증을 수행한 실행 기준**. 실제 결과와 남은 BLOCKED 범위는 [구현 결과](agent-workflow-implementation-results.md)에 연결한다. 아래는 [현재 결론](agent-coding-system-direction.md)과 [R01–R16 검토·수용 과업](agent-coding-requirements-review.md)을 구현하기 위해 사용한 프롬프트다. 기반 이식과 첫 Labeler 파일럿의 [결과](labeler-verification-pilot.md)와 [이전 프롬프트](archive/agent-coding-next-session.md)는 과거 근거이며 재실행 지시가 아니다.
+작성일: 2026-10-05. 상태: **명시적 실행 요청에 따라 source/generated 구현과 독립 제품·Agent 수용 검증을 수행한 실행 기준**. 실제 결과와 남은 BLOCKED 범위는 [구현 결과](../agent-workflow-implementation-results.md)에 연결한다. 아래는 [현재 결론](agent-coding-system-direction-through-0.1.68.md)과 [R01–R16 검토·수용 과업](agent-coding-requirements-review-through-0.1.68.md)을 구현하기 위해 사용한 프롬프트다. 기반 이식과 첫 Labeler 파일럿의 [결과](../labeler-verification-pilot.md)와 [이전 프롬프트](agent-coding-next-session.md)는 과거 근거이며 재실행 지시가 아니다.
 
 ## 실행에 사용한 프롬프트
 
-아래 블록은 수행 범위의 기록으로 보존한다. 이후 사용자 합의의 전체 Feature init·매 고도화 갱신·환경 집행·위임 성과 기준과 U1–U7은 [완성 기준과 후속 구현](agent-workflow-completion-design.md)이 소유한다. 아래의 한 중요 흐름 연결만으로 최초 setup을 완료하는 범위는 새 전체-init 요구를 충족하지 않는다. 재개 시 현재 source/host와 새 단위의 인수 기준을 확인하며 과거 통제 결함을 일괄 재주입하지 않는다. 새 권한 없이 일반 설치·운영 적용으로 범위를 넓히지 않는다.
+아래 블록은 수행 범위의 기록으로 보존한다. 이후 사용자 합의의 전체 Feature init·매 고도화 갱신·환경 집행·위임 성과 기준과 U1–U7은 [완성 기준과 후속 구현](agent-workflow-completion-design-through-0.1.68.md)이 소유한다. 아래의 한 중요 흐름 연결만으로 최초 setup을 완료하는 범위는 새 전체-init 요구를 충족하지 않는다. 재개 시 현재 source/host와 새 단위의 인수 기준을 확인하며 과거 통제 결함을 일괄 재주입하지 않는다. 새 권한 없이 일반 설치·운영 적용으로 범위를 넓히지 않는다.
 
-현재 새 구현은 [연두링크 사례 기반 플러그인 고도화 프롬프트](plugin-improvement-next-session.md)를 사용한다. [전체 역할 분리·고도화 프롬프트](agent-workflow-next-session.md)도 이미 수행된 범위의 기록이다. 아래 과거 실행 블록을 다시 실행하거나 현재 권한으로 해석하지 않는다.
+현재 새 구현은 [연두링크 사례 기반 플러그인 고도화 프롬프트](plugin-improvement-next-session-through-0.1.68.md)를 사용한다. [전체 역할 분리·고도화 프롬프트](agent-workflow-next-session-through-0.1.68.md)도 이미 수행된 범위의 기록이다. 아래 과거 실행 블록을 다시 실행하거나 현재 권한으로 해석하지 않는다.
 
 ```text
 작업 저장소: C:\Users\YS\Desktop\python\Skill_Management

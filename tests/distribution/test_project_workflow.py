@@ -215,8 +215,9 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertEqual(pending['owner']['kind'], 'Agent_semantic_review')
         self.assertIsNone(pending['owner']['command'])
         self.assertIn('docs/style.md', pending['owner']['guides'])
-        self.assertIn('architecture:Domain', pending)
-        self.assertEqual(pending['architecture:Domain']['status'], 'UNDECIDED')
+        self.assertNotIn('architecture:Domain', pending)
+        self.assertEqual(next(c for c in audit['coverage']['matrix'] if c['feature'] == 'api'
+            and c['perspective'] == 'architecture' and c['area'] == 'Domain')['status'], 'UNDECIDED')
         self.assertTrue(pending['owner']['next_action'])
         self.assertEqual(pending['owner']['current_validity'], 'NOT_RUN')
         config['features'][0]['coverage'][0]['check'] = 'unregistered'
@@ -286,7 +287,7 @@ class ProjectWorkflowTests(unittest.TestCase):
         current = detail['current_task']
         self.assertEqual(current.get('action_scope_counts', {}).get('project_remaining'), 1)
         self.assertEqual({a['target'] for a in current['next_actions']}, {'api'})
-        self.assertEqual(current['next_action_count'], 2, 'Keep both obligation and applicability advice')
+        self.assertEqual(current['next_action_count'], 1, 'Keep the actual obligation without duplicate six-cell advice')
         self.assertEqual(current['next_actions'][0]['scope'], 'request_required')
         self.assertTrue(current['detail'])
 
@@ -314,6 +315,84 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertEqual(project['pending'], [])
         self.assertEqual(summary['detail_command']['state'], '.work/task.json')
         self.assertEqual(len(result['coverage']['rows']), 24)
+
+    def test_small_task_does_not_require_six_cells_or_unchanged_project_inventory(self):
+        runtime = self.runtime()
+        self.write('src/unmapped.py', 'legacy = True\n')
+        feature = self.project['extensions']['workflow']['features'][0]
+        feature['coverage'] = [dict(id='existing-rule', requirement='docs/requirement.md',
+            outcome='Unchanged price', perspectives=['business'], areas=['Domain'], kind='test', check='check')]
+        state = runtime.begin(self.root, self.project, 'change', ['api'])
+        basis = runtime.inspect_project(self.root, self.project, state)['features'][0]['basis']
+        state = runtime.record_review(self.root, self.project, state, {
+            'feature': 'api', 'basis': basis, 'analysis': 'Source-only review of existing price owner',
+            'references': ['src/api.py'], 'findings': [], 'scope_reviews': {
+                'existing-rule': {'status': 'NOT_REQUIRED', 'analysis': 'No price behavior changed',
+                    'reason': 'Source inspection only', 'references': ['src/api.py']}}})
+        before = json.dumps(state, sort_keys=True)
+        audit = runtime.inspect_project(self.root, self.project, state)
+        self.assertEqual(audit['mapping_status'], 'PARTIAL')
+        self.assertEqual(audit['unmapped'], ['src/unmapped.py'])
+        self.assertTrue(all(c['status'] == 'UNDECIDED' for c in audit['coverage']['matrix']))
+        self.assertEqual(runtime.handoff_summary(audit)['task_acceptance'], 'READY_FOR_REVIEW')
+        self.assertFalse(any(a['target'] == 'api' for a in audit['next_actions']))
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        state_path = self.write('.work/task.json', json.dumps(state))
+        self.write('outside/new.py', 'new = True\n')
+        import runpy
+        hook = runpy.run_path(str(ROOT / 'authoring/scripts/workflow_context.py'))['context']
+        with patch.dict(os.environ, AGENT_WORKFLOW_CONTEXT=runtime.task_context(self.root, state, state_path)):
+            response = hook({'hook_event_name':'UserPromptSubmit', 'cwd':str(self.root)})
+        current = json.loads(response['hookSpecificOutput']['additionalContext'].split('\n', 1)[1])['current_task']
+        self.assertEqual(current['task_acceptance'], 'INCOMPLETE')
+        self.assertIn('outside/new.py', current['unmapped_changes'])
+        (self.root / 'outside/new.py').unlink()
+        # Changed unmapped behavior still needs an owner; the old project debt is not erased.
+        self.write('src/unmapped.py', 'legacy = False\n')
+        changed = runtime.inspect_project(self.root, self.project, state)
+        self.assertEqual(runtime.handoff_summary(changed)['task_acceptance'], 'INCOMPLETE')
+        (self.root / 'src/unmapped.py').unlink()
+        deleted = runtime.inspect_project(self.root, self.project, state)
+        self.assertEqual(runtime.handoff_summary(deleted)['task_acceptance'], 'INCOMPLETE')
+        self.assertEqual(json.dumps(state, sort_keys=True), before)
+
+    def test_target_scope_detects_new_paths_outside_inventory_without_blocking_old_dirty_files(self):
+        runtime = self.runtime()
+        config = self.project['extensions']['workflow']
+        config['roots'] = ['src/api.py', 'src/cli.py']
+        self.write('other/preexisting.py', 'unrelated = 1\n')
+        state = runtime.begin(self.root, self.project, 'change', ['api'])
+        self.assertEqual(runtime.inspect_project(self.root, self.project, state)['unmapped_changes'], [])
+        self.write('other/new.py', 'new_behavior = 1\n')
+        audit = runtime.inspect_project(self.root, self.project, state)
+        self.assertIn('other/new.py', audit['unmapped_changes'])
+        self.assertNotIn('other/preexisting.py', audit['unmapped_changes'])
+        subprocess.run(['git', 'add', 'other/new.py'], cwd=self.root, check=True, capture_output=True)
+        subprocess.run(['git', '-c', 'user.name=Fixture', '-c', 'user.email=f@invalid', 'commit', '-qm', 'new path'],
+                       cwd=self.root, check=True, capture_output=True)
+        self.assertIn('other/new.py', runtime.inspect_project(self.root, self.project, state)['unmapped_changes'])
+        injected = runtime.inventory(self.root, config['roots'])
+        with patch.object(runtime, 'outside_inventory', side_effect=AssertionError('host inventory is authoritative')):
+            runtime.inspect_project(self.root, self.project, state, file_inventory=injected)
+
+        self.write('other/preexisting.py', 'unrelated = 2\n')
+        self.assertIn('other/preexisting.py', runtime.inspect_project(self.root, self.project, state)['unmapped_changes'])
+        (self.root / 'other/new.py').unlink()
+        (self.root / 'other/preexisting.py').unlink()
+        self.assertIn('other/preexisting.py', runtime.inspect_project(self.root, self.project, state)['unmapped_changes'])
+
+    def test_registered_ui_system_is_sufficient_for_ui_request(self):
+        runtime = self.runtime()
+        self.write('src/tokens.css', ':root { --focus: blue; }\n')
+        self.write('docs/ui.md', 'Use shared focus behavior.\n')
+        self.project['extensions']['workflow']['ui_systems'] = {'shared': {
+            'guide': 'docs/ui.md', 'tokens': ['src/tokens.css'],
+            'components': ['src/api.py'], 'consumers': ['api']}}
+        state = runtime.begin(self.root, self.project, 'ui', ['api'])
+        result = runtime.inspect_project(self.root, self.project, state)
+        self.assertNotIn('missing_ui_standard:api', result['findings'])
+        self.assertIn('ui_review', result['obligations'][0]['requires'])
+        self.assertEqual(result['next_actions'][0]['guides'][0]['guide'], 'docs/ui.md')
 
     def test_project_partial_does_not_hide_current_request_readiness(self):
         runtime = self.runtime()
@@ -704,9 +783,8 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertEqual(ready['status'], 'READY_FOR_REVIEW', ready)
         self.assertEqual(ready['coverage']['status'], 'PARTIAL')
         self.assertEqual(ready['features'][0]['check_results'][0]['current_status'], 'PASS')
-        self.assertTrue(any(action['target'] == 'api' and
-            'scope_applicability_or_evidence' in action['requires'] for action in ready['next_actions']),
-            'Review readiness must explain undecided applicability without discarding valid execution')
+        self.assertEqual(ready['next_actions'], [])
+        self.assertEqual(ready['handoff']['task_acceptance'], 'READY_FOR_REVIEW')
         hook = subprocess.run([sys.executable, str(SCRIPT.with_name('workflow_context.py'))],
             input=json.dumps({'cwd': str(self.root), 'hook_event_name': 'UserPromptSubmit'}),
             capture_output=True, text=True, encoding='utf-8',
@@ -1001,18 +1079,11 @@ class ProjectWorkflowTests(unittest.TestCase):
         audit = runtime.inspect_project(self.root, self.project, state)
         self.assertEqual(audit['status'], 'READY_FOR_REVIEW')
         self.assertEqual(audit['features'][1]['verification_status'], 'NOT_REQUIRED')
-        self.assertEqual([a['target'] for a in audit.get('next_actions', [])], ['api', 'cli'])
-        self.assertEqual(len(audit['next_actions'][0]['cells']), 6)
-        for feature in ('api', 'cli'):
-            review = dict(state['reviews'][feature], scope_reviews={
-                p + ':' + a: {'status': 'NOT_REQUIRED', 'reason': 'Source-only review, no behavior changed',
-                             'analysis': 'Inspected unchanged source', 'references': ['src/' + feature + '.py']}
-                for p in ('business', 'architecture') for a in ('FE', 'BE/API', 'Domain')})
-            state = runtime.record_review(self.root, self.project, state, review)
-        audit = runtime.inspect_project(self.root, self.project, state)
-        self.assertEqual(audit['status'], 'READY_FOR_REVIEW')
-        self.assertEqual(audit['coverage']['status'], 'COMPLETE')
         self.assertEqual(audit['next_actions'], [])
+        self.assertEqual(audit['coverage']['status'], 'PARTIAL')
+        self.assertTrue(all(c['status'] == 'UNDECIDED' for c in audit['coverage']['matrix']))
+        # Unknown whole-project coverage is visible, without six compulsory N/A declarations.
+        self.assertEqual(runtime.handoff_summary(audit)['task_acceptance'], 'READY_FOR_REVIEW')
 
     def test_architecture_needs_flow_boundary_and_owner_resolution_evidence(self):
         runtime = self.runtime()

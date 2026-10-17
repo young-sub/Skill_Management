@@ -1,12 +1,14 @@
+> Historical record through 0.1.68; not current execution instructions. See [current design](../agent-coding-system-direction.md) and [current work](../plugin-continuous-improvement-next-session.md). Original bytes: Git ea7e11d.
+
 # 0.1.46 이후 위임 신뢰성 검토와 개선 순서
 
 <a id="post-0146-review"></a>
 
 현재 후속 상태: 아래 D1–D3는 0.1.46에서 재현한 역사적 반례다. 0.1.47의
 실제 수정·CLI/패키지 소비·검증과 남은 한계는
-[후속 구현 결과](agent-workflow-implementation-results.md#d1d3-consumption-2026-10-09)가 소유한다.
+[후속 구현 결과](../agent-workflow-implementation-results.md#d1d3-consumption-2026-10-09)가 소유한다.
 
-2026-10-09, clean local main `ef25cf2cf0795f3af69aafb2a03fe0f95c24c550`, 패키지 0.1.46을 기준으로 검토했다. [현재 설계](agent-coding-system-direction.md), canonical runtime/호출자/기존 회귀, [실제 구현 결과](agent-workflow-implementation-results.md#post-review-reliability-2026-10-09), [고정 pstack 조사](pstack-analysis.md)를 대조했다. 두 독립 검토는 읽기 전용이었고, 핵심 발견은 주 Agent가 코드와 실제 CLI/hook으로 확인했다.
+2026-10-09, clean local main `ef25cf2cf0795f3af69aafb2a03fe0f95c24c550`, 패키지 0.1.46을 기준으로 검토했다. [현재 설계](agent-coding-system-direction-through-0.1.68.md), canonical runtime/호출자/기존 회귀, [실제 구현 결과](../agent-workflow-implementation-results.md#post-review-reliability-2026-10-09), [고정 pstack 조사](../pstack-analysis.md)를 대조했다. 두 독립 검토는 읽기 전용이었고, 핵심 발견은 주 Agent가 코드와 실제 CLI/hook으로 확인했다.
 
 **방향은 유지하되, 현재 구현의 남은 상태 전이와 조회 범위 오류를 먼저 고친다.** 이미 완료한 R0–R4와 원래 A–C를 다시 만들지 않는다. 이 변경은 설계 보완이며 아래 새 runtime 결함의 구현은 아니다. 직전 0.1.45 검토 전문은 Git `ef25cf2:docs/research/agent-workflow-refinement-review.md`에 보존된다.
 
@@ -29,7 +31,7 @@
 
 격리 fixture에서 명시적 예외 승인 후 같은 승인 파일을 철회 내용으로 바꿨다. 실제 CLI 순서는 `ACCEPTED → OPEN → kind=unknown의 OPEN → kind=intentional_difference의 ACCEPTED`였다. 새 `user_review`는 없었고 ID·내용도 같았다. 새 관련 task도 ACCEPTED를 승계했다. whole-product는 PARTIAL이므로 제품 전체 false PASS로 표현하지 않는다.
 
-원인은 [record_feedback](../../authoring/scripts/project_workflow.py)의 intentional_difference 분기 밖에서 `decision_hashes`를 재캡처하면서 이전 `decision_binding`을 보존하는 것이다. 돌아온 분류와 옛 binding의 subject가 다시 일치해 최신 철회 파일 hash를 유효한 승인 근거로 사용한다. 기존 메타데이터/same-review 회귀는 단일 분류 안의 갱신을 검증했다.
+원인은 [record_feedback](../../../authoring/scripts/project_workflow.py)의 intentional_difference 분기 밖에서 `decision_hashes`를 재캡처하면서 이전 `decision_binding`을 보존하는 것이다. 돌아온 분류와 옛 binding의 subject가 다시 일치해 최신 철회 파일 hash를 유효한 승인 근거로 사용한다. 기존 메타데이터/same-review 회귀는 단일 분류 안의 갱신을 검증했다.
 
 최소 개선: 기존 레코드에서 승인 결정의 근거와 분류별 확인 근거를 구분해 보존한다. 분류 전이는 현재 예외 효력을 해제하되 과거 승인 이력/원본 hash를 재작성하지 않는다. 예외로 돌아갈 때 새 연결된 결정이 없으면 OPEN을 유지한다. 정상 재분류 자체를 금지하거나 별도 승인 DB를 만들지 않는다.
 
@@ -39,7 +41,7 @@
 
 독립 fixture에서 기존 기준·승인 파일은 그대로 두고 같은 Feature의 `criteria`에 “terminal-price 예외를 금지한다”는 새 파일을 추가했다. lookup과 다음 task에서 기존 feedback은 ACCEPTED였다. 다른 Feature의 무관한 기준 변경과 구분되는 반례다. 전체 제품은 PARTIAL이었다.
 
-[difference_review_matches / inspect_feedback](../../authoring/scripts/project_workflow.py)는 승인 당시 선택한 `criteria_refs`의 현재 집합 포함 여부와 선택 파일 hash를 검사한다. 선택 집합 밖의 새 관련 요구 추가는 결정 효력 검토에 연결되지 않는다. 기존 A3의 “연결된 파일 내용 변경” 방어는 유효하며 이번 반례와 다르다.
+[difference_review_matches / inspect_feedback](../../../authoring/scripts/project_workflow.py)는 승인 당시 선택한 `criteria_refs`의 현재 집합 포함 여부와 선택 파일 hash를 검사한다. 선택 집합 밖의 새 관련 요구 추가는 결정 효력 검토에 연결되지 않는다. 기존 A3의 “연결된 파일 내용 변경” 방어는 유효하며 이번 반례와 다르다.
 
 최소 개선: 결정이 검토한 Feature/범위의 **적용 기준 집합**도 기존 binding에 연결한다. 추가·제거·재연결로 관련성 판단이 미완료면 재검토로 둔다. 같은 Feature의 새 기준은 보수적으로 검토하고 무관한 Feature 변경은 승인을 무효화하지 않는다. 더 세밀한 제외는 이유와 검토 revision이 있을 때만 허용한다. CLI 자연어 판정이나 전체 Git/bundle stale 보호 축소는 도입하지 않는다.
 
@@ -49,7 +51,7 @@
 
 실제 CLI에서 API만 대상으로 task를 시작했다. exact lookup은 API 활성 6셀과 CLI의 `in_task=false` 6셀을 구분했지만 실제 hook의 `current_task.scope.gap_count`는 12였다. 미리보기는 앞 6개만 보여 집계 범위가 더 모호해졌다. 조회 전후 파일 hash는 같고 실행은 0회였다.
 
-[scope_context](../../authoring/scripts/workflow_context.py)는 `in_task`를 확인하지 않고 전체 matrix를 합산한다. 반면 [coverage_summary](../../authoring/scripts/project_workflow.py)는 active 셀로 task 상태를 판정한다. 상태와 공백 개수의 분모가 다르다.
+[scope_context](../../../authoring/scripts/workflow_context.py)는 `in_task`를 확인하지 않고 전체 matrix를 합산한다. 반면 [coverage_summary](../../../authoring/scripts/project_workflow.py)는 active 셀로 task 상태를 판정한다. 상태와 공백 개수의 분모가 다르다.
 
 최소 개선: task의 active gap과 프로젝트 전체 gap을 구분하고 exact audit의 전체 matrix는 유지한다. 인수는 두 Feature 중 하나만 선택했을 때 task=6/project=12, 범위 확대·무관한 Feature 미확인 보존, bounded hook·정확한 task·읽기 전용이다. 새 상태 파일이나 dashboard는 필요 없다.
 
@@ -57,7 +59,7 @@
 
 ### 검증 요약을 실제 판단까지 연결한다
 
-[task_candidates](../../authoring/scripts/project_workflow.py)는 ordinary task의 ID·의도·대상·요청을 발견하지만 검증 상태를 합산하지 않는다. [summarize_results](../../authoring/scripts/verification_results.py)는 전체 검증 후 표시량을 줄이기 위해 raw observations를 생략한다. 둘 다 자동으로 제품 결함이라는 뜻은 아니다. 다만 이전 fresh reader는 descriptor에서 raw로 이동하지 않고 “runtime 근거 없음”으로 오해했다. 오류와 원시 근거 정정은 [구현 결과](agent-workflow-implementation-results.md#post-review-reliability-2026-10-09)에 남아 있다.
+[task_candidates](../../../authoring/scripts/project_workflow.py)는 ordinary task의 ID·의도·대상·요청을 발견하지만 검증 상태를 합산하지 않는다. [summarize_results](../../../authoring/scripts/verification_results.py)는 전체 검증 후 표시량을 줄이기 위해 raw observations를 생략한다. 둘 다 자동으로 제품 결함이라는 뜻은 아니다. 다만 이전 fresh reader는 descriptor에서 raw로 이동하지 않고 “runtime 근거 없음”으로 오해했다. 오류와 원시 근거 정정은 [구현 결과](../agent-workflow-implementation-results.md#post-review-reliability-2026-10-09)에 남아 있다.
 
 기존 조회에 **선택한 task → Feature/6셀 → 주장과 실제 관찰 → raw 위치 → 현재 유효성/미확인/다음 행동**을 짧게 연결한다. 상세 생략과 실제 근거 누락을 구별하고, 여러 task 비교는 명시적 선택·제한된 묶음으로 시작한다. 모든 프롬프트에서 모든 bundle을 재검사하거나 새 장부를 먼저 만들지 않는다.
 
@@ -65,7 +67,7 @@
 
 ### UI·검증 guide의 효과는 다음 소비 작업으로 평가한다
 
-[inspect_ui_systems](../../authoring/scripts/project_workflow.py)는 guide/token/component 존재와 소비자 연결을 확인한다. 시각 의미를 판정하지 않는 것은 올바른 책임 경계다. 기존 T5의 공유 UI 수리와 새 context 재사용은 재사용할 근거이며 다시 미구현으로 분류하지 않는다.
+[inspect_ui_systems](../../../authoring/scripts/project_workflow.py)는 guide/token/component 존재와 소비자 연결을 확인한다. 시각 의미를 판정하지 않는 것은 올바른 책임 경계다. 기존 T5의 공유 UI 수리와 새 context 재사용은 재사용할 근거이며 다시 미구현으로 분류하지 않는다.
 
 다음 개선은 알려진 불편이나 새로운 소비 상태가 있을 때 한정한다. 예를 들어 저장 오류 상태가 공통 component에서 누락되면 공유 owner를 수리하고 guide에 복구 의도·사용법을 연결한 뒤 새로운 화면 요청의 재사용을 본다. 정상/destructive variant, keyboard, 관련 viewport와 요청한 persistence 경로를 확인한다. 실제 값의 문서 복사, screenshot 개수, 모든 화면 전수 검사를 목표로 삼지 않는다.
 

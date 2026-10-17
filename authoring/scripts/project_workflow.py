@@ -83,6 +83,34 @@ def inventory(root, roots):
     return result
 
 
+def source_patterns(config, feature):
+    return list(dict.fromkeys(feature['sources'] + [pattern
+        for system in config.get('ui_systems', {}).values() if feature['id'] in system['consumers']
+        for field in ('tokens', 'components') for pattern in system[field]]))
+
+
+def outside_inventory(root, config, base, previous=()):
+    """Only changed, nonignored Git paths; never broaden the content inventory."""
+    names = set(git(root, 'diff', '--name-only', '-z', base).decode('utf-8').split('\0'))
+    names.update(git(root, 'ls-files', '-z', '--others', '--exclude-standard').decode('utf-8').split('\0'))
+    names.update(previous)
+    references = {name for feature in config['features'] for field in ('map', 'criteria', 'ui')
+                  for name in feature.get(field, [])}
+    references.update(row['requirement'] for feature in config['features'] for row in feature.get('coverage', []))
+    references.update(system['guide'] for system in config.get('ui_systems', {}).values())
+    references.add('.harness/project.yaml')
+    result = {}
+    for name in sorted(names - {''} - references):
+        if name.startswith('.work/') or any(name == prefix or name.startswith(prefix.rstrip('/') + '/') for prefix in config['roots']):
+            continue
+        try:
+            result[name] = file_hash(root, name) or 'DELETED'
+        except ValueError:
+            # Private or aliased paths remain visible without reading their bytes.
+            result[name] = 'UNINSPECTED'
+    return result
+
+
 def configuration(project):
     if not isinstance(project, dict):
         raise ValueError('project_must_be_object')
@@ -384,16 +412,15 @@ def begin(root, project, intent, targets=(), *, prior_state=None, request_summar
                     if pending['check'] not in links['checks']:
                         links['checks'].append(pending['check'])
                     links['prevention'].extend(p for p in prior_links.get('prevention', [])
-                                               if p['check'] == pending['check'] and p not in links['prevention'])
+                                               if p.get('check') == pending['check'] and p not in links['prevention'])
                     links['criteria_before'] = deepcopy(prior_links.get('criteria_before', {}))
     return {'schema_version': 1, 'task_id': str(uuid.uuid4()), 'root': str(root.resolve()), 'intent': intent, 'request': request,
             'targets': sorted(set(targets)), 'base': git(root, 'rev-parse', 'HEAD').decode().strip(),
             'dirty_baseline': git(root, 'status', '--porcelain').decode('utf-8'),
-            'baseline': files, 'reviews': reviews, 'retired_reviews': retired_reviews,
+            'baseline': files, 'outside_baseline': outside_inventory(root, config, git(root, 'rev-parse', 'HEAD').decode().strip()),
+            'reviews': reviews, 'retired_reviews': retired_reviews,
             'feedback': feedback, 'results': results,
-            'source_patterns': {f['id']: list(dict.fromkeys(f['sources'] + [pattern
-                for system in config.get('ui_systems', {}).values() if f['id'] in system['consumers']
-                for field in ('tokens', 'components') for pattern in system[field]])) for f in config['features']},
+            'source_patterns': {f['id']: source_patterns(config, f) for f in config['features']},
             'documentation_only': {f['id']: dict(f.get('documentation_only', {})) for f in config['features']},
             'input_bases': {item['id']: item['basis'] for item in features},
             'verification_bases': {item['id']: item['verification_basis'] for item in features},
@@ -772,11 +799,12 @@ def inspect_result_links(root, feature, commands, links, required_checks=None, *
             'findings': sorted(set(findings)) if missing else []}
 
 
-def inspect_project(root, project, state=None, *, file_inventory=None, evidence_resolver=None):
+def inspect_project(root, project, state=None, *, file_inventory=None, evidence_resolver=None, observe_local_changes=False):
     """Host callers supply trusted inventory/evidence and a protected snapshot root.
 
     Reference and semantic-review reads still use root; injected inputs alone do
     not establish protected acceptance. Ordinary audit keeps its local adapters.
+    The local prompt hook explicitly opts into Git change observation when sharing inventory.
     """
     root = root.resolve()
     config = configuration(project)
@@ -802,7 +830,7 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
     if state is not None and not isinstance(state.get('baseline'), dict):
         raise ValueError('workflow_baseline_required')
     state = state or {}
-    for field in ('reviews', 'retired_reviews', 'baseline', 'input_bases', 'verification_bases', 'source_patterns', 'documentation_only', 'results'):
+    for field in ('reviews', 'retired_reviews', 'baseline', 'outside_baseline', 'input_bases', 'verification_bases', 'source_patterns', 'documentation_only', 'results'):
         if not isinstance(state.get(field, {}), dict):
             raise ValueError(f'workflow_state_requires_object:{field}')
     for links in state.get('results', {}).values():
@@ -848,9 +876,15 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
         findings.extend(f'missing_reference:{identity}:{name}' for name, value in refs.items() if value is None)
         findings.extend(f'missing_command:{identity}:{name}' for name in feature['checks'] if name not in commands)
         for prevention in feature.get('prevention', []):
-            if not all(prevention.get(key) for key in ('failure', 'check', 'normal_exception')):
+            structural = prevention.get('mechanism') in {'structure', 'type_constraint'}
+            fields = ('failure', 'scope', 'owner_refs', 'normal_exception', 'reconsider') if structural else ('failure', 'check', 'normal_exception')
+            if not all(prevention.get(key) for key in fields):
                 findings.append(f'incomplete_prevention:{identity}')
-            if prevention.get('check') not in feature['checks']:
+            if structural:
+                owners = prevention.get('owner_refs', [])
+                if not isinstance(owners, list) or not owners or any(name not in sources or sources[name] is None for name in owners):
+                    findings.append(f'inactive_prevention_owner:{identity}')
+            elif prevention.get('check') not in feature['checks']:
                 findings.append(f'inactive_prevention:{identity}:{prevention.get("check")}')
         basis_inputs = {'feature': feature, 'sources': sources, 'references': refs,
                         'commands': {name: commands.get(name) for name in feature['checks']}}
@@ -918,7 +952,7 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
         ui_requested = state.get('intent') == 'ui' and identity in state.get('targets', [])
         if ui_requested:
             requires.append('verification')
-            if not feature.get('ui'):
+            if not feature.get('ui') and not ui_systems:
                 findings.append(f'missing_ui_standard:{identity}')
         if feature.get('ui') or ui_requested or ui_systems:
             requires.append('ui_review')
@@ -944,6 +978,12 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
                             for item in retirements for reason in item['remaining'])
         needs_behavior = any(requirement in requires for requirement in ('verification', 'repair', 'regression'))
         behavior = None
+        structural_evidence = []
+        current_repairs = [item for item in feature_feedback
+            if item.get('prevention_binding', {}).get('task_identity') == task_identity(state)]
+        current_structural_repair = (repair_request and current_repairs and not feature['checks']
+            and all(item['status'] == 'RESOLVED' and item.get('guardrail', {}).get('mechanism') in {'structure', 'type_constraint'}
+                    for item in current_repairs))
         links = list(state.get('results', {}).get(identity, []))
         if review.get('bundle') and review['bundle'] not in links:
             links.insert(0, review['bundle'])
@@ -953,6 +993,9 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
                     behavior = evidence_resolver(root, required_feature, commands)
             elif links:
                 behavior = inspect_result_links(root, feature, commands, links, required_feature['checks'], bundle_cache=bundle_cache)
+            elif current_structural_repair:
+                structural_evidence = sorted({name for item in current_repairs for name in item['prevention_review']['captures']})
+                behavior = {'status': 'PASS', 'findings': [], 'items': []}
             elif not required_feature['checks'] and excluded:
                 behavior = {'status': 'NOT_REQUIRED', 'findings': [], 'items': []}
             if needs_behavior and behavior is not None and behavior['status'] not in {'PASS', 'NOT_REQUIRED'}:
@@ -1000,8 +1043,8 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
             pending = True
             requires.append('scope_review_or_connection')
             findings.extend(f'coverage_gap:{identity}:{name}' for name in scope_gaps)
-        if in_task and (feature.get('coverage') or any(':' in key for key in review.get('scope_reviews', {}))):
-            if any(cell['status'] not in {'PASS', 'NOT_REQUIRED'} for cell in matrix):
+        if in_task:
+            if any(cell['decision'] and cell['status'] not in {'PASS', 'NOT_REQUIRED'} for cell in matrix):
                 pending = True
                 requires.append('scope_applicability_or_evidence')
         if pending:
@@ -1019,6 +1062,7 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
                                    'verification_status': ('NOT_REQUIRED' if not needs_behavior or not required_feature['checks'] and excluded else
                                        'PASS' if behavior and behavior['status'] == 'PASS' else 'REQUIRED'),
                                    'checks': feature['checks'], 'excluded_checks': excluded,
+                                   'structural_evidence': structural_evidence,
                                    'check_results': behavior.get('items', []) if behavior else [],
                                    'reviewed': reviewed, 'mapping_ready': bool(mapping_ready), 'source_count': len(sources)})
         partition = feature['partition']
@@ -1028,6 +1072,14 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
         if not feature['checks']:
             result['unlinked'].append(identity)
     result['unmapped'] = sorted(name for name in files.keys() - covered if files[name] is not None)
+    owned_patterns = [pattern for feature in config['features'] for pattern in feature['sources']]
+    owned_patterns += [pattern for patterns in state.get('source_patterns', {}).values() for pattern in patterns]
+    result['unmapped_changes'] = (result['unmapped'] if not state or state.get('intent') == 'init' or not state.get('targets')
+        else sorted(name for name in changed if name not in covered and not any(fnmatchcase(name, pattern) for pattern in owned_patterns)))
+    if state and (file_inventory is None or observe_local_changes):
+        outside = outside_inventory(root, config, state['base'], state.get('outside_baseline', {}))
+        result['unmapped_changes'] = sorted(set(result['unmapped_changes']) | {
+            name for name, value in outside.items() if value != state.get('outside_baseline', {}).get(name)})
     removed = (set(state.get('input_bases', {})) | set(state.get('reviews', {})) | set(state.get('retired_reviews', {}))) - {f['id'] for f in config['features']}
     removed |= {item['feature'] for item in result['feedback'] if item['feature'] not in {f['id'] for f in config['features']}}
     for name in sorted(removed):
@@ -1074,16 +1126,6 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
     if result.get('investigation', {}).get('status') == 'PARTIAL':
         result['status'] = 'PARTIAL'
     result['next_actions'] = deepcopy(result['obligations'])
-    for feature in config['features']:
-        cells = [cell for cell in result['coverage']['matrix'] if cell['feature'] == feature['id']
-                 and cell['in_task'] and cell['status'] not in {'PASS', 'NOT_REQUIRED'}]
-        if cells and not any(action['target'] == feature['id'] and
-                             'scope_applicability_or_evidence' in action['requires'] for action in result['next_actions']):
-            result['next_actions'].append({'target': feature['id'], 'advisory': True,
-                'reason': 'review_readiness_is_not_scope_completion', 'requires': ['scope_applicability_or_evidence'],
-                'cells': [{key: cell[key] for key in ('perspective', 'area', 'status')} for cell in cells],
-                'references': feature['criteria'],
-                'detail': 'Review task applicability and evidence; justify N/A where appropriate. Existing valid checks remain reusable; this does not require six executions.'})
     connect_next_actions(root, project, state, result)
     return result
 
@@ -1156,7 +1198,7 @@ def connect_next_actions(root, project, state, result):
                                if row['kind'] == 'test' else
                                'Review the stated outcome against sources and guide; record analysis and references in scope_reviews. Execution PASS does not supply semantic judgment.'}
             action['pending'].append(pending)
-        cells = [c for c in result['coverage']['matrix'] if c['feature'] == identity and c['in_task']
+        cells = [c for c in result['coverage']['matrix'] if c['feature'] == identity and c['in_task'] and c['decision']
                  and c['status'] not in {'PASS', 'NOT_REQUIRED'}]
         for cell in cells:
             action['pending'].append({'id': cell['perspective'] + ':' + cell['area'], 'kind': 'Agent_scope_decision',
@@ -1180,7 +1222,7 @@ def handoff_summary(result, verification=None):
         limit += (' Task verification is BLOCKED: ' + json.dumps(reasons[:3])
                   + '. Inspect verification for all blockers before accepting this task.')
     return {'project_status': result['status'],
-        'task_acceptance': 'BLOCKED' if blocked else 'INCOMPLETE' if result['status'] == 'NOT_CONFIGURED' or result['unmapped']
+        'task_acceptance': 'BLOCKED' if blocked else 'INCOMPLETE' if result['status'] == 'NOT_CONFIGURED' or result.get('unmapped_changes', result['unmapped'])
             or result.get('investigation', {}).get('status', 'READY_FOR_REVIEW') != 'READY_FOR_REVIEW'
             or any(a['scope'] != 'project_remaining' for a in result['next_actions']) else 'READY_FOR_REVIEW',
         'check_acceptance': 'BLOCKED_BY_TASK_BINDING_OR_EFFECT' if blocked else 'CURRENT_CHECKS_ONLY',
@@ -1687,7 +1729,7 @@ def inspect_check_retirements(root, project, feature, state, review, reviewed, *
             result.append({'feature': feature['id'], 'check': check, 'decision': decision,
                            'status': 'BLOCKED' if remaining else 'PRESERVED', 'remaining': sorted(set(remaining))})
             continue
-        failures = [p for p in prior.get('prevention', []) if p['check'] == check]
+        failures = [p for p in prior.get('prevention', []) if p.get('check') == check]
         if not failures:
             remaining.append('prior_detection_scope_unknown')
         for failure in failures:
@@ -1724,7 +1766,7 @@ def maintenance_summary(root, project, state=None, history=(), *, retirements=()
                 'disposition': 'retain', 'retain_reason': 'No current detection-preservation evidence; semantic review required'})
             row['features'].append(feature['id'])
             for prevention in feature.get('prevention', []) + prior.get('prevention', []):
-                if prevention['check'] == check and prevention not in row['failures']:
+                if prevention.get('check') == check and prevention not in row['failures']:
                     row['failures'].append(prevention)
     paths = list(history) + [review['bundle'] for review in state.get('reviews', {}).values() if review.get('bundle')]
     paths += [path for links in state.get('results', {}).values() for path in links]
@@ -1899,7 +1941,7 @@ def record_feedback(root, project, state, entry):
     if feature is None:
         raise ValueError('feedback_feature_unknown')
     updated = dict(previous, **deepcopy(entry))
-    for field in ('decision_hashes', 'decision_binding', 'decision_history', 'confirmation_hashes', 'recovery_hashes', 'environment_history'):
+    for field in ('decision_hashes', 'decision_binding', 'decision_history', 'confirmation_hashes', 'recovery_hashes', 'environment_history', 'prevention_binding'):
         if field in entry:
             raise ValueError('feedback_decision_basis_is_read_only')
     kinds = {'requirement_violation', 'requirement_change', 'intentional_difference', 'oracle_tool_error',
@@ -1928,7 +1970,7 @@ def record_feedback(root, project, state, entry):
     # The captured work baseline, not caller-supplied hashes, owns repair identity.
     updated['source_before'] = previous.get('source_before', {
         name: value for name, value in state['baseline'].items()
-        if any(fnmatchcase(name, pattern) for pattern in feature['sources'])})
+        if any(fnmatchcase(name, pattern) for pattern in source_patterns(configuration(project), feature))})
     updated['criteria_before'] = previous.get('criteria_before', {name: file_hash(root, name) for name in feature['criteria']})
     references = [name for field in ('evidence_refs', 'owner_refs', 'authorization_refs') for name in updated.get(field, [])]
     if updated.get('user_review'):
@@ -1970,6 +2012,16 @@ def record_feedback(root, project, state, entry):
         if previous.get('environment_recovery') and previous['environment_recovery'] != proof:
             updated['environment_history'].append({key: deepcopy(previous.get(key)) for key in
                 ('environment_recovery', 'recovery_hashes', 'green_bundle')})
+    if 'prevention_review' in entry:
+        proof = updated['prevention_review']
+        references = prevention_review_references(root, proof)
+        if proof != previous.get('prevention_review'):
+            if proof['id'] == previous.get('prevention_review', {}).get('id'):
+                raise ValueError('prevention_review_requires_new_identity')
+            names = set(references + updated.get('repair_paths', []) +
+                        updated.get('guardrail', {}).get('owner_refs', []) + feature['criteria'] + ['.harness/project.yaml'])
+            updated['prevention_binding'] = {'subject': prevention_subject(updated), 'task_identity': task_identity(state),
+                'references': {name: file_hash(root, name) for name in names}}
     result = deepcopy(state)
     result.setdefault('feedback', {})[entry['id']] = updated
     return result
@@ -2112,6 +2164,89 @@ def environment_recovery_remaining(root, feature, entry, *, bundle_cache=None):
         return ['environment_recovery_evidence_unavailable']
 
 
+def prevention_subject(entry):
+    return digest({key: entry.get(key) for key in ('guardrail', 'prevention_review', 'repair_paths')})
+
+
+def prevention_review_references(root, proof):
+    if (not isinstance(proof, dict) or any(not isinstance(proof.get(key), str) or not proof[key].strip()
+            for key in ('id', 'analysis')) or not isinstance(proof.get('captures'), list) or not proof['captures']):
+        raise ValueError('prevention_review_requires_analysis_and_execution')
+    references = list(proof['captures'])
+    for key in ('original_failure', 'bypass', 'normal'):
+        observation = proof.get(key, {})
+        if (not isinstance(observation, dict) or not isinstance(observation.get('analysis'), str)
+                or not observation['analysis'].strip() or not isinstance(observation.get('references'), list)
+                or not observation['references']):
+            raise ValueError(f'prevention_observation_required:{key}')
+        if key != 'original_failure' and not any(name in proof['captures'] for name in observation['references']):
+            raise ValueError(f'prevention_execution_reference_required:{key}')
+        references.extend(observation['references'])
+    if not any(name not in proof['captures'] for name in proof['original_failure']['references']):
+        raise ValueError('prevention_original_observation_required')
+    if any(not isinstance(name, str) or not name or file_hash(root, name) is None for name in references):
+        raise ValueError('prevention_reference_missing')
+    return references
+
+
+def structural_prevention_remaining(root, feature, entry, *, bundle_cache):
+    """Bind Agent-reviewed behavior to existing captures; exit zero alone is not a verdict."""
+    import unittest_evidence as reader
+    from datetime import datetime
+    proof = entry.get('prevention_review', {})
+    references = prevention_review_references(root, proof)
+    binding = entry.get('prevention_binding', {})
+    hashes = binding.get('references', {})
+    remaining = []
+    if (binding.get('subject') != prevention_subject(entry) or not hashes
+            or any(name not in hashes for name in references)
+            or any(value is None or file_hash(root, name) != value for name, value in hashes.items())):
+        remaining.append('prevention_review_stale_or_unbound')
+    key = ('structural_source', str(root))
+    if key not in bundle_cache:
+        bundle_cache[key] = reader.git_identity(root)
+    current = bundle_cache[key]
+    for name in proof['captures']:
+        capture = json.loads(local_path(root, name).read_text(encoding='utf-8'))
+        if not isinstance(capture, dict) or not isinstance(capture.get('run_id'), str):
+            raise ValueError('prevention_capture_invalid')
+        uuid.UUID(capture['run_id'])
+        datetime.fromisoformat(capture.get('started_at', ''))
+        observed = capture.get('before')
+        source_key = ('structural_bound_source', digest(observed))
+        if source_key not in bundle_cache:
+            same_source = observed == current and current is not None
+            if not same_source and isinstance(observed, dict) and current:
+                original_untracked = observed.get('untracked_sha256', {})
+                if (isinstance(original_untracked, dict)
+                        and re.fullmatch(r'[0-9a-f]{40,64}', observed.get('head', ''))
+                        and not set(current['untracked_sha256']) - set(original_untracked)
+                        and all(file_hash(root, path) == value for path, value in original_untracked.items())):
+                    # Compare effective bytes against the captured base, even after a commit/stage.
+                    changes = git(root, 'diff', observed['head'], '--binary', '--', '.',
+                                  *(':(exclude,literal)' + path for path in original_untracked))
+                    same_source = hashlib.sha256(changes).hexdigest() == observed.get('tracked_diff_sha256')
+            bundle_cache[source_key] = same_source
+        if (not isinstance(capture, dict) or capture.get('feature') != feature['id']
+                or type(capture.get('capture_pid')) is not int or capture['capture_pid'] <= 0
+                or not isinstance(capture.get('elapsed_seconds'), (int, float))
+                or not math.isfinite(capture['elapsed_seconds']) or capture['elapsed_seconds'] < 0
+                or any(not isinstance(capture.get(key), str) for key in ('stdout', 'stderr'))
+                or capture.get('cwd') != str(root.resolve()) or not capture.get('run_id')
+                or not isinstance(capture.get('argv'), list) or not capture['argv']
+                or capture.get('execution') != 'exited' or type(capture.get('exit_code')) is not int
+                or capture['exit_code'] != 0 or capture.get('cleanup_incomplete')
+                or capture.get('behavior_verdict') is not None or not current
+                or capture.get('before') != capture.get('after') or not bundle_cache[source_key]):
+            remaining.append('prevention_execution_stale_or_unbound')
+        report = capture.get('json_report')
+        if report:
+            report_path = Path(report['path']).resolve().relative_to(root.resolve()).as_posix()
+            if report.get('error') or file_hash(root, report_path) != report.get('sha256'):
+                remaining.append('prevention_native_report_stale')
+    return remaining
+
+
 def inspect_feedback(root, config, state, *, bundle_cache=None):
     if bundle_cache is None:
         bundle_cache = {}
@@ -2193,31 +2328,54 @@ def inspect_feedback(root, config, state, *, bundle_cache=None):
                 result[-1]['next_action'] = ('Inspect original failure, project target/configuration and attempted recovery; explicitly recheck the same target.'
                     if remaining else 'Reuse only while target/configuration and current recheck remain valid; retain the original failure and recovery raw.')
             continue
-        remaining = [key for key in ('trace', 'root_cause', 'failed_prevention', 'repair_paths', 'guardrail', 'red_bundle', 'green_bundle')
+        guardrail = entry.get('guardrail', {})
+        if not isinstance(guardrail, dict):
+            raise ValueError('feedback_guardrail_must_be_object')
+        structural = guardrail.get('mechanism') in {'structure', 'type_constraint'}
+        evidence_fields = ('prevention_review',) if structural else ('red_bundle', 'green_bundle')
+        remaining = [key for key in ('trace', 'root_cause', 'failed_prevention', 'repair_paths', 'guardrail') + evidence_fields
                      if not entry.get(key)]
         if feature is None:
             remaining.append('feature_removed_needs_reconciliation')
         else:
             paths = entry.get('repair_paths', [])
             refs = {name for field in ('map', 'criteria', 'ui') for name in feature.get(field, [])}
-            if not isinstance(paths, list) or not paths or any(name in refs or not any(fnmatchcase(name, p) for p in feature['sources'])
+            if not isinstance(paths, list) or not paths or any(name in refs or not any(fnmatchcase(name, p) for p in source_patterns(config, feature))
                     or file_hash(root, name) == entry.get('source_before', {}).get(name) for name in paths):
                 remaining.append('owner_repair_not_observed')
             guardrail = entry.get('guardrail', {})
             if not isinstance(guardrail, dict):
                 raise ValueError('feedback_guardrail_must_be_object')
-            required = ('failure', 'scope', 'check', 'normal_exception', 'reconsider', 'regression_pointer', 'normal_pointer')
+            required = (('failure', 'scope', 'owner_refs', 'normal_exception', 'reconsider') if structural else
+                        ('failure', 'scope', 'check', 'normal_exception', 'reconsider', 'regression_pointer', 'normal_pointer'))
             remaining.extend(f'guardrail.{key}' for key in required if not guardrail.get(key))
-            if guardrail and (guardrail.get('check') not in feature['checks'] or not any(
-                    all(p.get(key) == guardrail.get(key) for key in ('failure', 'check', 'normal_exception', 'scope', 'reconsider'))
-                    for p in feature.get('prevention', []))):
+            link_keys = ('failure', 'normal_exception', 'scope', 'reconsider') + (('mechanism', 'owner_refs') if structural else ('check',))
+            if guardrail and ((not structural and guardrail.get('check') not in feature['checks']) or not any(
+                    all(p.get(key) == guardrail.get(key) for key in link_keys) for p in feature.get('prevention', []))):
                 remaining.append('active_prevention_link_missing')
-            if entry.get('red_bundle') and entry.get('green_bundle') and all(guardrail.get(key) for key in required):
+            if structural:
+                proof = entry.get('prevention_review', {})
+                observation = proof.get('original_failure', {}) if isinstance(proof, dict) else {}
+                original = observation.get('references', []) if isinstance(observation, dict) else []
+                if not isinstance(original, list) or not any(isinstance(name, str) and name not in refs and not any(fnmatchcase(name, p) for p in source_patterns(config, feature))
+                           for name in original):
+                    remaining.append('original_failure_observation_required')
+                owners = guardrail.get('owner_refs', [])
+                if not isinstance(owners, list) or not owners or any(not isinstance(name, str)
+                        or not any(fnmatchcase(name, pattern) for pattern in source_patterns(config, feature))
+                        or file_hash(root, name) is None for name in owners):
+                    remaining.append('active_prevention_owner_missing')
+                try:
+                    remaining.extend(structural_prevention_remaining(root, feature, entry, bundle_cache=bundle_cache))
+                except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError):
+                    remaining.append('prevention_review_or_execution_unavailable')
+            elif entry.get('red_bundle') and entry.get('green_bundle') and all(guardrail.get(key) for key in required):
                 try:
                     remaining.extend(feedback_evidence(root, feature, entry, bundle_cache=bundle_cache))
                 except (OSError, ValueError, TypeError, KeyError):
                     remaining.append('repair_evidence_unavailable')
-        result.append(dict(entry, status='OPEN' if remaining else 'RESOLVED', remaining=sorted(set(remaining))))
+        result.append(dict(entry, status='OPEN' if remaining else 'RESOLVED', remaining=sorted(set(remaining)),
+            resolution_basis='Agent-reviewed structural prevention with current execution' if structural else 'fixed-oracle regression and normal evidence'))
     statuses = {item['id']: item['status'] for item in result}
     for item in result:
         entry = entries[item['id']]
@@ -2416,7 +2574,7 @@ def inspect_unittest_evidence(root, feature, commands, binding):
             'test_commands_executed': 0, 'scope': 'native unittest assertions; local consistency only'}
 
 
-def inspect_configured(root, project, *, file_inventory=None):
+def inspect_configured(root, project, *, file_inventory=None, observe_local_changes=False):
     """Used by existing maintain/close boundaries, including when CLI is skipped."""
     config = configuration(project)
     state = None
@@ -2428,7 +2586,7 @@ def inspect_configured(root, project, *, file_inventory=None):
             state = json.loads(path.read_text(encoding='utf-8'))
             if state is None:
                 raise ValueError('workflow_state_must_be_object')
-    return inspect_project(root, project, state, file_inventory=file_inventory)
+    return inspect_project(root, project, state, file_inventory=file_inventory, observe_local_changes=observe_local_changes)
 
 
 def validate_review(root, review):
@@ -2639,7 +2797,7 @@ def summarize_lookup(result, project, root):
     """Present already inspected facts; discovery never audits other task bundles."""
     summary = {key: deepcopy(result[key]) for key in ('handoff', 'status', 'mapping_status', 'read_only',
         'test_commands_executed', 'findings', 'product_findings', 'feedback', 'investigation',
-        'task_context', 'action_scope_counts') if key in result}
+        'task_context', 'action_scope_counts', 'unmapped_changes') if key in result}
     task = result.get('task', {})
     summary['task'] = {key: task.get(key) for key in ('state', 'work_id', 'task_id', 'intent', 'targets', 'request', 'base')}
     summary['detail_command'] = {'action': 'lookup', 'root': str(root),
@@ -2655,7 +2813,8 @@ def summarize_lookup(result, project, root):
         row.update({key: config[feature['id']][key] for key in ('sources', 'map', 'criteria')})
         row['in_task'] = feature['id'] in active
         row['bundles'] = task.get('results', {}).get(feature['id'], [])
-        row['evidence_status'] = ('AVAILABLE' if feature['check_results'] else
+        row['structural_evidence'] = feature.get('structural_evidence', [])
+        row['evidence_status'] = ('AVAILABLE' if feature['check_results'] or row['structural_evidence'] else
             'UNAVAILABLE' if row['bundles'] else 'NOT_RUN' if feature['verification_status'] == 'REQUIRED' else 'NOT_REQUIRED')
         row['check_results'] = viewer.summarize_results({'items': feature['check_results']})['items']
         for item in row['check_results']:

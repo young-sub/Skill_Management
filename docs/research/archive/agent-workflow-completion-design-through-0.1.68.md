@@ -1,25 +1,27 @@
+> Historical record through 0.1.68; not current execution instructions. See [current design](../agent-coding-system-direction.md) and [current work](../plugin-continuous-improvement-next-session.md). Original bytes: Git ea7e11d.
+
 # Agent 업무 위임 체계의 완성 기준과 후속 구현
 
 현재 후속 구현은 0.1.47의 D1–D3 수리와 조회/context 소비 보완이다.
-[실제 결과](agent-workflow-implementation-results.md#d1d3-consumption-2026-10-09)를 따른다.
+[실제 결과](../agent-workflow-implementation-results.md#d1d3-consumption-2026-10-09)를 따른다.
 아래 R0–R4/U1–U7의 역사적 설계·수행 범위는 다시 실행할 목록이 아니다.
 
 0.1.46은 R0–R4 뒤 최신 검토에서 재현한 결정 유효성, API 유지·규칙 폐기,
-관측 범위 요약을 기존 소유 코드에서 보완한다. [후속 구현 결과](agent-workflow-implementation-results.md#post-review-reliability-2026-10-09)가
+관측 범위 요약을 기존 소유 코드에서 보완한다. [후속 구현 결과](../agent-workflow-implementation-results.md#post-review-reliability-2026-10-09)가
 실제 RED/GREEN·패키지 실행·후속 소비와 남은 한계를 소유한다. 아래 수행된 범위와
 역사적 설계는 보존하며 G1–G6/R0–R4를 새 구현 목록으로 다시 열지 않는다.
 
-수행된 실행 범위는 [2026-10-09의 R0–R4](#review-driven-refinement)다. 0.1.45 이후 재현된 공백과 다음 보완 우선순위는 [최신 검토](agent-workflow-refinement-review.md)와 [현재 방향 §10](agent-coding-system-direction.md#10-다음-개선의-순서와-인수)를 따른다. [기존 §0의 범용 우선 순서](#generic-plugin-first)와 책임 구분은 유지하지만, 이미 수행한 G1–G6를 통째로 재실행하지 않는다. 초기 설계일은 2026-10-05이며 당시 검토 기준은 `wp-20261004-agent-coding-foundation` / `ea21282196c8e8be73a97c7acd1356c609e7d4a9`, dirty 없음이었다. 설계 갱신 당시에는 문서만 바꿨다. 이후 R0–R4의 구현·검증과 host 한계는 [현재 구현 결과](agent-workflow-implementation-results.md#r0r4-implementation-2026-10-09)에 기록했다.
+수행된 실행 범위는 [2026-10-09의 R0–R4](#review-driven-refinement)다. 0.1.45 이후 재현된 공백과 다음 보완 우선순위는 [최신 검토](agent-workflow-refinement-review-through-0.1.68.md)와 [현재 방향 §10](agent-coding-system-direction-through-0.1.68.md#10-다음-개선의-순서와-인수)를 따른다. [기존 §0의 범용 우선 순서](#generic-plugin-first)와 책임 구분은 유지하지만, 이미 수행한 G1–G6를 통째로 재실행하지 않는다. 초기 설계일은 2026-10-05이며 당시 검토 기준은 `wp-20261004-agent-coding-foundation` / `ea21282196c8e8be73a97c7acd1356c609e7d4a9`, dirty 없음이었다. 설계 갱신 당시에는 문서만 바꿨다. 이후 R0–R4의 구현·검증과 host 한계는 [현재 구현 결과](../agent-workflow-implementation-results.md#r0r4-implementation-2026-10-09)에 기록했다.
 
-책임 분리 추가 검토는 `59f5492dcaff3e6a96637f719ac6ff16232525ee`, 적용 범위 교정은 `a268d39ddb3c3bacf33940a54bcd6e1456fe9e99`, 각각 dirty 없음에서 수행했다. **의무의 발생·유지·누락 차단은 환경, 의미를 판단하여 실제로 작성·수리하는 것은 Agent, 정형 실행·계산은 코드**라는 구분은 플러그인 전체에 적용한다. Feature Map은 이 원칙의 한 예이며 범위를 지도 작업으로 좁혔던 다음 세션 지시는 대체한다. 실행된 전체 범위는 [역할 분리·고도화 프롬프트 기록](agent-workflow-next-session.md)에 보존한다.
+책임 분리 추가 검토는 `59f5492dcaff3e6a96637f719ac6ff16232525ee`, 적용 범위 교정은 `a268d39ddb3c3bacf33940a54bcd6e1456fe9e99`, 각각 dirty 없음에서 수행했다. **의무의 발생·유지·누락 차단은 환경, 의미를 판단하여 실제로 작성·수리하는 것은 Agent, 정형 실행·계산은 코드**라는 구분은 플러그인 전체에 적용한다. Feature Map은 이 원칙의 한 예이며 범위를 지도 작업으로 좁혔던 다음 세션 지시는 대체한다. 실행된 전체 범위는 [역할 분리·고도화 프롬프트 기록](agent-workflow-next-session-through-0.1.68.md)에 보존한다.
 
-기존 [설계](agent-coding-system-direction.md)의 책임 구분과 [구현 결과](agent-workflow-implementation-results.md)의 실제 근거를 이어받는다. 최초 setup을 한 중요 흐름 연결로 끝내는 범위는 이 결정으로 대체한다. 과거 T1–T6는 당시 범위의 근거로 보존하며 새 완료 기준을 소급 충족한 것으로 바꾸지 않는다.
+기존 [설계](agent-coding-system-direction-through-0.1.68.md)의 책임 구분과 [구현 결과](../agent-workflow-implementation-results.md)의 실제 근거를 이어받는다. 최초 setup을 한 중요 흐름 연결로 끝내는 범위는 이 결정으로 대체한다. 과거 T1–T6는 당시 범위의 근거로 보존하며 새 완료 기준을 소급 충족한 것으로 바꾸지 않는다.
 
 <a id="review-driven-refinement"></a>
 
 ## 수행된 범위: 0.1.44 검토 이후 R0–R4
 
-2026-10-09의 실제 패키지 시험과 고도화 재검토를 [보완 검토](agent-workflow-refinement-review.md)에 반영했다. local main `95c4f9e`/0.1.44의 task·scope·feedback·UI·maintain 기반을 재사용한다. 이 실행 요청은 당시 main/remote/dirty를 확인하고 새 작업 브랜치에서 구현·검증한 후 **로컬 main에 병합**하는 범위였으며 수행됐다. 당시 사용자가 그 실행 범위의 로컬 통합을 승인했으며 전역 Git 정책 수정·push·배포·설치 변경은 포함하지 않았다. 전체 요청은 [실행된 프롬프트](agent-workflow-next-session.md)에 보존한다.
+2026-10-09의 실제 패키지 시험과 고도화 재검토를 [보완 검토](agent-workflow-refinement-review-through-0.1.68.md)에 반영했다. local main `95c4f9e`/0.1.44의 task·scope·feedback·UI·maintain 기반을 재사용한다. 이 실행 요청은 당시 main/remote/dirty를 확인하고 새 작업 브랜치에서 구현·검증한 후 **로컬 main에 병합**하는 범위였으며 수행됐다. 당시 사용자가 그 실행 범위의 로컬 통합을 승인했으며 전역 Git 정책 수정·push·배포·설치 변경은 포함하지 않았다. 전체 요청은 [실행된 프롬프트](agent-workflow-next-session-through-0.1.68.md)에 보존한다.
 
 | 단위 | 구현·확인할 실제 업무 | 완료 기준 |
 | --- | --- | --- |
@@ -33,7 +35,7 @@ R0의 기준을 먼저 고정하고 R1–R3를 필요한 기능 단위로 구현
 
 전체 조사 요청은 전체 진입점/미확인을 유지하고, 작은 요청은 영향 범위만 조사한다. UI의 가능한 모든 조합을 기계적으로 생성하거나 대표 관찰을 전체 완료로 올리지 않는다. 기존 범위 밖 요구를 만들기 위해 모든 작업에 승인·Full·Agent 평가를 강제하지 않는다.
 
-기존 [단일 writer 지원 범위](../testing.md)는 유지한다. 같은 task를 여러 Agent가 동시에 갱신하는 기능은 이번에 신설하지 않는다. 설계 검토 당시 요구 일부 폐기의 차단은 후보였고, 후속 focused 재현과 사유 분기 수정은 구현 결과에 기록했다. 동시 갱신은 여전히 미지원이며 재현된 제품 결함으로 쓰지 않는다. 전체 Git 무효화는 의존 범위 증명 없이 완화하지 않는다.
+기존 [단일 writer 지원 범위](../../testing.md)는 유지한다. 같은 task를 여러 Agent가 동시에 갱신하는 기능은 이번에 신설하지 않는다. 설계 검토 당시 요구 일부 폐기의 차단은 후보였고, 후속 focused 재현과 사유 분기 수정은 구현 결과에 기록했다. 동시 갱신은 여전히 미지원이며 재현된 제품 결함으로 쓰지 않는다. 전체 Git 무효화는 의존 범위 증명 없이 완화하지 않는다.
 
 연두라벨 UI 후보는 사용자 검수 전이며 원본 제품 수리는 이번 범위가 아니다. 기존 캡처는 결과 조회·검수 입력으로 재사용할 수 있으나 새 버전의 최초 조사·효과를 입증한 근거로 바꾸지 않는다. 필요한 실제 제품 인수는 범용 구현·독립 검증·패키지 고정 뒤 격리 소스/합성 데이터로 수행한다. 상세 로그·HTML·스크린샷은 작업 기록으로 보존하고 지속되는 기준은 현재 docs·코드·활성 검사에 남긴다.
 
@@ -58,11 +60,11 @@ R0의 기준을 먼저 고정하고 R1–R3를 필요한 기능 단위로 구현
 
 ### 실행 전 출발점과 확인된 공백
 
-다음 항목은 2026-10-09 실행 전 기준이다. 후속 검토·미해결 문제 승계, 요청 연결, hook 길이 및 inventory root 결함은 0.1.43에서 수리·검증했다. 재사용의 전체 Git 무효화는 완전한 의존 범위 증명이 없어 유지한다. [현재 구현 결과](agent-workflow-implementation-results.md)가 실행 상태를 소유한다.
+다음 항목은 2026-10-09 실행 전 기준이다. 후속 검토·미해결 문제 승계, 요청 연결, hook 길이 및 inventory root 결함은 0.1.43에서 수리·검증했다. 재사용의 전체 Git 무효화는 완전한 의존 범위 증명이 없어 유지한다. [현재 구현 결과](../agent-workflow-implementation-results.md)가 실행 상태를 소유한다.
 
 당시 확인한 구현 기준은 `wp-20261007-connected-workflows`, `23e5d152038abf30765a019729c02bc05f640b5d`, 소스 버전 `0.1.42`다. 원본 checkout은 `172dfa3`였으므로 경로 이름만으로 최신 여부를 판단하지 않는다. 다음 세션에서는 main·작업 브랜치·설치본의 현재 상태를 각각 다시 확인한다.
 
-- 이미 구현된 작업 context, prepare/execute/bundle/lookup, scope matrix, 실제 브라우저 시험 runner, 피드백·UI·검사 유지보수 연결을 재사용한다. 범위별 실제 근거는 [구현 결과](agent-workflow-implementation-results.md#connected-actual-product-use-2026-10-07)를 따른다.
+- 이미 구현된 작업 context, prepare/execute/bundle/lookup, scope matrix, 실제 브라우저 시험 runner, 피드백·UI·검사 유지보수 연결을 재사용한다. 범위별 실제 근거는 [구현 결과](../agent-workflow-implementation-results.md#connected-actual-product-use-2026-10-07)를 따른다.
 - `project_workflow.begin()`의 일반 후속 작업은 `reviews`를 비운다. 두 Feature의 유효 검토를 만든 읽기 전용 메모리 재현에서 하나만 대상으로 새 작업을 시작해도 무관한 Feature의 `map_review`가 다시 생겼다. Harness `begin_work()`에는 유효 검토를 승계하는 별도 경로가 있다.
 - 같은 재현에서 이전 `reviews.<Feature>.product_findings`의 미해결 항목이 후속 작업 조회에서 빠졌다. 이전 기록은 남아 있으나 현재 작업에서 누락되는 결함이다. 제품 결함 자체를 새로 발견한 시험은 아니다.
 - 검토는 기준 유효성 확인 후 재사용하고 새 요청의 적용·범위 판단만 다시 한다. 미해결 문제는 검토의 유효성 만료와 별개로 명시적 해결·처리까지 이어져야 한다. 단순히 모든 `scope_reviews`를 복사해 현재 판단으로 삼지 않는다.
@@ -102,9 +104,9 @@ G3는 여섯 사용자 업무를 각각 수정·검증·후속 소비까지 확�
 
 ## 1. 최상위 원칙과 결론
 
-2026-10-07 추가 구현은 명시적 현재 작업 context, 실제 브라우저 Full-stack runner 연결, 소유 코드의 피드백/UI 수리와 검출 보존·후속 재사용을 포함한다. [현재 구현 결과](agent-workflow-implementation-results.md#connected-actual-product-use-2026-10-07)의 일곱 관점별 상태와 고정 pstack 비교를 기준으로 확인 범위와 남은 호스트 연결을 구분한다. 아래 설계와 과거 관찰은 이 현재 사용 근거를 대체하지 않는다.
+2026-10-07 추가 구현은 명시적 현재 작업 context, 실제 브라우저 Full-stack runner 연결, 소유 코드의 피드백/UI 수리와 검출 보존·후속 재사용을 포함한다. [현재 구현 결과](../agent-workflow-implementation-results.md#connected-actual-product-use-2026-10-07)의 일곱 관점별 상태와 고정 pstack 비교를 기준으로 확인 범위와 남은 호스트 연결을 구분한다. 아래 설계와 과거 관찰은 이 현재 사용 근거를 대체하지 않는다.
 
-후속 구현은 `864ee4f`에서 시작하여 공통 런타임·검증·설치 보존을 `b1b710c`, 중단된 상태 저장의 재개 수리를 `b3d01d9`로 로컬 커밋했다. 아래 수용 기준은 유지하며, 실제 구현·설치·행동 검증과 남은 PARTIAL/BLOCKED 범위는 [구현 결과](agent-workflow-implementation-results.md)의 U1–U7 기록에 구분한다. 설계 당시의 미구현 설명은 당시 상태 기록이며 전체 인수 완료를 뜻하지 않는다.
+후속 구현은 `864ee4f`에서 시작하여 공통 런타임·검증·설치 보존을 `b1b710c`, 중단된 상태 저장의 재개 수리를 `b3d01d9`로 로컬 커밋했다. 아래 수용 기준은 유지하며, 실제 구현·설치·행동 검증과 남은 PARTIAL/BLOCKED 범위는 [구현 결과](../agent-workflow-implementation-results.md)의 U1–U7 기록에 구분한다. 설계 당시의 미구현 설명은 당시 상태 기록이며 전체 인수 완료를 뜻하지 않는다.
 
 목적은 **Agent에게 업무를 맡겼을 때 요구를 더 정확하게 달성하고, 사용자의 개입·재작업·불필요한 실행을 줄이는 것**이다. 규칙 수, 검사 수, Skill 수, 차단 횟수는 성과가 아니다. 환경 제약도 이 목적을 위한 수단이며 정상 업무를 불필요하게 막는 제약은 수정하거나 범위를 줄인다. 기존 권한·사용자 데이터 보호는 성과 비교를 이유로 완화하지 않는다.
 
@@ -130,7 +132,7 @@ G3는 여섯 사용자 업무를 각각 수정·검증·후속 소비까지 확�
 | 임시 설치/discovery는 확인, CLI 모델 실행 socket10013·설치 갱신·프로세스 정리 실패는 남음 | 기능 결함과 host 제약을 아직 모두 분리하지 못함 | 지원 host와 권한 경계의 실제 실행·갱신·복구·소유 자원 정리 확인 |
 | 문서 검사 3개가 통과해도 index의 `not yet executed`와 설계 상태표의 미구현 표현이 남았음 | 링크/구조 검사로 의미 최신성을 증명할 수 없음 | 이번에 현재 상태를 교정. 향후 완료 검토에서 변경된 사실의 소비 문서를 대조 |
 
-근거 파일은 [setup source](../../authoring/skills/setup-project-verification/SKILL.md), [공통 책임](../../authoring/references/project-verification.md), [결과 계약](../../authoring/references/result-viewer.md), [capture](../../scripts/run_check.py), [현재 Feature Map](../feature-map.md)이다. 설명 문서의 `합의`와 실행 도구의 `강제`를 혼동하지 않는다.
+근거 파일은 [setup source](../../../authoring/skills/setup-project-verification/SKILL.md), [공통 책임](../../../authoring/references/project-verification.md), [결과 계약](../../../authoring/references/result-viewer.md), [capture](../../../scripts/run_check.py), [현재 Feature Map](../../feature-map.md)이다. 설명 문서의 `합의`와 실행 도구의 `강제`를 혼동하지 않는다.
 
 ## 3. 전체 Feature Map 초기화
 
@@ -335,7 +337,7 @@ UI는 기존 기준 개선뿐 아니라 기준이 없는 상태의 생성도 수
 
 후속 작업은 먼저 전체 능력과 각 단계에 §4의 두 분류 축을 적용해 현재 소유 위치·실행 경로·미구현 경계를 확인한다. 이는 기존 파일·호출자에 연결한 짧은 구현 조사이며 새로운 분석 프로젝트로 멈추지 않는다. 지원 host의 가능성을 확인하고 환경 상태/의무·직접 실행·Agent handoff·수락 연결에서 공통으로 필요한 부분을 기존 도구에 반영한다.
 
-이 기준은 U1–U7 모두의 필수 인수 조건이다. U1→U2→U3→U4/U5→U6→U7의 의존 순서를 참고하되 공통 경계와 직접 결합된 기능은 같은 온전한 단위로 구현한다. Feature Map, 검증/조회, 피드백, UI, 유지보수, 설치/재개 각각에 역할 분리와 직접 실행을 실제 적용하고 확인한다. 어떤 단위부터 시작하더라도 다음 실행 범위를 Feature Map에만 제한하거나 다른 기능의 책임 분리를 부수 작업으로 미루지 않는다. 단위별 완료와 전체 완료는 별도이며 host가 막힌 강제 보장은 BLOCKED로 남긴다. 상세 실행은 [전체 체계 고도화 프롬프트](agent-workflow-next-session.md)를 따른다.
+이 기준은 U1–U7 모두의 필수 인수 조건이다. U1→U2→U3→U4/U5→U6→U7의 의존 순서를 참고하되 공통 경계와 직접 결합된 기능은 같은 온전한 단위로 구현한다. Feature Map, 검증/조회, 피드백, UI, 유지보수, 설치/재개 각각에 역할 분리와 직접 실행을 실제 적용하고 확인한다. 어떤 단위부터 시작하더라도 다음 실행 범위를 Feature Map에만 제한하거나 다른 기능의 책임 분리를 부수 작업으로 미루지 않는다. 단위별 완료와 전체 완료는 별도이며 host가 막힌 강제 보장은 BLOCKED로 남긴다. 상세 실행은 [전체 체계 고도화 프롬프트](agent-workflow-next-session-through-0.1.68.md)를 따른다.
 
 U1의 전체 init 능력은 먼저 제품 독립 시험 프로젝트에서 확인한다. 연두라벨의 전체 지도 작성은 §0의 G4 패키지 고정 후 G5에서 시험한다. 나머지 수용은 필요한 기존 흐름과 작은 통제 결함으로 제한한다. 다른 기술 스택/비-Harness/기준 없는 UI도 G4 전에 확인하며, 연두라벨 연결을 먼저 개발해 공통 기능의 완성을 대신하지 않는다.
 
