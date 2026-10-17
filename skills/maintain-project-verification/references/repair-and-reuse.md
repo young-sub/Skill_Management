@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/repair-and-reuse.md -->
-<!-- Source-SHA256: 9fdc05c917e1664e680b07c6bc7c08b93894d53cdb766ea7a315ec960f08a03d -->
+<!-- Source-SHA256: 849df0e51b4e0fc3da4f53a3da48504557c979a7dc7a85dd3e3f45e77471060c -->
 
 # Repair and subsequent reuse
 
@@ -140,6 +140,8 @@ join currently requires prepared native-JSON bundles; absent bindings stay OPEN.
 ## Structural or type/constraint prevention
 
 Use an existing Feature `prevention` row and matching feedback `guardrail` with `mechanism: structure` or `type_constraint`, `failure`, `scope`, existing source `owner_refs`, `normal_exception` and `reconsider`. No new registered check, JSON assertion adapter or fabricated RED/GREEN pair is required. The source owner must actually change. Automatic regression prevention keeps its fixed-oracle contract above.
+
+Finish both matching declarations and any source/criteria/config edits before the final capture. Audit the feedback first to catch missing links or owners without running product commands; pending execution evidence is expected at that stage. Then capture the existing runner and submit the review. Editing project config after capture makes it stale and can force an otherwise unnecessary rerun.
 
 Record `trace`, `root_cause`, `failed_prevention`, `repair_paths` and `prevention_review` after inspecting actual evidence:
 
