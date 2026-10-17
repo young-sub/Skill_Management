@@ -56,9 +56,9 @@ worktree의 Full/연결 검사 산출물 68개는 `worktree-retained/`에 byte �
 
 ## 패키지와 재개 경계
 
-소비에 사용한 고정 패키지: `.work/workflow-improvement-20261017/frozen-0.1.69/`. clean source `df3a23c861470dc2b5389d92a561c6ede1db9e6b`, tree `c3b2225bff9064a7a9ebeeb4bbba02dafde3ba32`. 19 skills, 253 files. `package-files.json` SHA-256 `b9198713d5bbc8bbc39991571cfa821998d4fd5c3f29051cbd7332f97e38de5b`; 소비 후 payload 전체 hash/파일 집합을 확인했다. 후보 패키지는 별도 과거 dirty snapshot이며 고정 패키지를 대신하지 않는다.
+소비에 사용한 고정 패키지: `.work/workflow-improvement-20261017/frozen-0.1.69/`. clean source `df3a23c861470dc2b5389d92a561c6ede1db9e6b`, tree `c3b2225bff9064a7a9ebeeb4bbba02dafde3ba32`. 19 skills, 원래 253 files. `package-files.json` SHA-256 `b9198713d5bbc8bbc39991571cfa821998d4fd5c3f29051cbd7332f97e38de5b`; 연결 fixture/구조 소비 직후 payload 전체 hash/파일 집합을 확인했다. 이후 실제 제품 Agent의 Python 호출이 `__pycache__` 4개를 추가했다. manifest payload는 모두 동일하지만 디렉터리 전체 불변은 아니며 캐시는 실패 관찰로 보존했다 (`final-package-attempt1-disposition.json`). 이후 호출은 `python -B`와 process-local `PYTHONDONTWRITEBYTECODE=1`을 사용했다. 후보 패키지는 별도 과거 dirty snapshot이며 고정 패키지를 대신하지 않는다.
 
-최종 전달 패키지는 지침 보완을 포함한 별도 불변 디렉터리 `frozen-0.1.69-final/`로 빌드한다. `build-origin.json`이 clean source commit을, `package-files.json`이 payload를 고정한다. `final-package-verification.json`에서 소비 패키지와의 차이가 지침 사본·manifest·build origin에 한정되는지와 모든 실행 코드의 byte 일치를 확인한다. 이전 패키지의 실제 제품 실행을 새 패키지의 재실행으로 표시하지 않는다. 같은 코드의 제품 명령을 다시 실행하지 않고 최종 패키지의 읽기 전용 소비와 근거 불변을 확인한다.
+최종 전달 패키지는 지침 보완을 포함한 별도 불변 디렉터리 `frozen-0.1.69-final/`로 빌드했다. clean source `08bb3f12adf8319a1c4c55f56ddf69387a286da6`, manifest SHA-256 `ae308cde5f1007a3f450f0d599632a8a4d81d7e3a724bd58069eefadacaaf2aa`. `final-package-verification.json`에서 소비 패키지와의 차이가 지침 사본·manifest·build origin에 한정되고 모든 실행 코드 bytes가 같음을 확인했다. 이전 패키지의 실제 제품 실행을 새 패키지의 재실행으로 표시하지 않는다. 최종 패키지로 후속 제품 task를 읽기 전용 조회해 feedback RESOLVED / task INCOMPLETE, 제품 명령 0회, 상태·근거 불변을 확인했다. 최종 253파일 집합과 모든 payload hash도 소비 전후 동일했다. 이 관찰을 추가한 결과 문서 커밋은 패키지 코드·지침을 바꾸지 않는다.
 
 미검증: native Skill 발견·hook 전달·보호 host 수락, hosted CI, 사용자 UI 승인, 일반적인 업무 효율·비용 효과. 필요한 실제 host/session과 별도 권한이 준비되면 동일 고정 패키지로 해당 경계만 확인한다. 설치·전역 설정·다른 제품 원본·자격증명·push/publish/deploy/유료 실행은 변경하거나 실행하지 않았다.
 
