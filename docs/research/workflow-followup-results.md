@@ -67,4 +67,6 @@ Candidate 0.1.70의 공개 packaged CLI로 원래 task `aa296108-331a-4bc8-8ff4-
 
 동일한 원본 plan과 현재 공유 bundle을 review CLI에 연결해 `catalog-import-browser` retirement는 `PRESERVED`, 현재 요청은 `READY_FOR_REVIEW` / action 0이 됐다. 다른 아홉 Feature 잔여는 `PARTIAL`로 남는다. Review CLI의 exit 2는 이 프로젝트 전체 PARTIAL이며 오류나 검사 실패가 아니다. `stage2-candidate-{prepare,execute}.json`, `stage2-consolidation-review.json`, `stage2-final-command-inventory.json`에 실제 명령·판정·raw 위치가 있다. Resource drift, 배포 검증, 갱신 문서 검사도 통과했다.
 
-고정 package와 로컬 통합 식별자는 별도 최종 전달 기록에 추가한다. 기존 raw와 실패한 시도는 삭제하지 않는다.
+고정 `frozen-0.1.70/`은 clean `722fee88917df69ddbd512c27869f9cb745bc64b`에서 만들었다. 19 Skill / 253 파일, manifest SHA-256은 `803afb3648f529a16f9486a96c2bae2a58462d4ab17c6b4f25f656aab73db645`다. 기존 package 검증 함수로 파일 집합과 모든 hash를 확인했다. 실제 소비한 candidate와는 build origin/manifest만 다르고 실행 payload는 동일하다.
+
+고정 package의 절대 state 조회도 현재 요청 `READY_FOR_REVIEW`, action 0, 현재 검사 재사용과 프로젝트 잔여 분리를 유지했다. 제품 명령은 0회였고 task/raw/package 1,066개 파일의 bytes를 보존했다 (`frozen-current-lookup.json`, `frozen-readonly-verification.json`, `frozen-package-identity.json`). Package CLI 검증을 native host 수락으로 승격하지 않는다. 로컬 통합/생성 worktree 정리의 최종 식별자는 `.work/workflow-next-20261017/delivery.json`에 보존한다. 기존 raw와 실패한 시도는 삭제하지 않는다.
