@@ -8,6 +8,11 @@ The hook and task handoff keep an investigation INCOMPLETE while requested
 observations, inventory or reference bindings are incomplete or stale. A current
 complete source-only investigation can be ready without running product checks;
 that does not certify runtime behavior or whole-project completion.
+An unconfigured diagnosis may start before observations exist; its exact task
+context remains readable and INCOMPLETE. Add actual observations with
+`investigate`. Feature `feedback`/`review` and connected `prepare`/`execute`
+require project verification setup; rejection must occur before record mutation.
+An empty task record is not evidence of a recorded cause, repair or test result.
 
 Existing project config owns `extensions.workflow`; a task record under `.work` retains review progress. The bundled `scripts/project_workflow.py` computes obligations from current bytes and registered connections without calling a model. Requirements, feature meanings, causes and visual judgments remain Agent work. Review records are Agent inputs, not authenticated proof.
 

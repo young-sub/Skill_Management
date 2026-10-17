@@ -1163,7 +1163,7 @@ def connect_next_actions(root, project, state, result):
 def handoff_summary(result, verification=None):
     blocked = (verification or {}).get('status') == 'BLOCKED'
     return {'project_status': result['status'],
-        'task_acceptance': 'BLOCKED' if blocked else 'INCOMPLETE' if result['unmapped']
+        'task_acceptance': 'BLOCKED' if blocked else 'INCOMPLETE' if result['status'] == 'NOT_CONFIGURED' or result['unmapped']
             or result.get('investigation', {}).get('status', 'READY_FOR_REVIEW') != 'READY_FOR_REVIEW'
             or any(a['scope'] != 'project_remaining' for a in result['next_actions']) else 'READY_FOR_REVIEW',
         'check_acceptance': 'BLOCKED_BY_TASK_BINDING_OR_EFFECT' if blocked else 'CURRENT_CHECKS_ONLY',
@@ -2784,6 +2784,8 @@ def main(argv=None):
             state, state_path = work_record(root, args.work_id)
         if args.action in {'connect', 'resume', 'lookup', 'prepare', 'execute'} and state is None:
             raise ValueError('explicit_task_selection_required; select --state/--work-id or use start/connect context')
+        if args.action in {'prepare', 'execute', 'review', 'feedback'} and configuration(project) is None:
+            raise ValueError('workflow_not_configured; diagnosis supports investigate/connect/lookup/resume only')
         if args.action in {'begin', 'review', 'feedback', 'investigate'}:
             if not state_path:
                 raise ValueError('state_required')
@@ -2823,9 +2825,7 @@ def main(argv=None):
         result = None
         if args.action in {'lookup', 'resume', 'audit'}:
             result = inspect_project(root, project, state)
-        if args.action in {'prepare', 'execute', 'review', 'feedback'} and configuration(project) is None:
-            raise ValueError('workflow_not_configured; diagnosis supports investigate/connect/lookup/resume only')
-        if args.action in {'prepare', 'execute'} or args.action in {'lookup', 'resume', 'audit'} and state.get('execution_plan'):
+        if args.action in {'prepare', 'execute'} or args.action in {'lookup', 'resume', 'audit'} and state and state.get('execution_plan'):
             try:
                 verification = connected_verification(root, project, state, state_path, args.work_id, args.action,
                     output=args.output, run_check=args.run_check, timeout=args.timeout, resume=args.resume,
@@ -2852,8 +2852,9 @@ def main(argv=None):
             result['status'] = 'BLOCKED'
             result['findings'].append('host_protected_acceptance_unavailable')
         if state is not None:
-            selection = pending_selection(result)
-            result['execution_selection'] = {key: selection[key] for key in ('selected_checks', 'selection', 'unconnected_features')}
+            if configuration(project) is not None:
+                selection = pending_selection(result)
+                result['execution_selection'] = {key: selection[key] for key in ('selected_checks', 'selection', 'unconnected_features')}
             result['task_context'] = task_context(root, state, state_path, args.work_id)
             result['task'] = {'state': state_path.relative_to(root).as_posix(), 'work_id': args.work_id,
                               **{key: state.get(key) for key in ('task_id', 'intent', 'targets', 'request', 'base', 'dirty_baseline',

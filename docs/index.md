@@ -2,11 +2,12 @@
 
 Load ignored repository-local `.harness/environment-exceptions.json` once per task when present; refresh after relevant environment changes. `skip_until_manual_reenable` selects the recorded fallback without retrying the unavailable capability.
 
-Source candidate **0.1.63** repairs fresh-project hook discovery and investigation
+Source runtime **0.1.64** repairs fresh-project hook discovery and investigation
 handoff. [Current implementation](research/agent-workflow-implementation-results.md#natural-discovery-2026-10-17)
 records focused RED/GREEN, the actual 459-test Full failures and successful scoped
-rechecks. Frozen-package consumption in a new real project is a separate
-acceptance step; documentation and test counts are not measured Agent gains.
+rechecks. Independent Flask tutorial consumption found a false unconfigured CLI
+block in 0.1.63, repaired in 0.1.64. The initial comparison showed no functional
+gain and higher usage; documentation and test counts are not measured Agent gains.
 
 Previous runtime: **0.1.62**. [Task-first lookup, shared reads and environment reuse](research/agent-workflow-implementation-results.md#handoff-runtime-2026-10-15) records this unit's implementation, 447/447 Full and local consumption measurements. [Actual Luna A/B/C evaluation](research/luna-benchmark-execution.md) now records 24 official controls, pilot9/main108, separate UI recovery, native consumption, mixed/negative outcomes and incomplete monetary attribution; protected-host/live-product acceptance remains separate. The preceding 0.1.61 [Delegated handoff and other-work guide reuse](research/agent-workflow-implementation-results.md#delegated-handoff-2026-10-15) records scoped task acceptance, actual consumption and remaining limits. [Design review and environment retries](research/agent-coding-system-direction.md#design-review-2026-10-15) owns current priorities, the successful escalated cleanup/discovery checks, and separate native Skill/hook acceptance limits. Installed resources are unchanged. [Check binding and guide follow-up](research/agent-workflow-implementation-results.md#binding-and-guide-2026-10-14), [product consumption and handoff](research/agent-workflow-implementation-results.md#product-consumption-2026-10-14) and [feedback reconciliation](research/agent-workflow-implementation-results.md#feedback-reconciliation-2026-10-14) retain preceding evidence. [Continuous improvement results](research/agent-workflow-implementation-results.md#continuous-plugin-improvement-2026-10-13)
 owns root-confined inventory, bounded task discovery, shared source/bundle reads, portable source identity, retained 0.1.57 actual-product execution, completed local integration and separate native-host limits.

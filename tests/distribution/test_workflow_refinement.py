@@ -753,6 +753,42 @@ class WorkflowRefinementTests(unittest.TestCase):
         _, execute = self.invoke('prepare', context=context)
         self.assertEqual(execute['status'], 'BLOCKED')
 
+    def test_unconfigured_diagnosis_can_start_and_resume_before_observations(self):
+        original = {str(p): p.read_bytes() for p in self.root.rglob('*') if p.is_file()}
+        _, audit = self.invoke('audit')
+        self.assertEqual(audit['status'], 'NOT_CONFIGURED')
+        self.assertEqual(audit['test_commands_executed'], 0)
+        self.assertEqual(original, {str(p): p.read_bytes() for p in self.root.rglob('*') if p.is_file()})
+        _, started = self.invoke('start', '--intent', 'diagnose',
+                                 '--request-summary', 'Find the cause and retain actual observations')
+        self.assertIn('task_context', started, started)
+        self.assertEqual(started['status'], 'NOT_CONFIGURED')
+        self.assertEqual(started['handoff']['task_acceptance'], 'INCOMPLETE')
+        self.assertEqual(started['test_commands_executed'], 0)
+        saved = {str(p): p.read_bytes() for p in self.root.rglob('*') if p.is_file()}
+        for action in ('connect', 'lookup', 'resume'):
+            _, result = self.invoke(action, context=started['task_context'])
+            self.assertEqual(result['task']['task_id'], started['task']['task_id'])
+            self.assertEqual(result['handoff']['task_acceptance'], 'INCOMPLETE')
+            self.assertEqual(result['test_commands_executed'], 0)
+        self.assertEqual(saved, {str(p): p.read_bytes() for p in self.root.rglob('*') if p.is_file()})
+        entry = self.write('.work/unsupported.json', json.dumps({'id': 'delete-persistence',
+            'feature': 'api', 'kind': 'product_defect', 'expected': 'Deleted after fresh read',
+            'observed': 'Still present', 'evidence_refs': ['src/api.py']}))
+        before_rejected = {str(p): p.read_bytes() for p in self.root.rglob('*') if p.is_file()}
+        for action in ('prepare', 'execute', 'review', 'feedback'):
+            payload = ('--' + action, str(entry)) if action in {'review', 'feedback'} else ()
+            _, result = self.invoke(action, *payload, context=started['task_context'])
+            self.assertEqual(result['status'], 'BLOCKED')
+            self.assertIn('workflow_not_configured', result['findings'][0])
+            self.assertEqual(result['test_commands_executed'], 0)
+        self.assertEqual(before_rejected, {str(p): p.read_bytes() for p in self.root.rglob('*') if p.is_file()})
+        survey = self.write('.work/input.json', json.dumps(self.investigation()))
+        _, observed = self.invoke('investigate', context=started['task_context'],
+                                  *('--investigation', str(survey)))
+        self.assertEqual(observed['investigation']['total'], 2)
+        self.assertEqual(observed['handoff']['task_acceptance'], 'INCOMPLETE')
+
     def test_investigation_update_preserves_denominator_identity_and_observation_bindings(self):
         runtime = self.runtime()
         state = runtime.begin(self.root, {}, 'diagnose', request_summary='Read-only whole project')

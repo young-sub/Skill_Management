@@ -4,7 +4,7 @@ description: Coordinate a coding task from a natural-language request through re
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: 6f5c50c763369d9ca4a57f1b21e6d480ef4da3367e14d433e0cd035a6dbf25cd -->
+<!-- Source-SHA256: c132f71c08fe9d98adccf612a007c23edd1ac1c27ec197fa4bcf7cef94dce905 -->
 
 
 # Agent Workflow
@@ -45,6 +45,10 @@ draft; product screen review debt is not a missing plugin feature.
 Without configured workflow, use that same CLI's `start --intent diagnose
 --request-summary <request> --investigation <observations.json>`, as defined in
 [investigation without setup](references/workflow-obligations.md#investigation-without-workflow-setup).
+Starting without `--investigation` is allowed, but retains INCOMPLETE until actual
+observations are recorded. Unconfigured diagnosis uses `investigate`, not Feature
+`feedback`/`review`; connect project verification first when that capability is
+needed. An empty task record does not contain a cause, repair or test result.
 With existing work, `investigate --investigation <observations.json>` updates its
 record using the exact context. Keep one writer per task, source/permission bounds,
 stable screen/viewport/state IDs and directly observed evidence. `lookup`/task

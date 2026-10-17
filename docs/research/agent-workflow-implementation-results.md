@@ -4,8 +4,8 @@
 
 ## Natural-language discovery and investigation handoff, 2026-10-17
 
-Runtime candidate **0.1.63** starts from clean local `main@f2b59c4` in
-`wp-20261017-natural-verification`, using a separate TEMP worktree. Two observed
+Runtime **0.1.64** starts from clean local `main@f2b59c4` in
+`wp-20261017-natural-verification`, using a separate TEMP worktree. Observed
 common defects are repaired in their existing owners:
 
 - A fresh unconfigured Git checkout returned an empty prompt-hook result despite
@@ -16,6 +16,13 @@ common defects are repaired in their existing owners:
   handoff. The existing handoff now retains INCOMPLETE for partial/stale
   investigations, and the unconfigured hook carries that same judgment. Complete
   current source-only inspection remains ready without setup or runtime tests.
+- Actual independent consumption of candidate 0.1.63 found that unconfigured
+  diagnosis `start` wrote a valid task, then falsely returned BLOCKED because it
+  called the configured-only selector. Exact-state lookup repeated that failure.
+  The runtime now selects checks only for configured projects, retains readable
+  INCOMPLETE task identity before observations exist, and rejects unsupported
+  Feature feedback/review before mutation. Fresh no-task audit also retains its
+  read-only NOT_CONFIGURED result instead of dereferencing absent state.
 
 The original empty-hook assertion and incomplete/ready mismatch were observed
 before implementation. Six focused checks passed after repair, including current
@@ -31,6 +38,26 @@ this is no claim of a later single all-green Full run. Captures, pinned package
 and independent-project consumption belong under `.work/natural-verification-20261017/`.
 These regression results do
 not establish business value or a solve-rate improvement.
+
+The first matched natural-language comparison used the existing upstream Flask
+tutorial, outside the preceding benchmark task set, with identical dirty seed,
+image, requests and 1,200-second unit budgets. Old 0.1.62 (new condition B) and
+candidate 0.1.63 (C) each completed deletion repair and a fresh-thread update
+follow-up. Each phase passed the immutable upstream 24-test suite and separate
+real HTTP/SQLite/new-request/server-restart checks. B reused its README/tests;
+C reused the regression test but its task record contained no investigation or
+result binding and its final description overstated that record. C had false CLI
+blocks; neither condition configured project verification. These are negative
+handoff/discovery results, despite functional PASS. C consumed 567,758 tokens
+versus B 243,636 (2.33 times), and whole-unit time was 181.337 versus 165.524
+seconds. No solve-rate gain is demonstrated. An earlier B infrastructure attempt
+was rejected before model execution for an image identity mismatch; it remains
+separate from the valid matched pair. Candidate 0.1.63 and all failures remain
+retained. The 0.1.64 repair is evaluated in new output rather than overwriting it.
+After the native-consumption finding, all 45 refinement/hook tests passed in
+200.279 seconds; resource drift, distribution and 13 documentation/cutover checks
+passed. This focused recheck covers the changed CLI boundary and configured
+continuity; the preceding Full result is retained without relabeling it green.
 
 Features are **workflow-obligations** and **agent-workflow**. The existing hook
 owns discovery projection and the workflow runtime owns derived acceptance;
