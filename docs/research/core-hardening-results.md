@@ -36,4 +36,21 @@ The cold follow-up committed `cd237b8` on the isolated product branch. It discov
 
 The additional review reproduced a torn completed capture and an external junction lock write before fixing them; the focused capture/store/API/execution suite passes 76 tests. Required missing-tool controls return two failures; optional missing-tool controls return two skips; existing zero/skip/failure detectors pass. Distribution, drift and six documentation/API checks pass.
 
-Final Full: `CONNECTED_PRODUCT_REQUIRED=1 python -m unittest discover -s tests -p test_*.py` executed 475 tests in 939.335 seconds, exit 0, no skips/failures/errors (`full-02.json`, run `b20df7f1-e54e-43ed-baa2-29d85b9bd0d7`). The wrapper is execution evidence, not a product verdict. Runtime/test bytes were unchanged during this run; documentation/version changed and were checked separately, so the whole working-tree capture identity is not reusable as a frozen-source verdict. The preceding 469-test intermediate run failed four checks while fixes were in progress (old public-API mocks and the work-manifest lock location); it remains retained as `full-01.json`. Frozen-package and local integration receipts follow; they are not inferred from candidate PASS.
+Final Full: `CONNECTED_PRODUCT_REQUIRED=1 python -m unittest discover -s tests -p test_*.py` executed 475 tests in 939.335 seconds, exit 0, no skips/failures/errors (`full-02.json`, run `b20df7f1-e54e-43ed-baa2-29d85b9bd0d7`). The wrapper is execution evidence, not a product verdict. Runtime/test bytes were unchanged during this run; documentation/version changed and were checked separately, so the whole working-tree capture identity is not reusable as a frozen-source verdict. The preceding 469-test intermediate run failed four checks while fixes were in progress (old public-API mocks and the work-manifest lock location); it remains retained as `full-01.json`.
+
+## Frozen package and delivery
+
+`package-0.1.68-final/` is built from clean `4d27b5e2a9aed7c99ca75cf77c87aadd448ef4da`, tree `2b2df0965fb60a400aebac32aa6f0d29ca467a34`: 19 public Skills, 253 files including the hash manifest. Doctor verified all 252 manifest-bound files. This is a local package, not an installed or published release.
+
+The same existing consumers were rerun against it with child-inherited `PYTHONDONTWRITEBYTECODE=1`:
+
+```text
+python -B verify_frozen.py --output <new-absolute-evidence-directory>
+python -B feedback-consumption/frozen-race/consume_actual_race.py
+```
+
+`runs/frozen-connected/report.json`: normal 14/14, UI-only fault 9/14 and ISSUES with Domain/API normal controls; cleanup and retained artifact hashes pass; package bytes and file set unchanged; lookup executes zero producers. `feedback-consumption/frozen-race/final-01/u4-actual-race-feedback.json`: original race ISSUES, repaired owner PASS, feedback RESOLVED, later reverted owner reopens feedback and one selected execution returns ISSUES; original RED/GREEN bundle hashes remain unchanged. `frozen-product-lookup.json`: final-package lookup of the independent product task equals candidate2's output, runs no checks, preserves task/evidence bytes, and retains the true PARTIAL/STALE scope rather than upgrading it to PASS.
+
+The first 0.1.68 consumption attempt failed package invariance because one parallel helper allowed Python bytecode cache creation. All manifest-bound files remained unchanged, but extra files correctly failed the invariant. `final-package-attempt-01.json`, the original package and runs are retained; only the consumer environment was corrected, then a new package directory was built and consumed. No failed attempt was relabeled PASS.
+
+Evidence relocation copies bytes with SHA-256 checks. `connected-relocation.json` and `evidence-relocation.json` map original absolute paths to retained paths without rewriting captures. `delivery.json` records final branch/commit, local-main fast-forward and removal of only this task's created worktree. Later delivery documentation changes do not change packaged runtime bytes. Native discovery/hook/protected-host acceptance and hosted CI remain unverified; resume them with an explicitly authorized host/CI execution. The independent product's expanded 19-binding plan remains prepared but unexecuted; resume that retained task only if its broader acceptance is required. No business-value, general performance, monetary-cost or whole-plugin completion claim follows from this scoped delivery.
