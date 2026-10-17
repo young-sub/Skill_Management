@@ -1,5 +1,7 @@
 # Agent Documentation Index
 
+- [Native plugin use](research/native-plugin-use-results.md): Codex/Claude discovery, invocation, hook delivery and remaining model-use boundaries.
+
 Read applicable AGENTS and `.harness/project.yaml` first. Load ignored `.harness/environment-exceptions.json` once per task; honor `skip_until_manual_reenable` and its fallback.
 
 - [Current design](research/agent-coding-system-direction.md): six outcomes, user flow, ownership and completion boundaries. This is the design authority.

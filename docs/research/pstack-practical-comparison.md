@@ -48,5 +48,5 @@ pstack은 로컬 `pstack-review/.agents`의 0.15.25, 고정 리비전 `101b274dd
 - **다음 실제 연결 변경:** 기존 full-stack fixture와 별도로 실제 제품의 FE→API→Domain→저장→새 조회 및 우회/정상 경로를 확인한다. 이번 실제 제품 소비는 Domain/native이며 브라우저·서버 API는 이번에 검증하지 않았다.
 - **다음 관련 UI/검증 업무:** guide/token/component/실행 명령을 스스로 발견해 사용하는 새 문맥 소비를 확인한다. 이번에는 Agent 발견을 시험하지 않았으므로 무도움 성공률이나 개입 감소를 주장하지 않는다.
 - **검사 비용 감소:** Git와 실행 조건에 무관한 재사용 범위를 실제 runner에서 입증할 때만 추가한다. pstack 전면 이식이나 고정 다중 모델 절차는 현재 결정을 바꾸지 않아 수행하지 않는다.
-- **Native host:** 설치/활성화·hook 신뢰·보호 host driver의 별도 승인과 환경이 필요하다. 로컬 package 소비와 구분하며 현재 업무의 공통 차단으로 삼지 않는다.
+- **Native host:** Codex·Claude Code가 실제 제품 사용 환경이다. 격리 설치/세션 로딩·Skill 발견/호출·hook 전달은 보호 host driver 없이도 각각 확인한다. 전역 설치와 hook 신뢰 변경은 별도 권한 경계이며, 보호 수락을 일반 사용 검증의 선행 조건으로 두지 않는다. 후속 현행 근거는 [native 사용 검증](native-plugin-use-results.md)에 있다.
 - **벤치마크:** 이번 채택 판단에는 공개 CLI 반례와 실제 제품 결함 검출이 충분했다. 유료 모델 호출·SWE-bench·FeatureBench를 실행하지 않았고 pstack 대비 성공률·시간·비용은 미측정이다.

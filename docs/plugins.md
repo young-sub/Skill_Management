@@ -356,6 +356,35 @@ installed cache path and plugin ID. The isolated home establishes installation
 and discovery without credentials; it does not inherit an authenticated model
 session. Current measured outcomes are in the [implementation results](research/agent-workflow-implementation-results.md).
 
+## Native use in Codex and Claude Code
+
+These tools are product hosts, not optional deployment targets. Verify native
+discovery, Skill invocation, prompt-hook delivery and actual model task use
+separately. The optional protected verifier is not a prerequisite for ordinary
+plugin use. Current observations and limits: [native use results](research/native-plugin-use-results.md).
+
+The builder derives `.claude-plugin/plugin.json` from the same identity as the
+Codex manifests. Claude discovers the default `skills/` and `hooks/hooks.json`;
+do not declare the default hook file a second time. The shared hook accepts
+Claude's `CLAUDE_PLUGIN_ROOT` or Codex's `PLUGIN_ROOT`.
+See the [Claude manifest reference](https://code.claude.com/docs/en/plugins-reference).
+
+For session-only Claude consumption, with the package path resolved absolutely:
+
+```text
+claude plugin validate <package>
+claude --plugin-dir <package> plugin details agentic-coding
+claude --plugin-dir <package>
+```
+
+Invoke `/agentic-coding:agent-workflow` with the actual request. For isolated
+checks, set `CLAUDE_CONFIG_DIR` only in that process. Authentication and model
+execution are separate from manifest validation and component discovery; a
+local transport receiver proves prompt assembly, not model task completion.
+Do not copy credentials or change ordinary installations to turn an unavailable
+boundary into a pass. Codex's `hooks/list` reports hook trust separately from
+plugin enablement; an untrusted hook has not been delivered.
+
 ## Guarded local update and file recovery
 
 The isolated 0.1.0 to 0.1.1 update showed that the native host deletes its old plugin

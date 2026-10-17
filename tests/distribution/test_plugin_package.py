@@ -31,6 +31,9 @@ class PluginPackageTests(unittest.TestCase):
             self.assertEqual(origin['source_tree'], subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', 'HEAD^{tree}'], text=True).strip())
             self.assertEqual(origin['source_dirty'], bool(subprocess.check_output(['git', '-C', str(ROOT), 'status', '--porcelain'])))
             self.assertEqual(manifest['name'], compatibility['name'])
+            claude_manifest = package / '.claude-plugin/plugin.json'
+            self.assertTrue(claude_manifest.is_file(), 'Claude must retain plugin identity independently of its directory name')
+            self.assertEqual(json.loads(claude_manifest.read_text()), manifest)
             # Codex 0.160.0 ignores bundled hooks with the portable $schema marker.
             # Keep the working compatibility manifest until that host path is fixed.
             self.assertNotIn('$schema', manifest)
@@ -51,11 +54,15 @@ class PluginPackageTests(unittest.TestCase):
             self.assertEqual(set(hook), {'UserPromptSubmit'})
             hook_command = hook['UserPromptSubmit'][0]['hooks'][0]['command']
             # Exercise the distributed shell command with the host-provided root.
-            hooked = subprocess.run(['powershell', '-NoProfile', '-Command', hook_command],
-                input=json.dumps({'hook_event_name': 'UserPromptSubmit', 'cwd': str(root)}),
-                env=dict(os.environ, PLUGIN_ROOT=str(package)), capture_output=True, text=True, timeout=30)
-            self.assertEqual(hooked.returncode, 0, hooked.stdout + hooked.stderr)
-            self.assertEqual(json.loads(hooked.stdout), {})
+            for root_variable in ('PLUGIN_ROOT', 'CLAUDE_PLUGIN_ROOT'):
+                environment = {k: v for k, v in os.environ.items()
+                               if k not in ('PLUGIN_ROOT', 'CLAUDE_PLUGIN_ROOT')}
+                environment[root_variable] = str(package)
+                hooked = subprocess.run(['powershell', '-NoProfile', '-Command', hook_command],
+                    input=json.dumps({'hook_event_name': 'UserPromptSubmit', 'cwd': str(root)}),
+                    env=environment, capture_output=True, text=True, timeout=30)
+                self.assertEqual(hooked.returncode, 0, root_variable + hooked.stdout + hooked.stderr)
+                self.assertEqual(json.loads(hooked.stdout), {})
             for script in ('project_workflow.py', 'verification_results.py'):
                 help_result = subprocess.run([
                     sys.executable, str(package / 'skills/agent-workflow/scripts' / script),

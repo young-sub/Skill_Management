@@ -56,6 +56,13 @@ Semantic review after execution joins the existing evidence; it does not require
 
 ## Boundaries and retained evidence
 
+For plugin packaging/hook changes, use the native discovery and session loading
+commands in [the plugin guide](plugins.md#native-use-in-codex-and-claude-code).
+Check each host's plugin identity, namespaced Skills and hook status. A native
+local transport test can establish Skill-body and hook-context delivery without
+paid inference; it cannot establish model task success. A protected verifier is
+not required for these checks. Keep native failure/timeout and cleanup records.
+
 The public API static check and TaskStore process regressions protect shared ownership, stale-writer rejection, interrupted writes and explicit reapplication. Existing execution tests protect state/effects and required evidence. Do not replace these with submitted success flags. Public API checks are not whole-program type proof.
 
 Keep failures, retries, assistance, raw reports and screenshots under `.work/`; cleanup removes only owned temporary resources. Frozen-package verification pins the clean source commit and package hashes before/after actual consumption (`PYTHONDONTWRITEBYTECODE=1` for child processes). Do not overwrite old evidence or call prior tests current. Fixture, package CLI, real product, native discovery/hook and protected-host acceptance are separate results.

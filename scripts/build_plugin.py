@@ -64,6 +64,8 @@ def build(output):
         return (json.dumps(value, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
 
     files['plugin.json'] = encoded(manifest)
+    # Claude uses default component directories; declaring hooks again duplicates them.
+    files['.claude-plugin/plugin.json'] = encoded(manifest)
     files['build-origin.json'] = encoded(dict(origin, version=manifest['version']))
     # Older Codex CLI hosts consume this overlay; identity has one source above.
     files['.codex-plugin/plugin.json'] = encoded({
