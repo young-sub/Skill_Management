@@ -1,5 +1,7 @@
 # Repository Feature Map
 
+`workflow-obligations` in 0.1.75 reuses a current shared capture for structural prevention when the target Feature was preselected. This removes a label-only rerun while retaining malformed/unrelated consumer rejection, source/evidence freshness and required-check obligations.
+
 `native-verification` now accepts a UTF-8 file as byte-preserving stdin in the existing foreground capture. `agent-workflow` exposes it for Windows Unicode transport; file bytes and invalid-input rejection are exercised through real subprocesses. This prevents shell transcoding on that path, not arbitrary document corruption.
 
 `workflow-obligations` / `agent-workflow` in 0.1.73 omit validated review bodies,

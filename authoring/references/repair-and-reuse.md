@@ -137,6 +137,8 @@ join currently requires prepared native-JSON bundles; absent bindings stay OPEN.
 
 Use an existing Feature `prevention` row and matching feedback `guardrail` with `mechanism: structure` or `type_constraint`, `failure`, `scope`, existing source `owner_refs`, `normal_exception` and `reconsider`. No new registered check, JSON assertion adapter or fabricated RED/GREEN pair is required. The source owner must actually change. Automatic regression prevention keeps its fixed-oracle contract above.
 
+A capture preselected for several Features can support each listed consumer's structural prevention review. Reuse its existing bytes and run identity; do not rerun solely to change the primary Feature label. Unrelated or malformed consumer labels and stale source/evidence remain insufficient.
+
 Finish both matching declarations and any source/criteria/config edits before the final capture. Audit the feedback first to catch missing links or owners without running product commands; pending execution evidence is expected at that stage. Then capture the existing runner and submit the review. Editing project config after capture makes it stale and can force an otherwise unnecessary rerun.
 
 Record `trace`, `root_cause`, `failed_prevention`, `repair_paths` and `prevention_review` after inspecting actual evidence:

@@ -2332,7 +2332,12 @@ def structural_prevention_remaining(root, feature, entry, *, bundle_cache):
                                   *(':(exclude,literal)' + path for path in original_untracked))
                     same_source = hashlib.sha256(changes).hexdigest() == observed.get('tracked_diff_sha256')
             bundle_cache[source_key] = same_source
-        if (not isinstance(capture, dict) or capture.get('feature') != feature['id']
+        consumers = capture.get('shared_features', [capture.get('feature')])
+        selected = (isinstance(consumers, list) and bool(consumers)
+                    and all(isinstance(name, str) and name.strip() for name in consumers)
+                    and len(consumers) == len(set(consumers))
+                    and capture.get('feature') in consumers and feature['id'] in consumers)
+        if (not selected
                 or type(capture.get('capture_pid')) is not int or capture['capture_pid'] <= 0
                 or not isinstance(capture.get('elapsed_seconds'), (int, float))
                 or not math.isfinite(capture['elapsed_seconds']) or capture['elapsed_seconds'] < 0

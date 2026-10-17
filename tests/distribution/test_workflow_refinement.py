@@ -24,7 +24,10 @@ class WorkflowRefinementTests(unittest.TestCase):
     def test_structural_shared_owner_can_complete_current_checkless_repair_only(self):
         self.exercise_structural_prevention(shared=True)
 
-    def exercise_structural_prevention(self, shared=False):
+    def test_structural_prevention_reuses_preselected_shared_capture_without_reexecution(self):
+        self.exercise_structural_prevention(shared_capture=True)
+
+    def exercise_structural_prevention(self, shared=False, shared_capture=False):
         runtime = self.runtime()
         config = self.project['extensions']['workflow']
         feature = config['features'][0]
@@ -55,7 +58,9 @@ class WorkflowRefinementTests(unittest.TestCase):
         def capture(name):
             path = self.root / ('.work/' + name + '.json')
             result = subprocess.run([sys.executable, str(existing.ROOT / 'scripts/run_check.py'),
-                '--cwd', str(self.root), '--output', str(path), '--feature', 'api', '--',
+                '--cwd', str(self.root), '--output', str(path),
+                *(['--feature', 'peer', '--also-feature', 'api', '--check', 'check'] if shared_capture
+                  else ['--feature', 'api']), '--',
                 sys.executable, '-B', 'src/verify.py'], capture_output=True, text=True)
             return result.returncode, path.relative_to(self.root).as_posix()
         red_code, red = capture('red')
@@ -73,6 +78,22 @@ class WorkflowRefinementTests(unittest.TestCase):
             guardrail=guardrail, prevention_review=review))
         accepted = runtime.inspect_project(self.root, self.project, state)
         self.assertEqual(accepted['feedback'][0]['status'], 'RESOLVED', accepted['feedback'][0]['remaining'])
+        if shared_capture:
+            path = self.root / green
+            original = path.read_bytes()
+            try:
+                for index, labels in enumerate((None, ['peer'], 'api', ['api'], ['peer', 'api', 'api'])):
+                    broken_capture = json.loads(original)
+                    broken_capture['shared_features'] = labels
+                    path.write_text(json.dumps(broken_capture), encoding='utf-8')
+                    revised = dict(review, id=f'invalid-shared-{index}')
+                    rebound = runtime.record_feedback(self.root, self.project, state,
+                        dict(entry, prevention_review=revised))
+                    item = runtime.inspect_project(self.root, self.project, rebound)['feedback'][0]
+                    self.assertEqual(item['status'], 'OPEN', labels)
+                    self.assertIn('prevention_execution_stale_or_unbound', item['remaining'])
+            finally:
+                path.write_bytes(original)
         self.assertFalse(any('prevention:' in f for f in accepted['findings']))
         if shared:
             historical = deepcopy(state['feedback']['quantity'])

@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: 2e8cb20bd95a5aef4b224c036657036ccf407fdd095944446cdb44d3e8f3c5bc
+# Source-SHA256: 254ab0aa6e9e59e74f809324eba621f59f7734030303f3a8283de52f378e8da6
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -2336,7 +2336,12 @@ def structural_prevention_remaining(root, feature, entry, *, bundle_cache):
                                   *(':(exclude,literal)' + path for path in original_untracked))
                     same_source = hashlib.sha256(changes).hexdigest() == observed.get('tracked_diff_sha256')
             bundle_cache[source_key] = same_source
-        if (not isinstance(capture, dict) or capture.get('feature') != feature['id']
+        consumers = capture.get('shared_features', [capture.get('feature')])
+        selected = (isinstance(consumers, list) and bool(consumers)
+                    and all(isinstance(name, str) and name.strip() for name in consumers)
+                    and len(consumers) == len(set(consumers))
+                    and capture.get('feature') in consumers and feature['id'] in consumers)
+        if (not selected
                 or type(capture.get('capture_pid')) is not int or capture['capture_pid'] <= 0
                 or not isinstance(capture.get('elapsed_seconds'), (int, float))
                 or not math.isfinite(capture['elapsed_seconds']) or capture['elapsed_seconds'] < 0
