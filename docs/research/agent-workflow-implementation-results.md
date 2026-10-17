@@ -1,5 +1,34 @@
 # Agent workflow implementation and acceptance
 
+<a id="verification-rework-2026-10-17"></a>
+
+## Task selector and retained stdout repair, 2026-10-17
+
+Started from clean `main@a4791b44527f1b414693638721b8362a074efe8c`
+in a dedicated worktree, preserving prior A/B/C, Flask and Yeondoo evidence.
+The original consumer trace and a new 0.1.66 reproduction confirm two owners:
+the CLI rejected an absolute task path inside its project, while shell redirection
+replaced full stdout with a summary (876,830 to 100,960 bytes). The existing
+`run_check.py` already reserves a new output before launch; it was not the cause.
+
+Runtime **0.1.67** normalizes only absolute CLI `--state` input to a project-relative
+selector before all existing checks. `local_path` remains relative-only; outside,
+private, non-task and directory-alias paths stay rejected. The existing Skill now
+connects saved lookups to the bundled capture and separate new full/summary files.
+There is no new runner, state schema, output field or generic ledger.
+
+Focused RED observed the rejected inside-project selectors and lost distinctions
+between absolute private/non-task inputs. GREEN compares connect/lookup/resume/audit
+with and without context, preserves state bytes, and verifies the protection
+boundaries including a real directory junction. The original RED included test
+field-name mistakes; the corrected pre-fix run retains ten assertion failures.
+The focused four-test recheck and all 66 workflow tests passed. Native capture's
+34-test viewer/capture run had one sandbox taskkill/cleanup error; that one
+test passed under host permissions, without excluding the failed attempt.
+Package/fresh-Agent and bounded product consumption are recorded separately in
+`.work/verification-rework-20261017/`. No large Agent A/B or Full is selected for
+this bounded input/discovery change, and no solve-rate or cost gain is inferred.
+
 <a id="reviewed-improvement-2026-10-17"></a>
 
 ## Independently reviewed scope and observed blocker explanation, 2026-10-17

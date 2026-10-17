@@ -1,5 +1,15 @@
 # Testing And Impact Selection
 
+Runtime 0.1.67 normalizes absolute CLI `--state` selectors inside the selected
+project before the existing guards. Focused CLI tests compare relative/absolute
+connect, lookup, resume and audit with/without context, preserve state bytes and
+reject outside/private/non-task/junction paths. `local_path` remains relative-only.
+Existing capture regression and actual package consumption check refusal of a
+reused output before launch; the Skill now discovers that existing capture for
+saved lookups. Select workflow/refinement/hook, viewer/capture and packaging/docs
+checks for this bounded input/discovery change; no new Full or large Agent A/B.
+Fresh Agent behavior and product checks are separate from these regressions.
+
 Runtime 0.1.66 changes only the handoff explanation: task binding/effect
 blockers are described only when actually observed, with their retained reasons.
 Selection, execution, acceptance states and private-path protection are unchanged.

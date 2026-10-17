@@ -4,7 +4,7 @@ description: Coordinate a coding task from a natural-language request through re
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: c132f71c08fe9d98adccf612a007c23edd1ac1c27ec197fa4bcf7cef94dce905 -->
+<!-- Source-SHA256: a3677b543ce243a9142dacd9cc88504c325d230604f5fe585ef889f1873538ce -->
 
 
 # Agent Workflow
@@ -89,6 +89,21 @@ not unobserved; repeat the same lookup without `--summary` or open raw path/poin
 Missing/expired bundles remain unavailable. Hook task gaps cover active cells;
 project gaps include out-of-task cells. A compact hook retains the selected task
 and exact lookup pointer. Without host context it exposes candidates, not a guess.
+
+When saving lookup stdout, use the plugin's existing `scripts/run_check.py`
+capture with a new output file for each invocation:
+
+```text
+python <plugin>/scripts/run_check.py --cwd <project> --output <new-capture.json> -- python <skill>/scripts/project_workflow.py lookup --root <project> --state <exact-state> --summary
+```
+
+The capture retains stdout/stderr and refuses an existing output before launching
+the lookup. Read its `stdout` JSON for the result; the capture's native exit is not
+task acceptance. For full detail omit `--summary` and choose another new capture.
+Do not redirect a summary over a full lookup or reuse an evidence path. This
+captures a read-only lookup, which executes zero product checks. Standalone Skills
+can use the project's existing capture tool. `--state` accepts a project-relative
+path or an absolute path within that project's `.work`; registry paths stay relative.
 
 For a connected task, use `--prepare --root <project> --pending-state .work/task.json`
 (`--work-id` for Harness work), with new plan/report paths. The registry's

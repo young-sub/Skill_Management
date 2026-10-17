@@ -2733,7 +2733,7 @@ def main(argv=None):
     parser.add_argument('--root', type=Path, help='Project root; connected calls may omit it')
     parser.add_argument('--project', default='.harness/project.yaml')
     state_selection = parser.add_mutually_exclusive_group()
-    state_selection.add_argument('--state', help='Task-owned record under .work; audit without it is read-only')
+    state_selection.add_argument('--state', help='Task-owned record under .work, relative to --root or absolute within it; audit without it is read-only')
     state_selection.add_argument('--work-id', help='Use the workflow baseline captured by Harness start')
     parser.add_argument('--context', help='Explicit context returned by start/connect; otherwise AGENT_WORKFLOW_CONTEXT')
     parser.add_argument('--output', help='New .work directory for prepare; default is a unique task run')
@@ -2767,6 +2767,12 @@ def main(argv=None):
             raise ValueError('request_metadata_requires_task_start')
         if args.investigation and args.action not in {'start', 'begin', 'investigate'}:
             raise ValueError('investigation_requires_start_begin_or_investigate')
+        if args.state and Path(args.state).is_absolute():
+            try:
+                # Keep lexical components so local_path still rejects aliases and escapes.
+                args.state = Path(args.state).relative_to(root).as_posix()
+            except ValueError:
+                raise ValueError(f'path_outside_project:{args.state}') from None
         state_path = local_path(root, args.state) if args.state else None
         if state_path and not state_path.resolve().is_relative_to(root / '.work'):
             raise ValueError('state_must_be_task_local_under_work')

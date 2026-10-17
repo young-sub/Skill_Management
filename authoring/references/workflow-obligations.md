@@ -16,6 +16,13 @@ An empty task record is not evidence of a recorded cause, repair or test result.
 
 Existing project config owns `extensions.workflow`; a task record under `.work` retains review progress. The bundled `scripts/project_workflow.py` computes obligations from current bytes and registered connections without calling a model. Requirements, feature meanings, causes and visual judgments remain Agent work. Review records are Agent inputs, not authenticated proof.
 
+The CLI accepts `--state` relative to `--root` or as an absolute path inside the
+same project's `.work`. It normalizes only this invocation selector before the
+existing confinement, alias and private-path checks. Configuration and retained
+context paths remain project-relative. For saved lookup output, use the existing
+plugin `scripts/run_check.py` with a new capture per call as shown in
+`agent-workflow`; full and summary stdout must have separate captures.
+
 Misrouted feedback can retain its original identity while referencing a reviewed
 same-task successor. SUPERSEDED is derived only from current link bindings and
 an independently RESOLVED/ACCEPTED active-owner successor; stale/invalid links

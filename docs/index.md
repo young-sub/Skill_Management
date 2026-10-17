@@ -2,7 +2,12 @@
 
 Load ignored repository-local `.harness/environment-exceptions.json` once per task when present; refresh after relevant environment changes. `skip_until_manual_reenable` selects the recorded fallback without retrying the unavailable capability.
 
-Source runtime **0.1.66** [repairs the observed handoff explanation](research/agent-workflow-implementation-results.md#reviewed-improvement-2026-10-17):
+Source runtime **0.1.67** [repairs absolute task selection and connects safe lookup capture](research/agent-workflow-implementation-results.md#verification-rework-2026-10-17).
+Only the CLI's inside-project `--state` selector is normalized; existing path
+guards and capture ownership remain intact. Scoped regressions and pinned-package
+consumption have separate acceptance boundaries.
+
+Previous runtime **0.1.66** [repairs the observed handoff explanation](research/agent-workflow-implementation-results.md#reviewed-improvement-2026-10-17):
 actual task blockers are distinguished from general acceptance limits.
 [Confirmed improvement criteria](research/agent-coding-system-direction.md#reviewed-improvement-2026-10-17)
 prioritize existing runners and bounded consumption; no performance gain is claimed.

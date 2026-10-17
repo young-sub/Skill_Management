@@ -16,6 +16,79 @@ SCRIPT = ROOT / 'authoring/scripts/project_workflow.py'
 
 
 class ProjectWorkflowTests(unittest.TestCase):
+    def test_absolute_cli_state_uses_same_task_without_retry_or_mutation(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'change', ['api'])
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        state_path = self.write('.work/tasks/current/state.json', json.dumps(state))
+        before = state_path.read_bytes()
+        context = runtime.task_context(self.root, state, state_path)
+        for action in ('connect', 'lookup', 'resume', 'audit'):
+            for binding in (None, context):
+                with self.subTest(action=action, context=bool(binding)):
+                    def invoke(selector):
+                        output = io.StringIO()
+                        args = [action, '--root', str(self.root), '--state', selector]
+                        if binding:
+                            args += ['--context', binding]
+                        with patch.dict(os.environ, {'AGENT_WORKFLOW_CONTEXT': ''}), contextlib.redirect_stdout(output):
+                            code = runtime.main(args)
+                        return code, json.loads(output.getvalue())
+                    relative = invoke('.work/tasks/current/state.json')
+                    absolute = invoke(str(state_path))
+                    self.assertEqual(absolute, relative)
+                    self.assertEqual(absolute[1]['task']['task_id'], state['task_id'])
+                    self.assertEqual(state_path.read_bytes(), before)
+
+    def test_absolute_cli_state_retains_confinement_and_private_path_guards(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'change', ['api'])
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        current = self.write('.work/state.json', json.dumps(state))
+        private = self.write('.work/auth.json', json.dumps(state))
+        outside = self.root.parent / (self.root.name + '-outside.json')
+        outside.write_text(json.dumps(state))
+        self.addCleanup(outside.unlink)
+        before = {p: p.read_bytes() for p in (current, private, outside)}
+        cases = [(str(outside), 'path_outside_project'),
+                 (str(self.root / '..' / outside.name), 'path_outside_project'),
+                 (str(private), 'private_path'),
+                 (str(self.root / 'src/api.py'), 'state_must_be_task_local_under_work')]
+        for selector, reason in cases:
+            with self.subTest(selector=selector):
+                output = io.StringIO()
+                with patch.dict(os.environ, {'AGENT_WORKFLOW_CONTEXT': ''}), contextlib.redirect_stdout(output):
+                    code = runtime.main(['lookup', '--root', str(self.root), '--state', selector])
+                result = json.loads(output.getvalue())
+                self.assertEqual(code, 2)
+                self.assertTrue(any(reason in item for item in result['findings']), result)
+                self.assertEqual(result['test_commands_executed'], 0)
+        self.assertEqual({p: p.read_bytes() for p in before}, before)
+        with self.assertRaisesRegex(ValueError, 'path_outside_project'):
+            runtime.local_path(self.root, str(current))
+
+    def test_absolute_cli_state_rejects_directory_alias_before_read(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'change', ['api'])
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        current = self.write('.work/owned/state.json', json.dumps(state))
+        alias = self.root / '.work/alias'
+        if os.name == 'nt':
+            subprocess.run(['cmd', '/c', 'mklink', '/J', str(alias), str(current.parent)],
+                           check=True, capture_output=True)
+        else:
+            alias.symlink_to(current.parent, target_is_directory=True)
+        self.addCleanup(alias.rmdir if os.name == 'nt' else alias.unlink)
+        before = current.read_bytes()
+        output = io.StringIO()
+        with patch.dict(os.environ, {'AGENT_WORKFLOW_CONTEXT': ''}), contextlib.redirect_stdout(output):
+            code = runtime.main(['lookup', '--root', str(self.root), '--state', str(alias / current.name)])
+        result = json.loads(output.getvalue())
+        self.assertEqual(code, 2)
+        self.assertTrue(any('aliased_path' in item for item in result['findings']), result)
+        self.assertEqual(result['test_commands_executed'], 0)
+        self.assertEqual(current.read_bytes(), before)
+
     def test_read_only_lookup_shares_measured_project_basis_with_nested_viewer(self):
         started = self.test_connected_prepare_execute_lookup_and_completed_execution_resume()
         runtime = self.runtime()
