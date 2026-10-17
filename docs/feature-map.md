@@ -1,5 +1,7 @@
 # Repository Feature Map
 
+`native-verification` now accepts a UTF-8 file as byte-preserving stdin in the existing foreground capture. `agent-workflow` exposes it for Windows Unicode transport; file bytes and invalid-input rejection are exercised through real subprocesses. This prevents shell transcoding on that path, not arbitrary document corruption.
+
 `workflow-obligations` / `agent-workflow` in 0.1.73 omit validated review bodies,
 feedback bindings and repeated bundle descriptors from lookup summaries. Large
 projects also omit previews, retaining full criterion/cell ID denominators,

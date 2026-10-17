@@ -4,7 +4,7 @@ description: Coordinate a coding task from a natural-language request through re
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: 3fc2ed5615774a862249cd8d3d04e4e6b7c594728b013e45451eec4dbbf823ec -->
+<!-- Source-SHA256: 9b685c7a04f46bc833b79c33be2c173d3355d44152253423bd2525cc7ed686ec -->
 
 
 # Agent Workflow
@@ -49,6 +49,8 @@ Inspect `handoff` first: current request, measured impact, project remainder and
 The summary omits detail, not evidence. It retains verdicts, counts, criterion IDs and exact detail pointers; large-project previews, semantic review bodies and feedback bindings may be omitted. `observations_omitted` with a positive count points to raw. Capture the exact lookup without `--summary` when needed and read only the relevant JSON fields or raw pointer, rather than printing the whole report. Historical PASS/current STALE is not current success. Task-misbound evidence is not acceptance. Semantic review after execution joins the existing bundle/state without rerunning unchanged commands.
 
 When stdout must be retained, use the package's existing `scripts/run_check.py --cwd <project> --output <new-capture.json> -- <lookup argv>`. It refuses overwrite. Read completed `stdout` JSON; exit zero is not task acceptance. A capture with `execution: running` is unfinished: wait on its owning process/tool and inspect the same path. If the owner stopped, preserve unknown status and reconcile instead of launching another capture.
+
+For non-ASCII text or programs sent to native stdin on Windows, save a UTF-8 file with the editor, then use that capture's `--stdin-file <file>` before `--`. It validates UTF-8 and passes a byte snapshot, recording its hash; it does not use PowerShell's text pipeline encoding. Read back the resulting artifact. This protects that transport only: already replaced `?` characters are valid UTF-8 and cannot be recovered or identified as corruption automatically. Never send secrets through a retained check.
 
 ## Improve and explain
 

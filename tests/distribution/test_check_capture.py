@@ -15,6 +15,33 @@ from unittest import mock
 RUNNER = Path(__file__).resolve().parents[2] / 'scripts/run_check.py'
 
 class CheckCaptureTests(unittest.TestCase):
+    def test_stdin_file_preserves_unicode_and_bytes_without_shell_transcoding(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            payload = '# 한국어 日本語 café 😀\r\n? is valid punctuation\n'.encode('utf-8')
+            (root / 'input.txt').write_bytes(payload)
+            result = subprocess.run([sys.executable, str(RUNNER), '--cwd', tmp,
+                '--output', str(root / 'run.json'), '--stdin-file', 'input.txt', '--',
+                sys.executable, '-c', 'import sys; from pathlib import Path; Path("received").write_bytes(sys.stdin.buffer.read())'],
+                input=b'wrong ambient stdin', capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual((root / 'received').read_bytes(), payload)
+            record = json.loads((root / 'run.json').read_text(encoding='utf-8'))
+            self.assertEqual(record['stdin_file']['sha256'], hashlib.sha256(payload).hexdigest())
+            self.assertEqual(record['stdin_file']['bytes'], len(payload))
+
+    def test_invalid_utf8_input_is_rejected_before_child_or_output_creation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'input.txt').write_bytes(b'\xff\xfeinvalid')
+            result = subprocess.run([sys.executable, str(RUNNER), '--cwd', tmp,
+                '--output', str(root / 'run.json'), '--stdin-file', 'input.txt', '--',
+                sys.executable, '-c', 'from pathlib import Path; Path("executed").touch()'], capture_output=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(b'UTF-8', result.stderr)
+            self.assertFalse((root / 'executed').exists())
+            self.assertFalse((root / 'run.json').exists())
+
     def test_progress_is_published_before_slow_source_measurement(self):
         with mock.patch.object(sys, 'path', [str(RUNNER.parent), *sys.path]):
             namespace = runpy.run_path(str(RUNNER))

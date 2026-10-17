@@ -1,5 +1,6 @@
 """Capture a finite, foreground check. Output is evidence to inspect, never a verdict."""
 import argparse
+from contextlib import nullcontext
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -23,6 +24,7 @@ def main():
     parser.add_argument('--feature', help='Optional project-owned Feature ID')
     parser.add_argument('--also-feature', action='append', default=[], help='Additional preselected consumer of this same check')
     parser.add_argument('--check', help='Optional project-owned command ID')
+    parser.add_argument('--stdin-file', type=Path, help='Non-secret UTF-8 input file, relative to cwd; pass exact bytes without shell text transcoding')
     parser.add_argument('--json-report', type=Path, help='New native JSON report path (relative to cwd); embed after execution, without assigning a verdict. Must contain no secrets.')
     parser.add_argument('--timeout', type=float, default=300, help='Seconds before stopping the owned process tree (default: 300)')
     parser.add_argument('command', nargs=argparse.REMAINDER)
@@ -33,6 +35,14 @@ def main():
     if args.also_feature and (not args.feature or not args.check or any(not name.strip() for name in args.also_feature)):
         parser.error('Shared capture requires nonempty Feature and check IDs')
     cwd = args.cwd.resolve()
+    input_bytes = None
+    if args.stdin_file:
+        input_path = (cwd / args.stdin_file).resolve()
+        try:
+            input_bytes = input_path.read_bytes()
+            input_bytes.decode('utf-8', errors='strict')
+        except (OSError, UnicodeError) as error:
+            parser.error(f'Cannot read UTF-8 stdin file: {error}')
     report = (cwd / args.json_report).absolute() if args.json_report else None
     if report:
         if report.exists() or report.is_symlink() or report == args.output.resolve():
@@ -40,10 +50,17 @@ def main():
         report.parent.mkdir(parents=True, exist_ok=True)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     # Reserve first: an old result can neither be overwritten nor mistaken for this run.
-    with args.output.open('x', encoding='utf-8') as stream:
+    with args.output.open('x', encoding='utf-8') as stream, \
+            (tempfile.TemporaryFile() if input_bytes is not None else nullcontext()) as input_stream:
         record = {'run_id': str(uuid.uuid4()), 'feature': args.feature, 'check': args.check,
                   'argv': argv, 'cwd': str(cwd), 'started_at': datetime.now(timezone.utc).isoformat(),
                   'behavior_verdict': None}
+        if input_stream is not None:
+            # Snapshot bytes before launch; ambient PowerShell encoding cannot alter this input.
+            input_stream.write(input_bytes)
+            input_stream.seek(0)
+            record['stdin_file'] = {'path': str(input_path), 'bytes': len(input_bytes),
+                                    'sha256': hashlib.sha256(input_bytes).hexdigest()}
         if args.also_feature:
             record['shared_features'] = list(dict.fromkeys([args.feature, *args.also_feature]))
         record.update(execution='running', exit_code=None, capture_pid=os.getpid(),
@@ -55,7 +72,7 @@ def main():
         record['before'] = git_identity(cwd)
         start = time.monotonic()
         try:
-            process = subprocess.Popen(argv, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace', start_new_session=os.name != 'nt')
+            process = subprocess.Popen(argv, cwd=cwd, stdin=input_stream, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace', start_new_session=os.name != 'nt')
             try:
                 stdout, stderr = process.communicate(timeout=args.timeout)
                 record.update(execution='exited', exit_code=process.returncode, stdout=stdout, stderr=stderr)

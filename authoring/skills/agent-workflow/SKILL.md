@@ -46,6 +46,8 @@ The summary omits detail, not evidence. It retains verdicts, counts, criterion I
 
 When stdout must be retained, use the package's existing `scripts/run_check.py --cwd <project> --output <new-capture.json> -- <lookup argv>`. It refuses overwrite. Read completed `stdout` JSON; exit zero is not task acceptance. A capture with `execution: running` is unfinished: wait on its owning process/tool and inspect the same path. If the owner stopped, preserve unknown status and reconcile instead of launching another capture.
 
+For non-ASCII text or programs sent to native stdin on Windows, save a UTF-8 file with the editor, then use that capture's `--stdin-file <file>` before `--`. It validates UTF-8 and passes a byte snapshot, recording its hash; it does not use PowerShell's text pipeline encoding. Read back the resulting artifact. This protects that transport only: already replaced `?` characters are valid UTF-8 and cannot be recovered or identified as corruption automatically. Never send secrets through a retained check.
+
 ## Improve and explain
 
 Register feedback before repair and complete the same record with actual cause/owner and mechanism-appropriate evidence. Prefer structure, then type/constraint, then an automatic check, then minimal documentation. The [repair contract](references/repair-and-reuse.md) distinguishes fixed-oracle regression from reviewed structural prevention. Neither a rule sentence nor RESOLVED alone proves repair.
