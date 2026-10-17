@@ -29,6 +29,41 @@ retain existing-runner reuse and evidence-driven scope. No new A/B matrix is sel
 New evidence is retained separately in `.work/verification-review-20261017/`;
 old benchmark results and package pins are not overwritten.
 
+Source commit `91aebea7cdea594a8ef0d0ca781e4a2e7624ce7e` produced the clean
+0.1.66 package: manifest SHA-256
+`66ccecbb2d59b867889404b491fa7690ff47d526ececfaf0190ba9bc72c836d7`, ZIP SHA-256
+`722233e88deb48b16095adcab002f4076f2a06405385a33eed8ae9f8cd11c1c0`.
+The regression selector hit its 300-second capture limit after 89 success markers.
+Sequential unittest order places all 63 project tests before that point; this is
+not a completed aggregate PASS. The remaining refinement/hook modules were rerun:
+45/45 passed in 198.587s, repeating the already completed refinement prefix.
+The timeout and failed permission-limited taskkill remain retained; a subsequent
+process inventory found no Python process. Final focused 3/3, documentation 13/13,
+resource drift, distribution and formatting checks passed. No new Full run.
+
+One fresh Luna/medium Agent consumed the pinned package against two retained,
+isolated Yeondoo tasks. It reported CatalogImport's actual
+`prepared_plan_task_mismatch` as BLOCKED. Staff-access had two current reusable
+checks but missing owner/screen review and six undecided scope cells, so the Agent
+correctly retained task INCOMPLETE without inventing a binding failure. Both
+lookups executed zero product commands. Historical Flask output replay likewise
+changed only the explanation, preserving four reusable checks and task INCOMPLETE.
+The 4,125 measured product/evidence files, five historical evidence files and all
+247 package files were unchanged. This is bounded fresh-context consumption,
+not a blinded benchmark, installed-host discovery or a causal effectiveness gain.
+
+Negative results remain: the consumer initially used unsupported absolute state
+paths and retried relative ones. It also overwrote its newly captured full staff
+stdout with a summary; those initial stdout bytes were not recovered. The parent
+gave one preservation reminder, with no expected verdict or debugging hint.
+Original product/plan/raw evidence remained unchanged. The consumer could read
+durable historical results as well as project guides; do not claim unaided blind
+acceptance. Session metadata confirms gpt-6-luna/medium for both reviewer and
+consumer. Their captured usage was 1,369,622 and 1,570,804 tokens respectively
+(cached input included); parent task delta and monetary/full cost remain unknown.
+No cost reduction is demonstrated. Metadata/output repair alone is not counted
+as business-performance improvement.
+
 <a id="natural-discovery-2026-10-17"></a>
 
 ## Natural-language discovery and investigation handoff, 2026-10-17
