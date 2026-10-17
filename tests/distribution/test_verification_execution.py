@@ -21,6 +21,48 @@ def _digest(data: bytes) -> str:
 
 
 class VerificationExecutionTests(unittest.TestCase):
+    def test_direct_lookup_remeasures_untracked_inputs_without_reexecution(self):
+        pending = self.project / 'pending.txt'
+        (self.project / 'check.py').write_text(
+            "import json\nfrom pathlib import Path\n"
+            "Path('result.json').write_text(json.dumps({'checks': [{'sum': "
+            "int(Path('pending.txt').read_text()), 'readback': 'ok'}]}))\n")
+        self._git('add', 'check.py')
+        self._git('commit', '-qm', 'consume a new project input')
+        pending.write_text('5')
+        _, executed = self._execute(self._plan())
+        self.assertEqual(executed['status'], 'PASS', executed)
+        bundle = executed['bundle']
+        argv = [sys.executable, str(VIEWER), '--plan', bundle['plan'],
+                '--current-context', str(self.evidence / 'current-context.json')]
+        for key, flag in (('records', '--record'), ('assessments', '--assessment')):
+            for path in bundle[key]:
+                argv.extend([flag, path])
+
+        def lookup():
+            process = subprocess.run(argv, capture_output=True, text=True, check=False)
+            return json.loads(process.stdout)
+
+        self.assertEqual(lookup()['status'], 'PASS')
+        evidence = {path: path.read_bytes() for path in self.evidence.rglob('*') if path.is_file()}
+        raw = (self.project / 'result.json').read_bytes()
+        before_status = self._git('status', '--porcelain')
+        pending.write_text('6')
+        self.assertEqual(before_status, self._git('status', '--porcelain'))
+        stale = lookup()
+        self.assertEqual(stale['items'][0]['historical_status'], 'PASS')
+        self.assertEqual(stale['items'][0]['current_reuse'], 'STALE', stale)
+        self.assertIn('condition_mismatch:current.source.untracked', stale['items'][0]['reasons'])
+        self.assertEqual(stale['test_commands_executed'], 0)
+        self.assertEqual(raw, (self.project / 'result.json').read_bytes())
+        self.assertEqual(evidence, {path: path.read_bytes() for path in self.evidence.rglob('*') if path.is_file()})
+        pending.write_text('5')
+        self.assertEqual(lookup()['status'], 'PASS')
+        (self.project / '.env').write_text('synthetic-private-value')
+        unavailable = lookup()
+        self.assertNotEqual(unavailable['status'], 'PASS')
+        self.assertNotIn('synthetic-private-value', json.dumps(unavailable))
+
     def test_bundle_lookup_rejects_source_change_during_observation(self):
         pending = self.project / 'pending.txt'
         pending.write_text('original untracked bytes')
@@ -70,7 +112,7 @@ class VerificationExecutionTests(unittest.TestCase):
         # A capture may name a cwd different from the check command cwd. The
         # item-level current-source check must not reuse the other cwd's diff.
         cache = {self.project.resolve(): viewer._git_snapshot(self.project)}
-        identity = viewer._current_source_identity(nested, cache, status=False)
+        identity = viewer._current_source_identity(nested, cache)
         self.assertEqual(identity['revision'], cache[self.project.resolve()]['revision'])
         self.assertEqual(set(cache), {self.project.resolve(), nested.resolve()})
 

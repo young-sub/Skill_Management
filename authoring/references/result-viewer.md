@@ -1,6 +1,9 @@
 # Existing-result lookup
 
 Source identity is shared only within one lookup and exact command/capture cwd.
+Both bundle and direct plan lookup remeasure the captured untracked-file digest;
+editing an already untracked input can leave Git's status text unchanged.
+Historical current-context files cannot substitute for that live observation.
 Before returning, a final Git snapshot rechecks those observations; a changed or
 unavailable source invalidates current reuse. Each later invocation measures again.
 This reduces repeated reads without making lookup a lock or a transactional snapshot

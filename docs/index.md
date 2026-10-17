@@ -16,7 +16,8 @@ Read applicable AGENTS and `.harness/project.yaml` first. Load ignored `.harness
 
 These are scoped execution records, not current task lists or fresh PASS results.
 
-- [0.1.69 follow-up consumption](research/workflow-followup-results.md): resumed product request, execution-derived runner repair, fresh-context reuse and host boundary disposition.
+- [pstack comparison and practical verification](research/pstack-practical-comparison.md): six outcome priorities, direct-lookup repair and bounded product evidence; no comparative model benchmark.
+- [0.1.70 follow-up consumption](research/workflow-followup-results.md): resumed product request, execution-derived runner repair, fresh-context reuse and host boundary disposition.
 - [0.1.69 workflow improvement](research/workflow-improvement-results.md): scoped request completion, structural prevention, guide reuse, frozen package and isolated product evidence.
 - [0.1.68 hardening](research/core-hardening-results.md): required checks, TaskStore/public API, capture publication, package and isolated product evidence.
 - [Implementation results](research/agent-workflow-implementation-results.md): preceding versions and their limits.

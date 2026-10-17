@@ -666,15 +666,15 @@ def _item_result(
             try:
                 live_source = _current_source_identity(
                     record['cwd'], {} if source_cache is None else source_cache,
-                    status='status' in record.get('after', {}),
                 )
-                for key in ('revision', 'diff'):
+                keys = ('revision', 'diff', 'untracked') if 'untracked' in expected_conditions['source'] else ('revision', 'diff')
+                for key in keys:
                     if expected_conditions['source'].get(key) != live_source[key]:
                         current_findings.append(f'condition_mismatch:current.source.{key}')
                 if ('status' in record.get('after', {})
                         and live_source.get('status') != record['after']['status']):
                     current_findings.append('condition_mismatch:current.source.status')
-            except (OSError, subprocess.CalledProcessError):
+            except (OSError, ValueError, subprocess.CalledProcessError):
                 current_findings.append('condition_missing:current.source.git')
         else:
             current_findings.append('condition_missing:current.source.cwd')
@@ -819,22 +819,11 @@ def _git_snapshot(cwd: Path) -> dict[str, str]:
     }
 
 
-def _current_source_identity(cwd: str | Path, cache: dict[Path, dict[str, str]], *, status: bool) -> dict[str, str]:
+def _current_source_identity(cwd: str | Path, cache: dict[Path, dict[str, str]]) -> dict[str, str]:
     key = Path(cwd).absolute()
-    identity = cache.get(key)
-    if identity is None:
-        def git(*tokens: str) -> bytes:
-            return subprocess.check_output(['git', '-C', str(cwd), *tokens], stderr=subprocess.DEVNULL)
-        identity = {
-            'revision': git('rev-parse', 'HEAD').decode().strip(),
-            'diff': sha256(git('diff', 'HEAD', '--binary')),
-        }
-        cache[key] = identity
-    if status and 'status' not in identity:
-        identity['status'] = subprocess.check_output(
-            ['git', '-C', str(cwd), 'status', '--porcelain'], stderr=subprocess.DEVNULL
-        ).decode('utf-8', errors='replace')
-    return identity
+    if key not in cache:
+        cache[key] = _git_snapshot(key)
+    return cache[key]
 
 
 _PRIVATE_PATH_PARTS = {".env", ".dev.vars", "auth", "auth.json", "credentials", "secrets"}
