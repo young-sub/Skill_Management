@@ -16,6 +16,53 @@ SCRIPT = ROOT / 'authoring/scripts/project_workflow.py'
 
 
 class ProjectWorkflowTests(unittest.TestCase):
+    def test_two_process_reviews_reject_stale_write_and_allow_explicit_reapply(self):
+        import time
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'init')
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        state_file = self.write('.work/state.json', json.dumps(state))
+        features = runtime.inspect_project(self.root, self.project, state)['features']
+        reviews = [self.write(f'.work/{f["id"]}.json', json.dumps({
+            'feature': f['id'], 'basis': f['basis'], 'analysis': 'Checked actual caller and requirement.',
+            'references': ['docs/map.md'], 'findings': []})) for f in features]
+        child = self.write('.work/race.py',
+            "import runpy,sys,time\nfrom pathlib import Path\n"
+            "runtime=runpy.run_path(sys.argv[1]); namespace=runtime['main'].__globals__\n"
+            "original=namespace['write_state']\n"
+            "def synchronized(path,state,**kwargs):\n"
+            " Path(sys.argv[2]+'.ready').touch()\n"
+            " while not Path(sys.argv[2]+'.go').exists(): time.sleep(.01)\n"
+            " return original(path,state,**kwargs)\n"
+            "namespace['write_state']=synchronized\n"
+            "raise SystemExit(runtime['main'](sys.argv[3:]))\n")
+        processes = []
+        try:
+            for review in reviews:
+                processes.append(subprocess.Popen([sys.executable, str(child), str(SCRIPT), str(review),
+                    'review', '--root', str(self.root), '--state', '.work/state.json', '--review', str(review)],
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True))
+            deadline = time.monotonic() + 20
+            while not all(Path(str(p)+'.ready').exists() for p in reviews) and time.monotonic() < deadline:
+                time.sleep(.02)
+            self.assertTrue(all(Path(str(p)+'.ready').exists() for p in reviews))
+            Path(str(reviews[0])+'.go').touch()
+            first = processes[0].communicate(timeout=20)
+            saved = state_file.read_bytes()
+            Path(str(reviews[1])+'.go').touch()
+            second = processes[1].communicate(timeout=20)
+            self.assertIn('task_state_revision_conflict', json.loads(second[0])['findings'])
+            self.assertEqual(state_file.read_bytes(), saved)
+            self.assertEqual(set(json.loads(saved)['reviews']), {features[0]['id']})
+            reapplied = subprocess.run([sys.executable, str(SCRIPT), 'review', '--root', str(self.root),
+                '--state', '.work/state.json', '--review', str(reviews[1])], capture_output=True, text=True)
+            self.assertEqual(set(json.loads(state_file.read_bytes())['reviews']), {f['id'] for f in features}, reapplied.stderr)
+        finally:
+            for process in processes:
+                if process.poll() is None:
+                    process.kill()
+                process.communicate(timeout=10)
+
     def test_absolute_cli_state_uses_same_task_without_retry_or_mutation(self):
         runtime = self.runtime()
         state = runtime.begin(self.root, self.project, 'change', ['api'])

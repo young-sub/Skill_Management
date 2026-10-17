@@ -1,6 +1,8 @@
-"""Repository entrypoint for project workflow obligations."""
+"""Repository entrypoint for the canonical runtime."""
 from pathlib import Path
-import runpy
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'authoring/scripts'))
+from project_workflow import main
 
 if __name__ == '__main__':
-    runpy.run_path(str(Path(__file__).resolve().parents[1] / 'authoring/scripts/project_workflow.py'), run_name='__main__')
+    raise SystemExit(main())

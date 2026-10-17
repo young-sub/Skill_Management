@@ -47,3 +47,12 @@ Required `native-verification` acceptance uses the existing `connected-product`
 selector with `CONNECTED_PRODUCT_REQUIRED=1`; prerequisites, skipped flows and
 missing observations cannot pass that CI path. Local optional unavailability is
 reported separately. See [required acceptance](testing.md#required-connected-product-acceptance).
+
+`workflow-obligations` owns revision-bound `TaskState` reads and `TaskStore` writes
+in `authoring/scripts/task_store.py`, including process contention, interrupted
+write recovery and plain-dict overwrite refusal. Its selector includes the public
+runtime API static check. `verification-capture` owns readable running records
+and atomic final publication; `verification-results` still requires completed,
+bound native evidence. Neither running status nor a successful state write is a
+product verdict. Shared locks live under `.work/locks`, outside immutable Harness
+work directories; Windows case aliases use the same lock identity.

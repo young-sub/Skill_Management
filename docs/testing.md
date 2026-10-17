@@ -331,4 +331,16 @@ optional runs without the flag may skip unavailable browser prerequisites; those
 skips do not establish acceptance. The existing runner owns Launch, Doctor, Drive,
 Evidence and Cleanup, and retains raw reports/screenshots after service/data cleanup.
 Run `python -m unittest tests.distribution.test_connected_product` with that flag
-for required acceptance. GitHub-hosted execution remains distinct from local proof.
+for required acceptance. CI retains the fixture-only `.work/connected-product-artifacts/` directory on success or failure for 30 days; missing artifacts fail the retention step. The [artifact action](https://github.com/actions/upload-artifact/tree/v4) explicitly enables hidden paths for this bounded directory. GitHub-hosted execution remains distinct from local proof.
+
+## Runtime state and API boundaries
+
+`python -m unittest tests.distribution.test_runtime_api` is the configured static
+boundary check (also discovered by Full/CI): it resolves public calls and their
+argument contracts, rejects private/dict dispatch and direct workflow persistence.
+It is not a whole-program Python type checker. `TaskState` carries the read revision;
+process regressions prove stale reviews cannot replace newer state, explicit
+reapplication preserves both reviews, and interrupted writes leave resumable JSON.
+Existing checkpoint/effect tests prove successful effects and evidence survive
+interruption without replay. Capture regression checks readable in-progress JSON,
+refused duplicate output and atomic completion with the same run ID.

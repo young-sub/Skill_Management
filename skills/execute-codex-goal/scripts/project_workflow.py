@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: d52391a72accbcff1ce34b4d960460da2d8dd43dc3bb64633f6c9d8850f4b1ba
+# Source-SHA256: b51bbe0ef8f84e3d3c217bf0100893defa6f73b69d2f23f3cc8faa2930e8ef03
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -18,11 +18,12 @@ import math
 import os
 from pathlib import Path
 import re
-import runpy
 import subprocess
 import sys
-import tempfile
 import uuid
+
+# Script and packaged Skill entrypoints share the adjacent canonical modules.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 
 def digest(value):
@@ -539,6 +540,7 @@ def begin_work(root, project):
 
 def work_record(root, work_id):
     """Use start's immutable baseline, even before an optional review file exists."""
+    from task_store import TaskStore
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,127}', work_id):
         raise ValueError('invalid_work_id')
     directory = local_path(root, f'.work/goals/active/{work_id}')
@@ -551,7 +553,7 @@ def work_record(root, work_id):
             or not isinstance(baseline.get('baseline'), dict) or not isinstance(baseline.get('input_bases'), dict)):
         raise ValueError('work_workflow_baseline_unavailable')
     path = local_path(root, f'.work/goals/active/{work_id}/workflow.json')
-    state = json.loads(path.read_text(encoding='utf-8')) if path.is_file() else deepcopy(baseline)
+    state = TaskStore(path).load(default=deepcopy(baseline))
     if not isinstance(state, dict):
         raise ValueError('invalid_work_workflow_record')
     for key, value in baseline.items():
@@ -561,6 +563,7 @@ def work_record(root, work_id):
 
 
 def task_state(root, state=None, work_id=None):
+    from task_store import TaskStore
     if bool(state) == bool(work_id):
         raise ValueError('select_exactly_one_task_state_or_work_id')
     if work_id:
@@ -568,7 +571,12 @@ def task_state(root, state=None, work_id=None):
     path = local_path(root, str(state))
     if not path.resolve().is_relative_to(root.resolve() / '.work') or not path.is_file():
         raise ValueError('existing_task_local_state_required')
-    record = json.loads(path.read_text(encoding='utf-8'))
+    try:
+        record = TaskStore(path).load()
+    except ValueError as error:
+        if str(error) == 'workflow_state_must_be_object':
+            raise ValueError('work_target_mismatch') from error
+        raise
     if (not isinstance(record, dict) or record.get('schema_version') != 1
             or record.get('root') != str(root.resolve()) or not isinstance(record.get('baseline'), dict)):
         raise ValueError('work_target_mismatch')
@@ -630,12 +638,12 @@ def resolve_task(root, state=None, work_id=None, context=None):
 def connected_verification(root, project, state, path, work_id, action, *, output=None, run_check=None,
                            timeout=300, resume=False, workflow_bases=None):
     """Compose the existing prepare/execute API, retaining only its plan pointer."""
-    viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
+    import verification_results as viewer
     if action == 'prepare':
         directory = local_path(root, output or f'.work/tasks/{state["task_id"]}/runs/{uuid.uuid4()}')
         if not directory.resolve().is_relative_to(root / '.work') or directory.exists():
             raise ValueError('new_task_local_output_required')
-        result = viewer['prepare_plan'](root, None, directory / 'plan.json', report_dir=directory / 'native',
+        result = viewer.prepare_plan(root, None, directory / 'plan.json', report_dir=directory / 'native',
             pending_state=None if work_id else path.relative_to(root), work_id=work_id)
         if result['status'] == 'PREPARED':
             current, _ = task_state(root, None if work_id else path.relative_to(root), work_id)
@@ -663,7 +671,7 @@ def connected_verification(root, project, state, path, work_id, action, *, outpu
         checkpoints = sorted(directory.glob('checkpoint-*-bundle.json'), key=lambda p: int(p.name.split('-')[1]))
         if final.is_file() or checkpoints:
             saved = final if final.is_file() else checkpoints[-1]
-            result = viewer['_view_bundle'](saved, workflow_state=path.relative_to(root), workflow_bases=workflow_bases)
+            result = viewer.view_bundle_with_context(saved, workflow_state=path.relative_to(root), workflow_bases=workflow_bases)
             try:
                 descriptor = json.loads(saved.read_text(encoding='utf-8'))
                 indices = descriptor.get('completed_indices') if isinstance(descriptor, dict) else None
@@ -692,10 +700,10 @@ def connected_verification(root, project, state, path, work_id, action, *, outpu
         launches = [p.name for p in directory.glob('command-*-started.json')]
         return {'status': 'BLOCKED' if launches else 'NOT_RUN', 'plan': str(plan), 'unknown_launches': launches,
                 'test_commands_executed': 0, 'reason': 'Explicit execute/resume required; lookup never launches a command'}
-    capture = run_check or viewer['capture_tool']()
+    capture = run_check or viewer.capture_tool()
     if capture is None:
         raise ValueError('project_capture_tool_required')
-    return viewer['execute_plan'](plan, run_check_path=capture, evidence_dir=plan.parent / 'evidence',
+    return viewer.execute_plan(plan, run_check_path=capture, evidence_dir=plan.parent / 'evidence',
                                   timeout=timeout, resume=resume)
 
 
@@ -722,13 +730,14 @@ def pending_selection(audit):
             'check_retirements': audit['check_retirements']}
 
 
-def write_state(path, state, *, staging=None):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=staging or path.parent,
-                                     prefix=path.name + '.', suffix='.pending', delete=False) as output:
-        json.dump(state, output, indent=2)
-        temporary = Path(output.name)
-    temporary.replace(path)
+def write_state(path: Path, state: dict, *, staging: Path | None = None) -> None:
+    """Compatibility entrypoint: updates require a revision-bound task read."""
+    from task_store import TaskState, TaskStore
+    store = TaskStore(path)
+    if isinstance(state, TaskState):
+        store.commit(state, staging=staging)
+    else:
+        store.create(state, staging=staging)
 
 
 def task_identity(state):
@@ -1266,7 +1275,7 @@ def inspect_check_identity_rebind(root, project, feature, state, check, decision
         need(path.resolve().is_relative_to(root / '.work') and path.is_file(), 'rebind_proof_path_invalid')
         return path.resolve()
 
-    def bundle_file(name, base):
+    def resolve_bundle_file(name, base):
         need(isinstance(name, str) and name.strip(), 'rebind_bundle_reference_invalid')
         candidate = Path(name)
         candidate = candidate if candidate.is_absolute() else base / candidate
@@ -1302,7 +1311,7 @@ def inspect_check_identity_rebind(root, project, feature, state, check, decision
         return revision
 
     def plan_check(plan, feature_id, identity, viewer):
-        rows = [item for item in viewer['_plan_checks'](plan, allow_unbound=True)
+        rows = [item for item in viewer.plan_checks(plan, allow_unbound=True)
                 if item.get('feature_id') == feature_id and item.get('id') == identity]
         need(len(rows) == 1, 'rebind_plan_check_missing_or_ambiguous')
         return rows[0]
@@ -1450,7 +1459,7 @@ def inspect_check_identity_rebind(root, project, feature, state, check, decision
              'rebind_target_check_invalid')
         source_path, bundle_path = work_file(proof.get('source_plan')), work_file(proof.get('target_bundle'))
         old_plan = json.loads(source_path.read_text(encoding='utf-8-sig'))
-        viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
+        import verification_results as viewer
         old_check = plan_check(old_plan, feature['id'], check, viewer)
         old_scope = old_plan.get('workflow_scope', {})
         need(Path(old_scope.get('root', '')).resolve() == root
@@ -1481,8 +1490,8 @@ def inspect_check_identity_rebind(root, project, feature, state, check, decision
         wrapper = json.loads(bundle_path.read_text(encoding='utf-8-sig'))
         bundle = wrapper.get('execution', {}).get('bundle', wrapper) if isinstance(wrapper, dict) else None
         need(isinstance(bundle, dict), 'rebind_target_bundle_invalid')
-        new_plan_path = bundle_file(bundle.get('source_plan'), bundle_path.parent)
-        bound_plan_path = bundle_file(bundle.get('plan'), bundle_path.parent)
+        new_plan_path = resolve_bundle_file(bundle.get('source_plan'), bundle_path.parent)
+        bound_plan_path = resolve_bundle_file(bundle.get('plan'), bundle_path.parent)
         new_plan = json.loads(new_plan_path.read_text(encoding='utf-8-sig'))
         new_check = plan_check(new_plan, feature['id'], target_id, viewer)
         new_scope = new_plan.get('workflow_scope', {})
@@ -1592,7 +1601,7 @@ def inspect_check_identity_rebind(root, project, feature, state, check, decision
 
         need(normalize_rebind_check(root, old_check, metadata)
              == normalize_rebind_check(root, new_check, metadata), 'rebind_check_contract_changed')
-        viewed = viewer['view_bundle'](bundle_path, workflow_state=target_state_path.relative_to(root))
+        viewed = viewer.view_bundle(bundle_path, workflow_state=target_state_path.relative_to(root))
         matches = [item for item in viewed.get('items', [])
                    if item.get('feature') == feature['id'] and item.get('id') == target_id]
         need(viewed.get('test_commands_executed') == 0 and len(matches) == 1,
@@ -1727,7 +1736,7 @@ def maintenance_summary(root, project, state=None, history=(), *, retirements=()
     paths += [proof[key] for review in state.get('reviews', {}).values()
               for decision in review.get('check_decisions', {}).values() for proof in decision.get('preservation', [])
               for key in ('original_bundle', 'red_bundle', 'green_bundle') if proof.get(key)]
-    viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
+    import verification_results as viewer
     findings, seen, variations = [], set(), {}
     for name in dict.fromkeys(paths):
         try:
@@ -1737,7 +1746,7 @@ def maintenance_summary(root, project, state=None, history=(), *, retirements=()
                 feature = next(f for f in config['features'] if f['id'] == binding.get('feature'))
                 items = inspect_unittest_evidence(root, feature, commands, binding).get('items', [])
             else:
-                viewed = viewer['view_bundle'](path)
+                viewed = viewer.view_bundle(path)
                 items = viewed.get('items', [])
                 if not items:
                     findings.append(f'maintenance_bundle_unavailable:{name}')
@@ -1972,16 +1981,16 @@ def record_feedback(root, project, state, entry):
 
 def bundle_observation(viewer, path, *, include_scope=True, bundle_cache=None):
     if bundle_cache is None:
-        return viewer['view_bundle'](path, include_scope=include_scope)
+        return viewer.view_bundle(path, include_scope=include_scope)
     key = (path.resolve(), include_scope)
     if key not in bundle_cache:
-        bundle_cache[key] = viewer['view_bundle'](path, include_scope=include_scope)
+        bundle_cache[key] = viewer.view_bundle(path, include_scope=include_scope)
     return deepcopy(bundle_cache[key])
 
 
 def feedback_evidence(root, feature, entry, *, original_check=None, bundle_cache=None):
     """Fixed viewer/raw joins, never run a submitted reproduction or command."""
-    viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
+    import verification_results as viewer
     red = bundle_observation(viewer, local_path(root, entry['red_bundle']), bundle_cache=bundle_cache)
     green = bundle_observation(viewer, local_path(root, entry['green_bundle']), bundle_cache=bundle_cache)
     check = entry['guardrail']['check']
@@ -2016,7 +2025,7 @@ def feedback_evidence(root, feature, entry, *, original_check=None, bundle_cache
         reasons.append('nearby_normal_evidence_missing')
     if before and after:
         descriptor = green['bundle']
-        bound = viewer['_read_json'](viewer['_bundle_file'](descriptor['plan'],
+        bound = viewer.read_json(viewer.resolve_bundle_file(descriptor['plan'],
             base=local_path(root, entry['green_bundle']).parent, label='feedback plan'))[0]
         scope = bound.get('workflow_scope', {})
         if scope.get('root') != str(root.resolve()) or feature not in scope.get('features', []):
@@ -2058,7 +2067,7 @@ def environment_recovery_remaining(root, feature, entry, *, bundle_cache=None):
         if (proof.get('check') not in feature['checks'] or not isinstance(descriptor, dict)
                 or not proof.get('capability') or descriptor.get('capability') != proof['capability']):
             return ['environment_registered_capability_required']
-        viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
+        import verification_results as viewer
         red = bundle_observation(viewer, local_path(root, entry['red_bundle']), include_scope=False, bundle_cache=bundle_cache)
         green = inspect_evidence(root, feature, commands, entry['green_bundle'], bundle_cache=bundle_cache)
         old = next(i for i in red['items'] if i['feature'] == feature['id'] and i['id'] == proof['check'] and i['selected'])
@@ -2076,19 +2085,19 @@ def environment_recovery_remaining(root, feature, entry, *, bundle_cache=None):
             targets = []
             for raw in item['raw']:
                 path = local_path(root, Path(raw['path']).relative_to(root).as_posix())
-                data, content = viewer['_read_json'](path)
-                if viewer['_sha256'](content) != raw['sha256']:
+                data, content = viewer.read_json(path)
+                if viewer.sha256(content) != raw['sha256']:
                     return ['environment_target_evidence_stale']
                 if item is old and data.get('status') != 'BLOCKED':
                     return ['environment_original_failure_required']
-                targets.append(viewer['_json_pointer'](data, proof['target_pointer']))
-                if item is old and viewer['_json_pointer'](data, contract['failure_pointer']) != proof['classification']:
+                targets.append(viewer.json_pointer(data, proof['target_pointer']))
+                if item is old and viewer.json_pointer(data, contract['failure_pointer']) != proof['classification']:
                     return ['environment_original_cause_mismatch']
                 if item is new:
                     names = contract.get('environment_variables')
                     if not isinstance(names, list) or any(not isinstance(name, str) for name in names):
                         return ['environment_context_contract_required']
-                    observed_environment = viewer['_json_pointer'](data, contract['environment_pointer'])
+                    observed_environment = viewer.json_pointer(data, contract['environment_pointer'])
                     current_environment = {name: os.environ.get(name) for name in names}
                     if observed_environment != current_environment:
                         return ['environment_context_changed']
@@ -2240,7 +2249,7 @@ def inspect_feedback(root, config, state, *, bundle_cache=None):
 
 def oracle_repair_preimages(root, feature, entry, paths, *, bundle_cache=None):
     """Use a bound failing capture for new tool owners; never rewrite task baseline."""
-    viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
+    import verification_results as viewer
     red = bundle_observation(viewer, local_path(root, entry['red_bundle']), include_scope=False, bundle_cache=bundle_cache)
     check = entry.get('confirmation', {}).get('check')
     items = [item for item in red.get('items', []) if item['feature'] == feature['id'] and item['id'] == check]
@@ -2257,13 +2266,13 @@ def oracle_repair_preimages(root, feature, entry, paths, *, bundle_cache=None):
                for raw in item.get('raw', []) for obs in raw.get('observations', [])):
         return {}
     plan_path = Path(red['bundle']['plan']).resolve()
-    plan, _ = viewer['_read_json'](local_path(root, plan_path.relative_to(root).as_posix()))
+    plan, _ = viewer.read_json(local_path(root, plan_path.relative_to(root).as_posix()))
     scope = plan.get('workflow_scope', {})
     old_feature = next((f for f in scope.get('features', []) if f['id'] == feature['id']), {})
     if scope.get('root') != str(root.resolve()):
         return {}
     record_path = Path(item['capture']['path']).resolve()
-    record, raw = viewer['_read_json'](local_path(root, record_path.relative_to(root).as_posix()))
+    record, raw = viewer.read_json(local_path(root, record_path.relative_to(root).as_posix()))
     if (hashlib.sha256(raw).hexdigest() != item['capture']['sha256']
             or Path(record['cwd']).resolve() != root.resolve()
             or record.get('before') != record.get('after')):
@@ -2306,7 +2315,7 @@ def oracle_repair_preimages(root, feature, entry, paths, *, bundle_cache=None):
 
 def feedback_confirmation(root, feature, entry, *, bundle_cache=None):
     """A changed requirement needs fresh native evidence, not an old RED oracle."""
-    viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
+    import verification_results as viewer
     path = local_path(root, entry['green_bundle'])
     green = bundle_observation(viewer, path, bundle_cache=bundle_cache)
     proof = entry['confirmation']
@@ -2319,7 +2328,7 @@ def feedback_confirmation(root, feature, entry, *, bundle_cache=None):
     if pointers[0] == pointers[1] or any(not any(obs['assertion']['pointer'] == pointer and obs['matched']
             for obs in observations) for pointer in pointers):
         remaining.append('new_and_retained_contract_evidence_required')
-    bound = viewer['_read_json'](viewer['_bundle_file'](green['bundle']['plan'], base=path.parent, label='feedback plan'))[0]
+    bound = viewer.read_json(viewer.resolve_bundle_file(green['bundle']['plan'], base=path.parent, label='feedback plan'))[0]
     scope = bound.get('workflow_scope', {})
     if scope.get('root') != str(root.resolve()) or feature not in scope.get('features', []):
         remaining.append('prepared_project_binding_required')
@@ -2333,7 +2342,7 @@ def inspect_evidence(root, feature, commands, bundle, *, bundle_cache=None):
         binding = json.loads(path.read_text(encoding='utf-8'))
         if isinstance(binding, dict) and binding.get('format') == 'unittest-captures-v1':
             return inspect_unittest_evidence(root, feature, commands, binding)
-        viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
+        import verification_results as viewer
         observed = bundle_observation(viewer, path, include_scope=False, bundle_cache=bundle_cache)
         verified = set()
         for item in observed['items']:
@@ -2368,7 +2377,7 @@ def inspect_evidence(root, feature, commands, bundle, *, bundle_cache=None):
 
 def inspect_unittest_evidence(root, feature, commands, binding):
     """Use the existing native adapter without loading or executing project code."""
-    reader = runpy.run_path(str(Path(__file__).with_name('unittest_evidence.py')))
+    import unittest_evidence as reader
     if binding.get('feature') != feature['id']:
         raise ValueError('verification_feature_mismatch')
     records = binding.get('records')
@@ -2391,7 +2400,7 @@ def inspect_unittest_evidence(root, feature, commands, binding):
         path = local_path(root, record['path'])
         captured = json.loads(path.read_text(encoding='utf-8'))
         try:
-            observed = reader['assess'](path, record['run_id'], feature['id'], check, [sys.executable, *argv[1:]], cwd.resolve())
+            observed = reader.assess(path, record['run_id'], feature['id'], check, [sys.executable, *argv[1:]], cwd.resolve())
         except (OSError, ValueError) as error:
             observed = {'status': 'BLOCKED', 'reason': str(error)}
         items.append({'id': check, 'feature': feature['id'], 'historical_status': observed['status'],
@@ -2639,7 +2648,7 @@ def summarize_lookup(result, project, root):
     summary['task'] = {key: task.get(key) for key in ('state', 'work_id', 'task_id', 'intent', 'targets', 'request', 'base')}
     summary['detail_command'] = {'action': 'lookup', 'root': str(root),
         'state': task.get('state'), 'work_id': task.get('work_id'), 'summary': False}
-    viewer = runpy.run_path(str(Path(__file__).with_name('verification_results.py')))
+    import verification_results as viewer
     summary['coverage'] = deepcopy(result['coverage'])
     config = {f['id']: f for f in (configuration(project) or {}).get('features', [])}
     active = {c['feature'] for c in result.get('coverage', {}).get('matrix', []) if c.get('in_task', True)}
@@ -2652,7 +2661,7 @@ def summarize_lookup(result, project, root):
         row['bundles'] = task.get('results', {}).get(feature['id'], [])
         row['evidence_status'] = ('AVAILABLE' if feature['check_results'] else
             'UNAVAILABLE' if row['bundles'] else 'NOT_RUN' if feature['verification_status'] == 'REQUIRED' else 'NOT_REQUIRED')
-        row['check_results'] = viewer['summarize_results']({'items': feature['check_results']})['items']
+        row['check_results'] = viewer.summarize_results({'items': feature['check_results']})['items']
         for item in row['check_results']:
             for key in ('historical_source', 'historical_statuses', 'assessment', 'observation', 'criteria_revision'):
                 item.pop(key, None)
@@ -2666,7 +2675,7 @@ def summarize_lookup(result, project, root):
     def evidence_preview(item):
         identity = str(item.get('feature')) + '/' + str(item.get('id'))
         if identity not in evidence_ids:
-            return viewer['summarize_results']({'items': [item]})['items'][0]
+            return viewer.summarize_results({'items': [item]})['items'][0]
         return dict({key: deepcopy(item[key]) for key in ('feature', 'id', 'historical_status',
             'current_status', 'current_reuse', 'selected', 'reasons') if key in item}, evidence_ref=identity)
 
@@ -2731,6 +2740,7 @@ def summarize_lookup(result, project, root):
 
 
 def main(argv=None):
+    from task_store import TaskStore
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', choices=['begin', 'start', 'connect', 'resume', 'prepare', 'execute', 'lookup',
                                           'audit', 'maintain', 'review', 'feedback', 'investigate', 'accept'])
@@ -2780,7 +2790,7 @@ def main(argv=None):
         state_path = local_path(root, args.state) if args.state else None
         if state_path and not state_path.resolve().is_relative_to(root / '.work'):
             raise ValueError('state_must_be_task_local_under_work')
-        state = json.loads(state_path.read_text(encoding='utf-8')) if state_path and state_path.exists() else None
+        state = TaskStore(state_path).load() if state_path and state_path.exists() else None
         if state_path and state_path.exists() and state is None:
             raise ValueError('workflow_state_must_be_object')
         if args.action == 'start':

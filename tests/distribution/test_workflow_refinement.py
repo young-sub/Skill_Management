@@ -157,6 +157,7 @@ class WorkflowRefinementTests(unittest.TestCase):
         state = runtime.begin(self.root, self.project, 'change', ['api'])
         state_path = self.root / '.work/task.json'
         runtime.write_state(state_path, state)
+        state, _ = runtime.task_state(self.root, state_path.relative_to(self.root))
         viewer = runpy.run_path(str(existing.SCRIPT.with_name('verification_results.py')))
         old_plan = self.root / '.work/old/plan.json'
         old_report = self.root / '.work/old/native'
@@ -677,13 +678,8 @@ class WorkflowRefinementTests(unittest.TestCase):
         self.write('.work/goals/active/W-SAME/work.json', json.dumps({'work_id': 'W-SAME',
             'state': 'active', 'source_commit': state['base'], 'workflow_baseline': state}))
         hook = runpy.run_path(str(existing.SCRIPT.with_name('workflow_context.py')))['context']
-        original_loader = runpy.run_path
-        def load(path, *args, **kwargs):
-            if existing.Path(path).resolve() == existing.SCRIPT.resolve():
-                return vars(runtime)
-            return original_loader(path, *args, **kwargs)
         before = {str(p): p.read_bytes() for p in self.root.rglob('*') if p.is_file()}
-        with patch.dict(os.environ, AGENT_WORKFLOW_CONTEXT=context), patch.object(runpy, 'run_path', load), \
+        with patch.dict(os.environ, AGENT_WORKFLOW_CONTEXT=context), patch.dict(sys.modules, {'project_workflow': runtime}), \
                 patch.object(runtime, 'inventory', wraps=runtime.inventory) as inventory, \
                 patch.object(runtime, 'inspect_project', wraps=runtime.inspect_project) as inspect:
             detail = json.loads(hook({'cwd': str(self.root), 'hook_event_name': 'UserPromptSubmit'})[
@@ -693,7 +689,7 @@ class WorkflowRefinementTests(unittest.TestCase):
             self.assertEqual(inspect.call_count, 1, 'Identical configured/selected state must share its audit')
         self.assertEqual(before, {str(p): p.read_bytes() for p in self.root.rglob('*') if p.is_file()})
         self.write('src/api.py', 'price = 12\n')
-        with patch.dict(os.environ, AGENT_WORKFLOW_CONTEXT=context), patch.object(runpy, 'run_path', load):
+        with patch.dict(os.environ, AGENT_WORKFLOW_CONTEXT=context), patch.dict(sys.modules, {'project_workflow': runtime}):
             updated = json.loads(hook({'cwd': str(self.root), 'hook_event_name': 'UserPromptSubmit'})[
                 'hookSpecificOutput']['additionalContext'].split('\n', 1)[1])
         self.assertIn('src/api.py', updated['current_task']['obligations'][0]['changed'],
@@ -999,18 +995,13 @@ class WorkflowRefinementTests(unittest.TestCase):
             state['feedback'][identity] = deepcopy(state['feedback']['new-price'])
             state['feedback'][identity]['id'] = identity
         state['feedback']['different-normal']['confirmation']['normal_pointer'] = '/absent'
-        load = runtime.runpy.run_path
+        import verification_results as viewer
         calls = []
-        def resolve(path, *args, **kwargs):
-            viewer = load(path, *args, **kwargs)
-            if existing.Path(path).name == 'verification_results.py':
-                view = viewer['view_bundle']
-                def observed(bundle, *pos, **kw):
-                    calls.append((existing.Path(bundle).resolve(), kw.get('include_scope', True)))
-                    return view(bundle, *pos, **kw)
-                viewer['view_bundle'] = observed
-            return viewer
-        with patch.object(runtime.runpy, 'run_path', resolve):
+        view = viewer.view_bundle
+        def observed(bundle, *pos, **kw):
+            calls.append((existing.Path(bundle).resolve(), kw.get('include_scope', True)))
+            return view(bundle, *pos, **kw)
+        with patch.object(viewer, 'view_bundle', observed):
             result = runtime.inspect_feedback(self.root, config, state)
             self.assertEqual([row['status'] for row in result], ['RESOLVED', 'RESOLVED', 'OPEN'])
             self.assertIn('new_and_retained_contract_evidence_required', result[-1]['remaining'])

@@ -98,8 +98,15 @@ entrypoint/state IDs and source/evidence hashes. Exact-context lookup/resume and
 bounded prompt hook remain read-only; an unknown or stale observation keeps scope
 partial. Semantic inventory/cause/retirement judgments remain Agent responsibilities.
 Reason-specific feedback and requirement retirement consume existing native bundles
-and review hashes rather than adding another result store. Task records support one
-writer each; atomic replacement prevents partial JSON, not concurrent lost updates.
+and review hashes rather than adding another result store. Task records use `TaskStore`: a loaded `TaskState` binds the path and original byte
+hash without adding persisted fields. Commit holds an OS file lock, compares the
+revision and atomically replaces the JSON. Busy/stale writes fail explicitly;
+callers reread and reapply semantic changes, never replay an effect automatically.
+The lock file stays in place to avoid inode races; the OS releases ownership after
+process exit. Read-only lookup creates no lock and preserves evidence bytes.
+Plain dictionaries can create new records but cannot overwrite existing state.
+Workflow/viewer now call public module functions; the runtime API static check
+rejects old dict/private calls, missing names and wrong call arguments.
 Execution may attach verified captures while semantic review is unfinished.
 The result viewer projects declared task applicability and per-scope freshness
 without executing commands; architecture structure is validated while meaning

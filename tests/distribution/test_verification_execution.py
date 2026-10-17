@@ -109,11 +109,8 @@ class VerificationExecutionTests(unittest.TestCase):
         bundle = '.work/evidence/bundle.json'
         state['results'] = {name:[bundle] for name in ('fixture-product','second-feature')}
         viewer = self._viewer_module()
-        load = workflow.runpy.run_path
         with patch.object(viewer,'view_bundle',wraps=viewer.view_bundle) as observed:
-            def resolve(path,*args,**kwargs):
-                return vars(viewer) if Path(path).name=='verification_results.py' else load(path,*args,**kwargs)
-            with patch.object(workflow.runpy,'run_path',resolve):
+            with patch.dict(sys.modules, {'verification_results': viewer}):
                 git_commands = []
                 original_check_output = viewer.subprocess.check_output
                 def count_git(command,*args,**kwargs):
@@ -163,7 +160,7 @@ class VerificationExecutionTests(unittest.TestCase):
             item['selected'] = False
             item['selection'] = {'status':'not_required','reason':'current_evidence_reusable'}
         with patch.object(viewer,'view_bundle',wraps=viewer.view_bundle) as observed:
-            with patch.object(workflow.runpy,'run_path',resolve):
+            with patch.dict(sys.modules, {'verification_results': viewer}):
                 coverage = viewer._view_coverage({'workflow_scope':scope},reusable)
                 self.assertEqual(observed.call_count,1,'One scope observation must not reopen the same reused native bundle per Feature')
                 self.assertEqual([r['status'] for r in coverage['rows']],['PASS','ISSUES'])
@@ -1119,6 +1116,34 @@ class VerificationExecutionTests(unittest.TestCase):
 
     def test_resume_checkpoint_before_atomic_final_publication(self) -> None:
         self.test_resume_last_checkpoint_survives_partial_final_bundle(during_publish=True)
+
+    def test_interrupted_capture_enrichment_preserves_success_and_refuses_replay(self) -> None:
+        plan = self._plan()
+        module = self._viewer_module()
+        original_write = Path.write_text
+        original_json = module._write_json
+        def interrupted(path, data, *args, **kwargs):
+            if path.name.endswith(('-capture.json', '-capture.pending.json')):
+                original_write(path, '{', encoding='utf-8')
+                raise KeyboardInterrupt('interrupted capture enrichment')
+            return original_write(path, data, *args, **kwargs)
+        def write_json(path, data):
+            if path.name.endswith('-capture.pending.json'):
+                return interrupted(path, data)
+            return original_json(path, data)
+        with patch.object(Path, 'write_text', interrupted), patch.object(module, '_write_json', write_json):
+            with self.assertRaises(KeyboardInterrupt):
+                module.execute_plan(plan, run_check_path=RUN_CHECK, evidence_dir=self.evidence)
+        capture = next(self.evidence.glob('*-capture.json'))
+        retained = capture.read_bytes()
+        record = json.loads(retained)
+        self.assertEqual(record['exit_code'], 0)
+        self.assertTrue(record['run_id'])
+        self.assertTrue((self.project / 'result.json').exists())
+        result = module.execute_plan(plan, run_check_path=RUN_CHECK, evidence_dir=self.evidence, resume=True)
+        self.assertEqual(result['status'], 'BLOCKED', result)
+        self.assertEqual(result['test_commands_executed'], 0)
+        self.assertEqual(capture.read_bytes(), retained)
 
     def test_resume_does_not_retry_a_durably_marked_launch(self) -> None:
         plan = self._plan()

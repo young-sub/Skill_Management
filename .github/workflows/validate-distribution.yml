@@ -106,7 +106,7 @@ jobs:
         if: needs.scope.outputs.docs_only != 'true'
         shell: pwsh
         run: |
-          npm install --global playwright@1.64.0
+          npm install --global playwright@1.58.2
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $npmGlobalRoot = (npm root --global).Trim()
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -133,6 +133,15 @@ jobs:
           TMP: ${{ runner.temp }}
           CONNECTED_PRODUCT_REQUIRED: '1'
         run: python -m unittest discover -s tests -p "test_*.py"
+      - name: Retain connected-product evidence after cleanup
+        if: always() && needs.scope.outputs.docs_only != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: connected-product-${{ matrix.os }}
+          path: .work/connected-product-artifacts/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
       - name: Generated resource drift
         shell: pwsh
         run: scripts/sync-skill-resources.ps1 -Check

@@ -12,6 +12,7 @@ import math
 import os
 from pathlib import Path
 import runpy
+import importlib.util
 import queue
 import subprocess
 import sys
@@ -72,14 +73,17 @@ def workflow_audit(root, config, observations, executions):
                  (project_root / '.harness/project.yaml').relative_to(root).as_posix()):
         if name not in basis['snapshot']:
             raise ValueError('unbound_workflow_file:' + name)
-    workflow = runpy.run_path(str(root / 'project_workflow.py'))
+    # Load the bound host snapshot, never a candidate module from sys.path.
+    spec = importlib.util.spec_from_file_location('host_workflow', root / 'project_workflow.py')
+    workflow = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(workflow)
     project = json.loads((project_root / '.harness/project.yaml').read_bytes())
     state = json.loads(api['_file'](root, descriptor['state']).read_bytes())
     if not isinstance(state, dict) or not state:
         raise ValueError('host_workflow_baseline_required')
     # Relocate the approved snapshot, preserving logical paths and all bases.
     state = dict(state, root=str(project_root.resolve()))
-    configured = workflow['configuration'](project)
+    configured = workflow.configuration(project)
     if configured is None:
         raise ValueError('host_workflow_not_configured')
     mapping = descriptor['checks']
@@ -95,7 +99,7 @@ def workflow_audit(root, config, observations, executions):
                     or any(not isinstance(i, str) for i in ids) or len(set(ids)) != len(ids)
                     or not set(ids).issubset(case_ids)):
                 raise ValueError('invalid_workflow_case_mapping')
-    inventory = {path.relative_to(project_root).as_posix(): workflow['file_hash'](
+    inventory = {path.relative_to(project_root).as_posix(): workflow.file_hash(
                     project_root, path.relative_to(project_root).as_posix())
                  for path in project_root.rglob('*') if path.is_file() and any(
                      path.relative_to(project_root).as_posix() == prefix or
@@ -115,7 +119,7 @@ def workflow_audit(root, config, observations, executions):
             findings.append('protected_checks_missing:' + feature['id'])
         return {'status': 'BLOCKED' if findings else 'PASS', 'findings': findings}
 
-    return workflow['inspect_project'](project_root, project, state,
+    return workflow.inspect_project(project_root, project, state,
                                       file_inventory=inventory, evidence_resolver=resolve)
 
 

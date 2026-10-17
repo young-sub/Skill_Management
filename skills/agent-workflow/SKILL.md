@@ -4,7 +4,7 @@ description: Coordinate a coding task from a natural-language request through re
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: a3677b543ce243a9142dacd9cc88504c325d230604f5fe585ef889f1873538ce -->
+<!-- Source-SHA256: e9a0070ef06375c9a28bd22770d8c4ee2b874f40ee72708d2f4e07f864bd662b -->
 
 
 # Agent Workflow
@@ -50,7 +50,7 @@ observations are recorded. Unconfigured diagnosis uses `investigate`, not Featur
 `feedback`/`review`; connect project verification first when that capability is
 needed. An empty task record does not contain a cause, repair or test result.
 With existing work, `investigate --investigation <observations.json>` updates its
-record using the exact context. Keep one writer per task, source/permission bounds,
+record using the exact context. Reapply a rejected stale review only after reading current state; never retry effects automatically. Preserve source/permission bounds,
 stable screen/viewport/state IDs and directly observed evidence. `lookup`/task
 `resume` restore the same unknowns without launching commands or creating setup.
 Observe new scope through separately authorized execution; a representative
@@ -126,3 +126,9 @@ Keep a single concise plan for nontrivial work. Use the existing Harness contrac
 For material persistence or subtle cross-layer changes, use available independent review with bounded context: requirements, base/diff, actual target, raw evidence, permitted fixture/output paths. Do not supply the desired patch/verdict or let the verifier change the product/oracle. Verify its material claims yourself. Return ISSUES with reproduction and owner to the implementer; recheck only evidence invalidated by the resulting diff. BLOCKED retains cause, fallback and resume condition while independent work continues.
 
 Report Feature, criteria, selected/excluded checks, actual observations and remaining gaps. Preserve product, Harness and UI outcomes separately; ISSUES and BLOCKED can coexist. Source changes, generated distribution, temporary installation, product behavior, Agent behavior and real-environment application are different claims. Metadata, a verifier file or submitted PASS does not prove execution.
+
+A capture with `execution: running` is an unfinished invocation, not an empty result.
+Wait on the owning tool/process and inspect that same evidence path after completion.
+If its owner stopped, retain it as unknown and reconcile; a second lookup/capture
+is not recovery. Final publication preserves the run ID and never overwrites an
+older invocation. This is execution status, not a product verdict.

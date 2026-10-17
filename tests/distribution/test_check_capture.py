@@ -15,6 +15,59 @@ from unittest import mock
 RUNNER = Path(__file__).resolve().parents[2] / 'scripts/run_check.py'
 
 class CheckCaptureTests(unittest.TestCase):
+    def test_progress_is_published_before_slow_source_measurement(self):
+        with mock.patch.object(sys, 'path', [str(RUNNER.parent), *sys.path]):
+            namespace = runpy.run_path(str(RUNNER))
+        with tempfile.TemporaryDirectory() as temporary:
+            record = Path(temporary) / 'run.json'
+            calls = []
+            def measure(_cwd):
+                self.assertTrue(record.read_text().strip(), 'Progress must precede source measurement')
+                calls.append(json.loads(record.read_text()))
+                return {}
+            argv = [str(RUNNER), '--cwd', temporary, '--output', str(record),
+                    '--', sys.executable, '-c', "print('done')"]
+            with mock.patch.dict(namespace['main'].__globals__, git_identity=measure), \
+                    mock.patch.object(sys, 'argv', argv), contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(namespace['main'](), 0)
+            self.assertEqual(calls[0]['execution'], 'running')
+
+    def test_running_capture_is_readable_and_reuses_reserved_output_without_relaunch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            record = root / 'execution.json'
+            command = "from pathlib import Path; import time; Path('started').write_text('once');\nwhile not Path('release').exists(): time.sleep(.02)\nprint('complete')"
+            argv = [sys.executable, str(RUNNER), '--cwd', tmp, '--output', str(record), '--', sys.executable, '-c', command]
+            process = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            try:
+                deadline = time.monotonic() + 10
+                while not (root / 'started').exists() and time.monotonic() < deadline:
+                    time.sleep(.02)
+                self.assertTrue((root / 'started').exists())
+                self.assertTrue(record.read_text().strip(), 'Running capture must not look like an empty completed result')
+                running = json.loads(record.read_text())
+                self.assertEqual(running['execution'], 'running')
+                self.assertIsNone(running['exit_code'])
+                self.assertEqual(running['capture_pid'], process.pid)
+                before = record.read_bytes()
+                duplicate = subprocess.run(argv, capture_output=True, timeout=10)
+                self.assertNotEqual(duplicate.returncode, 0)
+                self.assertEqual(record.read_bytes(), before)
+                (root / 'release').touch()
+                stdout, stderr = process.communicate(timeout=10)
+                self.assertEqual(process.returncode, 0, stderr)
+                complete = json.loads(record.read_text())
+                self.assertEqual(complete['run_id'], running['run_id'])
+                self.assertEqual(complete['execution'], 'exited')
+                self.assertEqual(complete['stdout'], 'complete\n')
+            finally:
+                (root / 'release').touch()
+                try:
+                    process.communicate(timeout=10)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.communicate(timeout=10)
+
     def test_native_json_report_is_captured_with_exit_and_no_verdict(self):
         for native_exit in (0, 7):
             with self.subTest(native_exit=native_exit), tempfile.TemporaryDirectory() as tmp:

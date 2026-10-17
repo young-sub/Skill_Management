@@ -14,13 +14,14 @@ import hashlib
 import json
 import math
 import os
-import runpy
 import shutil
 import subprocess
 import sys
 import uuid
 from pathlib import Path
 from typing import Any, Iterable
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 
 CONDITION_GROUPS = ("source", "criteria", "command", "dependency", "fixture", "runtime")
@@ -32,7 +33,7 @@ class ViewerInputError(ValueError):
     """Raised when an input does not have the viewer's explicit shape."""
 
 
-def _read_json(path: Path) -> tuple[Any, bytes]:
+def read_json(path: Path) -> tuple[Any, bytes]:
     try:
         raw = path.read_bytes()
     except OSError as error:
@@ -43,7 +44,7 @@ def _read_json(path: Path) -> tuple[Any, bytes]:
         raise ViewerInputError(f"Invalid JSON in {path}: {error.msg}") from error
 
 
-def _sha256(raw: bytes) -> str:
+def sha256(raw: bytes) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
@@ -69,10 +70,10 @@ def _load_many(paths: Iterable[str | Path], label: str) -> list[dict[str, Any]]:
     loaded: list[dict[str, Any]] = []
     for value in paths:
         path = Path(value).resolve()
-        data, raw = _read_json(path)
+        data, raw = read_json(path)
         if not isinstance(data, dict):
             raise ViewerInputError(f"{label} must be a JSON object: {path}")
-        loaded.append({"data": data, "path": path, "sha256": _sha256(raw)})
+        loaded.append({"data": data, "path": path, "sha256": sha256(raw)})
     return loaded
 
 
@@ -91,7 +92,7 @@ def _validate_raw_plan(check: dict[str, Any], index: int, *, allow_unbound: bool
             raise ViewerInputError(f"checks[{index}].raw_observations[{descriptor_index}].assertions must be a list")
 
 
-def _plan_checks(plan: dict[str, Any], *, allow_unbound: bool = False) -> list[dict[str, Any]]:
+def plan_checks(plan: dict[str, Any], *, allow_unbound: bool = False) -> list[dict[str, Any]]:
     if plan.get("schema_version") != 1:
         raise ViewerInputError("Plan schema_version must be 1")
     checks = plan.get("checks")
@@ -222,7 +223,7 @@ def _combine_conditions(sources: Iterable[dict[str, Any]]) -> dict[str, Any]:
     return result
 
 
-def _json_pointer(document: Any, pointer: str) -> Any:
+def json_pointer(document: Any, pointer: str) -> Any:
     if pointer in ("", "$", "/"):
         return document
     if pointer.startswith("$."):
@@ -306,12 +307,12 @@ def _validate_raw(
             findings.append(f"raw_unreadable:{path}:{error}")
             outcome = "UNKNOWN"
             continue
-        actual_hash = _sha256(raw)
+        actual_hash = sha256(raw)
         if actual_hash.lower() != expected_hash.lower():
             findings.append(f"raw_hash_mismatch:{path}")
             outcome = "STALE"
             continue
-        value = _json_pointer(data, pointer)
+        value = json_pointer(data, pointer)
         if not _meaningful(value):
             findings.append(f"raw_pointer_missing:{path}#{pointer}")
             outcome = "UNKNOWN"
@@ -325,7 +326,7 @@ def _validate_raw(
                 if not isinstance(assertion, dict) or not isinstance(assertion.get('pointer'), str):
                     findings.append(f'raw_assertion_invalid:{path}')
                     continue
-                actual = _json_pointer(data, assertion['pointer'])
+                actual = json_pointer(data, assertion['pointer'])
                 if 'equals' in assertion:
                     matched = type(actual) is type(assertion['equals']) and actual == assertion['equals']
                 elif 'min_count' in assertion:
@@ -812,9 +813,9 @@ def _git_snapshot(cwd: Path) -> dict[str, str]:
                  for name in sorted(names) if name}
     return {
         "revision": git("rev-parse", "HEAD").decode().strip(),
-        "diff": _sha256(git("diff", "HEAD", "--binary")),
+        "diff": sha256(git("diff", "HEAD", "--binary")),
         "status": git("status", "--porcelain").decode("utf-8", errors="replace"),
-        "untracked": _sha256(json.dumps(untracked, sort_keys=True).encode('utf-8')),
+        "untracked": sha256(json.dumps(untracked, sort_keys=True).encode('utf-8')),
     }
 
 
@@ -826,7 +827,7 @@ def _current_source_identity(cwd: str | Path, cache: dict[Path, dict[str, str]],
             return subprocess.check_output(['git', '-C', str(cwd), *tokens], stderr=subprocess.DEVNULL)
         identity = {
             'revision': git('rev-parse', 'HEAD').decode().strip(),
-            'diff': _sha256(git('diff', 'HEAD', '--binary')),
+            'diff': sha256(git('diff', 'HEAD', '--binary')),
         }
         cache[key] = identity
     if status and 'status' not in identity:
@@ -969,7 +970,7 @@ def _file_hashes(group: dict[str, Any], cwd: Path, label: str) -> dict[str, str]
             raw = path.read_bytes()
         except OSError as error:
             raise ViewerInputError(f"{label}.file_ref_unreadable:{ref}:{error}") from error
-        hashes[str(path)] = _sha256(raw)
+        hashes[str(path)] = sha256(raw)
     installed = _file_refs({'file_refs': group.get('installed_file_refs')}, label)
     for ref in installed:
         path = Path(ref)
@@ -998,7 +999,7 @@ def _runtime_identity(check: dict[str, Any]) -> dict[str, str]:
         raise ViewerInputError(f"runtime executable is unreadable: {argv[0]}: {error}") from error
     identity = {
         "executable": str(resolved),
-        "executable_sha256": _sha256(raw),
+        "executable_sha256": sha256(raw),
     }
     try:
         current_executable = Path(sys.executable).resolve()
@@ -1184,14 +1185,14 @@ def _invalidate_current_result(result: dict[str, Any], reason: str) -> dict[str,
             row['status'] = 'STALE'
             row['reasons'] = sorted(set(row['reasons']) | {reason})
     if result.get('coverage', {}).get('rows'):
-        workflow = runpy.run_path(str(Path(__file__).with_name('project_workflow.py')))
+        import project_workflow as workflow
         coverage = result['coverage']
         for cell in coverage.get('matrix', []):
             changed = [row['status'] for row in coverage['rows']
                        if row['feature'] == cell['feature'] and row['id'] in cell['coverage']]
             if cell['applicability'] == 'REQUIRED' and 'STALE' in changed:
                 cell.update(status='STALE', statuses=list(dict.fromkeys(changed)))
-        result['coverage'] = workflow['coverage_summary'](coverage['rows'], coverage.get('matrix', []))
+        result['coverage'] = workflow.coverage_summary(coverage['rows'], coverage.get('matrix', []))
     return result
 
 
@@ -1202,12 +1203,12 @@ def _path_hash(path: Path, label: str) -> str:
     if not path.is_file():
         raise ViewerInputError(f"{label} is missing: {path}")
     try:
-        return _sha256(path.read_bytes())
+        return sha256(path.read_bytes())
     except OSError as error:
         raise ViewerInputError(f"{label} is unreadable: {path}: {error}") from error
 
 
-def _bundle_file(value: Any, *, base: Path, label: str) -> Path:
+def resolve_bundle_file(value: Any, *, base: Path, label: str) -> Path:
     if not isinstance(value, (str, Path)) or not str(value).strip():
         raise ViewerInputError(f"{label} must name a file")
     value_path = Path(value)
@@ -1223,7 +1224,7 @@ def _bundle_current_context(
     current: dict[str, Any] = {"checks": {}}
     findings: list[str] = []
     source_cache = {} if source_cache is None else source_cache
-    for index, check in enumerate(_plan_checks(plan)):
+    for index, check in enumerate(plan_checks(plan)):
         selected, _ = _selection(check)
         if not selected:
             continue
@@ -1248,7 +1249,7 @@ def _bundle_current_context(
 
 
 def _validate_bundle_report_paths(plan: dict[str, Any], evidence_dir: Path | None) -> None:
-    for index, check in enumerate(_plan_checks(plan)):
+    for index, check in enumerate(plan_checks(plan)):
         selected, _ = _selection(check)
         if not selected:
             continue
@@ -1281,10 +1282,10 @@ def _validate_bundle_report_paths(plan: dict[str, Any], evidence_dir: Path | Non
 
 def view_bundle(bundle: dict[str, Any] | str | Path, *, workflow_state: Path | None = None,
                 include_scope: bool = True) -> dict[str, Any]:
-    return _view_bundle(bundle, workflow_state=workflow_state, include_scope=include_scope)
+    return view_bundle_with_context(bundle, workflow_state=workflow_state, include_scope=include_scope)
 
 
-def _view_bundle(bundle: dict[str, Any] | str | Path, *, workflow_state: Path | None = None,
+def view_bundle_with_context(bundle: dict[str, Any] | str | Path, *, workflow_state: Path | None = None,
                  include_scope: bool = True, workflow_bases: dict[str, str] | None = None) -> dict[str, Any]:
     """Internal workflow callers may share bases measured from the same default project."""
     bundle_value: Any = bundle
@@ -1292,19 +1293,19 @@ def _view_bundle(bundle: dict[str, Any] | str | Path, *, workflow_state: Path | 
     base = Path.cwd().resolve()
     try:
         if isinstance(bundle, (str, Path)):
-            bundle_file = _bundle_file(bundle, base=base, label="bundle")
-            bundle_value, _ = _read_json(bundle_file)
+            bundle_file = resolve_bundle_file(bundle, base=base, label="bundle")
+            bundle_value, _ = read_json(bundle_file)
             base = bundle_file.parent
         if not isinstance(bundle_value, dict):
             raise ViewerInputError("bundle must be an object or JSON path")
         if isinstance(bundle_value.get("execution"), dict) and isinstance(bundle_value["execution"].get("bundle"), dict):
             bundle_value = bundle_value["execution"]["bundle"]
-        source_plan = _bundle_file(bundle_value.get("source_plan"), base=base, label="bundle.source_plan")
+        source_plan = resolve_bundle_file(bundle_value.get("source_plan"), base=base, label="bundle.source_plan")
         recorded_hash = bundle_value.get("source_plan_sha256")
         if not isinstance(recorded_hash, str) or not recorded_hash:
             raise ViewerInputError("bundle.source_plan_sha256 is required")
         source_hash = _path_hash(source_plan, "bundle.source_plan")
-        bound_plan = _bundle_file(bundle_value.get("plan"), base=base, label="bundle.plan")
+        bound_plan = resolve_bundle_file(bundle_value.get("plan"), base=base, label="bundle.plan")
         evidence_value = bundle_value.get("evidence_dir")
         evidence_dir = None
         if isinstance(evidence_value, str) and evidence_value.strip():
@@ -1313,17 +1314,17 @@ def _view_bundle(bundle: dict[str, Any] | str | Path, *, workflow_state: Path | 
                 evidence_candidate = evidence_candidate.absolute()
             _reject_alias_components(evidence_candidate, "bundle.evidence_dir")
             evidence_dir = evidence_candidate.resolve()
-        records = [_bundle_file(value, base=base, label="bundle.record") for value in bundle_value.get("records", [])]
-        assessments = [_bundle_file(value, base=base, label="bundle.assessment") for value in bundle_value.get("assessments", [])]
-        observations = [_bundle_file(value, base=base, label="bundle.observation") for value in bundle_value.get("observations", [])]
-        plan, _ = _read_json(bound_plan)
+        records = [resolve_bundle_file(value, base=base, label="bundle.record") for value in bundle_value.get("records", [])]
+        assessments = [resolve_bundle_file(value, base=base, label="bundle.assessment") for value in bundle_value.get("assessments", [])]
+        observations = [resolve_bundle_file(value, base=base, label="bundle.observation") for value in bundle_value.get("observations", [])]
+        plan, _ = read_json(bound_plan)
         if not isinstance(plan, dict):
             raise ViewerInputError("bundle.plan must contain a JSON object")
-        original, _ = _read_json(source_plan)
-        original_checks = _plan_checks(original, allow_unbound=True)
+        original, _ = read_json(source_plan)
+        original_checks = plan_checks(original, allow_unbound=True)
         if original.get('workflow_scope') != plan.get('workflow_scope'):
             raise ViewerInputError('bound plan changed workflow scope')
-        bound_checks = _plan_checks(plan)
+        bound_checks = plan_checks(plan)
         if len(original_checks) != len(bound_checks):
             raise ViewerInputError("bound plan changed selected checks")
         for selected, bound in zip(original_checks, bound_checks):
@@ -1407,7 +1408,7 @@ def execute_plan(
     run_check = Path(run_check_path).resolve()
     if not run_check.is_file() or run_check.is_symlink():
         return _blocked_execution("run_check path is missing or unsafe", plan_path=plan_file, run_check_path=run_check)
-    plan, plan_raw = _read_json(plan_file)
+    plan, plan_raw = read_json(plan_file)
     if not isinstance(plan, dict):
         return _blocked_execution("Plan must be a JSON object", plan_path=plan_file, run_check_path=run_check)
     output_dir = Path(evidence_dir).resolve()
@@ -1422,7 +1423,7 @@ def execute_plan(
     completed: set[int] = set()
     prior = None
     try:
-        checks = _plan_checks(plan, allow_unbound=True)
+        checks = plan_checks(plan, allow_unbound=True)
         if resume:
             final = output_dir / 'bundle.json'
             checkpoints = sorted(output_dir.glob('checkpoint-*-bundle.json'),
@@ -1432,18 +1433,18 @@ def execute_plan(
             if saved is not None:
                 _reject_alias_components(saved, 'resume bundle')
                 try:
-                    prior, _ = _read_json(saved)
+                    prior, _ = read_json(saved)
                 except ViewerInputError:
                     if saved != final or not checkpoints:
                         raise
                     saved = checkpoints[-1]
                     _reject_alias_components(saved, 'resume checkpoint')
-                    prior, _ = _read_json(saved)
+                    prior, _ = read_json(saved)
                     interrupted_final = True
                 if not isinstance(prior, dict):
                     raise ViewerInputError('resume bundle must be an object')
                 if (prior.get('source_plan') != str(plan_file)
-                        or prior.get('source_plan_sha256') != _sha256(plan_raw)
+                        or prior.get('source_plan_sha256') != sha256(plan_raw)
                         or prior.get('evidence_dir') != str(output_dir)):
                     raise ViewerInputError('resume plan or evidence directory changed')
                 observed = view_bundle(saved)
@@ -1459,7 +1460,7 @@ def execute_plan(
                 optional = [i for i in completed if not checks[i]['required']]
                 if optional:
                     # Check execution identity without changing optional acceptance policy.
-                    bound, _ = _read_json(Path(prior['plan']))
+                    bound, _ = read_json(Path(prior['plan']))
                     current, findings = _bundle_current_context(bound)
                     if findings:
                         raise ViewerInputError('checkpoint conditions unavailable')
@@ -1484,7 +1485,7 @@ def execute_plan(
                     _write_json(recovery, prior)
                     if interrupted_final:
                         original = final.read_bytes()
-                        backup = output_dir / f'bundle.interrupted-{_sha256(original)}.json'
+                        backup = output_dir / f'bundle.interrupted-{sha256(original)}.json'
                         if backup.exists():
                             _reject_alias_components(backup, 'interrupted bundle backup')
                             if backup.read_bytes() != original:
@@ -1506,13 +1507,13 @@ def execute_plan(
                     raise ViewerInputError(f'command outcome unknown:{index}; automatic replay refused')
         scope = plan.get('workflow_scope', {})
         if scope.get('state'):
-            workflow = runpy.run_path(str(Path(__file__).with_name('project_workflow.py')))
+            import project_workflow as workflow
             root = Path(scope['root'])
-            state, _ = workflow['task_state'](root, scope['state'] if not scope.get('work_id') else None, scope.get('work_id'))
-            if workflow['task_identity'](state) != scope.get('task_identity'):
+            state, _ = workflow.task_state(root, scope['state'] if not scope.get('work_id') else None, scope.get('work_id'))
+            if workflow.task_identity(state) != scope.get('task_identity'):
                 raise ViewerInputError('Task identity changed; prepare a new plan')
-            project, _ = _read_json(root / '.harness/project.yaml')
-            current_selection = workflow['pending_selection'](workflow['inspect_project'](root, project, state))
+            project, _ = read_json(root / '.harness/project.yaml')
+            current_selection = workflow.pending_selection(workflow.inspect_project(root, project, state))
             required = {(item['feature'], item['check']) for item in current_selection['selected_checks']}
             prepared = {(check['feature_id'], check['id']) for check in checks if _selection(check)[0]}
             if required != prepared:
@@ -1543,7 +1544,7 @@ def execute_plan(
     current_checks: dict[str, dict[str, Any]] = {}
     artifacts: list[dict[str, Any]] = []
     if prior:
-        bound_plan, _ = _read_json(Path(prior['plan']))
+        bound_plan, _ = read_json(Path(prior['plan']))
         records = [Path(path) for path in prior['records']]
         assessments = [Path(path) for path in prior['assessments']]
     for index, check in enumerate(checks):
@@ -1552,7 +1553,7 @@ def execute_plan(
         if index in preconditions:
             bound_plan['checks'][index]['conditions'] = preconditions[index]['conditions']
     attempted = 0
-    plan_sha256 = _sha256(plan_raw)
+    plan_sha256 = sha256(plan_raw)
     plan_mutated = False
     for index, check in enumerate(checks):
         selected, _ = _selection(check)
@@ -1640,7 +1641,7 @@ def execute_plan(
             capture_safe = False
         if capture_safe and capture_path.is_file() and not capture_path.is_symlink():
             try:
-                record, _ = _read_json(capture_path)
+                record, _ = read_json(capture_path)
             except (OSError, ValueError):
                 record = None
         if not isinstance(record, dict):
@@ -1649,10 +1650,12 @@ def execute_plan(
             artifacts.append({"check": f"{check['feature_id']}/{check['id']}", "capture": str(capture_path), "run_check_exit": process.returncode})
             continue
         record["conditions"] = info["conditions"]
-        _write_capture = json.dumps(record, ensure_ascii=False, indent=2) + "\n"
-        capture_path.write_text(_write_capture, encoding="utf-8")
+        # Preserve run_check's completed effect proof if enrichment is interrupted.
+        pending_capture = capture_path.with_suffix('.pending.json')
+        _write_json(pending_capture, record)
+        pending_capture.replace(capture_path)
         record_raw = capture_path.read_bytes()
-        record_hash = _sha256(record_raw)
+        record_hash = sha256(record_raw)
         records.append(capture_path)
         for index in members:
             check = checks[index]
@@ -1683,7 +1686,7 @@ def execute_plan(
             if report_ok:
                 try:
                     report_raw = report_path.read_bytes()
-                    report_hash = _sha256(report_raw)
+                    report_hash = sha256(report_raw)
                     native_report = json.loads(report_raw)
                 except (OSError, ValueError, json.JSONDecodeError):
                     report_ok = False
@@ -1762,10 +1765,10 @@ def execute_plan(
         _invalidate_current_result(result, "source_plan_changed_during_execution")
     scope = plan.get('workflow_scope', {})
     if scope.get('state') and not plan_mutated:
-        workflow = runpy.run_path(str(Path(__file__).with_name('project_workflow.py')))
+        import project_workflow as workflow
         try:
             root = Path(scope['root'])
-            workflow['bind_results'](root, scope['state'],
+            workflow.bind_results(root, scope['state'],
                 {check['feature_id']: bundle_path for check in checks if _selection(check)[0]}, work_id=scope.get('work_id'),
                 expected_identity=scope['task_identity'])
             result['coverage'] = _view_coverage(bound_plan, result['items'])
@@ -1816,7 +1819,7 @@ def _view_results(
 ) -> dict[str, Any]:
     """Join evidence against a fresh, invocation-local view of current source."""
     plan_file = Path(plan_path).resolve()
-    plan, plan_raw = _read_json(plan_file)
+    plan, plan_raw = read_json(plan_file)
     if not isinstance(plan, dict):
         raise ViewerInputError("Plan must be a JSON object")
     records = _load_many(record_paths, "Capture")
@@ -1826,14 +1829,14 @@ def _view_results(
     if current_context_path is not None and current_context is not None:
         raise ViewerInputError("Provide current_context_path or current_context, not both")
     if current_context_path is not None:
-        current, _ = _read_json(Path(current_context_path).resolve())
+        current, _ = read_json(Path(current_context_path).resolve())
         if not isinstance(current, dict):
             raise ViewerInputError("Current context must be a JSON object")
     elif current_context is not None:
         if not isinstance(current_context, dict):
             raise ViewerInputError("Current context must be a JSON object")
         current = copy.deepcopy(current_context)
-    checks = _plan_checks(plan)
+    checks = plan_checks(plan)
     source_cache = {} if source_cache is None else source_cache
     items = [_item_result(check, plan_file, records, assessments, observations, current, source_cache)
              for check in checks]
@@ -1844,7 +1847,7 @@ def _view_results(
         "read_only": True,
         "test_commands_executed": 0,
         "current_source_check": "fixed read-only Git commands; no submitted argv executed",
-        "plan": {"path": str(plan_file), "sha256": _sha256(plan_raw), "id": plan.get("plan_id")},
+        "plan": {"path": str(plan_file), "sha256": sha256(plan_raw), "id": plan.get("plan_id")},
         "historical": historical,
         "current": current_summary,
         "status": current_summary["status"],
@@ -1866,12 +1869,12 @@ def _view_results(
 
 
 def _view_coverage(plan, items, *, workflow_state=None, workflow_bases=None):
-    workflow = runpy.run_path(str(Path(__file__).with_name('project_workflow.py')))
+    import project_workflow as workflow
     scope = plan.get('workflow_scope')
     if not scope:
         if workflow_state is not None:
             raise ViewerInputError('Semantic lookup requires a prepared workflow scope')
-        return workflow['coverage_summary']([])
+        return workflow.coverage_summary([])
     root = _safe_cwd(Path(scope['root']), 'workflow scope')
     state = None
     automatic_state = workflow_state is None
@@ -1879,22 +1882,22 @@ def _view_coverage(plan, items, *, workflow_state=None, workflow_bases=None):
     if workflow_state is None and scope.get('state'):
         workflow_state = Path(scope['state'])
     if workflow_state is not None:
-        path = workflow['local_path'](root, str(workflow_state))
+        path = workflow.local_path(root, str(workflow_state))
         if not path.resolve().is_relative_to(root / '.work'):
             raise ViewerInputError('workflow state must be under .work')
         if automatic_state and scope.get('work_id'):
-            state, path = workflow['task_state'](root, work_id=scope['work_id'])
+            state, path = workflow.task_state(root, work_id=scope['work_id'])
         else:
-            state, _ = _read_json(path)
+            state, _ = read_json(path)
         if not isinstance(state, dict) or state.get('root') != str(root) or state.get('schema_version') != 1:
             raise ViewerInputError('workflow state target mismatch')
-        task_stale = bool(scope.get('task_identity') and workflow['task_identity'](state) != scope['task_identity'])
+        task_stale = bool(scope.get('task_identity') and workflow.task_identity(state) != scope['task_identity'])
     rows = []
     matrix = []
     try:
-        project, _ = _read_json(_safe_path('.harness/project.yaml', root=root, label='project'))
+        project, _ = read_json(_safe_path('.harness/project.yaml', root=root, label='project'))
         if workflow_bases is None:
-            current = workflow['inspect_project'](root, project)
+            current = workflow.inspect_project(root, project)
             bases = {feature['id']: feature['basis'] for feature in current['features']}
         else:
             bases = workflow_bases
@@ -1908,7 +1911,7 @@ def _view_coverage(plan, items, *, workflow_state=None, workflow_bases=None):
         current_basis = bases.get(feature['id'], 'unavailable')
         if task_stale:
             current_basis = 'task_identity_changed'
-        if any(workflow['file_hash'](root, name) != value for name, value in review.get('reference_hashes', {}).items()):
+        if any(workflow.file_hash(root, name) != value for name, value in review.get('reference_hashes', {}).items()):
             current_basis = 'review_reference_changed'
         feature_items = list(items)
         if state is not None:
@@ -1917,24 +1920,24 @@ def _view_coverage(plan, items, *, workflow_state=None, workflow_bases=None):
             if reusable:
                 commands = dict(project.get('commands', {}))
                 commands.update(project.get('impact', {}).get('feature_selectors', {}))
-                observed = workflow['inspect_result_links'](root, feature, commands, state.get('results', {}).get(feature['id'], []),
+                observed = workflow.inspect_result_links(root, feature, commands, state.get('results', {}).get(feature['id'], []),
                                                            bundle_cache=bundle_cache)
                 feature_items = [item for item in items if not (item['feature'] == feature['id'] and item['id'] in reusable)]
                 feature_items += [item for item in observed['items'] if item['id'] in reusable]
-        current_rows = workflow['coverage_rows'](feature, review, basis, feature_items, current_basis=current_basis,
-                                                semantic_valid=workflow['current_review'](root, review, basis),
-                                                scope_states=workflow['review_scope_states'](root, review))
+        current_rows = workflow.coverage_rows(feature, review, basis, feature_items, current_basis=current_basis,
+                                                semantic_valid=workflow.current_review(root, review, basis),
+                                                scope_states=workflow.review_scope_states(root, review))
         if state is not None:
-            historical_rows = {row['id']: row for row in workflow['coverage_rows'](feature, historical_review, basis, items)}
+            historical_rows = {row['id']: row for row in workflow.coverage_rows(feature, historical_review, basis, items)}
             for row in current_rows:
                 if row['kind'] == 'review':
                     row['historical_status'] = historical_rows[row['id']]['historical_status']
                     row['historical_evidence'] = historical_rows[row['id']]['evidence']
                     row['current_review_state'] = str(path)
         rows.extend(current_rows)
-        matrix.extend(workflow['scope_matrix'](feature, review, basis, current_rows, current_basis=current_basis,
-                                              scope_states=workflow['review_scope_states'](root, review)))
-    result = workflow['coverage_summary'](rows, matrix)
+        matrix.extend(workflow.scope_matrix(feature, review, basis, current_rows, current_basis=current_basis,
+                                              scope_states=workflow.review_scope_states(root, review)))
+    result = workflow.coverage_summary(rows, matrix)
     if scope.get('state'):
         result['task_binding'] = {'state': scope['state'], 'status': 'STALE' if task_stale else 'CURRENT'}
     return result
@@ -1945,9 +1948,9 @@ def prepare_plan(root: Path, spec_path: Path | None, output: Path, *, report_dir
                  work_id: str | None = None) -> dict[str, Any]:
     """Bind project-selected assertions to registered commands; never execute them."""
     root = _safe_cwd(Path(root).absolute(), 'project')
-    workflow = runpy.run_path(str(Path(__file__).with_name('project_workflow.py')))
-    project, _ = _read_json(_safe_path('.harness/project.yaml', root=root, label='project'))
-    config = workflow['configuration'](project)
+    import project_workflow as workflow
+    project, _ = read_json(_safe_path('.harness/project.yaml', root=root, label='project'))
+    config = workflow.configuration(project)
     if config is None:
         raise ViewerInputError('Preparation requires configured workflow features')
     if spec_path is None:
@@ -1963,16 +1966,16 @@ def prepare_plan(root: Path, spec_path: Path | None, output: Path, *, report_dir
         raise ViewerInputError('Prepared plan output must be Git-ignored to preserve the measured source')
     if report_dir is not None:
         report_dir = _safe_path(str(report_dir), root=root, label='report directory', allow_absolute=True)
-    spec, _ = _read_json(spec_file)
+    spec, _ = read_json(spec_file)
     if not isinstance(spec, dict) or spec.get('schema_version') != 1 or not isinstance(spec.get('checks'), list) or not spec['checks']:
         raise ViewerInputError('Preparation requires schema_version 1 and explicit checks')
     state, state_path, selection = None, None, None
     if pending_state or work_id:
         if workflow_state is not None:
             raise ViewerInputError('Task selection already supplies the semantic review state')
-        state, state_path = workflow['task_state'](root, pending_state, work_id)
-        audit = workflow['inspect_project'](root, project, state)
-        selection = workflow['pending_selection'](audit)
+        state, state_path = workflow.task_state(root, pending_state, work_id)
+        audit = workflow.inspect_project(root, project, state)
+        selection = workflow.pending_selection(audit)
         known = {(item.get('feature_id'), item.get('id')) for item in spec['checks'] if isinstance(item, dict)}
         missing = {(item['feature'], item['check']) for item in selection['selected_checks']} - known
         if missing:
@@ -1986,7 +1989,7 @@ def prepare_plan(root: Path, spec_path: Path | None, output: Path, *, report_dir
     features = {feature['id']: feature for feature in config['features']}
     commands = dict(project.get('commands', {}))
     commands.update(project.get('impact', {}).get('feature_selectors', {}))
-    ui_systems = workflow['inspect_ui_systems'](root, config, workflow['inventory'](root, config['roots']))
+    ui_systems = workflow.inspect_ui_systems(root, config, workflow.inventory(root, config['roots']))
     checks = []
     for item in spec['checks']:
         allowed = {'id', 'feature_id', 'expected', 'required', 'selection', 'raw_observations', 'dependency', 'fixture'}
@@ -2000,19 +2003,19 @@ def prepare_plan(root: Path, spec_path: Path | None, output: Path, *, report_dir
         cwd = _safe_cwd(_safe_path(command.get('working_directory', '.'), root=root, label='command'), 'command')
         criterion_files = {name: _path_hash(_safe_path(name, root=root, label='criteria'), 'criteria')
                            for name in feature['criteria']}
-        revision = workflow['digest'](criterion_files)
+        revision = workflow.digest(criterion_files)
         check = copy.deepcopy({key: value for key, value in item.items() if key not in {'dependency', 'fixture'}})
         if selection is not None:
             decision = dispositions[(item['feature_id'], item['id'])]
             check['required'] = decision['selected']
             check['selection'] = {'status': 'selected' if decision['selected'] else 'not_required', 'reason': decision['reason']}
-        argv = workflow['resolve_report_command'](root, command.get('argv'), report_dir)
+        argv = workflow.resolve_report_command(root, command.get('argv'), report_dir)
         declared = {raw['path'] for raw in check['raw_observations']}
         if any('{report_dir}' in arg and arg not in declared for arg in command['argv']):
             raise ViewerInputError('Report templates must name the declared native output argument')
         for raw in check['raw_observations']:
             templated = '{report_dir}' in raw['path']
-            raw['path'] = workflow['resolve_report_path'](root, raw['path'], report_dir)
+            raw['path'] = workflow.resolve_report_path(root, raw['path'], report_dir)
             if templated:
                 ignored = subprocess.run(['git', '-C', str(root), 'check-ignore', '-q', '--',
                                           raw['path']], capture_output=True)
@@ -2043,19 +2046,19 @@ def prepare_plan(root: Path, spec_path: Path | None, output: Path, *, report_dir
     plan = {'schema_version': 1, 'checks': checks}
     selected = set(item['feature_id'] for item in checks)
     if workflow_state is not None:
-        state_path = workflow['local_path'](root, str(workflow_state))
+        state_path = workflow.local_path(root, str(workflow_state))
         if not state_path.resolve().is_relative_to(root / '.work'):
             raise ViewerInputError('workflow state must be under .work')
-        state, _ = _read_json(state_path)
-    audit = workflow['inspect_project'](root, project, state)
+        state, _ = read_json(state_path)
+    audit = workflow.inspect_project(root, project, state)
     plan['workflow_scope'] = {'root': str(root), 'features': [copy.deepcopy(f) for f in config['features'] if f['id'] in selected],
                               'bases': {f['id']: f['basis'] for f in audit['features'] if f['id'] in selected},
                               'reviews': {key: copy.deepcopy(value) for key, value in (state or {}).get('reviews', {}).items()
                                           if key in selected}}
     if selection is not None:
         plan['workflow_scope'].update(state=state_path.relative_to(root).as_posix(), work_id=work_id,
-                                      task_identity=workflow['task_identity'](state), selection=selection['selection'])
-    _plan_checks(plan, allow_unbound=True)
+                                      task_identity=workflow.task_identity(state), selection=selection['selection'])
+    plan_checks(plan, allow_unbound=True)
     prepared = _preflight_execution(plan, checks, output.parent)
     if any(item['report_path'] == output for item in prepared.values()):
         raise ViewerInputError('Prepared plan output must differ from native report paths')

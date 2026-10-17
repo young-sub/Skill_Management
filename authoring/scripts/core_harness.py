@@ -12,7 +12,6 @@ import json
 import os
 from pathlib import Path, PurePosixPath
 import re
-import runpy
 import secrets
 import shlex
 import shutil
@@ -20,6 +19,8 @@ import subprocess
 import sys
 import time
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import unicodedata
 
 
@@ -2156,8 +2157,8 @@ def _classify_start_root(
         errors.extend(_validate_active_manifest(manifest, work_id, stored))
         if "workflow_baseline" in manifest:
             try:
-                runtime = runpy.run_path(str(Path(__file__).with_name("project_workflow.py")))
-                runtime["work_record"](root, work_id)
+                import project_workflow as workflow_api
+                workflow_api.work_record(root, work_id)
             except (OSError, ValueError, TypeError, KeyError) as error:
                 errors.append(f"work_workflow_invalid:{error}")
     return {
@@ -2303,8 +2304,8 @@ def start_work(
         workflow_baseline = None
         if project.get("extensions", {}).get("workflow") is not None:
             try:
-                runtime = runpy.run_path(str(Path(__file__).with_name("project_workflow.py")))
-                workflow_baseline = runtime["begin_work"](root, project)
+                import project_workflow as workflow_api
+                workflow_baseline = workflow_api.begin_work(root, project)
             except (OSError, ValueError, TypeError, KeyError, subprocess.CalledProcessError) as error:
                 return {"status": "precondition_failed", "errors": [f"workflow_baseline_unavailable:{error}"]}
         base_branch_name = base_branch.stdout.strip()
@@ -3315,6 +3316,7 @@ REQUIRED_COHORT_RESOURCES = frozenset({
     "close-goal/schemas/work.schema.json",
     "close-goal/scripts/core_harness.py",
     "close-goal/scripts/project_workflow.py",
+    "close-goal/scripts/task_store.py",
     "close-goal/scripts/unittest_evidence.py",
     "close-goal/scripts/verification_results.py",
     "design-goal/SKILL.md",
@@ -3329,6 +3331,7 @@ REQUIRED_COHORT_RESOURCES = frozenset({
     "execute-codex-goal/schemas/work.schema.json",
     "execute-codex-goal/scripts/core_harness.py",
     "execute-codex-goal/scripts/project_workflow.py",
+    "execute-codex-goal/scripts/task_store.py",
     "execute-codex-goal/scripts/unittest_evidence.py",
     "execute-codex-goal/scripts/verification_results.py",
     "maintain-agent-harness/SKILL.md",
@@ -3337,6 +3340,7 @@ REQUIRED_COHORT_RESOURCES = frozenset({
     "maintain-agent-harness/schemas/work.schema.json",
     "maintain-agent-harness/scripts/core_harness.py",
     "maintain-agent-harness/scripts/project_workflow.py",
+    "maintain-agent-harness/scripts/task_store.py",
     "maintain-agent-harness/scripts/unittest_evidence.py",
     "maintain-agent-harness/scripts/verification_results.py",
     "setup-agent-harness/SKILL.md",
@@ -3616,11 +3620,11 @@ def install_harness_cohort(
 
 def inspect_project_workflow(root: Path, project: dict[str, Any], *, work_id: str | None = None) -> dict[str, Any]:
     try:
-        runtime = runpy.run_path(str(Path(__file__).with_name("project_workflow.py")))
+        import project_workflow as workflow_api
         if work_id is not None:
-            state, _ = runtime["work_record"](root, work_id)
-            return runtime["inspect_project"](root, project, state)
-        return runtime["inspect_configured"](root, project)
+            state, _ = workflow_api.work_record(root, work_id)
+            return workflow_api.inspect_project(root, project, state)
+        return workflow_api.inspect_configured(root, project)
     except (OSError, ValueError, TypeError, KeyError, subprocess.CalledProcessError) as error:
         return {"status": "BLOCKED", "findings": [str(error)]}
 

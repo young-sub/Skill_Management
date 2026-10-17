@@ -47,14 +47,14 @@ class WorkflowHookTests(unittest.TestCase):
                 path.write_text(json.dumps(dict(state, task_id=str(index),
                     intent='change' if index < 8 else 'diagnose')))
             reads = []
-            read_text = Path.read_text
+            read_bytes = Path.read_bytes
 
             def measured_read(path, *args, **kwargs):
                 if path.name == 'state.json':
                     reads.append(path)
-                return read_text(path, *args, **kwargs)
+                return read_bytes(path, *args, **kwargs)
 
-            with mock.patch.dict(os.environ, AGENT_WORKFLOW_CONTEXT=''), mock.patch.object(Path, 'read_text', measured_read):
+            with mock.patch.dict(os.environ, AGENT_WORKFLOW_CONTEXT=''), mock.patch.object(Path, 'read_bytes', measured_read):
                 output = hook({'hook_event_name': 'UserPromptSubmit', 'cwd': str(root)})
             self.assertLessEqual(len(reads), 8, 'A bounded prompt must not read every retained task')
             detail = json.loads(output['hookSpecificOutput']['additionalContext'].split('\n', 1)[1])

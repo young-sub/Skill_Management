@@ -8,6 +8,7 @@ import os
 import signal
 from pathlib import Path
 import subprocess
+import tempfile
 import time
 import uuid
 
@@ -42,9 +43,16 @@ def main():
     with args.output.open('x', encoding='utf-8') as stream:
         record = {'run_id': str(uuid.uuid4()), 'feature': args.feature, 'check': args.check,
                   'argv': argv, 'cwd': str(cwd), 'started_at': datetime.now(timezone.utc).isoformat(),
-                  'before': git_identity(cwd), 'behavior_verdict': None}
+                  'behavior_verdict': None}
         if args.also_feature:
             record['shared_features'] = list(dict.fromkeys([args.feature, *args.also_feature]))
+        record.update(execution='running', exit_code=None, capture_pid=os.getpid(),
+                      progress='Wait for this capture to finish; do not launch the command again. '
+                               'If the owner exited, the outcome is unknown until reconciled.')
+        json.dump(record, stream, ensure_ascii=False, indent=2)
+        stream.flush()
+        os.fsync(stream.fileno())
+        record['before'] = git_identity(cwd)
         start = time.monotonic()
         try:
             process = subprocess.Popen(argv, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace', start_new_session=os.name != 'nt')
@@ -104,6 +112,7 @@ def main():
         except OSError as error:
             record.update(execution='unavailable', exit_code=None, stdout='', stderr=str(error))
             code = 127
+        record.pop('progress', None)
         record.update(elapsed_seconds=time.monotonic() - start, after=git_identity(cwd))
         if report:
             captured = {'path': str(report.resolve()), 'sha256': None, 'data': None, 'error': None}
@@ -116,8 +125,21 @@ def main():
             except (OSError, ValueError) as error:
                 captured['error'] = str(error)
             record['json_report'] = captured
-        json.dump(record, stream, ensure_ascii=False, indent=2)
-        stream.write('\n')
+        # Publish completion atomically: readers see either progress or the whole result.
+        stream.close()
+        temporary = None
+        try:
+            with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=args.output.parent,
+                    prefix=args.output.name + '.', suffix='.pending', delete=False) as final:
+                temporary = Path(final.name)
+                json.dump(record, final, ensure_ascii=False, indent=2)
+                final.write('\n')
+                final.flush()
+                os.fsync(final.fileno())
+            temporary.replace(args.output)
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
     print(json.dumps({'run_id': record['run_id'], 'execution': record['execution'], 'exit_code': record['exit_code'], 'evidence': str(args.output.resolve()), 'behavior_verdict': None}))
     return code
 
