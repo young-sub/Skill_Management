@@ -16,6 +16,30 @@ WORKFLOW = ROOT / 'authoring/scripts/project_workflow.py'
 
 
 class WorkflowHookTests(unittest.TestCase):
+    def test_fresh_unconfigured_checkout_exposes_runnable_discovery_without_starting_work(self):
+        hook = runpy.run_path(str(HOOK))['context']
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+            (root / 'README.md').write_text('Use the existing native project checks.\n')
+            before = {str(p): p.read_bytes() for p in root.rglob('*') if p.is_file()}
+            with mock.patch.dict(os.environ, AGENT_WORKFLOW_CONTEXT=''):
+                result = hook({'hook_event_name': 'UserPromptSubmit', 'cwd': str(root),
+                               'prompt': 'Fix the failing user flow. PRIVATE PROMPT'})
+            self.assertIn('hookSpecificOutput', result, 'Fresh projects need an executable discovery entrypoint')
+            context = result['hookSpecificOutput']['additionalContext']
+            detail = json.loads(context.split('\n', 1)[1])
+            self.assertEqual(detail['status'], 'NOT_CONFIGURED')
+            entry = detail['entrypoint']
+            self.assertEqual(Path(entry['skill']), ROOT / 'authoring/skills/agent-workflow/SKILL.md')
+            self.assertEqual(Path(entry['workflow_cli']), WORKFLOW)
+            for path in entry.values():
+                self.assertTrue(Path(path).is_file(), path)
+            self.assertNotIn('PRIVATE PROMPT', context)
+            self.assertFalse((root / '.work').exists())
+            self.assertEqual(before, {str(p): p.read_bytes() for p in root.rglob('*') if p.is_file()})
+            self.assertLess(len(context), 6000)
+
     def test_unconfigured_hook_bounds_candidate_reads_and_retains_unknown_omissions(self):
         runtime = runpy.run_path(str(WORKFLOW))
         hook = runpy.run_path(str(HOOK))['context']

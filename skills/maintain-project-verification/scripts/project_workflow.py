@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: 77a698733495d4b5790910d8766dc2da93df80dd5b05423cfd72849af7dccbdc
+# Source-SHA256: b14ef08ad3d587e55d38d915ea44290e1a41d59178fee1ea543e7067b66d0ab4
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -1168,6 +1168,7 @@ def handoff_summary(result, verification=None):
     blocked = (verification or {}).get('status') == 'BLOCKED'
     return {'project_status': result['status'],
         'task_acceptance': 'BLOCKED' if blocked else 'INCOMPLETE' if result['unmapped']
+            or result.get('investigation', {}).get('status', 'READY_FOR_REVIEW') != 'READY_FOR_REVIEW'
             or any(a['scope'] != 'project_remaining' for a in result['next_actions']) else 'READY_FOR_REVIEW',
         'check_acceptance': 'BLOCKED_BY_TASK_BINDING_OR_EFFECT' if blocked else 'CURRENT_CHECKS_ONLY',
         'reusable_checks': [] if blocked else [{'feature': f['id'], 'check': item['id']}

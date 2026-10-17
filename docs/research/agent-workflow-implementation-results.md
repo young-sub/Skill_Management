@@ -1,21 +1,64 @@
 # Agent workflow implementation and acceptance
 
-## Luna benchmark execution in progress, 2026-10-16
+<a id="natural-discovery-2026-10-17"></a>
 
-The common Codex Agent runner is implemented and its 43 impacted tests, resource
-drift and distribution checks passed. Real isolated Luna/medium calls verified
-OFF/0.1.61/0.1.62 discovery and hook delivery; an ON Skill-read omission is retained.
-A separate native Windows fixed-task handoff accepted correct output, rejected
-defective output, blocked changed candidate bytes and performed read-only lookup.
-These are new bounded observations, not reuse of the previous 447-test result.
-Official controls validate 18/24 (SWE 9/9, FeatureBench 9/9); ABC's 224 official
-solution scripts are comment-only placeholders, so its positive gate is open.
-Credential-free candidates passed actual filesystem/network denial controls.
-QEMU Docker fallback passed a runtime smoke, not full ABC grading. The 13
-completed capability units are setup telemetry; pilot9/main108 remain 0/9 and
-0/108. See the [execution record](luna-benchmark-execution.md) for source,
-evidence, original failures, package pins and current limits. No plugin performance
-or total-cost advantage has been established.
+## Natural-language discovery and investigation handoff, 2026-10-17
+
+Runtime candidate **0.1.63** starts from clean local `main@f2b59c4` in
+`wp-20261017-natural-verification`, using a separate TEMP worktree. Two observed
+common defects are repaired in their existing owners:
+
+- A fresh unconfigured Git checkout returned an empty prompt-hook result despite
+  a bundled runnable workflow. The hook now exposes the actual Skill and CLI
+  paths in unconfigured and configured checkouts. It reads existing state and
+  leaves task creation, scope selection and execution explicit.
+- An investigation with an unobserved entry returned `READY_FOR_REVIEW` in its
+  handoff. The existing handoff now retains INCOMPLETE for partial/stale
+  investigations, and the unconfigured hook carries that same judgment. Complete
+  current source-only inspection remains ready without setup or runtime tests.
+
+The original empty-hook assertion and incomplete/ready mismatch were observed
+before implementation. Six focused checks passed after repair, including current
+complete inspection, later source drift, configured inspection and read-only
+continuity. Resource drift and distribution checks passed. Full ran 459 tests in
+779.159 seconds: 456 passed, one fixture failed and two Windows cleanup cases
+errored. The fixture selected an arbitrary UUID task after creating three; it now
+uses the exact executed task returned by its helper. The two timeout cases lacked
+process-tree cleanup permission. All three originally unsuccessful cases passed
+the same criteria in a 32.336-second focused recheck, using authorized Windows
+cleanup permission. The failed Full and default-permission captures are retained;
+this is no claim of a later single all-green Full run. Captures, pinned package
+and independent-project consumption belong under `.work/natural-verification-20261017/`.
+These regression results do
+not establish business value or a solve-rate improvement.
+
+Features are **workflow-obligations** and **agent-workflow**. The existing hook
+owns discovery projection and the workflow runtime owns derived acceptance;
+project runners still own product behavior/assertions. There is no new runner,
+registry, schema or acceptance store. Plugin FE has no implementation change;
+CLI/context output and the investigation Domain judgment are affected. Public
+Flask tutorial consumption separately tests template/HTTP/Domain/SQLite behavior.
+
+The preceding A/B/C evidence is preserved. The historical reconciliation reads
+all 108 main run-records and hashes the eight positive UI/connected Skill-read
+traces; public main ON has 48 trials with no recognized body read. Documentation
+corrections and clearer phase/unit denominators are not performance gains.
+
+## Luna benchmark execution completed, 2026-10-16
+
+The [actual execution record](luna-benchmark-execution.md) supersedes the prior
+in-progress summary: 24/24 official controls, nine pilot and 108 main attempts,
+plus 18 separate fresh follow-ups were executed. Original setup/scoring errors,
+timeouts, absent Skill reads and secondary recovery stay in their original scopes.
+Public solve rates did not improve; synthetic handoff improved while UI guide/reuse
+acceptance regressed. The original UI/connected phase1 trials include recognized
+Skill-body reads in B 3/6 and C 5/6, separate from the later B 1/6 and C 4/6
+follow-ups; zero recognized reads applies to public main ON trials. Usage covers
+135 units / 143 captured phases, with 142 numeric phase captures and two unknown
+units (one with no phase). Monetary totals remain unknown. The frozen runtime's
+447-test result and common runner's 43-test result are historical verification,
+not new runs. Isolated native consumption does not establish protected-host or
+unrelated live-product acceptance. Prior .work evidence is unchanged.
 
 <a id="handoff-runtime-2026-10-15"></a>
 

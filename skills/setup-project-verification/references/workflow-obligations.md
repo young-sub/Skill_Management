@@ -1,8 +1,17 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: 1befe95f06d27008f64b462ef5a95a41244b123676006b8ac1e49554a5a2e6b0 -->
+<!-- Source-SHA256: c4f77b997f0d9ef4b1f9da0cdb435301fb26eec9eb5aab4c09e4330bbd608284 -->
 
 # Project workflow obligations
+
+The prompt hook exposes the bundled `agent-workflow` Skill and runnable CLI in
+configured and fresh unconfigured Git projects. This is a discovery connection;
+the hook never chooses a task, creates configuration or runs project checks.
+Follow the Skill to the project's existing guides, owners and native runners.
+The hook and task handoff keep an investigation INCOMPLETE while requested
+observations, inventory or reference bindings are incomplete or stale. A current
+complete source-only investigation can be ready without running product checks;
+that does not certify runtime behavior or whole-project completion.
 
 Existing project config owns `extensions.workflow`; a task record under `.work` retains review progress. The bundled `scripts/project_workflow.py` computes obligations from current bytes and registered connections without calling a model. Requirements, feature meanings, causes and visual judgments remain Agent work. Review records are Agent inputs, not authenticated proof.
 

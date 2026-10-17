@@ -1,6 +1,6 @@
 # Agent Coding 업무 위임·검증·지속 개선 체계
 
-현재 source는 **2026-10-15 / runtime 0.1.62**이다. clean local main `eb6a0b2` / 0.1.61에서 별도 TEMP worktree로 시작해 task 우선 summary, 호출 내부 읽기 공유, 환경 실패·복구·현재 가용성 연결과 공식 평가기의 얇은 실행 연결을 구현했다. [이번 구현·검증 결과](agent-workflow-implementation-results.md#handoff-runtime-2026-10-15)가 Full 447/447, 실제 task의 full 동등성·반복 측정, 새 문맥 소비와 남은 인수를 소유한다. Docker는 사용자가 보류했다. 공식 oracle 대조·유료 A/B·native Skill/hook/보호 host 인수는 수행하지 않았다. [직전 0.1.61 결과](agent-workflow-implementation-results.md#delegated-handoff-2026-10-15)는 과거 기록으로 보존하며 이번 실행으로 계산하지 않는다. §12는 당시 평가 합의, §13은 지속 목표다.
+현재 source runtime은 **0.1.63 구현 후보 / 2026-10-17**이다. 0.1.62의 task 우선 summary·호출 내부 읽기 공유·환경 복구와 공식 평가기 연결은 [10월 15일 구현 기록](agent-workflow-implementation-results.md#handoff-runtime-2026-10-15)이 소유한다. 당시 Docker 보류와 평가 미수행은 그 회차의 역사적 상태다. 이후 [10월 16일 실제 평가](luna-benchmark-execution.md)에서 전용 WSL/Docker, 공식 대조 24개, pilot 9회·main 108회와 별도 후속 18회를 실행했다. 공개 과제 해결률 이득은 없었고 인수·재사용은 혼합/부정적 결과였으며 전체 금전 비용은 unknown이다. 격리 native 발견·hook·본문 읽기 관찰과 전역 설치 갱신·보호 host 수락·실제품 전 범위 인수는 서로 다르다. §12는 당시 평가 합의, §13은 지속 목표다.
 
 **목적은 플러그인 고도화이며 연두링크는 실제 사용 평가 대상이다.** 연두링크 화면만 개선하고 종료하지 않는다. 기존 [연두링크 평가](plugin-improvement-next-session.md)와 [지속 고도화 요청](plugin-continuous-improvement-next-session.md)은 수행 범위를 보존한다. 다음 개선 선정은 현재 근거와 §10을 따른다. 과거 `agent-workflow-next-session.md`와 `agent-coding-next-session.md`의 실행 블록도 이미 수행된 범위의 기록이다.
 

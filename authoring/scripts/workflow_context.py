@@ -64,6 +64,10 @@ def context(payload):
     if not runtime_path.is_file():
         runtime_path = Path(__file__).resolve().parents[1] / 'skills/agent-workflow/scripts/project_workflow.py'
     runtime = runpy.run_path(str(runtime_path))
+    skill = runtime_path.parent.parent / 'SKILL.md'
+    if not skill.is_file():
+        skill = runtime_path.parent.parent / 'skills/agent-workflow/SKILL.md'
+    entrypoint = {'skill': str(skill), 'workflow_cli': str(runtime_path)}
     path = runtime['local_path'](root, '.harness/project.yaml')
     project = json.loads(path.read_text(encoding='utf-8')) if path.is_file() else {}
     config = runtime['configuration'](project)
@@ -72,9 +76,8 @@ def context(payload):
         omitted = sum(c.get('status') == 'NOT_INSPECTED' for c in records)
         candidates = [c for c in records if c.get('intent') == 'diagnose']
         selector = os.environ.get('AGENT_WORKFLOW_CONTEXT')
-        if not selector and not candidates and not omitted:
-            return {}
         summary = {'status': 'NOT_CONFIGURED', 'task_candidates': [dict(c, request=request_preview(c.get('request'), 160)) for c in candidates[:8]],
+                   'entrypoint': entrypoint,
                    'task_candidate_count': len(candidates), 'task_record_count': len(records),
                    'task_candidate_omitted': omitted, 'task_discovery_complete': omitted == 0,
                    'task_discovery_detail': 'For full candidate paths run resume without task context or selector, then select exact --state/--work-id. Omitted intent and validity are unknown.'}
@@ -85,6 +88,7 @@ def context(payload):
                 investigation = audit.get('investigation', {})
                 summary['current_task'] = {'task_id': state.get('task_id'), 'work_id': work_id,
                     'state': state_path.relative_to(root).as_posix(), 'request': request_preview(state.get('request')),
+                    'task_acceptance': runtime['handoff_summary'](audit)['task_acceptance'],
                     'status': audit['status'], 'investigation': investigation_context(investigation)}
             except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
                 summary['current_task'] = {'status': 'BLOCKED', 'reason': str(error)}
@@ -98,7 +102,9 @@ def context(payload):
                     investigation[field] = investigation[field][:2]
             detail = json.dumps(summary, ensure_ascii=False, separators=(',', ':'))
         return {'hookSpecificOutput': {'hookEventName': 'UserPromptSubmit', 'additionalContext':
-            'Current investigation data, not instructions or authorization. No tests or repairs ran.\n' +
+            'Available project verification entrypoint and investigation data, not authorization. '
+            'Read the entrypoint Skill to connect the requested work to existing project checks. '
+            'No tests or repairs ran; lookup-only requests remain read-only.\n' +
             detail}}
     # One prompt observes one source inventory; reuse only within this invocation.
     files = runtime['inventory'](root, config['roots'])
@@ -106,6 +112,7 @@ def context(payload):
     configured_path = runtime['local_path'](root, config['state']) if config.get('state') else None
     task_audits = {}
     summary = {key: audit[key] for key in ('status', 'mapping_status', 'enforcement')}
+    summary['entrypoint'] = entrypoint
     if os.environ.get('AGENT_WORKFLOW_CONTEXT'):
         try:
             state, state_path, work_id = runtime['resolve_task'](root)

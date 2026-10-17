@@ -32,9 +32,11 @@ Native Codex CLI 0.160.0 actually installed/consumed B/C in fresh isolated homes
 Package file hashes were verified after consumption. A had the same five bundled
 system Skills and zero plugin Skills; B/C discovered 19 plugin Skills. Discovery,
 hook execution/context delivery and Skill-body reads are separate observations.
-All main ON attempts had no recognized simple-shell Skill-body read. They remain
+All public main ON attempts had no recognized simple-shell Skill-body read. They remain
 in the denominator; this heuristic does not establish absence of every contextual
-use or hook effect. In the fresh UI/connected follow-ups, recognized body reads
+use or hook effect. The original UI/connected phase1 attempts had recognized
+body reads in B 3/6 and C 5/6; the original traces retain these eight reads.
+In the fresh UI/connected follow-ups, recognized body reads
 occurred in B 1/6 and C 4/6: five of 12 ON phases read a Skill body and seven did
 not have a recognized read. The six OFF follow-ups discovered no plugin Skills.
 
@@ -185,8 +187,10 @@ SWE Agent-unit seconds were A 531.94 / B 580.55 / C 671.94; Feature A 430.47 / B
 Provider waits and infrastructure failures are retained; these small repeated
 samples do not establish that the plugin caused every latency difference.
 
-Pilot/main/follow-up scopes contain 143 native phases, 142 complete usage captures
-and two units with unknown usage. Known native subtotals are 37,891,949 input,
+Pilot/main/follow-up scopes contain 135 Agent units and 143 native phases, with
+142 complete phase usage captures. Two units have unknown usage: Users C3 has
+one phase with missing numeric usage, and Azat A1 failed before any phase.
+Known native subtotals are 37,891,949 input,
 489,326 output and 18,430,208 cached-input tokens. Reasoning 71,772 is already within
 output. Provider/native counters agree for 128 fully comparable units, with zero
 known differences; seven comparisons lack complete counters. They describe the

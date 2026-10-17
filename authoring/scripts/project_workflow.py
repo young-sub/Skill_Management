@@ -1164,6 +1164,7 @@ def handoff_summary(result, verification=None):
     blocked = (verification or {}).get('status') == 'BLOCKED'
     return {'project_status': result['status'],
         'task_acceptance': 'BLOCKED' if blocked else 'INCOMPLETE' if result['unmapped']
+            or result.get('investigation', {}).get('status', 'READY_FOR_REVIEW') != 'READY_FOR_REVIEW'
             or any(a['scope'] != 'project_remaining' for a in result['next_actions']) else 'READY_FOR_REVIEW',
         'check_acceptance': 'BLOCKED_BY_TASK_BINDING_OR_EFFECT' if blocked else 'CURRENT_CHECKS_ONLY',
         'reusable_checks': [] if blocked else [{'feature': f['id'], 'check': item['id']}

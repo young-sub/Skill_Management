@@ -17,9 +17,9 @@ SCRIPT = ROOT / 'authoring/scripts/project_workflow.py'
 
 class ProjectWorkflowTests(unittest.TestCase):
     def test_read_only_lookup_shares_measured_project_basis_with_nested_viewer(self):
-        self.test_connected_prepare_execute_lookup_and_completed_execution_resume()
+        started = self.test_connected_prepare_execute_lookup_and_completed_execution_resume()
         runtime = self.runtime()
-        state_path = next((self.root / '.work/tasks').glob('*/state.json'))
+        state_path = self.root / started['task']['state']
         calls = []
         def profile(frame, event, arg):
             if event == 'call' and frame.f_code.co_name == 'inspect_project':
@@ -612,6 +612,7 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertEqual(stale['test_commands_executed'], 0)
         self.assertEqual(stale_before, {str(p): p.read_bytes() for p in (self.root / '.work').rglob('*') if p.is_file()})
         self.assertEqual((self.root / '.work/calls').read_text(), '1')
+        return started
 
     def test_legacy_console_execute_and_completed_resume_preserve_unicode(self):
         with patch.dict(os.environ, {'PYTHONIOENCODING': 'cp949'}):

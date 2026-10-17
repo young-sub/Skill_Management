@@ -699,6 +699,23 @@ class WorkflowRefinementTests(unittest.TestCase):
         self.assertIn('src/api.py', updated['current_task']['obligations'][0]['changed'],
                       'A later invocation must observe new bytes')
 
+    def test_investigation_handoff_requires_current_in_scope_observations(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, {}, 'diagnose', request_summary='Inspect both entrypoints')
+        survey = self.investigation()
+        state = runtime.record_investigation(self.root, state, survey)
+        partial = runtime.inspect_project(self.root, {}, state)
+        self.assertEqual(runtime.handoff_summary(partial)['task_acceptance'], 'INCOMPLETE')
+        survey['entries'][1].update(status='observed', observed='Read the CLI constant', evidence=['src/cli.py'])
+        state = runtime.record_investigation(self.root, state, survey)
+        current = runtime.inspect_project(self.root, {}, state)
+        self.assertEqual(runtime.handoff_summary(current)['task_acceptance'], 'READY_FOR_REVIEW',
+                         'Complete source inspection must not require runtime tests or workflow setup')
+        self.write('src/cli.py', 'print(11)\n')
+        stale = runtime.inspect_project(self.root, {}, state)
+        self.assertEqual(runtime.handoff_summary(stale)['task_acceptance'], 'INCOMPLETE')
+        self.assertIn('cli-price', stale['investigation']['stale'])
+
     def test_unconfigured_investigation_survives_fresh_context_without_setup_or_execution(self):
         investigation = self.write('.work/input.json', json.dumps(self.investigation()))
         original = {str(p): p.read_bytes() for p in self.root.rglob('*') if p.is_file()}
@@ -713,6 +730,7 @@ class WorkflowRefinementTests(unittest.TestCase):
             self.assertEqual(result['task']['task_id'], started['task']['task_id'])
             self.assertEqual(result['investigation']['unobserved'], ['cli-price'])
             self.assertEqual(result['investigation']['total'], 2)
+            self.assertEqual(result['handoff']['task_acceptance'], 'INCOMPLETE')
             self.assertEqual(result['test_commands_executed'], 0)
         self.assertEqual(saved, {str(p): p.read_bytes() for p in self.root.rglob('*') if p.is_file()})
         self.assertTrue(all(p.read_bytes() == value for name, value in original.items() for p in [existing.Path(name)]))
@@ -725,6 +743,7 @@ class WorkflowRefinementTests(unittest.TestCase):
         detail = json.loads(json.loads(hook.stdout)['hookSpecificOutput']['additionalContext'].split('\n', 1)[1])
         self.assertEqual(detail['current_task']['task_id'], started['task']['task_id'])
         self.assertEqual(detail['current_task']['investigation']['unobserved'], ['cli-price'])
+        self.assertEqual(detail['current_task']['task_acceptance'], 'INCOMPLETE')
         _, another = self.invoke('start', '--intent', 'diagnose', '--request-summary', 'Independent survey',
                                  '--investigation', str(investigation))
         _, ambiguous = self.invoke('resume')

@@ -1,5 +1,14 @@
 # Testing And Impact Selection
 
+Runtime 0.1.63 repairs fresh-project hook discovery and investigation handoff.
+Focused failures reproduce an empty hook in an unconfigured Git checkout and a
+ready handoff with a pending observation. Normal complete source inspection stays
+ready without setup/tests; stale references reopen it. Hook and lookup checks
+preserve source/evidence bytes and execute zero product commands. These changes
+affect shared discovery and acceptance, so this unit selects Full after focused
+checks, plus resource/distribution checks. Fresh-project package consumption and
+Agent effectiveness are separate from these repository regressions.
+
 Runtime 0.1.62 tests task-first bounded summaries, all omitted IDs, same-call
 Feature-basis reuse and alternate-project isolation, structured same-target
 environment recovery, manual disable/context/config drift, and Windows cleanup
