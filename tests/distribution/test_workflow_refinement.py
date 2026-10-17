@@ -225,7 +225,7 @@ class WorkflowRefinementTests(unittest.TestCase):
         self.assertEqual(json.loads((self.root / '.harness/environment-exceptions.json').read_text())['exceptions'][0]['retry'],
                          'skip_until_manual_reenable')
 
-    def _native_rebind_case(self, *, target_collision=False):
+    def _native_rebind_case(self, *, target_collision=False, consolidate=False):
         """Build both sides from Git and let the native executor create target evidence."""
         import runpy
 
@@ -244,6 +244,10 @@ class WorkflowRefinementTests(unittest.TestCase):
         feature['criteria'] = ['docs/requirement.md']
         feature['prevention'] = [{'failure': 'Native output mismatch', 'check': 'legacy-native',
                                   'normal_exception': 'The native check is explicitly not selected.'}]
+        if consolidate:
+            feature['prevention'] = []
+            self.project['commands']['native-generation'] = {'argv': [sys.executable, 'src/native.py',
+                '{report_dir}/native-generation.json'], 'working_directory': '.'}
         # The old command remains live for another Feature while api migrates.
         workflow['features'][1]['checks'] = ['legacy-native']
         self.write('src/native.py',
@@ -257,10 +261,19 @@ class WorkflowRefinementTests(unittest.TestCase):
             'dependency': {'file_refs': ['src/api.py']}, 'fixture': {'file_refs': ['docs/requirement.md']}}
         self.write('assertions.json', json.dumps({'schema_version': 1, 'checks': [
             dict(check_row, feature_id='api'), dict(check_row, feature_id='cli')]}))
+        if consolidate:
+            workflow['features'][1]['checks'] = ['native-generation']
+            spec = json.loads((self.root / 'assertions.json').read_text(encoding='utf-8'))
+            spec['checks'][1]['id'] = 'native-generation'
+            spec['checks'][1]['raw_observations'][0]['path'] = '{report_dir}/native-generation.json'
+            self.write('assertions.json', json.dumps(spec))
         self.write('docs/map.md', '| `api` API outcome | API outcome | src/api.py | legacy-native named case; browser review separate |\n'
                                  '| `cli` CLI outcome | CLI outcome | src/cli.py | legacy-native named case; shared consumer |\n')
         self.write('.harness/project.yaml', json.dumps(self.project))
-        subprocess.run(['git', 'config', 'core.autocrlf', 'false'], cwd=self.root, check=True)
+        if consolidate:
+            native = self.root / 'src/native.py'
+            native.write_bytes(native.read_bytes().replace(b'\r\n', b'\n').replace(b'\n', b'\r\n', 1))
+        subprocess.run(['git', 'config', 'core.autocrlf', 'true' if consolidate else 'false'], cwd=self.root, check=True)
         subprocess.run(['git', 'add', '-A'], cwd=self.root, check=True)
         subprocess.run(['git', '-c', 'user.name=Fixture', '-c', 'user.email=f@invalid',
                         'commit', '-qm', 'register legacy native check'], cwd=self.root, check=True)
@@ -312,6 +325,50 @@ class WorkflowRefinementTests(unittest.TestCase):
         self.assertEqual(target_run['status'], 'PASS', target_run)
         bundle = target_plan.parent / 'evidence/bundle.json'
         return runtime, viewer, state, state_path, old_feature, new_id, old_plan, target_plan, bundle, target_run
+
+    def test_duplicate_check_consolidation_uses_original_assertions_without_prevention_labels(self):
+        runtime, _, state, _, _, target, source_plan, _, bundle, _ = self._native_rebind_case(consolidate=True)
+        audit = runtime.inspect_project(self.root, self.project, state)
+        review = {'feature': 'api', 'basis': next(f['basis'] for f in audit['features'] if f['id'] == 'api'),
+            'analysis': 'The existing shared command preserves the original native assertions and inputs.',
+            'references': ['docs/map.md', 'src/native.py'], 'findings': [],
+            'check_decisions': {'legacy-native': {'action': 'consolidate', 'reason': 'duplicate_execution',
+                'consolidation': {'target_check': target, 'source_plan': '.work/old/plan.json',
+                                  'target_bundle': '.work/new/evidence/bundle.json'}}}}
+        accepted = runtime.record_review(self.root, self.project, state, review)
+        row = runtime.inspect_project(self.root, self.project, accepted)['check_retirements'][0]
+        self.assertEqual(row['status'], 'PRESERVED', row)
+        self.assertIn('.work/old/plan.json', accepted['reviews']['api']['reference_hashes'])
+        # Changed proof cannot silently reuse the semantic review.
+        for artifact in (source_plan, bundle):
+            before = artifact.read_bytes()
+            artifact.write_bytes(before + b'\n')
+            self.assertEqual(runtime.inspect_project(self.root, self.project, accepted)['check_retirements'][0]['status'], 'BLOCKED')
+            artifact.write_bytes(before)
+        # A forged weaker original contract cannot replace Git's original assertions.
+        original = source_plan.read_bytes()
+        plan = json.loads(original)
+        plan['checks'][0]['raw_observations'][0]['assertions'][0]['equals'] = 'SKIP'
+        source_plan.write_text(json.dumps(plan), encoding='utf-8')
+        forged = runtime.record_review(self.root, self.project, state, review)
+        self.assertEqual(runtime.inspect_project(self.root, self.project, forged)['check_retirements'][0]['status'], 'BLOCKED')
+        source_plan.write_bytes(original)
+        for change in ('not_required', 'missing_inputs', 'wrong_baseline'):
+            with self.subTest(change=change):
+                plan = json.loads(original)
+                item = plan['checks'][0]
+                if change == 'not_required':
+                    item['required'] = False
+                elif change == 'missing_inputs':
+                    item['conditions']['fixture']['file_hashes'] = {}
+                else:
+                    item['conditions']['source']['revision'] = '0' * 40
+                source_plan.write_text(json.dumps(plan), encoding='utf-8')
+                forged = runtime.record_review(self.root, self.project, state, review)
+                self.assertEqual(runtime.inspect_project(self.root, self.project, forged)['check_retirements'][0]['status'], 'BLOCKED')
+                source_plan.write_bytes(original)
+        self.write('src/native.py', 'raise RuntimeError("changed runner")\n')
+        self.assertEqual(runtime.inspect_project(self.root, self.project, accepted)['check_retirements'][0]['status'], 'BLOCKED')
 
     def test_check_identity_rebind_accepts_a_clean_preimage_and_fresh_native_result(self):
         runtime, viewer, state, state_path, old_feature, new_id, old_plan, target_plan, bundle, target_run = self._native_rebind_case()

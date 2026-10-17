@@ -82,6 +82,19 @@ The replacement prevention link must be active; missing prior detection scope or
 evidence blocks preservation. Existing older baselines cannot invent absent prior
 links. Feature retirement uses its separate semantic removal review.
 
+For duplicate executions of the same runner, `action: consolidate` with
+`reason: duplicate_execution` can instead supply `consolidation` containing
+`target_check`, `source_plan` and `target_bundle`. Both proof paths are existing
+project `.work` files. The source plan must bind the clean task baseline's actual
+registered command and original raw assertions; the target is an already registered
+shared check with a current, task-bound native execution. Only explicit report
+output paths may differ in the command. Original assertions, criteria, runtime,
+source inputs and declared prevention/coverage remain; the shared execution may
+bind additional inputs. Registry/map metadata may change to connect the shared
+check. Missing, weaker or stale proof blocks consolidation. This path reuses actual
+old detection contracts without inventing retrospective prevention labels; it does
+not establish equivalence between different runners or authorize deleting checks.
+
 For a removed requirement inside a still-active Feature, `action: remove` with
 `reason: requirement_retired` takes a separate proof branch. Its `retirement`
 includes safe `authorization_refs`, changed `requirement_refs` captured before

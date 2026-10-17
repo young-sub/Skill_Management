@@ -1,6 +1,6 @@
 # Agent 업무 위임·검증·지속 개선 설계
 
-이 문서가 현재 설계의 단일 기준이다. 버전별 실행과 한계는 [0.1.69 개선 결과](workflow-improvement-results.md), [0.1.68 hardening](core-hardening-results.md), [이전 구현 기록](agent-workflow-implementation-results.md), [아카이브](archive/index.md)가 소유한다. 과거 지시와 PASS를 새 작업의 지시·결과로 재사용하지 않는다. 다음 작업은 [실행 지시서](plugin-continuous-improvement-next-session.md)를 따른다.
+이 문서가 현재 설계의 단일 기준이다. 버전별 실행과 한계는 [후속 소비와 검사 통합](workflow-followup-results.md), [0.1.69 개선 결과](workflow-improvement-results.md), [0.1.68 hardening](core-hardening-results.md), [이전 구현 기록](agent-workflow-implementation-results.md), [아카이브](archive/index.md)가 소유한다. 과거 지시와 PASS를 새 작업의 지시·결과로 재사용하지 않는다. 다음 작업은 [실행 지시서](plugin-continuous-improvement-next-session.md)를 따른다.
 
 ## 목적과 실제 완료 조건
 

@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: e7fc1d4eba804248f315adb7338d15b6246a567a779111d628486376a5c507a4
+# Source-SHA256: 192754fdc293ddc2ef0e3a346f634ab4945996b6bda3775b612ddfcf5f9a40d7
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -1247,8 +1247,8 @@ def retirement_references(proof):
 
 def check_decision_references(decision):
     references = retirement_references(decision.get('retirement', {}))
-    if decision.get('action') == 'rebind':
-        proof = decision.get('rebind', {})
+    if decision.get('action') in {'rebind', 'consolidate'}:
+        proof = decision.get('rebind' if decision['action'] == 'rebind' else 'consolidation', {})
         references.extend(proof.get(name) for name in ('source_plan', 'target_bundle') if isinstance(proof.get(name), str))
     return references
 
@@ -1303,9 +1303,10 @@ def normalize_rebind_check(root, check, changed_metadata):
 
 
 def inspect_check_identity_rebind(root, project, feature, state, check, decision):
-    """Preserve one check binding only when Git, the old task and a fresh native bundle agree."""
+    """Preserve a renamed or consolidated binding from Git and current native evidence."""
     root = Path(root).resolve()
-    proof = decision.get('rebind', {})
+    consolidating = decision.get('action') == 'consolidate'
+    proof = decision.get('consolidation' if consolidating else 'rebind', {})
 
     def need(value, reason):
         if not value:
@@ -1494,6 +1495,106 @@ def inspect_check_identity_rebind(root, project, feature, state, check, decision
         output = ('\ufeff' if bom else '') + ''.join(lines)
         return output.encode('utf-8')
 
+    def consolidate(old_plan, old_check, bundle_path, target_id):
+        # Reuse the original registered contract, even when it predates prevention labels.
+        old_revision = source_revision(old_check)
+        need(old_revision == state.get('base'), 'consolidation_source_not_task_baseline')
+
+        def original_input(name, expected):
+            current = local_path(root, name).read_bytes()
+            # Clean Windows files can contain mixed line endings after a scoped edit.
+            return (hashlib.sha256(current).hexdigest() == expected
+                    and current.replace(b'\r\n', b'\n') == git_bytes(old_revision, name).replace(b'\r\n', b'\n'))
+
+        old_project = git_json(old_revision, '.harness/project.yaml')
+        old_config, new_config = configuration(old_project), configuration(project)
+        old_feature = feature_for(old_config, feature['id'])
+        prior = state.get('check_links', {}).get(feature['id'], {})
+        need(Path(old_plan.get('workflow_scope', {}).get('root', '')).resolve() == root
+             and scope_feature(old_plan, feature['id']) == old_feature
+             and prior.get('checks') == old_feature['checks']
+             and prior.get('prevention', []) == old_feature.get('prevention', []),
+             'consolidation_source_binding_mismatch')
+        need(target_id in {identity for row in old_config['features'] for identity in row['checks']}
+             and target_id in feature['checks'], 'consolidation_existing_target_required')
+        wrapper = json.loads(bundle_path.read_text(encoding='utf-8-sig'))
+        bundle = wrapper.get('execution', {}).get('bundle', wrapper)
+        new_plan_path = resolve_bundle_file(bundle.get('source_plan'), bundle_path.parent)
+        new_plan = json.loads(new_plan_path.read_text(encoding='utf-8-sig'))
+        new_check = plan_check(new_plan, feature['id'], target_id, viewer)
+        scope = new_plan.get('workflow_scope', {})
+        target_state_path = work_file(scope.get('state'))
+        target_state = json.loads(target_state_path.read_text(encoding='utf-8-sig'))
+        need(Path(scope.get('root', '')).resolve() == root
+             and scope.get('task_identity') == task_identity(state)
+             and task_identity(target_state) == task_identity(state)
+             and scope_feature(new_plan, feature['id']) == feature, 'consolidation_target_binding_mismatch')
+        for plan, item in ((old_plan, old_check), (new_plan, new_check)):
+            need(item.get('required') is True and item.get('selection', {}).get('status') == 'selected'
+                 and any(row.get('feature') == feature['id'] and row.get('check') == item['id']
+                         and row.get('selected') is True for row in plan['workflow_scope'].get('selection', [])),
+                 'consolidation_required_check_missing')
+        for field in ('coverage', 'prevention'):
+            for row in old_feature.get(field, []):
+                if row.get('check') == check:
+                    need(dict(row, check=target_id) in feature.get(field, []),
+                         'consolidation_detection_scope_changed')
+        spec_path = old_config.get('assertions')
+        need(spec_path == new_config.get('assertions'), 'consolidation_assertion_source_changed')
+        old_spec = spec_check(git_json(old_revision, spec_path), feature['id'], check)
+        new_spec = spec_check(json.loads(local_path(root, spec_path).read_text(encoding='utf-8-sig')),
+                              feature['id'], target_id)
+        bind_plan_check(old_project, check, old_spec, old_check)
+        bind_plan_check(project, target_id, new_spec, new_check)
+        need(normalized_command(command_entry(old_project, check)[2], old_spec)
+             == normalized_command(command_entry(project, target_id)[2], new_spec),
+             'consolidation_registered_command_changed')
+        observations = lambda item: [{k: v for k, v in row.items() if k != 'path'}
+                                     for row in item['raw_observations']]
+        need(observations(old_check) == observations(new_check), 'consolidation_raw_assertions_changed')
+        before, after = old_check['conditions'], new_check['conditions']
+        need(before['runtime'] == after['runtime'] and before['criteria'] == after['criteria']
+             and old_feature.get('criteria') == feature.get('criteria'), 'consolidation_runtime_or_criteria_changed')
+        metadata = {'.harness/project.yaml', repo_name(spec_path),
+                    *(repo_name(name) for name in old_feature.get('map', []))}
+        old_hashes = repository_hashes(old_check)
+        required = metadata | set(old_feature.get('criteria', [])) | set(old_feature.get('ui', []))
+        required.update(row['requirement'] for row in old_feature.get('coverage', []))
+        need(required <= set(old_hashes), 'consolidation_original_inputs_missing')
+        tracked = set(git(root, 'ls-tree', '-r', '--name-only', old_revision).decode('utf-8').splitlines())
+        for arg in before['command']['argv']:
+            path = Path(arg)
+            path = (path if path.is_absolute() else Path(before['command']['cwd']) / path).resolve()
+            if path.is_relative_to(root) and path.relative_to(root).as_posix() in tracked:
+                name = path.relative_to(root).as_posix()
+                need(original_input(name, file_hash(root, name)), 'consolidation_runner_input_changed')
+        for group in ('dependency', 'fixture'):
+            declared = old_spec.get(group, {})
+            for key, value in declared.items():
+                need(before[group].get(key) == value, 'consolidation_original_conditions_changed')
+            for key, value in before[group].items():
+                if key == 'file_hashes':
+                    for absolute, digest in value.items():
+                        path = Path(absolute).resolve()
+                        name = path.relative_to(root).as_posix() if path.is_relative_to(root) else None
+                        if name is not None and name not in metadata:
+                            need(original_input(name, digest), 'consolidation_input_preimage_mismatch')
+                        if name not in metadata:
+                            need(after[group].get(key, {}).get(absolute) == digest, 'consolidation_runtime_inputs_changed')
+                elif isinstance(value, list):
+                    need(all(ref in after[group].get(key, []) for ref in value), 'consolidation_inputs_dropped')
+                elif key != 'kind':
+                    need(after[group].get(key) == value, 'consolidation_conditions_changed')
+        viewed = viewer.view_bundle(bundle_path, workflow_state=target_state_path.relative_to(root))
+        rows = [item for item in viewed.get('items', []) if item.get('feature') == feature['id'] and item.get('id') == target_id]
+        need(viewed.get('test_commands_executed') == 0 and len(rows) == 1, 'consolidation_target_evidence_missing')
+        item = rows[0]
+        need(item.get('current_status') == 'PASS' and item.get('historical_status') == 'PASS'
+             and item.get('current_reuse') == 'REUSABLE' and item.get('selected') is True
+             and item.get('capture', {}).get('execution') == 'exited'
+             and item.get('capture', {}).get('exit_code') == 0, 'consolidation_target_evidence_not_current_pass')
+        return []
+
     try:
         target_id = proof.get('target_check')
         need(isinstance(target_id, str) and re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]*', target_id)
@@ -1503,6 +1604,8 @@ def inspect_check_identity_rebind(root, project, feature, state, check, decision
         old_plan = json.loads(source_path.read_text(encoding='utf-8-sig'))
         import verification_results as viewer
         old_check = plan_check(old_plan, feature['id'], check, viewer)
+        if consolidating:
+            return consolidate(old_plan, old_check, bundle_path, target_id)
         old_scope = old_plan.get('workflow_scope', {})
         need(Path(old_scope.get('root', '')).resolve() == root
              and old_scope.get('task_identity') == task_identity(state), 'rebind_source_task_binding_mismatch')
@@ -1666,7 +1769,9 @@ def inspect_check_retirements(root, project, feature, state, review, reviewed, *
         remaining = []
         if not reviewed:
             remaining.append('current_semantic_review_required')
-        if decision.get('action') == 'rebind' and decision.get('reason') == 'check_identity_migrated':
+        if ((decision.get('action') == 'rebind' and decision.get('reason') == 'check_identity_migrated')
+                or (decision.get('action') == 'consolidate' and decision.get('reason') == 'duplicate_execution'
+                    and 'consolidation' in decision)):
             remaining.extend(inspect_check_identity_rebind(root, project, feature, state, check, decision))
             result.append({'feature': feature['id'], 'check': check, 'decision': decision,
                            'status': 'BLOCKED' if remaining else 'PRESERVED', 'remaining': sorted(set(remaining))})
@@ -2639,9 +2744,12 @@ def validate_review(root, review):
             raise ValueError('check_decision_requires_action_reason')
         if not isinstance(entry.get('preservation', []), list) or any(not isinstance(p, dict) for p in entry.get('preservation', [])):
             raise ValueError('check_preservation_must_be_list')
-        if entry.get('action') == 'rebind':
-            proof = entry.get('rebind')
-            if (entry.get('reason') != 'check_identity_migrated' or not isinstance(proof, dict)
+        if entry.get('action') == 'rebind' or 'consolidation' in entry:
+            consolidating = 'consolidation' in entry
+            proof = entry.get('consolidation' if consolidating else 'rebind')
+            if (entry.get('action') != ('consolidate' if consolidating else 'rebind')
+                    or entry.get('reason') != ('duplicate_execution' if consolidating else 'check_identity_migrated')
+                    or (consolidating and 'rebind' in entry) or not isinstance(proof, dict)
                     or set(proof) != {'target_check', 'source_plan', 'target_bundle'}
                     or any(not isinstance(proof.get(field), str) or not proof[field].strip()
                            for field in ('target_check', 'source_plan', 'target_bundle'))
