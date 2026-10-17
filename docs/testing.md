@@ -320,3 +320,15 @@ also observes actual linked native proof through reusable scope checks. One
 scope observation reads a shared bundle once while retaining different consumer
 PASS/ISSUES rows and command rejection. A later call rereads changed raw; this
 inspection-local sharing does not weaken whole-Git, source or scope guards.
+
+## Required connected-product acceptance
+
+CI sets `CONNECTED_PRODUCT_REQUIRED=1` and provisions the pinned Playwright browser
+before the existing connected-product tests. Prerequisite failure is a failing
+approval check. A normal run must retain all 14 observations with no skips/errors;
+the UI payload fault must still fail while its API/Domain controls pass. Local
+optional runs without the flag may skip unavailable browser prerequisites; those
+skips do not establish acceptance. The existing runner owns Launch, Doctor, Drive,
+Evidence and Cleanup, and retains raw reports/screenshots after service/data cleanup.
+Run `python -m unittest tests.distribution.test_connected_product` with that flag
+for required acceptance. GitHub-hosted execution remains distinct from local proof.

@@ -102,6 +102,22 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Install connected-product browser
+        if: needs.scope.outputs.docs_only != 'true'
+        shell: pwsh
+        run: |
+          npm install --global playwright@1.64.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $npmGlobalRoot = (npm root --global).Trim()
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $playwrightCli = Join-Path $npmGlobalRoot 'playwright/cli.js'
+          if (-not (Test-Path $playwrightCli)) { throw "Playwright CLI was not installed at $playwrightCli" }
+          if ($IsWindows) {
+            & node $playwrightCli install chromium
+          } else {
+            & node $playwrightCli install --with-deps chromium
+          }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Documentation checks
         if: needs.scope.outputs.docs_only == 'true'
         run: python -m unittest tests.distribution.test_repository_docs
@@ -109,12 +125,13 @@ jobs:
         if: needs.scope.outputs.docs_only == 'true'
         shell: pwsh
         run: scripts/validate-distribution.ps1
-      - name: Unit and contract tests
+      - name: Unit and contract tests, including required connected-product acceptance
         if: needs.scope.outputs.docs_only != 'true'
         env:
           PYTHONUTF8: '1'
           TEMP: ${{ runner.temp }}
           TMP: ${{ runner.temp }}
+          CONNECTED_PRODUCT_REQUIRED: '1'
         run: python -m unittest discover -s tests -p "test_*.py"
       - name: Generated resource drift
         shell: pwsh

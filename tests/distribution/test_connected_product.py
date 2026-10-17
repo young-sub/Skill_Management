@@ -1,6 +1,7 @@
 """Two real project commands must retain independent proof after cleanup."""
 import hashlib
 import json
+import os
 from pathlib import Path
 import runpy
 import shutil
@@ -13,9 +14,18 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = ROOT / 'tests/distribution/fixtures/connected_product'
+REQUIRED_ENV = 'CONNECTED_PRODUCT_REQUIRED'
 
 
 class ConnectedProductTests(unittest.TestCase):
+    def handle_unavailable_browser(self, raw, report_path):
+        if raw['status'] == 'BLOCKED' and not raw['execution']['executed']:
+            message = 'browser prerequisite unavailable; report=%s; errors=%s' % (
+                report_path, raw['errors'])
+            if os.environ.get(REQUIRED_ENV) == '1':
+                self.fail('Required connected-product acceptance could not start: ' + message)
+            self.skipTest('Optional connected-product run: ' + message)
+
     def test_two_reports_retain_actual_artifacts_and_refuse_overwrite(self):
         work = ROOT / '.work'
         work.mkdir(exist_ok=True)
@@ -29,10 +39,10 @@ class ConnectedProductTests(unittest.TestCase):
             result = subprocess.run(command, cwd=PROJECT, capture_output=True, text=True, timeout=180)
             self.assertTrue(path.is_file(), result.stderr)
             raw = json.loads(path.read_text(encoding='utf-8'))
-            if raw['status'] == 'BLOCKED' and not raw['execution']['executed']:
-                self.skipTest('Existing browser prerequisite unavailable: ' + str(raw['errors']))
+            self.handle_unavailable_browser(raw, path)
             self.assertEqual((result.returncode, raw['status']), (0, 'PASS'), raw['errors'])
-            self.assertEqual(raw['counts']['assertions'], 14)
+            self.assertEqual(raw['counts'], {
+                'assertions': 14, 'passed': 14, 'failed': 0, 'skipped': 0, 'errors': 0})
             saved = {r['response_body']['id']: r['response_body']['quantity'] for r in raw['observed']['api_responses']
                      if r['method'] == 'POST' and r['status'] == 201}
             self.assertEqual(saved, {1: 2, 2: 0})
@@ -110,8 +120,7 @@ class ConnectedProductTests(unittest.TestCase):
         process = subprocess.run([sys.executable, 'run_project.py', '--report', str(report)],
                                  cwd=project, capture_output=True, text=True, timeout=180)
         raw = json.loads(report.read_text(encoding='utf-8'))
-        if raw['status'] == 'BLOCKED' and not raw['execution']['executed']:
-            self.skipTest('Existing browser prerequisite unavailable: ' + str(raw['errors']))
+        self.handle_unavailable_browser(raw, report)
         self.assertEqual((process.returncode, raw['status']), (1, 'ISSUES'), raw['errors'])
         self.assertFalse(raw['observed']['assertions_by_id']['positive_quantity_api_save']['passed'])
         self.assertEqual(raw['observed']['database']['after_restart']['rows'], [{'id': 1, 'quantity': 3}, {'id': 2, 'quantity': 0}])
