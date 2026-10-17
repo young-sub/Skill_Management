@@ -2,6 +2,8 @@
 
 ## 2026-10-17 후속 구현 범위와 진행 계획
 
+최신 재개 기준은 [permission 조사와 요청 범위 리뷰 마감](native-plugin-use-results.md#permission-investigation-and-scoped-review-closure--2026-10-17)이다. 기존 준비된 Orca home의 `workspace-with-poppler` profile로 native sandbox CLI의 Node pipe/inherit 네 조합을 확인했다. 기존 설정·계정·확인한 ACL은 동일하며 새로운 설치·setup·인증 복사를 하지 않았다. 이는 과거 unelevated 테스트 home의 해결이나 제품 전체 native 완료가 아니다. 최신 task `1fc25a64-0c9a-4b34-a2f5-ecb79c66e01e`의 StaffGate/CatalogImport 의미 검토는 기존 현재 유효한 실행 근거와 사용자 음성 확인을 재사용해 마감했다. 새 읽기 전용 조회는 task `READY_FOR_REVIEW` / 현재 요청 action 0이며, 프로젝트의 다른 10개 Feature 잔여는 PARTIAL로 유지한다. 이후 성공한 제품 검사와 프로젝트 전체 검사를 자동 반복하지 않는다. 아래는 앞선 0.1.75 구현 당시의 기록이다.
+
 출발점은 재확인한 clean `main@0d546c8`, 테스트 설치 0.1.73이다. 이번 실행은 Claude Code 검증을 사용자 결정으로 제외하며 지원 코드는 유지한다. 기존 인증 home, 신뢰 설정, candidate-marketplace, 격리 제품의 미커밋 변경과 raw evidence를 보존한다.
 
 하나의 계획으로 추적한 결과: (1) 최소 재현은 완료했으나 native Node pipe EPERM으로 전체 실행은 미완료, (2) 공개 feedback/task 결합·오래된 근거 재개방·새 Codex 요청의 계승·무실행 조회는 확인, (3) focus 관찰기 교정과 UTF-8 파일 stdin 전달은 실제 사용에서 한정된 예방 확인, (4) 시작 메뉴 내레이터로 두 오류 음성·키보드 복구를 사용자 확인, (5) 격리 Labeler 동시 수정 손실을 수리하고 화면→API→Domain→D1→새 조회 확인, (6) 공유 캡처의 label-only 재실행 요구를 제거하고 실패·도움·정상 허용을 평가했다. 0.1.75를 테스트 지역에만 설치해 새 native 요청이 소비한 bytes를 고정한다. 세부 직접 근거·한계는 결과 문서 한 곳에서 유지한다. 별도 장부·dashboard·범용 실행기는 만들지 않는다.

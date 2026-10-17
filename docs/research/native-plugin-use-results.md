@@ -1,5 +1,81 @@
 # Native plugin use — 2026-10-17
 
+## Permission investigation and scoped review closure — 2026-10-17
+
+This follow-up starts from clean `main@f813430` and retains the earlier runs.
+Evidence root **Q** is `.work/native-plugin-use-20261017/permission-followup/`.
+No product source, installed package, login or saved configuration was changed.
+No setup, account or ACL editing command was invoked. No model inference or
+product check ran.
+
+The current CLI is **0.160.0**, on Windows **10.0.19045.6466**.
+The authenticated test home remains `unelevated`, without either elevated setup
+prerequisite. Both the existing Orca account home and `C:/Users/YS/.codex` have
+the prerequisites and an existing `workspace-with-poppler` profile extending
+`:workspace`. Initial sandbox-denied reads were resolved with an authorized
+read-only host preflight; absence and access denial were not conflated.
+[Preflight](../../.work/native-plugin-use-20261017/permission-followup/host-preflight.json).
+
+The actual executable comparison used the **already prepared current Orca home**:
+
+```powershell
+codex sandbox --include-managed-config --permission-profile workspace-with-poppler -C <repository> -- "C:/Program Files/nodejs/node.exe" <retained-process-matrix.mjs>
+```
+
+| Context | Node spawnSync pipe / inherit | Node spawn pipe / inherit | Evidence time |
+| --- | --- | --- | --- |
+| Authenticated test home, unelevated | EPERM / exit 0 | EPERM / exit 0 | Prior retained native diagnostic; not rerun |
+| Current prepared session | exit 0 / exit 0 | exit 0 / exit 0 | This follow-up |
+| Prepared Orca home, explicit existing profile | exit 0 / exit 0 | exit 0 / exit 0 | This follow-up, native sandbox CLI |
+
+The existing matrix launches the exact same Node executable with `--version`;
+all successful children report `v22.23.1`. The explicit sandbox invocation exits
+0: [capture](../../.work/native-plugin-use-20261017/permission-followup/prepared-cli-capture.json).
+This establishes an executable prepared permission boundary, not repaired
+authenticated-test-home execution or autonomous product acceptance. The precise
+Windows/Node pipe-denial cause remains unconfirmed: the historical unelevated
+and current prepared elevated contexts differ, without a same-home controlled
+comparison. A path read grant alone is not shown to fix it.
+
+No new permission profile is needed for this comparison. Reuse the prepared
+home/profile for bounded local commands without copying authentication or
+switching a model account. The old test home still cannot support an elevated
+comparison merely by adding `--permission-profile`: using elevated there would
+first require separately authorized sandbox provisioning for that exact home,
+potentially affecting sandbox accounts, ACLs, firewall and local policy. That
+is a larger change than reusing the already prepared local-command boundary.
+Do not copy `.sandbox-secrets`, recreate login, or change ACLs as a shortcut.
+MXC was not attempted: the installed CLI and Windows 10 host do not meet the
+documented Windows 11 / CLI 0.162+ one-command probe conditions.
+[Official Windows sandbox guidance](https://learn.chatgpt.com/docs/windows/windows-sandbox),
+[permission profiles](https://learn.chatgpt.com/docs/permissions).
+
+All three homes' configuration and setup-file fingerprints/presence match the
+preflight. The local account list and ACLs at the six sampled paths also match;
+this is not a system-wide ACL audit.
+[Preservation](../../.work/native-plugin-use-20261017/permission-followup/host-preservation.json).
+
+The independently reviewed task is `1fc25a64-0c9a-4b34-a2f5-ecb79c66e01e`,
+targeting `staff-access` and `catalog-import`. Source ownership, callers,
+failure/persistence boundaries, retained Chromium reports and responsive/error
+screenshots were inspected against the existing guides. The earlier human
+Narrator confirmation remains bounded to the two error/recovery flows.
+Current public lookup confirmed reusable checks before semantic review; no
+successful tests, browser runs, builds or project-wide checks were repeated.
+The public `review` API records `owner-review` and `screen-review` for each
+Feature, preserving native-host limitations separately. Fresh read-only lookup
+returns **task `READY_FOR_REVIEW`, current request actions `[]`**; the project
+remains **PARTIAL** with ten unrelated Feature reviews. CLI exit 2 reflects
+that project status, not failed review registration. Both declared review
+criteria for each target are PASS. Lookup executes zero product commands and
+preserves all 3,096 existing product `.work` files byte-for-byte. Review writes
+changed only this task's state and added two review files; its previous state
+is retained separately. Final task state and preservation are recorded in
+[task closure](../../.work/native-plugin-use-20261017/permission-followup/task-closure.json).
+This is a review/evidence update for `native-verification` and
+`workflow-obligations`; repository Feature behavior and the feature map do not
+change. No Harness contract was created solely to close an ordinary task.
+
 ## Followthrough implementation — 0.1.75
 
 This run starts at verified clean `main@0d546c8`, uses branch
