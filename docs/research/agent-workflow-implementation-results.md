@@ -95,6 +95,76 @@ Build pin, original/native traces, independent grades, claim reviews and failure
 are under `.work/natural-verification-20261017/`. A later documentation commit
 does not change that consumed source identity or package bytes.
 
+
+Final adoption 0.1.65 retains the proven runtime corrections and the existing
+unconfigured investigation acceptance projection. It removes the candidate's
+automatic fresh-project prompt nudge and added entrypoint fields because the
+matched natural task did not establish an outcome benefit. Skill metadata,
+project guides, registered checks and existing hook state remain the discovery
+paths. Candidate 0.1.63/0.1.64 packages and all negative observations remain.
+The final package is separately frozen and consumed by a fresh read-only Agent
+against the retained real configured-project handoff; that consumption is not a
+new paired performance experiment.
+
+The separate pristine-project connection/read-only control completed in both
+conditions. Old B created a Feature/test guide and a real 24-test capture. D
+created actual `.harness` Feature/check connections, a project-owned pytest JSON
+producer, four native checks (4/8/1/11 tests), and consumed the existing
+prepare/execute/lookup path. Its fresh follow-up obtained current four-check
+REUSABLE/PASS while retaining task INCOMPLETE and project PARTIAL. Both follow-up
+Agents launched zero product checks/services and read prior guides/evidence.
+Controller grades independently passed upstream 24/24 and HTTP/SQLite checks in
+each phase; controller execution is separate evaluation overhead.
+
+| Pristine connection and read-only handoff | B: 0.1.62 | D: 0.1.64 candidate |
+| --- | ---: | ---: |
+| Native input plus output tokens | 366,155 | 10,606,234 |
+| Whole-unit elapsed seconds | 168.149 | 756.039 |
+| Agent commands in connection / follow-up | 10 / 4 | 97 / 8 |
+| Follow-up product commands | 0 | 0 |
+
+D's formal connection worked, but consumed 28.97 times B's tokens and 4.50 times
+its unit time. Setup/reconciliation rework and nonzero commands remain in raw;
+a nonzero PARTIAL lookup or Git-diff status is not automatically a failure. The
+D follow-up correctly refused whole-task completion but described a generic
+binding/effects warning as an actual blocker even though verification was PASS:
+that inaccurate reason is retained in `control-claim-review.json`. B's claimed
+hash comparison is not promoted to independently attested remeasurement. No
+user-intervention or business-value reduction is demonstrated. This negative
+control reinforces excluding the automatic nudge rather than counting additional
+configuration, schema or documentation as an improvement.
+
+Final **0.1.65** is clean source `bb1db5ccc29a364f4d6906d4221b039075ba9ad5`.
+Its manifest SHA-256 is
+`d878590ceb247e180cbb347ccf65bfb9077551c4d39eeb20aac16529557d6dba` and ZIP SHA-256
+is `ec5f055786d7eafd83c53408e16c04948c18421fafaba8b422a2df5eb64c37e2`.
+The final fresh Luna/medium Agent consumed that installed isolated package and
+real retained configured project in 69.808 seconds / 111,169 tokens. It read the
+Feature guide, state, plan, raw native reports and bundle, launched zero product
+commands, accepted only historical tested cases and explicitly left whole-task
+acceptance incomplete. It did not read a Skill body or invoke fresh workflow
+lookup; automatic current-reuse reassessment by that Agent remains unverified.
+Hook/package consumption, project-guide reuse and CLI invocation are distinct.
+Source/evidence transfer and grader runs preserved source bytes. Final focused
+7/7, docs/cutover 13/13, resource drift and distribution checks passed.
+
+The new evaluation retains ten unit attempts: six completed units / eleven
+numeric model phases, and four setup failures before model execution. No model
+retry, timeout or candidate help was observed in those completed units. Captured
+native input/output is 12,355,708 tokens; cached input/reasoning are subsets, not
+extra tokens. Parent/helper cumulative metadata and substantial infrastructure
+rework are separate; full monetary cost and uncollected tails remain unknown.
+One unexecuted infrastructure draft was removed before retention; its creation
+payload remains in session history but no standalone original byte hash exists.
+No executed trial/result or preceding A/B/C evidence was deleted. Critical old
+source/positive traces (17 files) were rehashed unchanged; 34 worktree artifacts
+(1,362,679 bytes) were copied and hash-checked outside the disposable worktree.
+Original Docker/broker freezer flags and preserved daemon/broker/QEMU identities
+were restored. Final pins, `native-delivery-counters.json`, claim reviews,
+`infra-incidents-final.json`, preservation and restoration records remain under
+`.work/natural-verification-20261017/`. No push, deployment, product-main merge or
+global installation was performed.
+
 Features are **workflow-obligations** and **agent-workflow**. The existing hook
 owns discovery projection and the workflow runtime owns derived acceptance;
 project runners still own product behavior/assertions. There is no new runner,
@@ -4753,13 +4823,3 @@ The map's whole-document dependency still reopens eleven semantic reviews for a
 one-row edit; no token or review-cost reduction is claimed. U1 mapping work for
 this observed snapshot is now reviewed; full U1-U7 task and protected acceptance
 remain incomplete, and the pending native UI trial was not granted new trust.
-
-Final adoption 0.1.65 retains the proven runtime corrections and the existing
-unconfigured investigation acceptance projection. It removes the candidate's
-automatic fresh-project prompt nudge and added entrypoint fields because the
-matched natural task did not establish an outcome benefit. Skill metadata,
-project guides, registered checks and existing hook state remain the discovery
-paths. Candidate 0.1.63/0.1.64 packages and all negative observations remain.
-The final package is separately frozen and consumed by a fresh read-only Agent
-against the retained real configured-project handoff; that consumption is not a
-new paired performance experiment.
