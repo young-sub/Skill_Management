@@ -1162,6 +1162,14 @@ def connect_next_actions(root, project, state, result):
 
 def handoff_summary(result, verification=None):
     blocked = (verification or {}).get('status') == 'BLOCKED'
+    limit = ('Current individual checks cover only their registered criteria. '
+             'Individual checks do not replace required Agent judgments. '
+             'Use task_acceptance and current_request_actions for this task; project remainder is separate. '
+             'Scope labels never discharge obligations.')
+    if blocked:
+        reasons = verification.get('remaining', []) or verification.get('unknown_launches', [])
+        limit += (' Task verification is BLOCKED: ' + json.dumps(reasons[:3])
+                  + '. Inspect verification for all blockers before accepting this task.')
     return {'project_status': result['status'],
         'task_acceptance': 'BLOCKED' if blocked else 'INCOMPLETE' if result['status'] == 'NOT_CONFIGURED' or result['unmapped']
             or result.get('investigation', {}).get('status', 'READY_FOR_REVIEW') != 'READY_FOR_REVIEW'
@@ -1174,7 +1182,7 @@ def handoff_summary(result, verification=None):
             if a['scope'] in {'request_required', 'impact_required'}],
         'project_remaining': [a['target'] for a in result['next_actions'] if a['scope'] == 'project_remaining'],
         'scope_undetermined': [a['target'] for a in result['next_actions'] if a['scope'] == 'scope_undetermined'],
-        'limit': 'Current individual checks cover only their registered criteria. Project PARTIAL and pending Agent judgments do not become task completion; blocked binding/effects prevent accepting these results as this task. Scope labels never discharge obligations.'}
+        'limit': limit}
 
 
 def retirement_references(proof):

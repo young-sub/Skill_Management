@@ -2,10 +2,13 @@
 
 Load ignored repository-local `.harness/environment-exceptions.json` once per task when present; refresh after relevant environment changes. `skip_until_manual_reenable` selects the recorded fallback without retrying the unavailable capability.
 
-Source runtime **0.1.65** retains investigation handoff and unconfigured CLI
-correctness fixes. [Current implementation](research/agent-workflow-implementation-results.md#natural-discovery-2026-10-17)
-records RED/GREEN, the actual 459-test Full failures and successful scoped
-rechecks. Real Flask tutorial consumption found the false CLI block and verified
+Source runtime **0.1.66** [repairs the observed handoff explanation](research/agent-workflow-implementation-results.md#reviewed-improvement-2026-10-17):
+actual task blockers are distinguished from general acceptance limits.
+[Confirmed improvement criteria](research/agent-coding-system-direction.md#reviewed-improvement-2026-10-17)
+prioritize existing runners and bounded consumption; no performance gain is claimed.
+The preceding [0.1.65 delivery](research/agent-workflow-implementation-results.md#natural-discovery-2026-10-17)
+records investigation and unconfigured CLI correctness, the actual 459-test Full
+failures and successful scoped rechecks. Real Flask tutorial consumption found the false CLI block and verified
 its repair. The automatic fresh-project prompt nudge is removed: it showed no
 solve-rate gain and higher usage. Ordinary Skill discovery and project guides
 remain; no business-value or cost reduction is claimed.

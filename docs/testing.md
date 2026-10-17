@@ -1,5 +1,13 @@
 # Testing And Impact Selection
 
+Runtime 0.1.66 changes only the handoff explanation: task binding/effect
+blockers are described only when actually observed, with their retained reasons.
+Selection, execution, acceptance states and private-path protection are unchanged.
+Focused RED/GREEN and the workflow/refinement/hook selectors cover PASS, NOT_RUN,
+ISSUES, actual task-plan mismatch and project-only remainder; no new Full run is
+required for this output-only change. Package consumption is a separate claim,
+and documentation/output changes do not establish an Agent performance gain.
+
 Runtime 0.1.65 retains investigation handoff correctness,
 including unconfigured start/lookup before observations and no-task audit.
 Focused failures reproduce an empty hook in an unconfigured Git checkout and a

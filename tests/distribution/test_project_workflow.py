@@ -107,6 +107,22 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertIsNone(row['command'], 'Never invent a command for missing links')
         self.assertIsNone(row['expected'])
 
+    def test_handoff_explains_only_observed_verification_blockers(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'change', ['api'])
+        result = runtime.inspect_project(self.root, self.project, state)
+        for status in ('PASS', 'NOT_RUN', 'ISSUES'):
+            with self.subTest(status=status):
+                handoff = runtime.handoff_summary(result, {'status': status})
+                self.assertEqual(handoff['task_acceptance'], 'INCOMPLETE')
+                self.assertEqual(handoff['check_acceptance'], 'CURRENT_CHECKS_ONLY')
+                self.assertNotIn('binding/effects', handoff['limit'])
+        handoff = runtime.handoff_summary(result, {
+            'status': 'BLOCKED', 'remaining': ['prepared_plan_task_mismatch']})
+        self.assertEqual(handoff['task_acceptance'], 'BLOCKED')
+        self.assertEqual(handoff['reusable_checks'], [])
+        self.assertIn('prepared_plan_task_mismatch', handoff['limit'])
+
     def test_audit_checks_task_plan_binding_and_blocks_task_acceptance(self):
         runtime = self.runtime()
         state = runtime.begin(self.root, self.project, 'change', ['api'])
@@ -125,6 +141,7 @@ class ProjectWorkflowTests(unittest.TestCase):
                 if 'execution_plan_reconciliation' in a['requires'])
             self.assertEqual(reconciliation['scope'], 'request_required')
             self.assertIn('prepared_plan_task_mismatch', reconciliation['blockers'])
+            self.assertIn('prepared_plan_task_mismatch', result['handoff']['limit'])
         context = runtime.task_context(self.root, state, self.root / '.work/task.json')
         hook = subprocess.run([sys.executable, str(SCRIPT.with_name('workflow_context.py'))],
             input=json.dumps({'cwd': str(self.root), 'hook_event_name': 'UserPromptSubmit'}),

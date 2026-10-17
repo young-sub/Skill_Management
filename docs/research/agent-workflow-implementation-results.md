@@ -1,5 +1,34 @@
 # Agent workflow implementation and acceptance
 
+<a id="reviewed-improvement-2026-10-17"></a>
+
+## Independently reviewed scope and observed blocker explanation, 2026-10-17
+
+The review began at clean `fc78d15` / 0.1.65 in a separate worktree. An independent
+Luna/medium reviewer challenged the previous causal explanation against retained
+Flask traces and the current source. The 28.97x setup token ratio is a one-pair
+observation with different setup outputs, not evidence that every semantic guard
+is wasteful. Yeondoo Link already exposes native Node and browser commands through
+its README. Original product `bd036823` and all retained evaluation candidates
+remain separate from plugin authoring.
+
+The adopted fix is deliberately narrow: `handoff_summary` emitted a generic
+binding/effects warning even beside verification PASS. In the retained Flask
+control-D handoff, the Agent used that warning as an unsupported current blocker
+reason. The explanation now includes task blockers only for an observed BLOCKED
+verification and points to its actual retained reasons. Acceptance states,
+selection, execution, scope obligations and credential-path guards are unchanged.
+No new state/schema/runner is introduced. This is a reporting correctness repair;
+it does not establish a speed, solve-rate or user-intervention improvement.
+
+The focused regression failed in four assertions before the fix (PASS, NOT_RUN,
+ISSUES warning; missing actual mismatch reason), then the three focused tests
+passed, including real lookup/resume/audit mismatch and project-only remainder.
+The [confirmed next-step criteria](agent-coding-system-direction.md#reviewed-improvement-2026-10-17)
+retain existing-runner reuse and evidence-driven scope. No new A/B matrix is selected.
+New evidence is retained separately in `.work/verification-review-20261017/`;
+old benchmark results and package pins are not overwritten.
+
 <a id="natural-discovery-2026-10-17"></a>
 
 ## Natural-language discovery and investigation handoff, 2026-10-17
