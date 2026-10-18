@@ -1,5 +1,15 @@
 # Harness Architecture
 
+Human corrections and successful procedure extraction use the existing
+`agent-workflow` / `diagnose` entrypoints and canonical
+[feedback/success reference](../../authoring/references/feedback-and-success.md).
+The resource map bundles that reference, its template and the existing repair
+contract within each consuming Skill. Classification and extraction are Agent
+judgments; existing feedback/prevention owns persisted repair evidence. There is
+no new runtime, learning store, authoring framework or mandatory task lifecycle.
+The existing strict cohort resource allowlist includes the three new Diagnose
+resources; unknown resources are still rejected. No install authority is expanded.
+
 Workflow persistence is selected for existing connected work or useful durable
 evidence, not required for every small edit or one-off diagnosis. Direct work
 retains actual verification in its existing report; it cannot discard open

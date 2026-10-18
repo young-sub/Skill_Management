@@ -40,6 +40,15 @@ Run `sync-skill-resources.ps1` without `-Check` after canonical edits. For cross
 
 ## Execution, lookup and preservation
 
+For human corrections and success extraction, use the
+[feedback/success procedure](../authoring/references/feedback-and-success.md).
+Before consumption define failure/bypass/nearby-normal and new-context output
+criteria. Exercise the changed guidance on an isolated task, then consume the
+extracted procedure with short input in a fresh context. Existing feedback
+regressions cover inheritance and stale proof; distribution checks cover links and
+generated resources. Neither establishes model compliance. Preserve assistance,
+failure/retry/non-execution and unaided-discovery limits in the existing task report.
+
 For feature, bug-fix and refactoring tasks, select the applicable [task criteria](../authoring/references/project-verification.md#task-verification) before execution. The [stage 1 consumption record](research/stage1-task-verification-results.md) reuses stage 0 tasks and the existing connected-product runner; instruction routing needs actual consumption, while package/link checks establish distribution only. Connected changes retain both normal persistence/reload and rejected-write readback, independently of layer test results.
 
 Use [Feature Map](feature-map.md) and the existing registered command/adapter. `scripts/run_check.py --cwd <project> --output <new-capture.json> -- <argv>` captures finite foreground execution, source identity, stdout/stderr, native exit and cleanup. A new `--json-report` binds the real runner report. Never start detached services through this capture. Running captures are unfinished invocations: wait on their owner and inspect the same path. Unknown launches are not replayable.

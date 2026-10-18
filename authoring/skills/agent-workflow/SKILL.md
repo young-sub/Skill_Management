@@ -1,6 +1,6 @@
 ---
 name: agent-workflow
-description: Coordinate a coding task from a natural-language request through relevant project capabilities, actual verification, and results. Use for connecting project verification, verifying or viewing feature results, repairing user feedback, improving the development workflow, or reusing UI standards. Select only the needed procedures; ordinary small edits stay direct.
+description: Coordinate a coding task through relevant project capabilities, actual verification, and results. Use for connecting verification, viewing results, human corrections, reusing successful decisions or extracting a repeatable procedure from a satisfactory turn or artifact, and reusing UI standards. Select only needed procedures; ordinary small edits stay direct.
 ---
 
 # Agent Workflow
@@ -16,9 +16,12 @@ Understand the request and authorized scope, then discover existing project crit
 | Show results | Connect/read existing work. No tests, repairs, services or new task. |
 | Maintain | `maintain-project-verification`; also `maintain-agent-harness` only for affected Harness mapping/cohort/retention. |
 | Feedback | Existing `diagnose`: actual caller/state/data flow, cause owner, focused repair and appropriate prevention. |
+| Keep this approach / make it repeatable | [Feedback and success reuse](references/feedback-and-success.md): classify the signal, improve the existing owner or discovery, and extract only the context needed for the next invocation. |
 | UI standards | Discover Feature UI references and registered UI systems before proposing changes; reuse shared token/component owners and relevant UI capability. |
 
 For implementation/verification, select only the applicable task and impact guidance in [project verification](references/project-verification.md); setup/maintenance use the same criteria. For feedback/UI read [repair and reuse](references/repair-and-reuse.md). Missing optional capabilities use existing project commands; never count missing checks as passed or turn the task into a tooling installation.
+
+For human direction corrections, successful decisions or an explicit request to reuse a turn/artifact, read [feedback and success reuse](references/feedback-and-success.md). A first clear correction is enough; no repeated mistake is required. Praise alone does not request a persistent rule.
 
 ## Select and execute existing work
 

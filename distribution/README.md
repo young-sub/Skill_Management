@@ -18,6 +18,7 @@
 | 위임·결과 조회 | 기존 업무의 결과와 남은 일만 보여줘. 검사는 다시 실행하지 마. | [상태·요청 연결](skills/agent-workflow/references/workflow-obligations.md) |
 | 업무·아키텍처 검증 | 이 변경의 업무 규칙과 FE/API/Domain 연결을 검증해줘. | [검증 책임](skills/agent-workflow/references/project-verification.md) |
 | 피드백·재발 방지 | 저장 후 값이 돌아오는 원인을 추적하고 우회 경로까지 막아줘. | [원인 수리·재사용](skills/agent-workflow/references/repair-and-reuse.md) |
+| 인간의 교정·성공 절차 | 이 방향을 교정해줘. / 이 결과를 다음에도 재현할 절차로 남겨줘. | [교정·성공 재사용](skills/agent-workflow/references/feedback-and-success.md), [절차 템플릿](skills/agent-workflow/templates/reusable-procedure.md) |
 | UI 기준 | 기존 화면의 스타일과 상태별 동작을 정리하고 공유 컴포넌트에 연결해줘. | [UI 설계](skills/impeccable/SKILL.md) |
 | 검증 가이드 개선 | 이 가이드대로 실행하고, 틀린 명령과 관찰 방법을 고쳐줘. | [검증 유지보수](skills/maintain-project-verification/SKILL.md) |
 | 불필요한 검사 정리 | 중복 검사를 찾아 같은 결함 검출과 정상 허용을 보존할 때만 통합해줘. | [검사 유지·통합 기준](skills/agent-workflow/references/project-verification.md#detection-value-and-measured-maintenance) |

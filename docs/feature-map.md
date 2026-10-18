@@ -58,6 +58,20 @@ The install-script suite includes fixture/mocked CLI cases. Running it does not 
 
 The adapter's PASS applies only to the selected unittest assertions. Other command IDs in a row require their own run. See [Testing](testing.md) for execution, verdict binding, and evidence limitations.
 
+Stage 2 extends `agent-workflow` and `feedback-repair` with
+[human correction and success reuse](../authoring/references/feedback-and-success.md)
+and a [procedure template](../authoring/templates/reusable-procedure.md).
+Existing diagnosis/feedback owns repair; the entrypoint distinguishes durable
+lessons, explicit procedure requests, bare praise and one-off exceptions. Existing
+owners and discovery take priority over duplicate rules or new Skills. Verify
+original failure/bypass/normal use and subsequent consumption; extraction requires
+fresh-context output, with assistance and unsuccessful attempts recorded separately.
+The existing workflow-distribution and workflow-obligations selectors protect
+packaging and feedback behavior; [stage 2 results](research/stage2-feedback-reuse-results.md)
+own the bounded Agent consumption evidence. Catalog remains 19. `harness-core`
+adds only the three Diagnose paths to its strict cohort resource allowlist after
+observed installation rejection; existing isolated install/cutover checks cover it.
+
 Stage 1 connects `agent-workflow` implementation, setup and maintenance to
 [task-specific verification](../authoring/references/project-verification.md#task-verification):
 feature completion/failure cases, bug reproduction/owner repair/regression, and

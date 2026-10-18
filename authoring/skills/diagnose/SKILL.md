@@ -1,11 +1,13 @@
 ---
 name: diagnose
-description: Investigate a reproducible implementation or verification failure, distinguish its root cause from environment limits, and apply a focused fix when authorized. A Harness contract is optional.
+description: Investigate implementation or verification failures and human direction corrections, distinguish root causes from environment limits or intentional exceptions, and fix the responsible owner when authorized. A Harness contract is optional.
 ---
 
 # Diagnose
 
 Use existing repository checks and diagnostics. Consult [execution policy](references/goal-execution-policy.md) when the failure belongs to an active Harness contract.
+
+For a human correction, use [feedback and success reuse](references/feedback-and-success.md) to separate expected behavior, missing guidance and missed discovery from a one-off exception. Then use [repair and reuse](references/repair-and-reuse.md) for the existing feedback/prevention evidence contract. Repair the first clear correction at its cause owner; prefer structure, type/constraint, an appropriate regression, then minimal documentation. Observe the original failure, alternate bypass and nearby normal use before claiming prevention, and consume it in a related follow-up. Do not duplicate an existing rule that was simply not discovered.
 
 A read-only investigation does not require project workflow setup. When useful,
 use the available agent-workflow task's diagnostic record to retain the request,

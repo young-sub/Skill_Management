@@ -646,7 +646,7 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
             "execute-codex-goal": ("schemas/contract.schema.json", "references/testing-policy.md"),
             "close-goal": ("schemas/contract.schema.json", "references/testing-policy.md"),
             "maintain-agent-harness": ("schemas/project.schema.json", "references/testing-policy.md"),
-            "diagnose": ("references/goal-execution-policy.md",),
+            "diagnose": ("references/goal-execution-policy.md", "references/feedback-and-success.md", "references/repair-and-reuse.md"),
         }
         for skill, links in expected.items():
             text = (ROOT / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")

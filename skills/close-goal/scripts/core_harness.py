@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/core_harness.py
-# Source-SHA256: f17e1bd49cd81771de469ac1d0c46ec41beea2052a9d78fb510609e2a776688a
+# Source-SHA256: 4a3c567b57e6a89fbf7379d5b819a725a1edad9bd73aa4f2a4534f97f5f9cf04
 
 #!/usr/bin/env python3
 """Deterministic Core-First Agent Harness contracts and compatibility checks."""
@@ -3327,7 +3327,10 @@ REQUIRED_COHORT_RESOURCES = frozenset({
     "design-goal/schemas/contract.schema.json",
     "design-goal/scripts/core_harness.py",
     "diagnose/SKILL.md",
+    "diagnose/references/feedback-and-success.md",
     "diagnose/references/goal-execution-policy.md",
+    "diagnose/references/repair-and-reuse.md",
+    "diagnose/templates/reusable-procedure.md",
     "execute-codex-goal/SKILL.md",
     "execute-codex-goal/references/goal-execution-policy.md",
     "execute-codex-goal/references/testing-policy.md",
