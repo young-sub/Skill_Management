@@ -1,0 +1,12 @@
+{
+  "name": "agentic-coding",
+  "plugins": [
+    {
+      "name": "agentic-coding",
+      "source": {
+        "source": "local",
+        "path": "./plugins/agentic-coding"
+      }
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "agentic-coding",
+  "owner": {
+    "name": "young-sub"
+  },
+  "plugins": [
+    {
+      "name": "agentic-coding",
+      "source": "./plugins/agentic-coding"
+    }
+  ]
+}

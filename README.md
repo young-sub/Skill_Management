@@ -2,6 +2,32 @@
 
 이 저장소는 기존 Skill을 `agentic-coding` 플러그인으로 묶어 업무 위임 → 실제 검증 → 결과 조회 → 피드백 수리와 기준 재사용을 연결합니다. `agent-workflow`가 단일 진입점이며, 프로젝트의 요구사항·코드·검증 명령을 사용합니다. 공개 Skill과 canonical source도 계속 관리합니다.
 
+## Marketplace 설치
+
+패키지를 직접 빌드할 필요 없이 GitHub marketplace에서 설치합니다. Python과 Git, 플러그인 기능을 지원하는 호스트가 필요합니다. 비공개 저장소라면 GitHub 접근 권한도 필요합니다.
+
+**Codex — 터미널에서:**
+
+```powershell
+codex plugin marketplace add young-sub/Skill_Management
+codex plugin add agentic-coding@agentic-coding
+```
+
+**Claude Code — 터미널에서:**
+
+```powershell
+claude plugin marketplace add young-sub/Skill_Management
+claude plugin install agentic-coding@agentic-coding
+```
+
+설치 후 새 세션을 시작합니다. Codex에서는 `agentic-coding:agent-workflow`를 선택하고, Claude Code에서는 `/agentic-coding:agent-workflow`로 요청합니다. hook 신뢰 검토가 필요한 호스트에서는 별도로 내용을 확인합니다. 설치 성공과 실제 업무 성공은 별도로 확인합니다.
+
+Codex가 `plugin add`를 지원하지 않으면 등록 후 데스크톱 앱의 Plugins Directory에서 `agentic-coding` 소스를 선택해 설치합니다. 기존 `agentic-coding-local` 개발 설치나 개별 스킬은 자동 삭제하지 않습니다. 중복 설치가 있으면 사용할 플러그인을 선택하고 실제 로드 경로를 확인합니다.
+
+업데이트는 호스트의 marketplace 새로고침과 플러그인 업데이트 기능을 사용합니다. 설치 캐시는 직접 수정하지 않습니다. 로컬 캐시 수정이 있다면 먼저 보존합니다. 저장소의 `update_plugin.py`는 별도 로컬 marketplace 전용이며 Git 원격 marketplace를 교체하는 도구가 아닙니다.
+
+설치 형식: [OpenAI marketplace 안내](https://developers.openai.com/plugins/build/plugins), [Claude Code marketplace 안내](https://code.claude.com/docs/en/plugin-marketplaces).
+
 ## 시작하기
 
 플러그인 사용은 [패키지 시작 안내](distribution/README.md), 빌드·호스트 연결은 [플러그인 가이드](docs/plugins.md)를 따릅니다. 패키지의 안내 링크는 배포 내부 기준입니다. 현재 기능의 검증 범위와 한계는 [완성도 평가](docs/research/agent-coding-system-direction.md#현재-완성도--2026-10-18)에 있습니다.
