@@ -1,12 +1,14 @@
 # Agentic coding 플러그인 고도화 로드맵
 
-작성일: 2026-10-18. 0단계는 [호환성 결과](stage0-compatibility-results.md), 1단계는 [작업별 검증 결과](stage1-task-verification-results.md), 2단계는 [교정·성공 재사용 결과](stage2-feedback-reuse-results.md), 3단계의 UI 발견·비교·실행 가이드 수리와 후속 소비는 [UI·가이드 재사용 결과](stage3-ui-guide-reuse-results.md), 4단계의 설계·영향 분석과 실제 구현 소비는 [설계 결과](stage4-architecture-results.md)에 기록한다. 4A 보강은 [4A 결과](stage4a-playbooks-recall-results.md), 5단계의 한정된 효과 평가·유지 결정은 [5단계 결과](stage5-effect-evaluation-results.md)에 기록한다. 6단계의 독립 swarm 구현과 순차/병렬 통합·재개 검증은 [6단계 결과](stage6-parallel-delegation-results.md)에 기록한다. Catalog 소비를 native-host 발견이나 일반 효과로 확대하지 않는다. 이 문서만으로 설치·유료 평가·외부 작업 권한이 생기지 않는다.
+> Archived 2026-10-18: 0~6단계(4A 포함) 구현을 완료하여 보존한 계획입니다. 아래의 향후 일정·미착수 표기는 작성 당시 기록이며 현재 작업 지시가 아닙니다. 최종 구현은 `ca4d7b7`과 [6단계 결과](../stage6-parallel-delegation-results.md)를 참조합니다. 단계별 증거와 미입증 효과는 그대로 유지하며 native-host 무도움 발견이나 일반적인 효율 향상을 완료로 선언하지 않습니다. 별도 plugin-readiness 계약의 상태는 변경하지 않습니다.
+
+작성일: 2026-10-18. 0단계는 [호환성 결과](../stage0-compatibility-results.md), 1단계는 [작업별 검증 결과](../stage1-task-verification-results.md), 2단계는 [교정·성공 재사용 결과](../stage2-feedback-reuse-results.md), 3단계의 UI 발견·비교·실행 가이드 수리와 후속 소비는 [UI·가이드 재사용 결과](../stage3-ui-guide-reuse-results.md), 4단계의 설계·영향 분석과 실제 구현 소비는 [설계 결과](../stage4-architecture-results.md)에 기록한다. 4A 보강은 [4A 결과](../stage4a-playbooks-recall-results.md), 5단계의 한정된 효과 평가·유지 결정은 [5단계 결과](../stage5-effect-evaluation-results.md)에 기록한다. 6단계의 독립 swarm 구현과 순차/병렬 통합·재개 검증은 [6단계 결과](../stage6-parallel-delegation-results.md)에 기록한다. Catalog 소비를 native-host 발견이나 일반 효과로 확대하지 않는다. 이 문서만으로 설치·유료 평가·외부 작업 권한이 생기지 않는다.
 
 ## 목적과 문서의 역할
 
 많은 업무를 위임해도 무엇을 왜 검증했는지 확인할 수 있고, 사용자 피드백으로 개선한 구조·UI 기준·검증 방법이 다음 업무에 재사용되는 플러그인을 만든다. 검사 수나 문서량 대신 잘못된 완료, 결함 누락, 사용자 개입, 재작업과 중복 실행의 감소를 판단한다.
 
-[현재 설계](agent-coding-system-direction.md)는 목적·책임·완료 조건의 단일 기준이다. 이 문서는 앞으로의 도입 순서와 단계별 채택 기준을 소유한다. [기존 실행 지시서](plugin-continuous-improvement-next-session.md)와 결과 문서는 이전 업무의 재개·증거를 소유한다. 과거 요청의 설치·통합 권한이나 완료 결과를 새 작업으로 이전하지 않는다.
+[현재 설계](../agent-coding-system-direction.md)는 목적·책임·완료 조건의 단일 기준이다. 이 문서는 앞으로의 도입 순서와 단계별 채택 기준을 소유한다. [기존 실행 지시서](../plugin-continuous-improvement-next-session.md)와 결과 문서는 이전 업무의 재개·증거를 소유한다. 과거 요청의 설치·통합 권한이나 완료 결과를 새 작업으로 이전하지 않는다.
 
 문서 작성 기준은 clean `wp-20261018-global-guidance-trial@3e85fe5b92da7fc6e62597b07a9c257a78af30b9`이다. 구현을 시작할 때 실제 branch·dirty state·활성 작업과 관련 근거를 다시 확인한다.
 
@@ -23,7 +25,7 @@
 | 검증 가이드 | 기존 runner/parser, 준비·행동·관찰·정리 연결 | 실행에서 발견한 오류를 고친 가이드가 다음 업무에서도 작동하는가 |
 | 검사 유지보수 | 비용·중복 관찰, 검사 제거 시 검출력 보존 기준 | 실제 통합·제거 후보에서 같은 결함 검출과 정상 허용을 유지하는가 |
 
-0.1.76의 도움받은 모델 수리와 무실행 후속 조회는 [기존 native 결과](native-plugin-use-results.md)에 기록돼 있다. 무도움 발견, 일반적인 비용·재작업 감소와 광범위한 무감독 위임의 증거로 확대하지 않는다. 프로젝트 전체 PARTIAL이나 미선언 셀은 관련 없는 작은 업무의 공통 차단 조건이 아니다.
+0.1.76의 도움받은 모델 수리와 무실행 후속 조회는 [기존 native 결과](../native-plugin-use-results.md)에 기록돼 있다. 무도움 발견, 일반적인 비용·재작업 감소와 광범위한 무감독 위임의 증거로 확대하지 않는다. 프로젝트 전체 PARTIAL이나 미선언 셀은 관련 없는 작은 업무의 공통 차단 조건이 아니다.
 
 ## 목표 검증 체계
 
@@ -99,11 +101,11 @@
 
 실패·재시도·중단·스킬 미사용·미실행을 모두 남긴다. fixture/package/catalog 내 발견/native-host를 분리하며 사용량·비용 미수집은 unknown이다. 원본/생성본·catalog·라우팅·Feature Map·현재 문서와 관련 회귀·자가완결성·drift·배포 검증을 함께 마무리한다. Runtime은 재현된 문제의 소유자일 때만 수정한다.
 
-4A 구현과 한정된 소비·검증 범위는 [4A 결과](stage4a-playbooks-recall-results.md)에 기록한다. 설치본·native-host 발견과 5단계 효과 평가는 별도 범위다.
+4A 구현과 한정된 소비·검증 범위는 [4A 결과](../stage4a-playbooks-recall-results.md)에 기록한다. 설치본·native-host 발견과 5단계 효과 평가는 별도 범위다.
 
 ## 2단계 추가 결정: 인간의 교정과 성공 경험을 재사용하기
 
-2026-10-18 사용자 결정. 목표는 인간이 잘못된 방향을 교정한 뒤 같은 개입을 반복하지 않고, 만족한 턴이나 최종 결과물을 다음에는 긴 배경 설명 없이 재현하는 것이다. 개인 취향 기억에 한정하지 않는다. 아래 범위의 구현과 제한된 검증은 [2단계 결과](stage2-feedback-reuse-results.md)에 기록하며 일반 효과·무도움 발견은 별도 미확인이다.
+2026-10-18 사용자 결정. 목표는 인간이 잘못된 방향을 교정한 뒤 같은 개입을 반복하지 않고, 만족한 턴이나 최종 결과물을 다음에는 긴 배경 설명 없이 재현하는 것이다. 개인 취향 기억에 한정하지 않는다. 아래 범위의 구현과 제한된 검증은 [2단계 결과](../stage2-feedback-reuse-results.md)에 기록하며 일반 효과·무도움 발견은 별도 미확인이다.
 
 | 입력 | 반영 경로 |
 | --- | --- |
@@ -122,7 +124,7 @@
 
 ## pstack 차용 지도
 
-대상은 pstack 플러그인의 선택적 능력이다. [고정 조사](pstack-analysis.md)와 [실전 비교](pstack-practical-comparison.md)는 서로 다른 리비전의 기록이므로 혼합하지 않는다. 실전 비교 기준은 `101b274dd991f694e1f7024be2157e5f3adf07de` / 0.15.25이다. 아래 후보별 이식 시 해당 리비전의 실제 경로·내용·의존성을 확인한다. 목록은 원본 전체의 최신 지원이나 효과를 보증하지 않는다.
+대상은 pstack 플러그인의 선택적 능력이다. [고정 조사](../pstack-analysis.md)와 [실전 비교](../pstack-practical-comparison.md)는 서로 다른 리비전의 기록이므로 혼합하지 않는다. 실전 비교 기준은 `101b274dd991f694e1f7024be2157e5f3adf07de` / 0.15.25이다. 아래 후보별 이식 시 해당 리비전의 실제 경로·내용·의존성을 확인한다. 목록은 원본 전체의 최신 지원이나 효과를 보증하지 않는다.
 
 | 원본 후보 | 적용 방식 | 단계 |
 | --- | --- | --- |
@@ -179,7 +181,7 @@ TDD는 작업별 검증 기준에 녹인다. 일률적 코드 삭제·RED 강제
 
 ## 구현 단위와 다음 착수 범위
 
-0~4단계의 구현과 한계는 위 결과 문서에 보존한다. 2단계는 `wp-20261018-stage0-compatibility`에서 1단계 `0e126428e3bd14d6f1768a9dfb6cce06b0e12b80`과 추가 결정 `5e8de29`를 이어 구현했다. 3단계는 같은 브랜치의 2단계 `02a354d`에서 시작해 기존 스킬 연결과 fixture 관측기·가이드를 수리하고 새 문맥 소비를 확인했다. 4단계는 3단계 `be6f92a`를 이어 `66c3cee`로 구현했다. 4A는 [플레이북·회상·설계 검토 결과](stage4a-playbooks-recall-results.md)의 범위로 구현·집중 검증했다. 5단계는 `298743d`에서 기존 과제·평가기와 새 문맥 소비를 실행하고 유지·수정·보류 결정을 기록했다. 일반 효과와 native-host 발견은 미입증이며 6단계는 시작하지 않았다. 4A → 5단계 효과 평가 → 6단계 swarm 순서를 유지한다. 후속 시작 시 실제 HEAD·dirty state를 재확인하고 사용자 변경·활성 작업·기존 증거를 보존한다. 별도 `20261018-plugin-readiness` 계약을 이 단계의 계약으로 간주하거나 완료 처리하지 않는다. 검증된 기존 능력과 경량 수정·조회·진단 경로를 유지하고 새 Router·범용 runner·상태 DB·dashboard·전수 검사 체계를 만들지 않는다.
+0~4단계의 구현과 한계는 위 결과 문서에 보존한다. 2단계는 `wp-20261018-stage0-compatibility`에서 1단계 `0e126428e3bd14d6f1768a9dfb6cce06b0e12b80`과 추가 결정 `5e8de29`를 이어 구현했다. 3단계는 같은 브랜치의 2단계 `02a354d`에서 시작해 기존 스킬 연결과 fixture 관측기·가이드를 수리하고 새 문맥 소비를 확인했다. 4단계는 3단계 `be6f92a`를 이어 `66c3cee`로 구현했다. 4A는 [플레이북·회상·설계 검토 결과](../stage4a-playbooks-recall-results.md)의 범위로 구현·집중 검증했다. 5단계는 `298743d`에서 기존 과제·평가기와 새 문맥 소비를 실행하고 유지·수정·보류 결정을 기록했다. 일반 효과와 native-host 발견은 미입증이며 6단계는 시작하지 않았다. 4A → 5단계 효과 평가 → 6단계 swarm 순서를 유지한다. 후속 시작 시 실제 HEAD·dirty state를 재확인하고 사용자 변경·활성 작업·기존 증거를 보존한다. 별도 `20261018-plugin-readiness` 계약을 이 단계의 계약으로 간주하거나 완료 처리하지 않는다. 검증된 기존 능력과 경량 수정·조회·진단 경로를 유지하고 새 Router·범용 runner·상태 DB·dashboard·전수 검사 체계를 만들지 않는다.
 
 각 구현 단위는 원본 스킬/참조 → 필요한 runtime 수정 → 관련 회귀·실제 소비 → Feature Map·현재 문서 → 생성 리소스·패키지 검증 순서로 마무리한다. `authoring/resource-map.json`의 원본/생성 관계를 따르고 이미 있는 TaskStore, 공개 API, 증거 결속·현재성 보호는 재현된 문제가 있을 때만 수정한다. 변경 영향에 맞는 검사를 실행하며 Full은 실제 영향이나 명시 요청으로 선택한다.
 

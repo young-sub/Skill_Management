@@ -7,7 +7,7 @@
 Read applicable AGENTS and `.harness/project.yaml` first. Load ignored `.harness/environment-exceptions.json` once per task; honor `skip_until_manual_reenable` and its fallback.
 
 - [Current design](research/agent-coding-system-direction.md): six outcomes, user flow, ownership and completion boundaries. This is the design authority.
-- [Improvement roadmap](research/agentic-coding-improvement-roadmap.md): staged pstack adoption and evidence-based promotion; [stage 0 compatibility and baselines](research/stage0-compatibility-results.md) records scoped implementation and its limits.
+- [Archived improvement roadmap](research/archive/agentic-coding-improvement-roadmap.md): stages 0–6 (including 4A) implemented; retained plan and bounded evidence, not current instructions; [stage 0 compatibility and baselines](research/stage0-compatibility-results.md) records scoped implementation and its limits.
   [Stage 1 task verification](research/stage1-task-verification-results.md) records task-specific routing, connected-flow observations and preserved lookup boundaries.
   [Stage 2 feedback and success reuse](research/stage2-feedback-reuse-results.md) records correction, procedure extraction and fresh-context consumption, separately from package checks.
   [Stage 3 UI and guide reuse](research/stage3-ui-guide-reuse-results.md) records shared-owner discovery, visual comparison and executed guide repair.
