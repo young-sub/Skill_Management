@@ -46,6 +46,7 @@ def build(output):
     selected['scripts/unittest_evidence.py'] = 'authoring/scripts/unittest_evidence.py'
     selected['hooks/hooks.json'] = 'distribution/hooks.json'
     selected['hooks/workflow_context.py'] = 'authoring/scripts/workflow_context.py'
+    selected['README.md'] = 'distribution/README.md'
     files = {}
     for target, source in sorted(selected.items()):
         path = ROOT / source

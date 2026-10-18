@@ -1,5 +1,7 @@
 # Agent Documentation Index
 
+- [Plugin readiness](research/agent-coding-system-direction.md#현재-완성도--2026-10-18): six requested outcomes, current local acceptance and remaining native boundaries; [build and use](plugins.md).
+
 - [Native plugin use](research/native-plugin-use-results.md): prepared permission-profile comparison and scoped task review closure; retained 0.1.75 reuse, repairs and Narrator evidence. Authenticated test-home native completion remains separate; Claude Code excluded by user choice.
 
 Read applicable AGENTS and `.harness/project.yaml` first. Load ignored `.harness/environment-exceptions.json` once per task; honor `skip_until_manual_reenable` and its fallback.

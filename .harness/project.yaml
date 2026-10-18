@@ -69,10 +69,10 @@
   "git": {"capture_current_base": true, "protected_branches": ["main"], "branch_pattern": "wp-{work_id}-{slug}", "commit_per_item": true, "worktrees_for_independent_items": true},
   "baseline": {"findings": []},
   "extensions": {"workflow": {
-    "roots": ["authoring/scripts", "authoring/skills", "scripts", "skills/impeccable", "skills/fixing-accessibility", "skills/vercel-react-best-practices", "skills/multi-agent-review", "skills/explore-idea", "skills/prototype", "skills/teach", "skills/zoom-out", "skills/finance-research", "skills/hwp-form-fill"],
+    "roots": ["authoring/scripts", "authoring/skills", "scripts", "distribution", "skills/impeccable", "skills/fixing-accessibility", "skills/vercel-react-best-practices", "skills/multi-agent-review", "skills/explore-idea", "skills/prototype", "skills/teach", "skills/zoom-out", "skills/finance-research", "skills/hwp-form-fill"],
     "state": ".work/project-verification/state.json",
     "features": [
-      {"id": "plugin-package", "partition": "distribution", "sources": ["scripts/build_plugin.py", "scripts/update_plugin.py"], "map": ["docs/feature-map.md"], "criteria": ["docs/plugins.md"], "checks": ["plugin-package"]},
+      {"id": "plugin-package", "partition": "distribution", "sources": ["scripts/build_plugin.py", "scripts/update_plugin.py", "distribution/*"], "map": ["docs/feature-map.md"], "criteria": ["docs/plugins.md"], "checks": ["plugin-package"]},
       {"id": "workflow-obligations", "partition": "workflow", "sources": ["authoring/scripts/project_workflow.py", "authoring/scripts/task_store.py", "authoring/scripts/workflow_context.py", "scripts/project_workflow.py"], "map": ["docs/feature-map.md"], "criteria": ["authoring/references/workflow-obligations.md"], "checks": ["workflow-obligations"]},
       {"id": "verification-results", "partition": "verification", "sources": ["authoring/scripts/verification_results.py", "scripts/verification_results.py"], "map": ["docs/feature-map.md"], "criteria": ["authoring/references/result-viewer.md"], "checks": ["verification-results"]},
       {"id": "benchmark-evaluation", "partition": "verification", "sources": ["scripts/evaluate_benchmark.py", "scripts/run_benchmark_agent.py"], "map": ["docs/feature-map.md"], "criteria": ["docs/testing.md"], "checks": ["benchmark-evaluation"]},

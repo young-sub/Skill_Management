@@ -1,8 +1,10 @@
-# Personal Agent Harness Skills
+# Agentic Coding Plugin
 
-이 저장소는 여러 에이전트 환경에 설치할 수 있는 공개 Skill 배포본과 그 canonical authoring source를 관리합니다. Agent Harness는 기존 저장소 구조를 먼저 매핑하고, 승인된 핵심 Item을 우선 구현하며, 변경 영향에 해당하는 테스트만 선택하고, 작업 상태를 `.work/`에서 보존 기간에 따라 관리합니다.
+이 저장소는 기존 Skill을 `agentic-coding` 플러그인으로 묶어 업무 위임 → 실제 검증 → 결과 조회 → 피드백 수리와 기준 재사용을 연결합니다. `agent-workflow`가 단일 진입점이며, 프로젝트의 요구사항·코드·검증 명령을 사용합니다. 공개 Skill과 canonical source도 계속 관리합니다.
 
 ## 시작하기
+
+플러그인 사용은 [패키지 시작 안내](distribution/README.md), 빌드·호스트 연결은 [플러그인 가이드](docs/plugins.md)를 따릅니다. 패키지의 안내 링크는 배포 내부 기준입니다. 현재 기능의 검증 범위와 한계는 [완성도 평가](docs/research/agent-coding-system-direction.md#현재-완성도--2026-10-18)에 있습니다.
 
 - 에이전트 구현 문서: [`docs/index.md`](docs/index.md)
 - 기계 판독 설정: [`.harness/project.yaml`](.harness/project.yaml)
@@ -18,7 +20,7 @@
 
 한글 양식 작성·채움·검증 작업에는 독립 공개 Skill인 `hwp-form-fill`을 선택합니다.
 
-## 프로젝트에 설치
+## 개별 Skill 설치가 필요한 경우
 
 대상 프로젝트 루트에서 실행한 뒤 설치할 Skill과 적용 범위를 선택합니다. 전체 흐름에는 `setup-agent-harness`, `design-goal`, `execute-codex-goal`, `diagnose`, `close-goal`, `maintain-agent-harness`를 선택하고, 아이디어 탐색이 필요하면 `explore-idea`를 추가합니다. 적용 범위는 사용할 에이전트와 Project를 선택합니다. `-g`를 사용하지 않으므로 프로젝트 로컬에 설치됩니다.
 

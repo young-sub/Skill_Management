@@ -58,6 +58,11 @@ Semantic review after execution joins the existing evidence; it does not require
 
 ## Boundaries and retained evidence
 
+`tests.distribution.test_plugin_package` builds outside the checkout and exercises
+the packaged tools. It also checks that the portable README resolves only to
+included package files and that its bytes are in the content inventory. This
+checks distribution/navigation, not whether a model follows the guide correctly.
+
 For plugin packaging/hook changes, use the native discovery and session loading
 commands in [the plugin guide](plugins.md#native-use-in-codex-and-claude-code).
 Check each host's plugin identity, namespaced Skills and hook status. A native

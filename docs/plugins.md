@@ -5,6 +5,12 @@ Skill distribution, plus native capture and guarded-update scripts. It does not 
 Feature Map, business criteria, UI tokens, credentials, or repository state.
 The package identity and version are owned by `distribution/plugin.json`.
 
+Start with the bundled `README.md`: it connects the six user outcomes to the
+packaged entrypoint and references without requiring this repository. Its bytes
+are covered by `package-files.json`. Source: [portable guide](../distribution/README.md).
+Current readiness: [six-outcome assessment](research/agent-coding-system-direction.md#현재-완성도--2026-10-18).
+The versioned notes below describe retained behavior, not pending installation steps.
+
 Version 0.1.73 reduces read-only lookup output by omitting semantic review bodies,
 feedback bindings and repeated bundle descriptors after validation. Large-project
 summaries retain verdicts, criterion/cell IDs, counts, reasons and exact detail
@@ -16,7 +22,8 @@ an entire report into the model context.
 ## Build
 
 ```powershell
-python scripts/build_plugin.py --output .work/packages/agentic-coding-0.1.54
+$pluginVersion = (Get-Content -Raw distribution/plugin.json | ConvertFrom-Json).version
+python scripts/build_plugin.py --output ".work/packages/agentic-coding-$pluginVersion"
 ```
 
 The builder first runs the existing generated-resource check. It selects tracked

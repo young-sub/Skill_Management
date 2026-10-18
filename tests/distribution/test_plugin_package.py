@@ -2,6 +2,7 @@
 import json
 import hashlib
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -21,6 +22,12 @@ class PluginPackageTests(unittest.TestCase):
                        '--output', str(package)]
             built = subprocess.run(command, cwd=root, capture_output=True, text=True)
             self.assertEqual(built.returncode, 0, built.stderr + built.stdout)
+            guide = package / 'README.md'
+            self.assertTrue(guide.is_file(), 'Portable plugin needs its own entrypoint guide')
+            for link in re.findall(r'\[[^]]+\]\(([^)]+)\)', guide.read_text(encoding='utf-8')):
+                target = (package / link.split('#', 1)[0]).resolve()
+                self.assertTrue(target.is_relative_to(package.resolve()), link)
+                self.assertTrue(target.is_file(), link)
             manifest = json.loads((package / 'plugin.json').read_text())
             compatibility = json.loads((package / '.codex-plugin/plugin.json').read_text())
             origin_path = package / 'build-origin.json'
@@ -114,6 +121,7 @@ class PluginPackageTests(unittest.TestCase):
             self.assertEqual(user_file.read_text(), 'preserve me')
             inventory = json.loads((package / 'package-files.json').read_text())
             self.assertNotIn('user-note.txt', inventory['files'])
+            self.assertEqual(inventory['files']['README.md'], hashlib.sha256(guide.read_bytes()).hexdigest())
             self.assertEqual(inventory['files']['build-origin.json'], hashlib.sha256(origin_path.read_bytes()).hexdigest())
             self.assertFalse(any('.work' in p or '.env' in p for p in inventory['files']))
             updater = subprocess.run([sys.executable, str(package / 'scripts/update_plugin.py'),
