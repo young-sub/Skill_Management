@@ -1,6 +1,8 @@
 from pathlib import Path
 import json
 import re
+import subprocess
+import sys
 import unittest
 
 
@@ -8,6 +10,17 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class RepositoryDocsTests(unittest.TestCase):
+    def test_declared_repository_sources_have_workflow_owners(self) -> None:
+        observed = subprocess.run(
+            [sys.executable, str(ROOT / 'scripts/project_workflow.py'),
+             'audit', '--root', str(ROOT)],
+            capture_output=True, text=True, encoding='utf-8', check=False)
+        audit = json.loads(observed.stdout)
+        self.assertIn(observed.returncode, (0, 2), observed.stderr)
+        self.assertIn(audit['status'], ('PARTIAL', 'READY_FOR_REVIEW'))
+        # Existing unfinished work may remain; undiscoverable source owners may not.
+        self.assertEqual(audit['unmapped'], [])
+
     def test_git_policy_requires_commits_for_complete_functional_units(self) -> None:
         repository = json.loads((ROOT / ".harness" / "project.yaml").read_text(encoding="utf-8"))
         template = json.loads(
