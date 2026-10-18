@@ -1,0 +1,25 @@
+# Generated file. Do not edit directly.
+# Source: authoring/templates/project/project.yaml
+# Source-SHA256: b647541c443dc48e52d5680d953326f7614bf055ce85c7386b1b4cf3cfb30310
+
+{
+  "schema_version": 3,
+  "project": {"name": "{{PROJECT_NAME}}", "classification": "{{CLASSIFICATION}}"},
+  "paths": {"source_roots": [], "test_roots": [], "fixture_roots": [], "generated_roots": [], "durable_document_roots": ["docs"], "human_guide_roots": [], "ephemeral_work_root": ".work", "documentation_entrypoint": "docs/index.md"},
+  "impact": {"rules": [], "feature_selectors": {}, "full_triggers": ["shared_runtime", "schema", "test_discovery", "repository_workflow_cutover"]},
+  "commands": {
+    "targeted": {"id": "targeted", "argv": [], "working_directory": ".", "platform": "any", "runtime": "unknown", "capability": "mapping-required"},
+    "feature": {"id": "feature", "argv": [], "working_directory": ".", "platform": "any", "runtime": "unknown", "capability": "mapping-required"},
+    "lint": {"id": "lint", "argv": [], "working_directory": ".", "platform": "any", "runtime": "unknown", "capability": "mapping-required"},
+    "type": {"id": "type", "argv": [], "working_directory": ".", "platform": "any", "runtime": "unknown", "capability": "mapping-required"},
+    "build": {"id": "build", "argv": [], "working_directory": ".", "platform": "any", "runtime": "unknown", "capability": "mapping-required"},
+    "full": {"id": "full", "argv": [], "working_directory": ".", "platform": "any", "runtime": "unknown", "capability": "mapping-required"},
+    "live": {"id": "live", "argv": [], "working_directory": ".", "platform": "any", "runtime": "none", "capability": "disabled"},
+    "eval": {"id": "eval", "argv": [], "working_directory": ".", "platform": "any", "runtime": "none", "capability": "disabled"}
+  },
+  "documents": {"boundaries": []},
+  "work": {"retention": {"completed_days": 30, "trash_days": 7}, "states": ["active", "completed", "trash", "deleted"], "legacy_state": "legacy-unclassified"},
+  "git": {"capture_current_base": true, "protected_branches": [], "branch_pattern": "wp-{work_id}-{slug}", "commit_per_item": true, "worktrees_for_independent_items": true},
+  "baseline": {"findings": []},
+  "extensions": {}
+}

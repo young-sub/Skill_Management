@@ -1,0 +1,3 @@
+interface:
+  display_name: "hwp-form-fill"
+  short_description: "참고 자료로 기존 한글 양식을 채우고 HWPX와 선택 HWP를 검증"

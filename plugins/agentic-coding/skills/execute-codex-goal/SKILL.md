@@ -1,0 +1,25 @@
+---
+name: execute-codex-goal
+description: Execute an existing authorized Harness Item contract, verify affected behavior, and commit complete functional units. Does not require a contract or Harness setup for ordinary development outside this workflow.
+---
+<!-- Generated file. Do not edit directly. -->
+<!-- Source: authoring/skills/execute-codex-goal/SKILL.md -->
+<!-- Source-SHA256: 908c76032e511b33ab84be31132d0c24549061c24cd010609c91c0bef0aec442 -->
+
+
+# Execute Codex Goal
+
+Use [the runtime](scripts/core_harness.py) with the existing contract; a host Goal is optional tracking state. Read [testing policy](references/testing-policy.md) for impact selection, [execution policy](references/goal-execution-policy.md) for amendments/commits, and the [contract](schemas/contract.schema.json) or [work](schemas/work.schema.json) schema only when constructing or diagnosing those records.
+
+1. Verify contract authorization and reuse existing user permission within scope. Veto, drift, unresolved decisions, unknown legacy declarations, and incomplete transactions block dependent work. Retained legacy HTML must match its stored digest; do not rewrite it to pass validation.
+2. Use `start` to capture the actual branch, source commit, and dirty baseline; resume existing work without resetting that baseline. Configured project workflow baselines are captured by start itself. Its compact workflow reference can be inspected with `python scripts/project_workflow.py audit --root <project> --work-id <id>`; submit semantic reviews with the same work ID. Close checks this task record even without a separate workflow begin. Create a feature branch only when policy or the work requires it.
+3. Select the first dependency-ready core Item; optional work cannot displace incomplete core behavior.
+4. For a behavior change, choose the smallest check that distinguishes the intended outcome. Observe RED before the fix when that is cheap and useful, then GREEN; reuse baseline or equivalent evidence for behavior-preserving moves. An Item with no product behavior may have no tests when its Done evidence is sufficient. Test observable outcomes, not trivial wording or implementation shape.
+5. Inspect changed logic and direct callers with existing diff/symbol searches. Record `changed_logic`, `affected_behaviors`, `scope`, and `reason`; `scope=none` is valid only when executable or configuration behavior is unaffected, and uses empty logic and behavior lists. Tooling changes that alter behavior still need relevant checks. Select exact relevant checks. Path mappings, Feature commands, and Full triggers are candidates. Unknown impact requires investigation, not automatic Full. Full runs for cross-cutting logic impact or an explicit request. Stop expanding checks after required checks pass unless new evidence changes scope.
+6. Actually run selected checks and record each command, outcome, and relevant runtime/browser/print evidence once in `.work/goals/active/<work-id>/agent/evidence.jsonl`. Reuse evidence while the implementation, acceptance criteria, and conditions are unchanged; do not duplicate the same evidence in plans, results, and chat. A check selection, success flag, or Result validator does not execute tests or prove product behavior.
+7. Commit complete functional units with required source, tests, docs, schemas, and generated resources after mapped verification. Keep coupled Items together and preserve the dirty baseline. Use runtime-owned `/.worktree/` paths only for independent work whose benefit exceeds coordination cost.
+8. Apply an unambiguous low-risk descriptive delta as `approved_amendment`. For a saved design or active work, amend one Item field through `amend --root <repo> --contract <persisted contract>`; the runtime owns the atomic contract and active integrity update. Do not edit `contract.json` directly or overwrite an `authorize` result. Without `--root`, the pure transform is scratch-only and must not be used to update saved state. Preserve veto, identity, decisions, acceptance criteria, dependencies, scope, risks, priority, and an existing authorization when the semantic delta remains within its covered permission. For structural or material Item changes, add `--intent explicit_approve` when user permission covers that revision; the flag records existing permission and does not require a repeated question. This amendment API does not replace the whole contract; broader changes use their applicable design and authorization workflow. Never remove risks merely to obtain default authorization.
+
+Load `.harness/environment-exceptions.json` once per task when present; refresh after relevant environment changes. Honor `skip_until_manual_reenable`, use its fallback, and retain capability/failure/unverified-scope evidence for `result.json` and final chat. Environment failure is `verification_unavailable` or `execution_blocked`.
+
+Use `diagnose` for an unexplained current failure. Continue authorized independent work around a blocker; do not make unrelated debt a completion gate. Finish through `close-goal` when the contract's required behavior and verification are complete.

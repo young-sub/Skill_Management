@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-harness.local/schemas/v3/work.schema.json",
+  "title": "Agent Harness work manifest v3",
+  "type": "object",
+  "required": ["schema_version", "work_id", "state", "created_at", "source_commit", "base_branch", "feature_branch", "contract_version", "dirty_baseline", "integrity_digest", "owned_paths"],
+  "properties": {
+    "schema_version": {"const": 3},
+    "work_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+    "state": {"enum": ["active", "completed", "trash", "deleted", "legacy-unclassified"]},
+    "created_at": {"type": "string"},
+    "source_commit": {"type": "string"},
+    "base_branch": {"type": "string"},
+    "feature_branch": {"type": "string"},
+    "worktree": {"type": ["string", "null"]},
+    "completed_at": {"type": ["string", "null"]},
+    "retain_until": {"type": ["string", "null"]},
+    "delete_after": {"type": ["string", "null"]},
+    "contract_version": {"const": 3},
+    "dirty_baseline": {
+      "type": "object",
+      "required": ["base_revision", "entries"],
+      "properties": {
+        "base_revision": {"type": "string"},
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path", "identity", "states"],
+            "properties": {
+              "path": {"type": "string"},
+              "identity": {"type": "string"},
+              "states": {
+                "type": "array",
+                "items": {"enum": ["staged", "unstaged", "deleted", "untracked"]},
+                "uniqueItems": true
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "workflow_baseline": {"type": "object"},
+    "integrity_digest": {"type": "string"},
+    "owned_paths": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}
