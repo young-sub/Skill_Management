@@ -9,7 +9,13 @@ Review the actual decision and its consequences. A review does not authorize imp
 
 Bind the question to the user's named project and its actual entrypoints before
 searching. Parent repository/tooling guidance governs the work but is not the
-review subject; resolve overloaded terms from the selected project's code.
+review subject. Resolve overloaded terms at the product callsite before assessing
+work readiness: input validation and row commits concern the storage transaction;
+Git commits and Harness Items concern delivery only when that is the user's subject.
+The presence of `.harness` policy does not select the latter. Missing Git history,
+Items or old test reports does not block a source-based product design review.
+If both meanings remain plausible after reading the callsite, state that ambiguity
+and review the supported product case instead of silently switching subjects.
 
 A counterexample or assumption-review request can use this Skill in a single
 agent. A restriction on additional delegation does not prevent that review;

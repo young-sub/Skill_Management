@@ -40,6 +40,15 @@ Run `sync-skill-resources.ps1` without `-Check` after canonical edits. For cross
 
 ## Execution, lookup and preservation
 
+For effect evaluation, freeze the short request, source/catalog, project and existing
+oracle before each consumer or control launch. Preserve failures, non-use, retries
+and unexecuted cases; count coached corrections separately. A description-only
+comparison does not establish whole-stage effectiveness, and supplied-catalog
+discovery does not establish native-host discovery. Keep unchanged defect/normal
+controls separate from model outcomes; uncollected usage and cost remain unknown.
+The [stage 5 record](research/stage5-effect-evaluation-results.md) reuses existing
+batch, connected-product and lookup/resume checks without a new runner.
+
 Stage 4A consumption selects task playbooks from a short request and the whole
 source catalog, then inspects actual implementation/normal and failure observations.
 For recall, hash project state/evidence before and after the read-only phase and

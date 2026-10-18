@@ -1,6 +1,6 @@
 # Agentic coding 플러그인 고도화 로드맵
 
-작성일: 2026-10-18. 0단계는 [호환성 결과](stage0-compatibility-results.md), 1단계는 [작업별 검증 결과](stage1-task-verification-results.md), 2단계는 [교정·성공 재사용 결과](stage2-feedback-reuse-results.md), 3단계의 UI 발견·비교·실행 가이드 수리와 후속 소비는 [UI·가이드 재사용 결과](stage3-ui-guide-reuse-results.md), 4단계의 설계·영향 분석과 실제 구현 소비는 [설계 결과](stage4-architecture-results.md)에 기록한다. 아래 4A 보강과 5·6단계는 미구현 계획이다. 이번 추가 결정은 로드맵에 반영하며 실제 구현은 다음 세션에서 착수한다. 이 문서만으로 설치·유료 평가·외부 작업 권한이 생기지 않는다.
+작성일: 2026-10-18. 0단계는 [호환성 결과](stage0-compatibility-results.md), 1단계는 [작업별 검증 결과](stage1-task-verification-results.md), 2단계는 [교정·성공 재사용 결과](stage2-feedback-reuse-results.md), 3단계의 UI 발견·비교·실행 가이드 수리와 후속 소비는 [UI·가이드 재사용 결과](stage3-ui-guide-reuse-results.md), 4단계의 설계·영향 분석과 실제 구현 소비는 [설계 결과](stage4-architecture-results.md)에 기록한다. 4A 보강은 [4A 결과](stage4a-playbooks-recall-results.md), 5단계의 한정된 효과 평가·유지 결정은 [5단계 결과](stage5-effect-evaluation-results.md)에 기록한다. 6단계 swarm은 미구현 계획이며, 5단계의 catalog 소비를 native-host 발견이나 일반 효과로 확대하지 않는다. 이 문서만으로 설치·유료 평가·외부 작업 권한이 생기지 않는다.
 
 ## 목적과 문서의 역할
 
@@ -179,7 +179,7 @@ TDD는 작업별 검증 기준에 녹인다. 일률적 코드 삭제·RED 강제
 
 ## 구현 단위와 다음 착수 범위
 
-0~4단계의 구현과 한계는 위 결과 문서에 보존한다. 2단계는 `wp-20261018-stage0-compatibility`에서 1단계 `0e126428e3bd14d6f1768a9dfb6cce06b0e12b80`과 추가 결정 `5e8de29`를 이어 구현했다. 3단계는 같은 브랜치의 2단계 `02a354d`에서 시작해 기존 스킬 연결과 fixture 관측기·가이드를 수리하고 새 문맥 소비를 확인했다. 4단계는 3단계 `be6f92a`를 이어 `66c3cee`로 구현했다. 4A는 [플레이북·회상·설계 검토 결과](stage4a-playbooks-recall-results.md)의 범위로 구현·집중 검증했다. 다음 착수 후보는 별도 요청에 따른 5단계이며 이번에 실행하지 않았다. 4A → 5단계 효과 평가 → 6단계 swarm 순서를 유지한다. 후속 시작 시 실제 HEAD·dirty state를 재확인하고 사용자 변경·활성 작업·기존 증거를 보존한다. 별도 `20261018-plugin-readiness` 계약을 이 단계의 계약으로 간주하거나 완료 처리하지 않는다. 검증된 기존 능력과 경량 수정·조회·진단 경로를 유지하고 새 Router·범용 runner·상태 DB·dashboard·전수 검사 체계를 만들지 않는다.
+0~4단계의 구현과 한계는 위 결과 문서에 보존한다. 2단계는 `wp-20261018-stage0-compatibility`에서 1단계 `0e126428e3bd14d6f1768a9dfb6cce06b0e12b80`과 추가 결정 `5e8de29`를 이어 구현했다. 3단계는 같은 브랜치의 2단계 `02a354d`에서 시작해 기존 스킬 연결과 fixture 관측기·가이드를 수리하고 새 문맥 소비를 확인했다. 4단계는 3단계 `be6f92a`를 이어 `66c3cee`로 구현했다. 4A는 [플레이북·회상·설계 검토 결과](stage4a-playbooks-recall-results.md)의 범위로 구현·집중 검증했다. 5단계는 `298743d`에서 기존 과제·평가기와 새 문맥 소비를 실행하고 유지·수정·보류 결정을 기록했다. 일반 효과와 native-host 발견은 미입증이며 6단계는 시작하지 않았다. 4A → 5단계 효과 평가 → 6단계 swarm 순서를 유지한다. 후속 시작 시 실제 HEAD·dirty state를 재확인하고 사용자 변경·활성 작업·기존 증거를 보존한다. 별도 `20261018-plugin-readiness` 계약을 이 단계의 계약으로 간주하거나 완료 처리하지 않는다. 검증된 기존 능력과 경량 수정·조회·진단 경로를 유지하고 새 Router·범용 runner·상태 DB·dashboard·전수 검사 체계를 만들지 않는다.
 
 각 구현 단위는 원본 스킬/참조 → 필요한 runtime 수정 → 관련 회귀·실제 소비 → Feature Map·현재 문서 → 생성 리소스·패키지 검증 순서로 마무리한다. `authoring/resource-map.json`의 원본/생성 관계를 따르고 이미 있는 TaskStore, 공개 API, 증거 결속·현재성 보호는 재현된 문제가 있을 때만 수정한다. 변경 영향에 맞는 검사를 실행하며 Full은 실제 영향이나 명시 요청으로 선택한다.
 

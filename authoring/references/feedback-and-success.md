@@ -44,7 +44,12 @@ only when that changes future work. Merge with the existing rule; reject duplica
    installation, global settings, publication and external spending remain separate.
 5. Before consumption, define expected outcomes and failure criteria. Exercise a
    fresh context with a short request and essential inputs, without the old chat,
-   answer patch or coaching. Skill/guide pointers make this assisted consumption;
+   answer patch or coaching. Keep earlier consumer reports and evaluator answers
+   outside the consumer's discovery scope; a fresh conversation alone does not
+   isolate a shared workspace. Prefer a clean task/material copy, and explicitly
+   bound task evidence when prior outputs remain accessible. Preserve accidental
+   exposure as a contaminated attempt, not an unaided success; use another fresh
+   context for an uncontaminated retry. Skill/guide pointers make this assisted consumption;
    test unaided discovery separately if making that claim. Inspect actual artifacts,
    executions and relevant failure/normal observations, not the consumer's PASS label.
 6. If consumption fails, preserve the attempt, repair the responsible procedure or
