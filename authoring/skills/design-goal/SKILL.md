@@ -5,6 +5,8 @@ description: Create or revise a Harness Item contract when explicitly requested 
 
 # Design Goal
 
+This Skill owns the work contract, not software architecture. Use `architect` when technical ownership, interfaces or module boundaries need a design decision; otherwise resolve them directly from existing project conventions. Reuse that decision in Items rather than creating a second design. Small changes need neither capability nor a design document.
+
 Use [the runtime](scripts/core_harness.py) to create work; consult [the contract schema](schemas/contract.schema.json) for field details. A host Goal is optional tracking and is created only when requested.
 
 1. Inspect the affected behavior, callers, tests, and current constraints. Resolve internal choices from convention; ask only about decisions that change scope, observable behavior, permission, or recovery risk. Do not repeat an answered interview.

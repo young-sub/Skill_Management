@@ -40,6 +40,11 @@
 
 ## 하나의 사용자 흐름
 
+[4단계 결과](stage4-architecture-results.md)는 독립 `architect`의 기술 설계와
+`design-goal`의 작업 계약 책임을 구분한다. 공통 영향 분석은 호출자·타입·상태·
+데이터 소유권·모듈 경계에서 구현과 회귀를 선택하며 작은 수정에 설계 문서나
+계약을 요구하지 않는다. 격리 소비 결과는 위 readiness/native 판정과 별개다.
+
 이후 [3단계 결과](stage3-ui-guide-reuse-results.md)는 기존 UI 스킬 발견 연결,
 의도한 차이와 훼손의 시각 비교, fixture 관측기·가이드 수리와 별도 문맥의
 History 화면 소비를 확인했다. 제공된 catalog/격리 프로젝트의 한 사례이며

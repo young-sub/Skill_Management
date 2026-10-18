@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/project-verification.md -->
-<!-- Source-SHA256: b3d64d43aaa1145b09d88ae25e4b6864c307bd12b6050602e1e0f4dda662c57f -->
+<!-- Source-SHA256: 593bb7b95e1ee5bcd10a0ebbe63df12236d7e0d63ac3fa9189645c1630c8eed4 -->
 
 # Project verification responsibilities
 
@@ -19,6 +19,8 @@ Before editing or running checks, derive the expected behavior and failure verdi
 Reuse adequate existing checks and still-valid evidence. A tiny descriptive edit can use readback/diff alone. Lookup executes no product commands; source-only diagnosis keeps runtime behavior unknown. None of these tasks inherently requires setup, a contract, RED, six scope declarations or Full.
 
 ## Criteria and change impact
+
+For shared-owner or interface changes, use [change impact](change-impact.md) to trace callers, types, state/data ownership and module boundaries before selecting regressions. Reuse the same investigation in design and review; small local edits stay direct.
 
 Select executable checks and semantic review from actual business-rule and architecture impact in FE, API and Domain. Business review asks whether user outcomes, permission/input contracts and policy/state invariants satisfy requirements. Architecture review follows touched UI state/component owners, API validation/dependencies/transaction boundaries and Domain rule/type/module owners. Use the existing Feature/check/review connections; passing checks do not substitute for an applicable ownership or contract review. Explain relevant exclusions separately from unavailable observations, without filling unrelated cells.
 

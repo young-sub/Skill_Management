@@ -14,6 +14,8 @@ Review the actual decision and its consequences. A review does not authorize imp
 - Honor explicit user counts and roles within host limits; there is no requirement that challengers outnumber researchers. Stage work if concurrency is limited. Report infeasible constraints and use an honest fallback.
 - Without specified counts, select agents for distinct evidence or challenge questions the review actually needs. Add an agent only for an unanswered question. For a generic review with no explicit request for real agents, use a main-only pass if coordination would cost more than it saves.
 
+For a design or implementation review, use [change impact](references/change-impact.md) to challenge actual callers, types, state/data owners and module boundaries. Reuse the existing impact analysis and check its omissions against the diff; this does not require a separate design document.
+
 ## Review Loop
 
 Use the smallest loop that answers the question:

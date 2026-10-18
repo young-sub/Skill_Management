@@ -2,6 +2,7 @@
   "schema_version": 1,
   "public_skills": [
     "agent-workflow",
+    "architect",
     "setup-project-verification",
     "maintain-project-verification",
     "finance-research",

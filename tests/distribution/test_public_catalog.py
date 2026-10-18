@@ -10,6 +10,7 @@ class PublicCatalogTests(unittest.TestCase):
     def test_only_supported_and_professional_skills_are_public(self) -> None:
         expected = {
             "agent-workflow",
+            "architect",
             "setup-project-verification",
             "maintain-project-verification",
             "finance-research",

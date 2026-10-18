@@ -152,3 +152,9 @@ The current workflow keeps undeclared matrix cells visible as UNDECIDED without 
 Structural/type-constraint prevention uses the existing feedback/Feature prevention link and existing foreground captures. A semantic review explains original failure, bypass resistance and nearby normal behavior; the runtime pins its subject, owner/criteria/config and evidence bytes, and validates current source/capture identity. Staging or committing identical bytes preserves reuse; observed content drift still reopens prevention. It does not parse arbitrary native output or infer correctness from exit zero. Automatic regression prevention retains fixed-oracle RED/GREEN joins. Both reopen on changed evidence/ownership; neither is protected-host attestation. See the [repair/reuse contract](../../authoring/references/repair-and-reuse.md).
 
 Task start snapshots only dirty, nonignored paths outside inventory roots; local lookup compares those paths and newly changed Git paths with that baseline. Preexisting unchanged dirty files do not block a bounded request. Known reference documents retain their existing Feature bindings. Private/aliased paths are reported without reading contents; ignored files require explicit project evidence. Host-injected inventory remains authoritative and never triggers this local Git adapter.
+
+`architect` owns technical design decisions and `design-goal` owns work contracts.
+The canonical [change-impact procedure](../../authoring/references/change-impact.md)
+is generated into architect, workflow/verification and review Skills. It connects
+callers, types, state/data ownership and module boundaries to actual regressions;
+small changes stay direct. No runtime mode, state store or schema is added.

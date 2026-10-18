@@ -1,6 +1,6 @@
 # Agentic coding 플러그인 고도화 로드맵
 
-작성일: 2026-10-18. 0단계는 [호환성 결과](stage0-compatibility-results.md), 1단계는 [작업별 검증 결과](stage1-task-verification-results.md), 2단계는 [교정·성공 재사용 결과](stage2-feedback-reuse-results.md), 3단계의 UI 발견·비교·실행 가이드 수리와 후속 소비는 [UI·가이드 재사용 결과](stage3-ui-guide-reuse-results.md)에 기록한다. 4단계 이후는 계획이며 이 문서는 설치·벤치마크·후속 구현을 승인하지 않는다.
+작성일: 2026-10-18. 0단계는 [호환성 결과](stage0-compatibility-results.md), 1단계는 [작업별 검증 결과](stage1-task-verification-results.md), 2단계는 [교정·성공 재사용 결과](stage2-feedback-reuse-results.md), 3단계의 UI 발견·비교·실행 가이드 수리와 후속 소비는 [UI·가이드 재사용 결과](stage3-ui-guide-reuse-results.md), 4단계의 설계·영향 분석과 실제 구현 소비는 [설계 결과](stage4-architecture-results.md)에 기록한다. 5단계 이후는 계획이며 이 문서는 설치·벤치마크·후속 구현을 승인하지 않는다.
 
 ## 목적과 문서의 역할
 

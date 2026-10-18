@@ -16,6 +16,8 @@ Reuse adequate existing checks and still-valid evidence. A tiny descriptive edit
 
 ## Criteria and change impact
 
+For shared-owner or interface changes, use [change impact](change-impact.md) to trace callers, types, state/data ownership and module boundaries before selecting regressions. Reuse the same investigation in design and review; small local edits stay direct.
+
 Select executable checks and semantic review from actual business-rule and architecture impact in FE, API and Domain. Business review asks whether user outcomes, permission/input contracts and policy/state invariants satisfy requirements. Architecture review follows touched UI state/component owners, API validation/dependencies/transaction boundaries and Domain rule/type/module owners. Use the existing Feature/check/review connections; passing checks do not substitute for an applicable ownership or contract review. Explain relevant exclusions separately from unavailable observations, without filling unrelated cells.
 
 In configured projects, shared UI ownership belongs in optional

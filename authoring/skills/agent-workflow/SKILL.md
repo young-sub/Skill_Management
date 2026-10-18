@@ -1,6 +1,6 @@
 ---
 name: agent-workflow
-description: Coordinate a coding task through relevant project capabilities, actual verification, and results. Use for connecting verification, viewing results, human corrections, reusing successful decisions or extracting a repeatable procedure from a satisfactory turn or artifact, and reusing UI standards. Select only needed procedures; ordinary small edits stay direct.
+description: Coordinate a coding task through relevant project capabilities, actual verification, and results. Use for complex design and change impact, connecting verification, viewing results, human corrections, reusing successful decisions or extracting a repeatable procedure from a satisfactory turn or artifact, and reusing UI standards. Select only needed procedures; ordinary small edits stay direct.
 ---
 
 # Agent Workflow
@@ -11,6 +11,7 @@ Understand the request and authorized scope, then discover existing project crit
 | --- | --- |
 | Initial verification connection | `setup-project-verification`: map the agreed scope and connect existing commands. Whole-map PARTIAL does not block independent scoped work. |
 | Implement/change | Existing development flow and touched callers; select the feature, bug-fix or refactoring observations in [task verification](references/project-verification.md#task-verification). Connect only a missing verification path; small work needs no contract or full-project setup. |
+| Design / complex change | `architect` resolves technical ownership and interface choices; [change impact](references/change-impact.md) traces callers, types, state/data and module boundaries. `design-goal` manages work contracts only when needed. |
 | Verify | Project guide/adapter and the affected actual user flow. Select from behavior and risk; inspect raw outcomes. |
 | Investigate | Existing task can retain read-only observations without workflow setup. Unknown observations stay unknown. |
 | Show results | Connect/read existing work. No tests, repairs, services or new task. |
@@ -18,6 +19,8 @@ Understand the request and authorized scope, then discover existing project crit
 | Feedback | Existing `diagnose`: actual caller/state/data flow, cause owner, focused repair and appropriate prevention. |
 | Keep this approach / make it repeatable | [Feedback and success reuse](references/feedback-and-success.md): classify the signal, improve the existing owner or discovery, and extract only the context needed for the next invocation. |
 | UI standards / visual comparison | Discover Feature UI references and registered UI systems, then follow [UI discovery and comparison](references/repair-and-reuse.md#ui-discovery-and-comparison). Select `impeccable` for design, `fixing-accessibility` for interaction/accessibility and `vercel-react-best-practices` only for React/Next.js impact. |
+
+For implementation with shared ownership or contract impact, use [change impact](references/change-impact.md) before choosing the design and affected regressions; keep local edits direct.
 
 For implementation/verification, select only the applicable task and impact guidance in [project verification](references/project-verification.md); setup/maintenance use the same criteria. For feedback/UI read [repair and reuse](references/repair-and-reuse.md). Missing optional capabilities use existing project commands; never count missing checks as passed or turn the task into a tooling installation.
 

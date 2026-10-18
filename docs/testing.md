@@ -40,6 +40,13 @@ Run `sync-skill-resources.ps1` without `-Check` after canonical edits. For cross
 
 ## Execution, lookup and preservation
 
+For design changes, use [change impact](../authoring/references/change-impact.md)
+to select affected callers, types, state/data and module boundaries. Define failure
+criteria before consuming `architect` on an isolated implementation, then inspect
+actual code, normal/error behavior and fresh-read data preservation. Follow-up
+short-request discovery and tiny direct edits test different claims; record hints,
+failures, retries and unexecuted paths separately from distribution validation.
+
 For UI guide reuse, use the existing
 [comparison procedure](../authoring/references/repair-and-reuse.md#ui-discovery-and-comparison)
 and [guide execution steps](../authoring/references/project-verification.md#execute-and-repair-the-existing-guide).

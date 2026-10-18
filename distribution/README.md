@@ -17,6 +17,7 @@
 | --- | --- | --- |
 | 위임·결과 조회 | 기존 업무의 결과와 남은 일만 보여줘. 검사는 다시 실행하지 마. | [상태·요청 연결](skills/agent-workflow/references/workflow-obligations.md) |
 | 업무·아키텍처 검증 | 이 변경의 업무 규칙과 FE/API/Domain 연결을 검증해줘. | [검증 책임](skills/agent-workflow/references/project-verification.md) |
+| 설계·변경 영향 | 호출자와 저장 책임을 유지하면서 복잡한 변경을 설계하고 구현·회귀로 확인해줘. | [설계 판단](skills/architect/SKILL.md), [공통 영향 분석](skills/agent-workflow/references/change-impact.md); 작업 계약은 design-goal |
 | 피드백·재발 방지 | 저장 후 값이 돌아오는 원인을 추적하고 우회 경로까지 막아줘. | [원인 수리·재사용](skills/agent-workflow/references/repair-and-reuse.md) |
 | 인간의 교정·성공 절차 | 이 방향을 교정해줘. / 이 결과를 다음에도 재현할 절차로 남겨줘. | [교정·성공 재사용](skills/agent-workflow/references/feedback-and-success.md), [절차 템플릿](skills/agent-workflow/templates/reusable-procedure.md) |
 | UI 기준 | 기존 화면의 스타일과 상태별 동작을 정리하고 공유 컴포넌트에 연결해줘. | [UI 설계](skills/impeccable/SKILL.md) |

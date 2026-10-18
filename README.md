@@ -12,6 +12,8 @@
 - 로컬 플러그인 생성·검증: [`docs/plugins.md`](docs/plugins.md)
 - canonical source와 생성 매핑: `authoring/`
 
+설계 판단은 [`architect`](skills/architect/SKILL.md)가 호출자·타입·상태·데이터 소유권·모듈 경계를 따라 담당합니다. 작업 계약은 `design-goal`이 관리하며 작은 수정에는 설계 문서나 계약을 강제하지 않습니다.
+
 공개 Harness Skill은 `setup-agent-harness`, `explore-idea`, `design-goal`, `execute-codex-goal`, `diagnose`, `close-goal`, `maintain-agent-harness`입니다. 기존 v2.0.0 배포 사실은 [`docs/releases/v2.0.0.md`](docs/releases/v2.0.0.md)에 역사적 릴리스 증거로 남아 있으며, 현재 workflow authority는 아닙니다.
 
 업무 조정에는 `agent-workflow`, 최초 제품 검증 연결에는 `setup-project-verification`, Feature·검증 가이드·UI 기준의 drift 수리에는 `maintain-project-verification`을 제공합니다. 프로젝트 로컬에 설치한 새 세션에서 “상품 저장 기능을 검증하고 무엇을 확인했는지 보여줘”, “개발 체계를 점검하고 필요한 부분을 개선해줘”처럼 업무를 요청합니다. 필요한 능력을 선택하고 기존 프로젝트 명령을 사용하며, “기존 결과만 보여줘”는 재실행하지 않습니다. 실제 사용 가능 범위는 프로젝트의 실행 환경과 검증 근거에 달려 있습니다.
