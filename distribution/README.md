@@ -15,6 +15,7 @@
 
 | 목적 | 요청 예시 | 포함된 기준 |
 | --- | --- | --- |
+| 병렬 구현 | 독립 작업을 나눠 구현하고 통합 후 동작까지 확인해줘. | [swarm](skills/swarm/SKILL.md); 소유권·의존성·기존 실행 대조와 통합 책임. 독립 검토는 multi-agent-review |
 | 위임·결과 조회 | 기존 업무의 결과와 남은 일만 보여줘. 검사는 다시 실행하지 마. | [상태·요청 연결](skills/agent-workflow/references/workflow-obligations.md) |
 | 업무·아키텍처 검증 | 이 변경의 업무 규칙과 FE/API/Domain 연결을 검증해줘. | [검증 책임](skills/agent-workflow/references/project-verification.md) |
 | 이전 작업 회상·재개 | 어디까지 했는지 알려줘. / 남은 작업을 이어서 해줘. | [회상](skills/recall/SKILL.md); 회상은 읽기 전용, 실제 재개는 기존 실행 흐름 |

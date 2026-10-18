@@ -16,6 +16,7 @@ Understand the request and authorized scope, then discover existing project crit
 | Explain how / why | `zoom-out`: current flow/ownership or recorded design reasons; source, execution, inference and unknowns stay distinct. |
 | Remember / continue prior work | `recall`: recover the handoff and reconcile current state first; only an actual resume request proceeds to authorized execution. |
 | Design / complex change | `architect` resolves technical ownership and interface choices; [change impact](references/change-impact.md) traces callers, types, state/data and module boundaries. `design-goal` manages work contracts only when needed. |
+| Parallel implementation / delegated resume | `swarm`: disjoint ownership, dependencies, existing task/execution handles, evidence and main-agent integration. Independent challenge stays in `multi-agent-review`. |
 | Verify | Project guide/adapter and the affected actual user flow. Select from behavior and risk; inspect raw outcomes. |
 | Investigate | Existing task can retain read-only observations without workflow setup. Unknown observations stay unknown. |
 | Show results | Connect/read existing work. No tests, repairs, services or new task. |

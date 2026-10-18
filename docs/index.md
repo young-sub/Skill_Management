@@ -14,6 +14,7 @@ Read applicable AGENTS and `.harness/project.yaml` first. Load ignored `.harness
   [Stage 4 architecture and impact](research/stage4-architecture-results.md) records design ownership, implementation and affected regression consumption.
   [Stage 4A playbooks and recall](research/stage4a-playbooks-recall-results.md) records task procedure selection, explanation/recovery boundaries and design comparison consumption.
   [Stage 5 effect evaluation](research/stage5-effect-evaluation-results.md) records fresh-context review discovery, same-condition fault controls and bounded adoption decisions.
+  [Stage 6 parallel delegation](research/stage6-parallel-delegation-results.md) records swarm ownership, sequential/parallel implementation, integration and resume evidence.
 - [Current execution instructions](research/plugin-continuous-improvement-next-session.md): improve from observed gaps, without reopening completed work.
 - [System](system.md), [architecture](architecture/harness.md), [domain ownership](agents/domain.md): runtime and source boundaries.
 - [Feature Map](feature-map.md): user functions, owners and executable checks.

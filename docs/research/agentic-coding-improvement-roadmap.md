@@ -1,6 +1,6 @@
 # Agentic coding 플러그인 고도화 로드맵
 
-작성일: 2026-10-18. 0단계는 [호환성 결과](stage0-compatibility-results.md), 1단계는 [작업별 검증 결과](stage1-task-verification-results.md), 2단계는 [교정·성공 재사용 결과](stage2-feedback-reuse-results.md), 3단계의 UI 발견·비교·실행 가이드 수리와 후속 소비는 [UI·가이드 재사용 결과](stage3-ui-guide-reuse-results.md), 4단계의 설계·영향 분석과 실제 구현 소비는 [설계 결과](stage4-architecture-results.md)에 기록한다. 4A 보강은 [4A 결과](stage4a-playbooks-recall-results.md), 5단계의 한정된 효과 평가·유지 결정은 [5단계 결과](stage5-effect-evaluation-results.md)에 기록한다. 6단계 swarm은 미구현 계획이며, 5단계의 catalog 소비를 native-host 발견이나 일반 효과로 확대하지 않는다. 이 문서만으로 설치·유료 평가·외부 작업 권한이 생기지 않는다.
+작성일: 2026-10-18. 0단계는 [호환성 결과](stage0-compatibility-results.md), 1단계는 [작업별 검증 결과](stage1-task-verification-results.md), 2단계는 [교정·성공 재사용 결과](stage2-feedback-reuse-results.md), 3단계의 UI 발견·비교·실행 가이드 수리와 후속 소비는 [UI·가이드 재사용 결과](stage3-ui-guide-reuse-results.md), 4단계의 설계·영향 분석과 실제 구현 소비는 [설계 결과](stage4-architecture-results.md)에 기록한다. 4A 보강은 [4A 결과](stage4a-playbooks-recall-results.md), 5단계의 한정된 효과 평가·유지 결정은 [5단계 결과](stage5-effect-evaluation-results.md)에 기록한다. 6단계의 독립 swarm 구현과 순차/병렬 통합·재개 검증은 [6단계 결과](stage6-parallel-delegation-results.md)에 기록한다. Catalog 소비를 native-host 발견이나 일반 효과로 확대하지 않는다. 이 문서만으로 설치·유료 평가·외부 작업 권한이 생기지 않는다.
 
 ## 목적과 문서의 역할
 

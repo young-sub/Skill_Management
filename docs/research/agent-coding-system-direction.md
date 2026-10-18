@@ -47,6 +47,14 @@
 기존 평가 준비 참조에서 수리하고 Feature Map과 로드맵 안내를 정리한다.
 이것은 readiness 계약 완료나 일반 비용 절감의 증거가 아니다.
 
+## 6단계 병렬 위임
+
+독립 `swarm`은 파일 소유권·의존성·중단 후 실행 상태 대조와 통합 책임을 맡는다.
+기존 task/context·위임 도구·worktree·runner를 재사용하며 `multi-agent-review`의
+독립 검토와 구분한다. [6단계 결과](stage6-parallel-delegation-results.md)는 작은
+실제 과제의 순차/병렬 수행과 통합 후 동작, 별도 재개 회귀를 구분한다.
+일반 속도·비용 개선이나 readiness 계약 완료로 확대하지 않는다.
+
 ## 하나의 사용자 흐름
 
 [4단계 결과](stage4-architecture-results.md)는 독립 `architect`의 기술 설계와

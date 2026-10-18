@@ -40,6 +40,16 @@ Run `sync-skill-resources.ps1` without `-Check` after canonical edits. For cross
 
 ## Execution, lookup and preservation
 
+For parallel implementation, freeze identical input/interface/oracle before comparing
+sequential and delegated runs. Keep exclusive file ownership and one integration
+writer; inspect actual integrated behavior, including rejected writes and fresh read.
+Reconcile completed, failed, pending and unknown execution handles before resume.
+Existing checkpoint, unknown-launch and worktree regressions remain the runtime
+checks; worker PASS and catalog discovery are not integrated or native-host proof.
+The [stage 6 record](research/stage6-parallel-delegation-results.md) retains attempts,
+conflicts, rework, assistance, non-use and unknown usage/cost separately.
+
+
 For effect evaluation, freeze the short request, source/catalog, project and existing
 oracle before each consumer or control launch. Preserve failures, non-use, retries
 and unexecuted cases; count coached corrections separately. A description-only

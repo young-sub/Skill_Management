@@ -34,7 +34,9 @@ Missing records need a bounded gap report, not setup or invented completion.
 When the user actually asks to resume, finish recovery then take the authorized
 next action through the project's existing execution flow or `agent-workflow`
 (`execute-codex-goal` for an existing Harness contract). Reuse valid evidence and
-completed checkpoints. First reconcile a pending launch with its owning process,
+completed checkpoints. For delegated work with assignment ownership, outstanding
+workers or integration to reconcile, use an available `swarm` capability; recovery
+alone does not require spawning more agents. First reconcile a pending launch with its owning process,
 raw output or observable effects; never resend an unknown effect. If only that
 action is blocked, continue independent authorized work and state what evidence
 would unblock it. A recall-only question ends with the handoff, not execution.
