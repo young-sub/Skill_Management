@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/result-viewer.md -->
-<!-- Source-SHA256: 14ee3dff891e9855c9a845821e810406bd1724accbb581689da8a3c5c5441752 -->
+<!-- Source-SHA256: 40b360cdb6e743031194895d317ffb6a3c5267bb2f4349fbe820df6b8ce901ae -->
 
 # Existing-result lookup
 
@@ -295,3 +295,9 @@ the work baseline and actual `after_sha256`; unchanged owner bytes cannot claim 
 repair. Code validates structure and freshness, while the Agent judges meaning
 and sufficiency. Scope references are hashed independently so changing one
 review's extra reference stales that review, rather than every sibling review.
+
+## Capture and Windows input
+
+When stdout must be retained, use the package's existing `scripts/run_check.py --cwd <project> --output <new-capture.json> -- <lookup argv>`. It refuses overwrite. Read completed `stdout` JSON; exit zero is not task acceptance. A capture with `execution: running` is unfinished: wait on its owning process/tool and inspect the same path. If the owner stopped, preserve unknown status and reconcile instead of launching another capture.
+
+For non-ASCII text or programs sent to native stdin on Windows, save a UTF-8 file with the editor, then use that capture's `--stdin-file <file>` before `--`. It validates UTF-8 and passes a byte snapshot, recording its hash; it does not use PowerShell's text pipeline encoding. Read back the resulting artifact. This protects that transport only: already replaced `?` characters are valid UTF-8 and cannot be recovered or identified as corruption automatically. Never send secrets through a retained check.

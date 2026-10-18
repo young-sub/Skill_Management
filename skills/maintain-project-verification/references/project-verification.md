@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/project-verification.md -->
-<!-- Source-SHA256: 593bb7b95e1ee5bcd10a0ebbe63df12236d7e0d63ac3fa9189645c1630c8eed4 -->
+<!-- Source-SHA256: 7262dc9363d791a58557f81c930dd2367143e46359718bf654c761082e41bdf8 -->
 
 # Project verification responsibilities
 
@@ -10,11 +10,11 @@ The project owns business requirements, invariants, Feature Map, UI implementati
 
 Before editing or running checks, derive the expected behavior and failure verdict from the request and existing requirements. Identify the affected Feature and actual owners/callers, then select the applicable observations below. Mixed changes use the relevant criteria together; these are not new workflow modes or mandatory records.
 
-| Task | Select and observe |
-| --- | --- |
-| New feature | Completion conditions and meaningful failure cases, including affected boundary/rejection and state effects. Observe the requested user result, not just successful execution. |
-| Bug fix | Reproduce where feasible, trace the actual caller/data flow to the cause owner, repair there, and confirm the original failure plus nearby valid behavior and relevant regressions. When reproduction is unavailable, retain that limit and the alternative evidence; do not invent RED. Use the existing repair reference for connected feedback. |
-| Refactoring | Identify the public behavior, callers and contracts to preserve before editing; compare equivalent baseline and changed observations, including relevant errors and side effects. A changed requirement is a behavior change and needs its own criteria. |
+Select only the applicable playbook: [feature](../playbooks/feature.md),
+[bug fix](../playbooks/bug-fix.md), or [refactoring](../playbooks/refactoring.md).
+Mixed changes combine relevant criteria without copying entire stages. The
+playbooks own task-specific actions; this reference owns shared impact selection
+and evidence currentness.
 
 Reuse adequate existing checks and still-valid evidence. A tiny descriptive edit can use readback/diff alone. Lookup executes no product commands; source-only diagnosis keeps runtime behavior unknown. None of these tasks inherently requires setup, a contract, RED, six scope declarations or Full.
 

@@ -40,6 +40,17 @@ Run `sync-skill-resources.ps1` without `-Check` after canonical edits. For cross
 
 ## Execution, lookup and preservation
 
+Stage 4A consumption selects task playbooks from a short request and the whole
+source catalog, then inspects actual implementation/normal and failure observations.
+For recall, hash project state/evidence before and after the read-only phase and
+inspect command history for zero product execution. Exercise dirty source,
+historical/missing evidence, unknown launches and absent rationale separately;
+only an actual resume request may perform the recovered next action. Reuse existing
+lookup/resume regression tests for completed/unknown effects. For design comparison,
+fix equal inputs and criteria before experiments and inspect the adopted change's
+affected regressions. Record assisted consumption, catalog discovery, native-host
+discovery, retries and non-use separately; see the [4A record](research/stage4a-playbooks-recall-results.md).
+
 For design changes, use [change impact](../authoring/references/change-impact.md)
 to select affected callers, types, state/data and module boundaries. Define failure
 criteria before consuming `architect` on an isolated implementation, then inspect

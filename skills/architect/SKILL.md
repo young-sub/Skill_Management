@@ -4,7 +4,7 @@ description: Resolve software design choices for changes spanning callers, types
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/architect/SKILL.md -->
-<!-- Source-SHA256: 967f78a5eb506ae952df5a00eba8ff8785c9a928ec617f0a11331bfc33f16420 -->
+<!-- Source-SHA256: 31b88ba0a7d688c38e61a9b74f713bb148cfa1b596d341a2e9919aee7f03e5db -->
 
 
 # Architect
@@ -25,6 +25,15 @@ Resolve internal choices from the requirements and evidence. Ask only when missi
 information changes observable behavior, scope, authority or recovery risk;
 continue independent work. Prototype an uncertain mechanism only when it would
 change the decision, and keep experiment evidence distinct from product proof.
+
+Use `multi-agent-review` when a material assumption needs counterexamples or
+independent challenge, and `prototype` when same-condition candidate execution
+would resolve a real tradeoff. Supply the original requirements, constraints and
+raw evidence, not a desired verdict. Incorporate decisive objections and observed
+candidate outcomes into adoption/rejection/deferral. Neither is mandatory for
+small changes; no fixed reviewers, model, candidate count or separate skills are
+needed. If unavailable, perform the bounded review/experiment with existing tools
+and report the limit. Implement adopted changes and verify affected regressions.
 
 For a substantial change, leave the decision and its reason in the existing task
 notes or project design owner: affected interfaces/callers, type and state/data

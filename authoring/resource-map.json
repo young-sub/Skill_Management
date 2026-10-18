@@ -1,6 +1,9 @@
 {
   "schema_version": 1,
   "resources": [
+    {"source": "playbooks/feature.md", "targets": ["agent-workflow/playbooks/feature.md", "setup-project-verification/playbooks/feature.md", "maintain-project-verification/playbooks/feature.md"]},
+    {"source": "playbooks/bug-fix.md", "targets": ["agent-workflow/playbooks/bug-fix.md", "setup-project-verification/playbooks/bug-fix.md", "maintain-project-verification/playbooks/bug-fix.md"]},
+    {"source": "playbooks/refactoring.md", "targets": ["agent-workflow/playbooks/refactoring.md", "setup-project-verification/playbooks/refactoring.md", "maintain-project-verification/playbooks/refactoring.md"]},
     {"source": "skills/architect/SKILL.md", "targets": ["architect/SKILL.md"]},
     {"source": "references/change-impact.md", "targets": ["architect/references/change-impact.md", "agent-workflow/references/change-impact.md", "setup-project-verification/references/change-impact.md", "maintain-project-verification/references/change-impact.md", "multi-agent-review/references/change-impact.md"]},
     {"source": "scripts/task_store.py", "targets": ["agent-workflow/scripts/task_store.py", "setup-project-verification/scripts/task_store.py", "maintain-project-verification/scripts/task_store.py", "close-goal/scripts/task_store.py", "maintain-agent-harness/scripts/task_store.py", "execute-codex-goal/scripts/task_store.py"]},
@@ -13,7 +16,7 @@
     {"source": "skills/setup-project-verification/SKILL.md", "targets": ["setup-project-verification/SKILL.md"]},
     {"source": "skills/maintain-project-verification/SKILL.md", "targets": ["maintain-project-verification/SKILL.md"]},
     {"source": "references/project-verification.md", "targets": ["agent-workflow/references/project-verification.md", "setup-project-verification/references/project-verification.md", "maintain-project-verification/references/project-verification.md"]},
-    {"source": "references/repair-and-reuse.md", "targets": ["agent-workflow/references/repair-and-reuse.md", "maintain-project-verification/references/repair-and-reuse.md", "impeccable/reference/project-reuse.md", "diagnose/references/repair-and-reuse.md"]},
+    {"source": "references/repair-and-reuse.md", "targets": ["agent-workflow/references/repair-and-reuse.md", "setup-project-verification/references/repair-and-reuse.md", "maintain-project-verification/references/repair-and-reuse.md", "impeccable/reference/project-reuse.md", "diagnose/references/repair-and-reuse.md"]},
     {"source": "references/feedback-and-success.md", "targets": ["agent-workflow/references/feedback-and-success.md", "diagnose/references/feedback-and-success.md"]},
     {"source": "templates/reusable-procedure.md", "targets": ["agent-workflow/templates/reusable-procedure.md", "diagnose/templates/reusable-procedure.md"]},
     {"source": "skills/setup-agent-harness/SKILL.md", "targets": ["setup-agent-harness/SKILL.md"]},

@@ -158,3 +158,10 @@ The canonical [change-impact procedure](../../authoring/references/change-impact
 is generated into architect, workflow/verification and review Skills. It connects
 callers, types, state/data ownership and module boundaries to actual regressions;
 small changes stay direct. No runtime mode, state store or schema is added.
+
+Stage 4A keeps request selection in agent-workflow and canonical task procedures
+in `authoring/playbooks/`, mapped into workflow and verification Skills. Shared
+impact/currentness stays in existing references. `recall` is an independent,
+read-only recovery Skill; authorized resume uses existing execution. `zoom-out`
+selects current-flow or historical-rationale perspectives. Review counterexamples
+and prototype candidate comparisons inform architect without new runtime/state.

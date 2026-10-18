@@ -1,10 +1,10 @@
 ---
 name: agent-workflow
-description: Coordinate a coding task through relevant project capabilities, actual verification, and results. Use for complex design and change impact, connecting verification, viewing results, human corrections, reusing successful decisions or extracting a repeatable procedure from a satisfactory turn or artifact, and reusing UI standards. Select only needed procedures; ordinary small edits stay direct.
+description: Coordinate a coding task through relevant project capabilities, actual verification, and results. Use for feature additions, bug fixes, behavior-preserving refactoring, work recall/resume, complex design and change impact, connecting verification, viewing results, human corrections, reusing successful decisions or extracting a repeatable procedure from a satisfactory turn or artifact, and reusing UI standards. Select only needed procedures; ordinary small edits stay direct.
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: 2c2f5ebbd2c7e3b759314634fae3d8c945745eb7e7f47ba69b6d4ff7a899e331 -->
+<!-- Source-SHA256: 95ac0c926507d66b6a22f3849e7fd05b1ef9012def563fdfe531267a23e751a0 -->
 
 
 # Agent Workflow
@@ -14,7 +14,11 @@ Understand the request and authorized scope, then discover existing project crit
 | Request | Bounded responsibility |
 | --- | --- |
 | Initial verification connection | `setup-project-verification`: map the agreed scope and connect existing commands. Whole-map PARTIAL does not block independent scoped work. |
-| Implement/change | Existing development flow and touched callers; select the feature, bug-fix or refactoring observations in [task verification](references/project-verification.md#task-verification). Connect only a missing verification path; small work needs no contract or full-project setup. |
+| Add/change behavior | [Feature playbook](playbooks/feature.md): completion and meaningful failure cases. |
+| Fix incorrect behavior | [Bug-fix playbook](playbooks/bug-fix.md): feasible reproduction, cause-owner repair and nearby valid use. |
+| Preserve behavior while restructuring | [Refactoring playbook](playbooks/refactoring.md): equivalent baseline, callers, errors and side effects. |
+| Explain how / why | `zoom-out`: current flow/ownership or recorded design reasons; source, execution, inference and unknowns stay distinct. |
+| Remember / continue prior work | `recall`: recover the handoff and reconcile current state first; only an actual resume request proceeds to authorized execution. |
 | Design / complex change | `architect` resolves technical ownership and interface choices; [change impact](references/change-impact.md) traces callers, types, state/data and module boundaries. `design-goal` manages work contracts only when needed. |
 | Verify | Project guide/adapter and the affected actual user flow. Select from behavior and risk; inspect raw outcomes. |
 | Investigate | Existing task can retain read-only observations without workflow setup. Unknown observations stay unknown. |
@@ -30,40 +34,28 @@ For implementation/verification, select only the applicable task and impact guid
 
 For human direction corrections, successful decisions or an explicit request to reuse a turn/artifact, read [feedback and success reuse](references/feedback-and-success.md). A first clear correction is enough; no repeated mistake is required. Praise alone does not request a persistent rule.
 
-## Select and execute existing work
+## Select only needed mechanics
 
-For ordinary small edits and one-off investigations, use existing project tools and report evidence directly; no new workflow state, setup or contract is required. Use the bundled [workflow CLI](scripts/project_workflow.py) when continuing selected work or when persistent evidence/reuse is needed, with exact input contracts in [workflow obligations](references/workflow-obligations.md). These commands are alternatives, not a required sequence; a lookup-only request never calls `start`:
+Small edits use existing project tools directly: no task, setup, contract or copied
+stage checklist. For persistent or selected workflow work, use the bundled
+[CLI](scripts/project_workflow.py) and [workflow obligations](references/workflow-obligations.md)
+for exact task selection, start/connect and explicit execution/resume. Never guess
+among active tasks. Completed checkpoints are reused; unknown launches are not replayed.
 
-```text
-python <skill>/scripts/project_workflow.py start --root <project> --intent <intent> --target <feature> --request-summary <outcome> --outcome-ref <existing-requirement-file>
-python <skill>/scripts/project_workflow.py connect --root <project> --state <exact-task-path>
-python <skill>/scripts/project_workflow.py lookup --root <project> --state <exact-task-path> --summary
-```
+For existing results and native evidence, follow [result lookup and execution](references/result-viewer.md).
+It owns handoff/currentness, omitted detail, preparation/execution, capture and
+Windows UTF-8 transport. Lookup runs zero product commands and writes no state.
+Historical PASS/current STALE and missing evidence are not current acceptance.
+Reuse project runners/parsers; missing binding does not justify inventing native JSON.
 
-`start` creates work; `connect` selects it. `--state` accepts a relative path or an absolute path within that project's `.work`; registry paths remain relative. Use the returned `task_context` through inherited `AGENT_WORKFLOW_CONTEXT` or `--context`. Harness work uses `--work-id`. Never guess among task candidates. For a related new request, `start` with prior context carries feedback/results and captures a new baseline and request.
+For connected feedback and guide repair, use [repair and reuse](references/repair-and-reuse.md).
+Classify the cause, repair its owner and observe prevention; a small direct repair
+can keep evidence in its existing report. A rule or RESOLVED label is not proof.
+Execute affected guides and verify reuse when discovery is uncertain; retain hints,
+failures, retries, skill non-use and non-execution.
 
-For selected workflow work, use only the needed `prepare`, explicit `execute`, `review`, `feedback`, or read-only `lookup`/task `resume` with the same selector. `execute --resume` is an explicit effect: completed checkpoints are reused, unknown launches are never replayed. A stale write must be reread and explicitly reapplied, not blindly retried.
-
-When an unconfigured investigation needs a persistent record, use `start --intent diagnose --request-summary <request> --investigation <observations.json>`; later `investigate` updates that record. Otherwise a concise evidence report is enough. Missing observations remain INCOMPLETE. Preserve permissions, stable scope IDs, source/runtime observation methods and unknowns. Do not force setup, `feedback` or Feature review onto an unconfigured diagnosis.
-
-For registered native JSON, use the [verification CLI](scripts/verification_results.py) and [execution contract](references/result-viewer.md): prepare measured bindings, execute selected commands once, then read the resulting bundle. A project-owned unittest or other native adapter remains its own producer/parser. Reuse it and its pending-task selector; do not invent native JSON, shell metadata collectors or a second generic runner. Without compatible binding, report bounded native evidence and the binding gap.
-
-## Read results and choose the next action
-
-Inspect `handoff` first: current request, measured impact, project remainder and unresolved scope are separate. Follow pending criteria to their existing command, guide, raw observation and current validity. Required unexecuted/failed checks and required semantic reviews remain obligations. An undeclared six-cell matrix is an impact map, not six compulsory declarations or executions. It stays UNDECIDED; do not report it as full-stack completion.
-
-The summary omits detail, not evidence. It retains verdicts, counts, criterion IDs and exact detail pointers; large-project previews, semantic review bodies and feedback bindings may be omitted. `observations_omitted` with a positive count points to raw. Capture the exact lookup without `--summary` when needed and read only the relevant JSON fields or raw pointer, rather than printing the whole report. Historical PASS/current STALE is not current success. Task-misbound evidence is not acceptance. Semantic review after execution joins the existing bundle/state without rerunning unchanged commands.
-
-When stdout must be retained, use the package's existing `scripts/run_check.py --cwd <project> --output <new-capture.json> -- <lookup argv>`. It refuses overwrite. Read completed `stdout` JSON; exit zero is not task acceptance. A capture with `execution: running` is unfinished: wait on its owning process/tool and inspect the same path. If the owner stopped, preserve unknown status and reconcile instead of launching another capture.
-
-For non-ASCII text or programs sent to native stdin on Windows, save a UTF-8 file with the editor, then use that capture's `--stdin-file <file>` before `--`. It validates UTF-8 and passes a byte snapshot, recording its hash; it does not use PowerShell's text pipeline encoding. Read back the resulting artifact. This protects that transport only: already replaced `?` characters are valid UTF-8 and cannot be recovered or identified as corruption automatically. Never send secrets through a retained check.
-
-## Improve and explain
-
-For connected feedback work, register feedback before repair and complete the same record with actual cause/owner and mechanism-appropriate evidence. A direct small repair can retain the failure, cause and verification in its existing task report without creating workflow state. Prefer structure, then type/constraint, then an automatic check, then minimal documentation. The [repair contract](references/repair-and-reuse.md) distinguishes fixed-oracle regression from reviewed structural prevention. Neither a rule sentence nor RESOLVED alone proves repair.
-
-For guide work, read the project's prerequisites, user action, expected result, owner paths, existing command, failure diagnosis and cleanup. Code owns values/behavior; guides own intent and use. Execute the guide and fix the responsible owner. Evaluate guide reuse on a different related request, with a fresh context only when discovery is uncertain. Record hints/assistance; an answer patch, token name or CLI sequence supplied to the consumer is not unaided discovery.
-
-Keep one concise plan for nontrivial work. Use Harness contracts only when coordination/risk or the user requires them. No fixed agent count, compulsory Full or repeated inventory. Independent review is useful for material persistence/cross-layer uncertainty; give bounded requirements, target and raw evidence, not the desired patch/verdict.
-
-Report the requested behavior, Feature, what/why checked, observations and evidence, excluded/unverified scope and next action. Separate product/Harness/UI outcomes and fixture/package/product/native-host evidence. Preserve failures, current valid evidence and user state. BLOCKED names a cause and resume condition while independent authorized work continues. Installed resources, global settings, providers and publishing require their own authority.
+Report requested behavior, affected Feature, selected checks/reasons, actual
+observations/raw, current validity and remaining actions. Keep fixture, package,
+product, catalog discovery and native-host evidence separate. An unrelated project
+gap is not a common blocker. Installed resources, global settings, providers and
+publishing require their own authority.

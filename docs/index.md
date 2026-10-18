@@ -12,6 +12,7 @@ Read applicable AGENTS and `.harness/project.yaml` first. Load ignored `.harness
   [Stage 2 feedback and success reuse](research/stage2-feedback-reuse-results.md) records correction, procedure extraction and fresh-context consumption, separately from package checks.
   [Stage 3 UI and guide reuse](research/stage3-ui-guide-reuse-results.md) records shared-owner discovery, visual comparison and executed guide repair.
   [Stage 4 architecture and impact](research/stage4-architecture-results.md) records design ownership, implementation and affected regression consumption.
+  [Stage 4A playbooks and recall](research/stage4a-playbooks-recall-results.md) records task procedure selection, explanation/recovery boundaries and design comparison consumption.
 - [Current execution instructions](research/plugin-continuous-improvement-next-session.md): improve from observed gaps, without reopening completed work.
 - [System](system.md), [architecture](architecture/harness.md), [domain ownership](agents/domain.md): runtime and source boundaries.
 - [Feature Map](feature-map.md): user functions, owners and executable checks.
