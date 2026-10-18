@@ -2,13 +2,19 @@
 
 ## Persist the feedback chain in existing work state
 
+This persistence protocol applies to connected feedback work. A direct small
+repair or one-off diagnosis can use its existing report; do not create workflow
+state or run setup solely to register feedback. Preserve actual failure, cause,
+owner and verification evidence in either path. Existing connected obligations
+still apply; selecting a direct path cannot discard an open record.
+
 With a connected invocation, `feedback --feedback <entry.json>` updates that
 task directly; `review`, `maintain`, `lookup` and `resume` use the same selector.
 For a subsequent related request, `start` with that context carries the existing
 feedback/results into fresh work. Read-only `resume` restores the prior decision
 and remaining stages without executing reproduction text or repairing code.
 
-Use `project_workflow.py begin --root <project> --intent feedback --target <feature>
+If a new connected feedback task is needed, use `project_workflow.py begin --root <project> --intent feedback --target <feature>
 --state .work/task.json`, then `feedback --root <project> --state .work/task.json
 --feedback <entry.json>`. Register `id`, `feature`, `observed`, `expected` and
 `reproduction` first. Later updates with the same ID merge into that record; audit

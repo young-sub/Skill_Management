@@ -1,5 +1,11 @@
 # Harness Architecture
 
+Workflow persistence is selected for existing connected work or useful durable
+evidence, not required for every small edit or one-off diagnosis. Direct work
+retains actual verification in its existing report; it cannot discard open
+connected obligations. Audit-only missing-guide findings do not authorize writes.
+See [stage 0 compatibility](../research/stage0-compatibility-results.md).
+
 Read-only task CLI calls reuse the measured Feature bases in nested
 verification-scope projection; standalone viewer calls still inspect them.
 The snapshot is invocation-local and each later call measures source, references

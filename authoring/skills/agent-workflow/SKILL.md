@@ -22,7 +22,7 @@ For setup/verification/maintenance read [project verification](references/projec
 
 ## Select and execute existing work
 
-Use the bundled [workflow CLI](scripts/project_workflow.py), with exact input contracts in [workflow obligations](references/workflow-obligations.md):
+For ordinary small edits and one-off investigations, use existing project tools and report evidence directly; no new workflow state, setup or contract is required. Use the bundled [workflow CLI](scripts/project_workflow.py) when continuing selected work or when persistent evidence/reuse is needed, with exact input contracts in [workflow obligations](references/workflow-obligations.md). These commands are alternatives, not a required sequence; a lookup-only request never calls `start`:
 
 ```text
 python <skill>/scripts/project_workflow.py start --root <project> --intent <intent> --target <feature> --request-summary <outcome> --outcome-ref <existing-requirement-file>
@@ -32,9 +32,9 @@ python <skill>/scripts/project_workflow.py lookup --root <project> --state <exac
 
 `start` creates work; `connect` selects it. `--state` accepts a relative path or an absolute path within that project's `.work`; registry paths remain relative. Use the returned `task_context` through inherited `AGENT_WORKFLOW_CONTEXT` or `--context`. Harness work uses `--work-id`. Never guess among task candidates. For a related new request, `start` with prior context carries feedback/results and captures a new baseline and request.
 
-Then use `prepare`, explicit `execute`, `review`, `feedback`, read-only `lookup`/task `resume` with the same selector. `execute --resume` is an explicit effect: completed checkpoints are reused, unknown launches are never replayed. A stale write must be reread and explicitly reapplied, not blindly retried.
+For selected workflow work, use only the needed `prepare`, explicit `execute`, `review`, `feedback`, or read-only `lookup`/task `resume` with the same selector. `execute --resume` is an explicit effect: completed checkpoints are reused, unknown launches are never replayed. A stale write must be reread and explicitly reapplied, not blindly retried.
 
-Unconfigured investigations use `start --intent diagnose --request-summary <request> --investigation <observations.json>`; later `investigate` updates that record. Missing observations remain INCOMPLETE. Preserve permissions, stable scope IDs, source/runtime observation methods and unknowns. Do not force setup, `feedback` or Feature review onto an unconfigured diagnosis.
+When an unconfigured investigation needs a persistent record, use `start --intent diagnose --request-summary <request> --investigation <observations.json>`; later `investigate` updates that record. Otherwise a concise evidence report is enough. Missing observations remain INCOMPLETE. Preserve permissions, stable scope IDs, source/runtime observation methods and unknowns. Do not force setup, `feedback` or Feature review onto an unconfigured diagnosis.
 
 For registered native JSON, use the [verification CLI](scripts/verification_results.py) and [execution contract](references/result-viewer.md): prepare measured bindings, execute selected commands once, then read the resulting bundle. A project-owned unittest or other native adapter remains its own producer/parser. Reuse it and its pending-task selector; do not invent native JSON, shell metadata collectors or a second generic runner. Without compatible binding, report bounded native evidence and the binding gap.
 
@@ -50,7 +50,7 @@ For non-ASCII text or programs sent to native stdin on Windows, save a UTF-8 fil
 
 ## Improve and explain
 
-Register feedback before repair and complete the same record with actual cause/owner and mechanism-appropriate evidence. Prefer structure, then type/constraint, then an automatic check, then minimal documentation. The [repair contract](references/repair-and-reuse.md) distinguishes fixed-oracle regression from reviewed structural prevention. Neither a rule sentence nor RESOLVED alone proves repair.
+For connected feedback work, register feedback before repair and complete the same record with actual cause/owner and mechanism-appropriate evidence. A direct small repair can retain the failure, cause and verification in its existing task report without creating workflow state. Prefer structure, then type/constraint, then an automatic check, then minimal documentation. The [repair contract](references/repair-and-reuse.md) distinguishes fixed-oracle regression from reviewed structural prevention. Neither a rule sentence nor RESOLVED alone proves repair.
 
 For guide work, read the project's prerequisites, user action, expected result, owner paths, existing command, failure diagnosis and cleanup. Code owns values/behavior; guides own intent and use. Execute the guide and fix the responsible owner. Evaluate guide reuse on a different related request, with a fresh context only when discovery is uncertain. Record hints/assistance; an answer patch, token name or CLI sequence supplied to the consumer is not unaided discovery.
 

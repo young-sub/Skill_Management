@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/project-verification.md -->
-<!-- Source-SHA256: d0c1150269e147d682e6b9d2f5d5fec61e35c546ac837cb02aed15ad899e1e77 -->
+<!-- Source-SHA256: 56ef31411038a1c7df05eafb9be6ef58734921261be157f958d09c487f47c891 -->
 
 # Project verification responsibilities
 
@@ -20,10 +20,11 @@ accessibility expectations to those owners; these details remain project-specifi
 Audit reports missing guides/owners, removed consumers and broken exception refs.
 Shared source/reference changes reopen affected consumers' map/UI review and
 verification; preparation binds their actual shared input files too. If a guide
-is missing, the Agent creates it from the project's existing intent and code,
+is missing during authorized setup or repair, the Agent creates it from the project's existing intent and code,
 then re-audits the same connection. The CLI does not generate visual design or
 decide whether a discrepancy is intentional. Removed systems and Features need
 reconciliation through the existing retirement path; past result bundles stay intact.
+An audit-only request reports the missing guide without writing it or launching checks.
 
 Use existing requirement documents and user decisions as the expected outcome. A Feature connects ID/name, user action/result, invariant, FE, BE/API, Domain, data side effects, executable checks and the requirement source/revision. Non-applicable layers need a reason. Commands stay in the existing project registry; the map references them instead of duplicating argv.
 

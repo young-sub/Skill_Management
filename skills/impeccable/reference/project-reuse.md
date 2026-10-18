@@ -1,10 +1,16 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/repair-and-reuse.md -->
-<!-- Source-SHA256: 3fcd5003e50922c255eac4227a30e1cdf4beaba7d264aabdc9c1212ebf57d598 -->
+<!-- Source-SHA256: 5971d06133786c19536dae6c382f362a05247b26b2b4de02528bf33a78a9f6e7 -->
 
 # Repair and subsequent reuse
 
 ## Persist the feedback chain in existing work state
+
+This persistence protocol applies to connected feedback work. A direct small
+repair or one-off diagnosis can use its existing report; do not create workflow
+state or run setup solely to register feedback. Preserve actual failure, cause,
+owner and verification evidence in either path. Existing connected obligations
+still apply; selecting a direct path cannot discard an open record.
 
 With a connected invocation, `feedback --feedback <entry.json>` updates that
 task directly; `review`, `maintain`, `lookup` and `resume` use the same selector.
@@ -12,7 +18,7 @@ For a subsequent related request, `start` with that context carries the existing
 feedback/results into fresh work. Read-only `resume` restores the prior decision
 and remaining stages without executing reproduction text or repairing code.
 
-Use `project_workflow.py begin --root <project> --intent feedback --target <feature>
+If a new connected feedback task is needed, use `project_workflow.py begin --root <project> --intent feedback --target <feature>
 --state .work/task.json`, then `feedback --root <project> --state .work/task.json
 --feedback <entry.json>`. Register `id`, `feature`, `observed`, `expected` and
 `reproduction` first. Later updates with the same ID merge into that record; audit
