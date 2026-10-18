@@ -4,10 +4,12 @@ description: Audit and repair drift in a project's Feature Map, executable verif
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/maintain-project-verification/SKILL.md -->
-<!-- Source-SHA256: 4840279644e5c69b1f3f048a1cd97e3bd0bc4b4b021b60939406120b6c006682 -->
+<!-- Source-SHA256: c10c8c5294cc1ec4ae656b37933a0b97c9c7756c3554ab3165cdd03fb1d06f70 -->
 
 
 # Maintain Project Verification
+
+Use [task verification](references/project-verification.md#task-verification) to check whether the requested feature, bug fix or refactoring still has the right observations. Repair only missing or conflicting links for actual business/architecture impact; retain relevant semantic reviews and normal/failure connected-flow checks alongside layer tests.
 
 Read [shared verification responsibilities](references/project-verification.md). Start from the requested scope, changed callers, requirements and actual evidence. Reuse setup/current work's investigation; do not repeat a project inventory or rerun valid observations solely for another Skill.
 

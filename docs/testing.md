@@ -40,6 +40,8 @@ Run `sync-skill-resources.ps1` without `-Check` after canonical edits. For cross
 
 ## Execution, lookup and preservation
 
+For feature, bug-fix and refactoring tasks, select the applicable [task criteria](../authoring/references/project-verification.md#task-verification) before execution. The [stage 1 consumption record](research/stage1-task-verification-results.md) reuses stage 0 tasks and the existing connected-product runner; instruction routing needs actual consumption, while package/link checks establish distribution only. Connected changes retain both normal persistence/reload and rejected-write readback, independently of layer test results.
+
 Use [Feature Map](feature-map.md) and the existing registered command/adapter. `scripts/run_check.py --cwd <project> --output <new-capture.json> -- <argv>` captures finite foreground execution, source identity, stdout/stderr, native exit and cleanup. A new `--json-report` binds the real runner report. Never start detached services through this capture. Running captures are unfinished invocations: wait on their owner and inspect the same path. Unknown launches are not replayable.
 
 The [result viewer contract](../authoring/references/result-viewer.md) owns native JSON prepare/execute/bundle lookup. [Workflow obligations](../authoring/references/workflow-obligations.md) owns start/connect, absolute in-project task selectors and read-only audit/lookup/resume. Reuse these commands; do not add another runner or parser. Lookup executes zero product commands and preserves state/raw. A completed checkpoint preserves already executed effects.

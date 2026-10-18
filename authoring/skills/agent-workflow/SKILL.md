@@ -10,7 +10,7 @@ Understand the request and authorized scope, then discover existing project crit
 | Request | Bounded responsibility |
 | --- | --- |
 | Initial verification connection | `setup-project-verification`: map the agreed scope and connect existing commands. Whole-map PARTIAL does not block independent scoped work. |
-| Implement/change | Existing development flow and touched callers. Connect only a missing verification path; small work needs no contract or full-project setup. |
+| Implement/change | Existing development flow and touched callers; select the feature, bug-fix or refactoring observations in [task verification](references/project-verification.md#task-verification). Connect only a missing verification path; small work needs no contract or full-project setup. |
 | Verify | Project guide/adapter and the affected actual user flow. Select from behavior and risk; inspect raw outcomes. |
 | Investigate | Existing task can retain read-only observations without workflow setup. Unknown observations stay unknown. |
 | Show results | Connect/read existing work. No tests, repairs, services or new task. |
@@ -18,7 +18,7 @@ Understand the request and authorized scope, then discover existing project crit
 | Feedback | Existing `diagnose`: actual caller/state/data flow, cause owner, focused repair and appropriate prevention. |
 | UI standards | Discover Feature UI references and registered UI systems before proposing changes; reuse shared token/component owners and relevant UI capability. |
 
-For setup/verification/maintenance read [project verification](references/project-verification.md). For feedback/UI read [repair and reuse](references/repair-and-reuse.md). Missing optional capabilities use existing project commands; never count missing checks as passed or turn the task into a tooling installation.
+For implementation/verification, select only the applicable task and impact guidance in [project verification](references/project-verification.md); setup/maintenance use the same criteria. For feedback/UI read [repair and reuse](references/repair-and-reuse.md). Missing optional capabilities use existing project commands; never count missing checks as passed or turn the task into a tooling installation.
 
 ## Select and execute existing work
 

@@ -8,6 +8,7 @@ Read applicable AGENTS and `.harness/project.yaml` first. Load ignored `.harness
 
 - [Current design](research/agent-coding-system-direction.md): six outcomes, user flow, ownership and completion boundaries. This is the design authority.
 - [Improvement roadmap](research/agentic-coding-improvement-roadmap.md): staged pstack adoption and evidence-based promotion; [stage 0 compatibility and baselines](research/stage0-compatibility-results.md) records scoped implementation and its limits.
+  [Stage 1 task verification](research/stage1-task-verification-results.md) records task-specific routing, connected-flow observations and preserved lookup boundaries.
 - [Current execution instructions](research/plugin-continuous-improvement-next-session.md): improve from observed gaps, without reopening completed work.
 - [System](system.md), [architecture](architecture/harness.md), [domain ownership](agents/domain.md): runtime and source boundaries.
 - [Feature Map](feature-map.md): user functions, owners and executable checks.

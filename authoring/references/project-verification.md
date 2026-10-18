@@ -2,7 +2,21 @@
 
 The project owns business requirements, invariants, Feature Map, UI implementation and runner interpretation. Shared tools capture execution and link evidence. Skills select work; neither a registry row nor a PASS string executes it.
 
+## Task verification
+
+Before editing or running checks, derive the expected behavior and failure verdict from the request and existing requirements. Identify the affected Feature and actual owners/callers, then select the applicable observations below. Mixed changes use the relevant criteria together; these are not new workflow modes or mandatory records.
+
+| Task | Select and observe |
+| --- | --- |
+| New feature | Completion conditions and meaningful failure cases, including affected boundary/rejection and state effects. Observe the requested user result, not just successful execution. |
+| Bug fix | Reproduce where feasible, trace the actual caller/data flow to the cause owner, repair there, and confirm the original failure plus nearby valid behavior and relevant regressions. When reproduction is unavailable, retain that limit and the alternative evidence; do not invent RED. Use the existing repair reference for connected feedback. |
+| Refactoring | Identify the public behavior, callers and contracts to preserve before editing; compare equivalent baseline and changed observations, including relevant errors and side effects. A changed requirement is a behavior change and needs its own criteria. |
+
+Reuse adequate existing checks and still-valid evidence. A tiny descriptive edit can use readback/diff alone. Lookup executes no product commands; source-only diagnosis keeps runtime behavior unknown. None of these tasks inherently requires setup, a contract, RED, six scope declarations or Full.
+
 ## Criteria and change impact
+
+Select executable checks and semantic review from actual business-rule and architecture impact in FE, API and Domain. Business review asks whether user outcomes, permission/input contracts and policy/state invariants satisfy requirements. Architecture review follows touched UI state/component owners, API validation/dependencies/transaction boundaries and Domain rule/type/module owners. Use the existing Feature/check/review connections; passing checks do not substitute for an applicable ownership or contract review. Explain relevant exclusions separately from unavailable observations, without filling unrelated cells.
 
 In configured projects, shared UI ownership belongs in optional
 `extensions.workflow.ui_systems`, keyed by system ID. Each system declares
@@ -28,7 +42,7 @@ Trace actual callers and data: external input → parsing/validation → typed d
 
 | Change | Required relevant observation |
 | --- | --- |
-| FE input/serialization/save/display or cross-layer contract | UI → API → persistence → fresh read/reload. Separate layer passes cannot replace this flow. |
+| FE input/serialization/save/display or cross-layer contract | Input → API → Domain → persistence → fresh read/reload, through the affected entrypoint. Observe normal and meaningful failure paths with linked input/response IDs and saved/read values; rejected writes must preserve data or show the required rollback on fresh read. Separate layer passes cannot replace this flow. |
 | Domain calculation/state | Deterministic normal, boundary and rejection cases; add caller/flow checks when the external contract changes. |
 | Access/transaction/failure | Allow/deny, preserved data or rollback/readback and affected user state. Unavailable real credentials remain BLOCKED. |
 | UI/shared component | Actual affected desktop/mobile, keyboard/focus and relevant loading/empty/error states. Saving requires readback; unrelated persistence can be excluded with reason. |
@@ -45,6 +59,8 @@ Reuse project adapters and direct CLI/CI. `run_check.py` captures a finite foreg
 One valid execution may support several claims; point to it rather than copying raw into multiple records. Do not rerun unchanged checks to fill a template. Revalidate source, requirements, commands, dependency/fixture/runtime conditions before reusing evidence. Tool records are editable consistency evidence, not signed attestation or Agent identity proof.
 
 ## Read-only results
+
+Explain request/expected behavior → affected Feature and owner → check/review selection reason → actual observation and raw pointer → current validity → unverified scope and next action. Reuse the existing handoff/lookup and project adapter; this explanation needs no new report schema. Distinguish executed observations from semantic review, assisted consumption from unaided discovery, and fixture/package/product/native-host evidence. Retain failed, interrupted, retried and unexecuted attempts rather than counting them as success.
 
 Show original execution/judgment separately from current reusable/stale/unverifiable status. Read the referenced raw and its actual assertion/observation; missing/expired raw remains unavailable even if an old summary says PASS. Changed or missing relevant condition identity prevents current PASS. Never execute commands contained in an old record during lookup.
 

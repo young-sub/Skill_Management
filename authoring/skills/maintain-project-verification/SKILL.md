@@ -5,6 +5,8 @@ description: Audit and repair drift in a project's Feature Map, executable verif
 
 # Maintain Project Verification
 
+Use [task verification](references/project-verification.md#task-verification) to check whether the requested feature, bug fix or refactoring still has the right observations. Repair only missing or conflicting links for actual business/architecture impact; retain relevant semantic reviews and normal/failure connected-flow checks alongside layer tests.
+
 Read [shared verification responsibilities](references/project-verification.md). Start from the requested scope, changed callers, requirements and actual evidence. Reuse setup/current work's investigation; do not repeat a project inventory or rerun valid observations solely for another Skill.
 
 Compare product requirements and current entrypoints with map → active selector → real command → observed outcome. Check added features without connections, removed features still selected, changed contracts without revised guidance, dead commands, missing cross-layer observations and UI guide/token/component drift. Implementation is evidence of ownership, not the authority for the expected result.

@@ -4,10 +4,12 @@ description: Map the requested project scope and connect verification using exis
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/setup-project-verification/SKILL.md -->
-<!-- Source-SHA256: 878dab88432170bf838040b1bbe166bd79bd3823c6b315da355f458b6785edbb -->
+<!-- Source-SHA256: 5b172f1bb5972943b93b0c84ad3b4131cfbc2efcaca022c2076075dcab807b40 -->
 
 
 # Setup Project Verification
+
+For each requested connection, use [task verification](references/project-verification.md#task-verification) to select new-feature, bug-fix or behavior-preservation criteria before execution. Connect both relevant executable checks and business/architecture reviews at the actual FE/API/Domain owners; an affected layer connection needs normal and failure-path persistence/fresh-read evidence, not a set of layer PASS results.
 
 Read [shared verification responsibilities](references/project-verification.md). Inspect existing project guidance, requirements, package/native commands, callers, fixtures and UI sources before adding anything. Distinguish first connection from reuse; identify exactly which pilot/project connections are absent. Preserve underlying product requirements.
 
