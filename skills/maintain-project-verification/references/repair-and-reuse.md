@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/repair-and-reuse.md -->
-<!-- Source-SHA256: 5971d06133786c19536dae6c382f362a05247b26b2b4de02528bf33a78a9f6e7 -->
+<!-- Source-SHA256: 04f8879268dc145c2e5fb85605369fd26c1e49dbd5ffac1c98d295ac53326bab -->
 
 # Repair and subsequent reuse
 
@@ -175,7 +175,43 @@ Use expected outcome → reproduced observation → actual caller/state/data flo
 
 Documentation alone does not repair a code defect. Do not soften expected values, assertions, skip lists or visual baselines. For a controlled fault, label it synthetic and isolate it from the original product. Keep the oracle fixed across RED/GREEN; if the oracle itself is wrong, preserve that finding and independently justify the correction.
 
-For UI, inspect existing design intent, references, token and component owners, responsive behavior and relevant states. Guide owns intent and source references; code owns token values and implementation. Repair repetition at the shared owner and verify real interaction, not screenshot existence. Do not convert animation timing or observation failure into a product patch.
+## UI discovery and comparison
+
+Start at the project's AGENTS/index and affected Feature's UI guide or registered
+UI system. Follow its references to the actual token, component and state owners
+and their other consumers before editing. If unregistered, follow existing imports
+and styles directly; a small change needs no setup or new design system. A guide
+links intent, relevant empty/loading/error/success states, responsive behavior and
+keyboard/focus expectations to those owners. Code owns values and behavior; do not
+copy token values or implementation into a second guide. Missing guidance is a
+discovery/guide repair, not permission to replace the incumbent design.
+
+Discover available capabilities by name: `impeccable` for design intent and visual
+hierarchy, `fixing-accessibility` for semantics, keyboard/focus and form errors,
+`vercel-react-best-practices` for affected React/Next.js rendering, fetching and
+performance. Read only relevant rules. These complement the project's criteria;
+none replaces the existing design or requires framework conversion, installation,
+or a whole-project audit. If absent, use existing project tools and report the gap.
+
+Before visual execution, name the intended difference and what must remain stable.
+Compare the same route, viewport, theme, data and interaction state, pinning the
+baseline source and served candidate. Capture relevant desktop/narrow views and
+focus/state transitions using the existing browser path. Inspect the images and
+interaction observations: screenshot existence or pixel difference alone is not
+a verdict. Classify each material discrepancy as intended scope, requirement
+violation, observation/environment error or unresolved. An intended difference
+needs the request/decision and owner reference; never regenerate a golden merely
+to hide a failure. Unrelated layout, contrast, focus or state regressions still fail.
+For connected feedback use the existing explicit decision binding above; a direct
+small task can record this comparison in its report without creating workflow state.
+
+Repair repeated inconsistency at its shared owner and check the affected consumers.
+Saving or changed serialization requires the actual saved value and fresh read;
+pure styling can exclude persistence only with an impact reason. Do not convert
+animation timing or observation failure into a product patch. After guide/observer
+repair, run the same defect and a nearby valid or intentional variant with unchanged
+behavioral criteria. Retain the original failed/missed observation and explain any
+oracle correction independently. Do not silently weaken assertions or skip states.
 
 Make updated criteria/shared implementation discoverable through existing project guidance. Verify reuse with a subsequent fresh-context request when claiming that benefit; do not supply the prior patch or long implementation instructions. Record the actual installed resource path, context/host, user request, tool execution, diff and run/raw references. A source edit or installation manifest alone proves neither discovery nor improved Agent behavior.
 

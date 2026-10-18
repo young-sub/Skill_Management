@@ -13,6 +13,13 @@ Comprehensive performance optimization guide for React and Next.js applications,
 
 ## When to Apply
 
+First discover the affected Feature's UI guide and existing token/component/state
+owners. Use available `agent-workflow` for project-standard reuse, `impeccable` for
+design and `fixing-accessibility` for interaction impact. Select only relevant
+performance rules; preserve the project's visual, responsive, keyboard and state
+contracts. Verify affected loading/error transitions and saved-data fresh reads
+when changing fetching or state. A performance refactor does not authorize redesign.
+
 Reference these guidelines when:
 - Writing new React components or Next.js pages
 - Implementing data fetching (client or server-side)

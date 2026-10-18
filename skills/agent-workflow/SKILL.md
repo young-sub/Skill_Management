@@ -4,7 +4,7 @@ description: Coordinate a coding task through relevant project capabilities, act
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: ec12d168ea4e7e58f118c45435185d3ce7491d48d82ae9cd42be28cbb70909c4 -->
+<!-- Source-SHA256: 4289235f66597c6c21ea4c3b5e8526061fd5d95bcc839f9c3f6af4cce7511d48 -->
 
 
 # Agent Workflow
@@ -21,7 +21,7 @@ Understand the request and authorized scope, then discover existing project crit
 | Maintain | `maintain-project-verification`; also `maintain-agent-harness` only for affected Harness mapping/cohort/retention. |
 | Feedback | Existing `diagnose`: actual caller/state/data flow, cause owner, focused repair and appropriate prevention. |
 | Keep this approach / make it repeatable | [Feedback and success reuse](references/feedback-and-success.md): classify the signal, improve the existing owner or discovery, and extract only the context needed for the next invocation. |
-| UI standards | Discover Feature UI references and registered UI systems before proposing changes; reuse shared token/component owners and relevant UI capability. |
+| UI standards / visual comparison | Discover Feature UI references and registered UI systems, then follow [UI discovery and comparison](references/repair-and-reuse.md#ui-discovery-and-comparison). Select `impeccable` for design, `fixing-accessibility` for interaction/accessibility and `vercel-react-best-practices` only for React/Next.js impact. |
 
 For implementation/verification, select only the applicable task and impact guidance in [project verification](references/project-verification.md); setup/maintenance use the same criteria. For feedback/UI read [repair and reuse](references/repair-and-reuse.md). Missing optional capabilities use existing project commands; never count missing checks as passed or turn the task into a tooling installation.
 

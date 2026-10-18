@@ -40,6 +40,15 @@ Run `sync-skill-resources.ps1` without `-Check` after canonical edits. For cross
 
 ## Execution, lookup and preservation
 
+For UI guide reuse, use the existing
+[comparison procedure](../authoring/references/repair-and-reuse.md#ui-discovery-and-comparison)
+and [guide execution steps](../authoring/references/project-verification.md#execute-and-repair-the-existing-guide).
+The connected-product fixture exercises its project-owned guide and observer;
+keep intentional visual variants separate from injected regressions and inspect
+the screenshots as well as keyboard/state/save observations. Fresh-context reuse
+records the short request, discovered owners, assistance and actual run; package
+checks alone cannot establish discovery. See the [stage 3 results](research/stage3-ui-guide-reuse-results.md).
+
 For human corrections and success extraction, use the
 [feedback/success procedure](../authoring/references/feedback-and-success.md).
 Before consumption define failure/bypass/nearby-normal and new-context output

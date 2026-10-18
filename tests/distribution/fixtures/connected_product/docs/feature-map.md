@@ -11,4 +11,4 @@ The feature crosses these owned paths:
 - Domain: domain.py owns the quantity rule used by the API.
 - Storage: app.py writes SQLite rows guarded by a database constraint.
 
-The connected-product-full-stack check drives the real screens and checks actual API responses, stored rows, restart, and fresh browser read. Architecture scope still needs an Agent review.
+The connected-product-full-stack check drives both screens and checks keyboard submission, loading/empty/error/success states, responsive layout at 1280px and 390px, shared navigation/focus/target sizing, actual API responses, stored rows, restart, and fresh browser read. Architecture scope still needs an Agent review.

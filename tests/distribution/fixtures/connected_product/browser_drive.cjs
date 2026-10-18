@@ -24,13 +24,26 @@ async function quantitiesOnPage(page) {
   );
 }
 
+async function layoutObservation(page) {
+  return page.evaluate(() => ({
+    viewport_width: window.innerWidth,
+    document_width: document.documentElement.scrollWidth,
+    no_horizontal_overflow: document.documentElement.scrollWidth <= window.innerWidth,
+    navigation_visible: Boolean(document.querySelector("nav")?.getClientRects().length),
+    main_visible: Boolean(document.querySelector("#main-content")?.getClientRects().length),
+  }));
+}
+
 async function sharedUiObservation(page) {
   await page.evaluate(() => {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    document.body.setAttribute("tabindex", "-1");
+    document.body.focus();
     window.scrollTo(0, 0);
   });
   await page.keyboard.press("Tab");
   return page.evaluate(() => {
+    document.body.removeAttribute("tabindex");
     const nav = document.querySelector(".site-nav");
     const active = document.activeElement;
     const navStyle = getComputedStyle(nav);
@@ -43,10 +56,12 @@ async function sharedUiObservation(page) {
         height_px: Math.round(element.getBoundingClientRect().height * 100) / 100,
       }))
     );
+    const controlSize = getComputedStyle(document.documentElement)
+      .getPropertyValue("--control-size").trim();
     return {
       viewport_width: window.innerWidth,
-      control_size_token: getComputedStyle(document.documentElement)
-        .getPropertyValue("--control-size").trim(),
+      control_size_token: controlSize,
+      control_size_px: Number.parseFloat(controlSize),
       navigation: {
         padding: navStyle.padding,
         background_color: navStyle.backgroundColor,
@@ -70,8 +85,11 @@ async function main() {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page = await context.newPage();
   const artifacts = {
-    entry_screenshot: path.join(reportDir, "entry-390.png"),
-    history_screenshot: path.join(reportDir, "history-390.png"),
+    entry_desktop_screenshot: path.join(reportDir, "entry-1280.png"),
+    entry_mobile_screenshot: path.join(reportDir, "entry-390.png"),
+    history_desktop_screenshot: path.join(reportDir, "history-1280.png"),
+    history_mobile_screenshot: path.join(reportDir, "history-390.png"),
+    history_mobile_after_restart_screenshot: path.join(reportDir, "history-390-after-restart.png"),
     trace: path.join(reportDir, "browser-trace.zip"),
   };
   const observations = {
@@ -79,7 +97,8 @@ async function main() {
     history_before_restart: null,
     history_after_restart: null,
     responsive: {},
-    shared_ui: {},
+    shared_ui: { desktop: {}, mobile: {} },
+    states: {},
   };
   await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
   page.on("response", (response) => {
@@ -95,6 +114,65 @@ async function main() {
       });
     })());
   });
+
+  let releaseEmptyRead;
+  const emptyReadGate = new Promise((resolve) => { releaseEmptyRead = resolve; });
+  const delayedEmptyRead = async (route) => {
+    const response = await route.fetch();
+    await emptyReadGate;
+    await route.fulfill({ response });
+  };
+  await page.route("**/api/items", delayedEmptyRead);
+  await page.goto(baseUrl + "/history", { waitUntil: "domcontentloaded" });
+  await page.waitForFunction(() => {
+    const state = document.querySelector("#history-state");
+    const list = document.querySelector("#history-items");
+    return state?.textContent.startsWith("Loading saved items") && list?.dataset.loaded === "false";
+  });
+  observations.states.history_loading = await page.evaluate(() => ({
+    text: document.querySelector("#history-state").textContent,
+    loaded: document.querySelector("#history-items").dataset.loaded,
+  }));
+  releaseEmptyRead();
+  const emptyItems = await quantitiesOnPage(page);
+  observations.states.history_empty = await page.evaluate(() => ({
+    text: document.querySelector("#history-state").textContent,
+    loaded: document.querySelector("#history-items").dataset.loaded,
+  }));
+  observations.states.history_empty.items = emptyItems;
+  await page.unroute("**/api/items", delayedEmptyRead);
+  const emptyStatePassed = observations.states.history_loading.text.startsWith("Loading saved items") &&
+    observations.states.history_loading.loaded === "false" &&
+    observations.states.history_empty.text === "No saved items yet." &&
+    observations.states.history_empty.loaded === "true" && emptyItems.length === 0;
+  check("history_empty_and_loading_states", {
+    loading: { text: "Loading saved items", loaded: "false" },
+    empty: { text: "No saved items yet.", loaded: "true", items: [] },
+  }, {
+    loading: observations.states.history_loading,
+    empty: observations.states.history_empty,
+  }, emptyStatePassed);
+
+  const failedHistoryRead = (route) => route.fulfill({
+    status: 503,
+    contentType: "application/json",
+    body: JSON.stringify({ error: "Controlled history read failure" }),
+  });
+  await page.route("**/api/items", failedHistoryRead);
+  await page.goto(baseUrl + "/history", { waitUntil: "networkidle" });
+  await page.waitForFunction(() => document.querySelector("#history-items")?.dataset.loaded === "error");
+  observations.states.history_error = await page.evaluate(() => ({
+    text: document.querySelector("#history-state").textContent,
+    loaded: document.querySelector("#history-items").dataset.loaded,
+    role: document.querySelector("#history-state").getAttribute("role"),
+  }));
+  await page.unroute("**/api/items", failedHistoryRead);
+  const historyErrorPassed = observations.states.history_error.text ===
+    "Could not load history: Controlled history read failure" &&
+    observations.states.history_error.loaded === "error" && observations.states.history_error.role === "status";
+  check("history_read_error_state", {
+    text: "Could not load history: Controlled history read failure", loaded: "error", role: "status",
+  }, observations.states.history_error, historyErrorPassed);
 
   await page.goto(baseUrl + "/", { waitUntil: "networkidle" });
   const semantics = await page.evaluate(() => ({
@@ -121,32 +199,52 @@ async function main() {
   const expectedTabOrder = ["nav-add", "nav-history", "quantity", "save-quantity"];
   const keyboardNavigationPassed = JSON.stringify(tabOrder) === JSON.stringify(expectedTabOrder);
   let savedByKeyboard = false;
+  let savePending = null;
+  let releaseSaveResponse;
+  const saveResponseGate = new Promise((resolve) => { releaseSaveResponse = resolve; });
+  const delayedSave = async (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    const response = await route.fetch();
+    await saveResponseGate;
+    await route.fulfill({ response });
+  };
+  await page.route("**/api/items", delayedSave);
   if (tabOrder[2] === "quantity" && tabOrder[3] === "save-quantity") {
     await page.keyboard.press("Shift+Tab");
     const quantityFocused = await page.evaluate(() => document.activeElement.id === "quantity");
-    await page.keyboard.type("2");
-    await page.keyboard.press("Tab");
-    const submitFocused = await page.evaluate(() => document.activeElement.id === "save-quantity");
-    if (quantityFocused && submitFocused) {
-      await page.keyboard.press("Enter");
-      savedByKeyboard = true;
-    }
+      await page.keyboard.type("2");
+      await page.keyboard.press("Tab");
+      const submitFocused = await page.evaluate(() => document.activeElement.id === "save-quantity");
+      if (quantityFocused && submitFocused) {
+        await page.keyboard.press("Enter");
+        savedByKeyboard = true;
+      }
   } else {
     await page.locator("#quantity").fill("2");
     await page.locator("#save-quantity").click();
   }
+  await page.waitForFunction(() => document.querySelector("#status-message")?.dataset.state === "pending");
+  savePending = await page.evaluate(() => ({
+    state: document.querySelector("#status-message").dataset.state,
+    text: document.querySelector("#status-message").textContent,
+  }));
+  releaseSaveResponse();
   await page.waitForFunction(() => document.querySelector("#status-message")?.dataset.state === "success");
+  await page.unroute("**/api/items", delayedSave);
   await Promise.all(responseTasks);
   const positiveText = await page.locator("#status-message").innerText();
   observations.keyboard.saved_by_keyboard = savedByKeyboard;
-  check("keyboard_submit", { order: expectedTabOrder, saved_by_keyboard: true },
-    { order: tabOrder, saved_by_keyboard: savedByKeyboard },
-    keyboardNavigationPassed && savedByKeyboard);
+  observations.states.save_pending = savePending;
+  check("keyboard_submit", {
+    order: expectedTabOrder, saved_by_keyboard: true, pending_state: "pending", pending_text: "Saving…",
+  }, { order: tabOrder, saved_by_keyboard: savedByKeyboard, save_pending: savePending },
+  keyboardNavigationPassed && savedByKeyboard && savePending.state === "pending" &&
+    savePending.text.startsWith("Saving"));
   const positiveResponse = apiResponses.find((entry) =>
     entry.method === "POST" && entry.status === 201 && entry.response_body?.quantity === 2);
-  const positiveMatch = Boolean(positiveResponse);
-  check("positive_quantity_api_save", { status: 201, quantity: 2 },
-    { status_message: positiveText, api_response: positiveResponse || null }, positiveMatch);
+  const positiveMatch = Boolean(positiveResponse) && positiveText.startsWith("Saved quantity 2");
+  check("positive_quantity_api_save", { status: 201, quantity: 2, state: "success" },
+    { status: 201, state: "success", status_message: positiveText, api_response: positiveResponse || null }, positiveMatch);
 
   await page.locator("#quantity").fill("-1");
   await page.keyboard.press("Enter");
@@ -156,10 +254,12 @@ async function main() {
   const negativeResponse = apiResponses.find((entry) =>
     entry.method === "POST" && entry.request_body === "{\"quantity\":-1}");
   const negativeMatch = Boolean(negativeResponse && negativeResponse.status === 422 &&
-    negativeResponse.response_body?.error === "Quantity cannot be negative");
+    negativeResponse.response_body?.error === "Quantity cannot be negative") &&
+    (await page.locator("#status-message").getAttribute("data-state")) === "error" &&
+    negativeText === "Rejected: Quantity cannot be negative";
   check("negative_quantity_rejected_by_domain", {
-    status: 422, error: "Quantity cannot be negative", persisted: false,
-  }, { status_message: negativeText, api_response: negativeResponse || null }, negativeMatch);
+    status: 422, error: "Quantity cannot be negative", persisted: false, state: "error",
+  }, { status_message: negativeText, state: "error", api_response: negativeResponse || null }, negativeMatch);
 
   await page.locator("#quantity").fill("0");
   await page.keyboard.press("Enter");
@@ -174,51 +274,84 @@ async function main() {
     { status_message: zeroText, api_response: zeroResponse || null }, zeroMatch);
 
   await page.goto(baseUrl + "/", { waitUntil: "networkidle" });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  observations.shared_ui.desktop.entry = await sharedUiObservation(page);
+  observations.responsive.desktop = { entry: await layoutObservation(page) };
+  await page.screenshot({ path: artifacts.entry_desktop_screenshot, fullPage: true });
+  await page.goto(baseUrl + "/history", { waitUntil: "networkidle" });
+  observations.shared_ui.desktop.history = await sharedUiObservation(page);
+  observations.responsive.desktop.history = await layoutObservation(page);
+  await page.screenshot({ path: artifacts.history_desktop_screenshot, fullPage: true });
+
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.waitForTimeout(150);
-  observations.shared_ui.entry = await sharedUiObservation(page);
-  await page.screenshot({ path: artifacts.entry_screenshot, fullPage: true });
+  observations.shared_ui.mobile.history = await sharedUiObservation(page);
+  observations.responsive.mobile = { history: await layoutObservation(page) };
+  await page.screenshot({ path: artifacts.history_mobile_screenshot, fullPage: true });
+  await page.goto(baseUrl + "/", { waitUntil: "networkidle" });
+  observations.shared_ui.mobile.entry = await sharedUiObservation(page);
+  observations.responsive.mobile.entry = await layoutObservation(page);
+  await page.screenshot({ path: artifacts.entry_mobile_screenshot, fullPage: true });
+
   await page.goto(baseUrl + "/history", { waitUntil: "networkidle" });
   observations.history_before_restart = await quantitiesOnPage(page);
+  observations.states.history_populated = await page.evaluate(() => ({
+    text: document.querySelector("#history-state").textContent,
+    loaded: document.querySelector("#history-items").dataset.loaded,
+  }));
   check("history_fresh_read_before_restart", [2, 0], observations.history_before_restart,
-    JSON.stringify(observations.history_before_restart) === "[2,0]");
-  observations.shared_ui.history = await sharedUiObservation(page);
-  const entryUi = observations.shared_ui.entry;
-  const historyUi = observations.shared_ui.history;
+    JSON.stringify(observations.history_before_restart) === "[2,0]" &&
+    observations.states.history_populated.text === "2 saved items" &&
+    observations.states.history_populated.loaded === "true");
+
   const focusIsVisible = (focus) =>
     focus.element_id === "nav-add" && focus.focus_visible &&
     focus.outline_style === "solid" && focus.outline_width_px >= 2 &&
     focus.outline_color !== "rgba(0, 0, 0, 0)";
-  const targetsMeetMinimum = (route) =>
-    route.viewport_width === 390 && route.targets.length > 0 &&
-    route.targets.every((target) => target.height_px >= 44);
-  const uiParityPassed =
-    entryUi.control_size_token === "44px" && historyUi.control_size_token === "44px" &&
-    entryUi.navigation.padding === historyUi.navigation.padding &&
-    entryUi.navigation.background_color === historyUi.navigation.background_color &&
-    JSON.stringify(entryUi.keyboard_focus) === JSON.stringify(historyUi.keyboard_focus) &&
-    focusIsVisible(entryUi.keyboard_focus) && focusIsVisible(historyUi.keyboard_focus) &&
-    targetsMeetMinimum(entryUi) && targetsMeetMinimum(historyUi);
+  const targetsMeetToken = (route) => Number.isFinite(route.control_size_px) &&
+    route.control_size_px >= 44 && route.targets.length > 0 &&
+    route.targets.every((target) => target.height_px >= Math.max(44, route.control_size_px));
+  const routesMatch = (view, field) => {
+    const { entry, history } = observations.shared_ui[view];
+    return field(entry) === field(history);
+  };
+  const allScreens = [
+    observations.shared_ui.desktop.entry, observations.shared_ui.desktop.history,
+    observations.shared_ui.mobile.entry, observations.shared_ui.mobile.history,
+  ];
+  const allLayouts = [
+    observations.responsive.desktop.entry, observations.responsive.desktop.history,
+    observations.responsive.mobile.entry, observations.responsive.mobile.history,
+  ];
+  const focusVisibleEverywhere = allScreens.every((screen) => focusIsVisible(screen.keyboard_focus));
+  const targetsMeetTokenEverywhere = allScreens.every(targetsMeetToken);
+  const sharedNavigationMatches = ["desktop", "mobile"].every((view) => routesMatch(view,
+    (route) => JSON.stringify(route.navigation)));
+  const keyboardFocusMatches = ["desktop", "mobile"].every((view) => routesMatch(view,
+    (route) => JSON.stringify(route.keyboard_focus)));
+  const tokenValidOnBothRoutes = ["desktop", "mobile"].every((view) =>
+    routesMatch(view, (route) => route.control_size_px) &&
+    observations.shared_ui[view].entry.control_size_px >= 44);
+  const allTargetsAtLeast44 = allScreens.every((screen) =>
+    screen.targets.length > 0 && screen.targets.every((target) => target.height_px >= 44));
+  const uiParityPassed = sharedNavigationMatches && keyboardFocusMatches &&
+    focusVisibleEverywhere && targetsMeetTokenEverywhere && tokenValidOnBothRoutes && allTargetsAtLeast44;
   observations.shared_ui.acceptance = {
-    shared_navigation_matches: entryUi.navigation.padding === historyUi.navigation.padding &&
-      entryUi.navigation.background_color === historyUi.navigation.background_color,
-    keyboard_focus_matches: JSON.stringify(entryUi.keyboard_focus) ===
-      JSON.stringify(historyUi.keyboard_focus),
-    focus_visible_on_both_routes: focusIsVisible(entryUi.keyboard_focus) &&
-      focusIsVisible(historyUi.keyboard_focus),
-    all_targets_at_least_44px: targetsMeetMinimum(entryUi) && targetsMeetMinimum(historyUi),
-    token_is_44px_on_both_routes:
-      entryUi.control_size_token === "44px" && historyUi.control_size_token === "44px",
+    shared_navigation_matches: sharedNavigationMatches,
+    keyboard_focus_matches: keyboardFocusMatches,
+    focus_visible_on_both_routes: focusVisibleEverywhere,
+    all_targets_at_least_44px: allTargetsAtLeast44,
+    token_is_valid_on_both_routes: tokenValidOnBothRoutes,
+    targets_meet_token: targetsMeetTokenEverywhere,
   };
   check("shared_ui_mobile_acceptance", {
-    viewport_width: 390,
+    viewport_widths: [1280, 390],
     shared_navigation_matches: true,
     keyboard_focus_matches: true,
     focus_visible_on_both_routes: true,
     all_targets_at_least_44px: true,
-    token_is_44px_on_both_routes: true,
+    token_is_valid_on_both_routes: true,
+    targets_meet_token: true,
   }, observations.shared_ui.acceptance, uiParityPassed);
-  await page.screenshot({ path: artifacts.history_screenshot, fullPage: true });
   await Promise.all(responseTasks);
   checksBeforeRestart = checks.length;
   process.stdout.write(JSON.stringify({
@@ -227,7 +360,9 @@ async function main() {
     api_responses: apiResponses.slice(),
     observations: {
       keyboard: observations.keyboard,
+      states: observations.states,
       history_before_restart: observations.history_before_restart,
+      responsive: observations.responsive,
       shared_ui: observations.shared_ui,
     },
     browser: {
@@ -249,20 +384,17 @@ async function main() {
   observations.history_after_restart = await quantitiesOnPage(page);
   check("history_fresh_read_after_service_restart", [2, 0], observations.history_after_restart,
     JSON.stringify(observations.history_after_restart) === "[2,0]");
-  await page.screenshot({ path: artifacts.history_screenshot, fullPage: true });
-  observations.responsive = await page.evaluate(() => ({
-    viewport_width: window.innerWidth,
-    document_width: document.documentElement.scrollWidth,
-    no_horizontal_overflow: document.documentElement.scrollWidth <= window.innerWidth,
-    navigation_visible: Boolean(document.querySelector("nav")?.getClientRects().length),
-    list_visible: Boolean(document.querySelector("#history-items")?.getClientRects().length),
-  }));
-  const responsivePassed = observations.responsive.no_horizontal_overflow &&
-    observations.responsive.navigation_visible && observations.responsive.list_visible;
+  await page.screenshot({ path: artifacts.history_mobile_after_restart_screenshot, fullPage: true });
+  observations.responsive.mobile.history_after_restart = await layoutObservation(page);
+  observations.responsive.mobile.history_after_restart.list_visible = await page.evaluate(() =>
+    Boolean(document.querySelector("#history-items")?.getClientRects().length));
+  const mobileHistoryLayout = observations.responsive.mobile.history_after_restart;
+  const responsivePassed = [...allLayouts, mobileHistoryLayout].every((layout) =>
+    layout.no_horizontal_overflow && layout.navigation_visible && layout.main_visible) &&
+    mobileHistoryLayout.list_visible;
   check("mobile_history_layout", {
     viewport_width: 390, no_horizontal_overflow: true, navigation_visible: true, list_visible: true,
-  },
-    observations.responsive, responsivePassed);
+  }, { ...mobileHistoryLayout, responsive: observations.responsive }, responsivePassed);
   await Promise.all(responseTasks);
   await context.tracing.stop({ path: artifacts.trace });
   await browser.close();

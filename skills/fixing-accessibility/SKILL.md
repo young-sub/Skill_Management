@@ -7,6 +7,13 @@ description: Audit and fix HTML accessibility issues including ARIA labels, keyb
 
 Fix accessibility issues.
 
+Start from the affected Feature's project UI guide and existing component/state
+owners. Reuse their accessible primitives, focus behavior and responsive rules;
+repair a shared defect at that owner and check its consumers. Use available
+`agent-workflow` for project-standard discovery/reuse and `impeccable` for visual
+design impact. Observe keyboard/focus and relevant empty/loading/error/success
+transitions in the actual UI; markup review alone is not interaction proof.
+
 ## how to use
 
 - `/fixing-accessibility`

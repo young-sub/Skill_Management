@@ -6,7 +6,7 @@
 - Zero is valid.
 - A negative quantity receives HTTP 422 with “Quantity cannot be negative” and creates no row.
 - The same saved values remain visible after the service process restarts and the browser reloads the history screen.
-- The entry form works with Tab and Enter; both screens fit a 390-pixel viewport without horizontal overflow.
+- The entry form works with Tab and Enter; both screens fit 1280px and 390px viewports without horizontal overflow.
 
 ## Ownership
 
@@ -16,9 +16,9 @@ ui.js owns the shared app-nav component and the page interactions. Both HTML scr
 
 ## Project runner
 
-Run python run_project.py --report .work/connected-acceptance/<new-run-id>/browser.json. The project runner owns service launch, readiness and SQLite doctor checks, the real Chromium drive, evidence collection, a process restart, and cleanup. The report directory must be new. It retains raw browser responses, database row observations before and after restart, screenshots, a Playwright trace, and the server log; the temporary SQLite database and port file are removed during cleanup. Both owned service processes retain their observed stopped state and exit code after cleanup; registered assertions require their termination and no cleanup errors.
+From this fixture's project root run `python run_project.py --report .work/connected-acceptance/<new-run-id>/browser.json`. The project runner owns service launch, readiness and SQLite doctor checks, the real Chromium drive, evidence collection, a process restart, and cleanup. The report path and its sibling artifact directory must be new. It retains raw browser responses, loading/empty/error/success observations, database rows before and after restart, desktop/mobile screenshots for both routes and mobile history after restart, a Playwright trace, and the server log; the temporary SQLite database and port file are removed during cleanup. Both owned service processes retain their observed stopped state and exit code after cleanup; registered assertions require their termination and no cleanup errors.
 
-The configured browser check is an end-to-end observation. The isolated test_domain.py covers the business boundary directly; neither a successful server health response nor an HTTP success status alone passes the user flow.
+The configured browser check is an end-to-end observation. It delays a real empty-history response to observe loading, then uses a controlled 503 response to exercise the read-error presentation. These route interceptions are observer conditions, not product defects. The isolated test_domain.py covers the business boundary directly; neither a successful server health response nor an HTTP success status alone passes the user flow.
 
 The Feature also owns its runner, registered assertions, Domain test, project configuration and linked guides. Those assets belong in the same source mapping; COMPLETE registered test coverage cannot hide an unmapped ownership gap.
 

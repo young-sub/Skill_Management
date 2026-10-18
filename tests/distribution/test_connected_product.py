@@ -42,13 +42,17 @@ class ConnectedProductTests(unittest.TestCase):
             self.handle_unavailable_browser(raw, path)
             self.assertEqual((result.returncode, raw['status']), (0, 'PASS'), raw['errors'])
             self.assertEqual(raw['counts'], {
-                'assertions': 14, 'passed': 14, 'failed': 0, 'skipped': 0, 'errors': 0})
+                'assertions': 16, 'passed': 16, 'failed': 0, 'skipped': 0, 'errors': 0})
             saved = {r['response_body']['id']: r['response_body']['quantity'] for r in raw['observed']['api_responses']
                      if r['method'] == 'POST' and r['status'] == 201}
             self.assertEqual(saved, {1: 2, 2: 0})
             self.assertEqual(raw['observed']['database']['after_restart']['rows'],
                              [{'id': identity, 'quantity': value} for identity, value in sorted(saved.items())])
-            fresh = [r['response_body']['items'] for r in raw['observed']['api_responses'] if r['method'] == 'GET'][-1]
+            successful_history_reads = [r['response_body']['items'] for r in raw['observed']['api_responses']
+                                        if r['method'] == 'GET' and r['status'] == 200 and
+                                        isinstance(r['response_body'], dict) and 'items' in r['response_body']]
+            self.assertTrue(successful_history_reads)
+            fresh = successful_history_reads[-1]
             self.assertEqual(fresh, raw['observed']['database']['after_restart']['rows'])
             self.assertFalse(Path(raw['execution']['database_path']).exists())
             self.assertEqual(raw['cleanup']['errors'], [])
@@ -56,6 +60,10 @@ class ConnectedProductTests(unittest.TestCase):
                              ['stopped', 'stopped'])
             self.assertTrue(all(isinstance(service.get('exit_code'), int)
                                 for service in raw['observed']['services']))
+            self.assertEqual({artifact['kind'] for artifact in raw['artifacts'] if 'screenshot' in artifact['kind']}, {
+                'entry_desktop_screenshot', 'entry_mobile_screenshot',
+                'history_desktop_screenshot', 'history_mobile_screenshot',
+                'history_mobile_after_restart_screenshot'})
             reports.append(raw)
         self.assertTrue({a['path'] for a in reports[0]['artifacts']}.isdisjoint(
             {a['path'] for a in reports[1]['artifacts']}))
@@ -70,6 +78,7 @@ class ConnectedProductTests(unittest.TestCase):
 
     def test_api_domain_pass_cannot_hide_a_frontend_payload_error(self):
         temporary = ROOT / '.work/connected-product-artifacts' / str(uuid.uuid4())
+        temporary.mkdir(parents=True)
         project = temporary / 'project'
         shutil.copytree(PROJECT, project, ignore=shutil.ignore_patterns('__pycache__'))
         runner = runpy.run_path(str(project / 'run_project.py'))
@@ -126,3 +135,50 @@ class ConnectedProductTests(unittest.TestCase):
         self.assertEqual(raw['observed']['database']['after_restart']['rows'], [{'id': 1, 'quantity': 3}, {'id': 2, 'quantity': 0}])
         self.assertEqual(raw['cleanup']['errors'], [])
         print('Retained API-only / frontend fault proof: ' + str(temporary))
+
+    def test_shared_ui_accepts_larger_token_and_rejects_focus_drift(self):
+        temporary = ROOT / '.work/connected-product-artifacts/style-variants' / str(uuid.uuid4())
+        temporary.mkdir(parents=True)
+        variants = (
+            ('larger-token', '--control-size: 44px;', '--control-size: 48px;', 'PASS'),
+            ('history-focus-defect', None,
+             '\n@media (min-width: 43rem) { app-nav[active="history"] .site-nav :focus-visible { outline: none !important; } }\n',
+             'ISSUES'),
+        )
+        for name, original, mutation, expected_status in variants:
+            variant_root = temporary / name
+            variant_root.mkdir()
+            project = variant_root / 'project'
+            shutil.copytree(PROJECT, project, ignore=shutil.ignore_patterns('__pycache__'))
+            styles = project / 'shared.css'
+            css = styles.read_text(encoding='utf-8')
+            if original:
+                self.assertEqual(css.count(original), 1)
+                css = css.replace(original, mutation)
+            else:
+                css += mutation
+            styles.write_text(css, encoding='utf-8')
+            report = temporary / name / 'browser.json'
+            result = subprocess.run([sys.executable, 'run_project.py', '--report', str(report)],
+                                    cwd=project, capture_output=True, text=True, timeout=180)
+            self.assertTrue(report.is_file(), result.stderr)
+            raw = json.loads(report.read_text(encoding='utf-8'))
+            self.handle_unavailable_browser(raw, report)
+            expected_code = 0 if expected_status == 'PASS' else 1
+            self.assertEqual((result.returncode, raw['status']), (expected_code, expected_status), raw['errors'])
+            self.assertEqual(raw['cleanup']['errors'], [])
+            ui = raw['observed']['browser']['before_restart']['shared_ui']
+            decision = raw['observed']['assertions_by_id']['shared_ui_mobile_acceptance']
+            if expected_status == 'PASS':
+                self.assertTrue(decision['passed'])
+                self.assertEqual(ui['desktop']['entry']['control_size_token'], '48px')
+                self.assertTrue(ui['acceptance']['targets_meet_token'])
+            else:
+                self.assertFalse(decision['passed'])
+                self.assertFalse(ui['acceptance']['focus_visible_on_both_routes'])
+                self.assertTrue(ui['desktop']['entry']['keyboard_focus']['focus_visible'])
+                self.assertEqual(ui['desktop']['history']['keyboard_focus']['outline_style'], 'none')
+                self.assertTrue(ui['mobile']['history']['keyboard_focus']['focus_visible'])
+                self.assertEqual([check['id'] for check in raw['checks'] if not check['passed']],
+                                 ['shared_ui_mobile_acceptance'])
+        print('Retained shared UI intended-style/focus-defect proof: ' + str(temporary))

@@ -48,6 +48,27 @@ Trace actual callers and data: external input → parsing/validation → typed d
 | UI/shared component | Actual affected desktop/mobile, keyboard/focus and relevant loading/empty/error states. Saving requires readback; unrelated persistence can be excluded with reason. |
 | Behavior-preserving architecture | Touched interface/callers and equivalent baseline GREEN; no unrelated flow requirement. |
 
+## Execute and repair the existing guide
+
+A usable project guide connects four steps to existing owners and commands:
+preparation (dependencies, isolated data, served target and readiness), action
+(actual user input/navigation), observation (expected state, visual/keyboard result
+and affected save/fresh read), and cleanup (only owned processes/data, retained raw).
+Execute these steps; a command list is not execution proof. Use readiness/state
+signals rather than arbitrary sleeps. Preserve the first failure, distinguish a
+product defect from a stale command, selector, timing or environment problem, and
+repair that owner. Keep commands in their existing registry/runner, linking from
+the guide instead of adding another runner.
+
+Re-execute the repaired path and confirm the same defect is detected and nearby
+normal behavior is allowed. A controlled defect is labeled and isolated. For UI,
+the existing repair/reuse guidance owns visual comparison and capability selection.
+Then give a subsequent related task only its short request and essential project
+materials. Record which guide/owners it actually discovered and reused, execution,
+extra hints, failures/retries and unexecuted scope. Supplied Skill entrypoints or
+token names are assisted consumption, distinct from unaided discovery; a fresh
+context is useful when discovery is the claim, not compulsory for every small edit.
+
 ## One plan, one raw execution
 
 Before running, select Feature/check, expected result, criterion revision, required/excluded status and reason. Bind each actual run to command/cwd, source commit/diff, dependencies, fixture and served runtime identity. Preserve native exit/case/skip/error and raw assertion/observation location. A DB observation also needs its producing command, target, run and observed identifiers; matching values alone do not establish provenance.

@@ -407,8 +407,11 @@ def main() -> int:
                 {"kind": "server_log", "path": str(log_path), "sha256": sha256(log_path)}
             )
         for name, path in (
-            ("entry_screenshot", report_dir / "entry-390.png"),
-            ("history_screenshot", report_dir / "history-390.png"),
+            ("entry_desktop_screenshot", report_dir / "entry-1280.png"),
+            ("entry_mobile_screenshot", report_dir / "entry-390.png"),
+            ("history_desktop_screenshot", report_dir / "history-1280.png"),
+            ("history_mobile_screenshot", report_dir / "history-390.png"),
+            ("history_mobile_after_restart_screenshot", report_dir / "history-390-after-restart.png"),
             ("browser_trace", report_dir / "browser-trace.zip"),
         ):
             if path.is_file():
@@ -420,6 +423,8 @@ def main() -> int:
 
     required_check_ids = {
         "new_database_is_empty",
+        "history_empty_and_loading_states",
+        "history_read_error_state",
         "accessible_entry_controls",
         "keyboard_submit",
         "positive_quantity_api_save",

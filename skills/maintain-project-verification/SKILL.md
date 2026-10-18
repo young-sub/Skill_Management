@@ -4,10 +4,16 @@ description: Audit and repair drift in a project's Feature Map, executable verif
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/maintain-project-verification/SKILL.md -->
-<!-- Source-SHA256: c10c8c5294cc1ec4ae656b37933a0b97c9c7756c3554ab3165cdd03fb1d06f70 -->
+<!-- Source-SHA256: fa0daa66c22b4d54e28a04a44e07a6ed48b07a2149926f36f24ab392f41dc5b9 -->
 
 
 # Maintain Project Verification
+
+For UI guide drift use [UI discovery and comparison](references/repair-and-reuse.md#ui-discovery-and-comparison)
+and [execute the guide](references/project-verification.md#execute-and-repair-the-existing-guide).
+After owner repair, retain same-defect detection and nearby normal allowance,
+then verify a related task can discover and reuse the repaired path. Report
+assistance, failures/retries and unavailable observations separately.
 
 Use [task verification](references/project-verification.md#task-verification) to check whether the requested feature, bug fix or refactoring still has the right observations. Repair only missing or conflicting links for actual business/architecture impact; retain relevant semantic reviews and normal/failure connected-flow checks alongside layer tests.
 

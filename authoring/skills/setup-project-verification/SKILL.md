@@ -5,6 +5,12 @@ description: Map the requested project scope and connect verification using exis
 
 # Setup Project Verification
 
+For UI connections, discover available `impeccable`, `fixing-accessibility` and,
+only for React/Next.js impact, `vercel-react-best-practices`. Link project intent,
+states, responsive and keyboard criteria to existing token/component owners.
+Actually [execute the guide](references/project-verification.md#execute-and-repair-the-existing-guide),
+including cleanup; a written command or registry row is not a connected result.
+
 For each requested connection, use [task verification](references/project-verification.md#task-verification) to select new-feature, bug-fix or behavior-preservation criteria before execution. Connect both relevant executable checks and business/architecture reviews at the actual FE/API/Domain owners; an affected layer connection needs normal and failure-path persistence/fresh-read evidence, not a set of layer PASS results.
 
 Read [shared verification responsibilities](references/project-verification.md). Inspect existing project guidance, requirements, package/native commands, callers, fixtures and UI sources before adding anything. Distinguish first connection from reuse; identify exactly which pilot/project connections are absent. Preserve underlying product requirements.

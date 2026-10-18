@@ -10,6 +10,7 @@ Read applicable AGENTS and `.harness/project.yaml` first. Load ignored `.harness
 - [Improvement roadmap](research/agentic-coding-improvement-roadmap.md): staged pstack adoption and evidence-based promotion; [stage 0 compatibility and baselines](research/stage0-compatibility-results.md) records scoped implementation and its limits.
   [Stage 1 task verification](research/stage1-task-verification-results.md) records task-specific routing, connected-flow observations and preserved lookup boundaries.
   [Stage 2 feedback and success reuse](research/stage2-feedback-reuse-results.md) records correction, procedure extraction and fresh-context consumption, separately from package checks.
+  [Stage 3 UI and guide reuse](research/stage3-ui-guide-reuse-results.md) records shared-owner discovery, visual comparison and executed guide repair.
 - [Current execution instructions](research/plugin-continuous-improvement-next-session.md): improve from observed gaps, without reopening completed work.
 - [System](system.md), [architecture](architecture/harness.md), [domain ownership](agents/domain.md): runtime and source boundaries.
 - [Feature Map](feature-map.md): user functions, owners and executable checks.
