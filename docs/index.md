@@ -12,7 +12,7 @@ Read applicable AGENTS and `.harness/project.yaml` first. Load ignored `.harness
 - [Feature Map](feature-map.md): user functions, owners and executable checks.
 - [Testing](testing.md): impact selection, current commands, execution and evidence rules.
 - [Agent workflow](agents/workflow.md): repository delivery/Git policy; explicit session authorization remains authoritative.
-- [Global guidance](agents/global-guidance.md): canonical global rules and revision backups.
+- [Global guidance](agents/global-guidance.md): canonical global rules and revision backups; [B4 adoption](research/global-guidance-b4-adoption.md), measured efficiency and follow-up steps.
 - [Plugin packaging](plugins.md), [Skill inventory](architecture/skill-inventory.md): local package, distribution and host boundaries.
 - [Tracker integration](agents/issue-tracker.md), [triage labels](agents/triage-labels.md): optional tracking.
 
@@ -20,7 +20,7 @@ Read applicable AGENTS and `.harness/project.yaml` first. Load ignored `.harness
 
 These are scoped execution records, not current task lists or fresh PASS results.
 
-- [Global guidance behavior comparison](research/global-guidance-behavior-results.md): five-task A/B4 comparison and one-clause follow-up; final proposal, observed effects and operating-environment limits. Operating globals unchanged.
+- [Global guidance behavior comparison](research/global-guidance-behavior-results.md): five-task A/B4 comparison and one-clause follow-up; evidence for the subsequent B4 adoption and operating-environment limits.
 - [Initial global guidance trial](research/global-guidance-trial.md): historical B1/B2 results and links to later comparisons.
 - [pstack comparison and practical verification](research/pstack-practical-comparison.md): six outcome priorities, direct-lookup repair and bounded product evidence; no comparative model benchmark.
 - [0.1.70 follow-up consumption](research/workflow-followup-results.md): resumed product request, execution-derived runner repair, fresh-context reuse and host boundary disposition.

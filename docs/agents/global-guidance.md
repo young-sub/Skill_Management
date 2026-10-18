@@ -2,6 +2,10 @@
 
 The latest global contract always lives in the dedicated [authoring/global/](../../authoring/global/AGENTS.md) folder. Update this repository copy in the same revision as the actual global targets. Its LF checkout policy preserves equality with the installed source. It is separate from the repository router and is not a generated public Skill resource. Every revision also retains the previous global bytes in the separate backup subtree.
 
+## Current Revision
+
+B4 was adopted on 2026-10-18 after explicit user authorization: the canonical source and operating global targets match the tested candidate. See the [adoption record](../research/global-guidance-b4-adoption.md) for comparative efficiency, byte-preserving backups, verification limits, and follow-up steps. The separate fresh-session discovery probe was blocked before execution; file equality and the current conversation's instruction reload were observed.
+
 ## Update Procedure
 
 1. Resolve the actual target from `CODEX_HOME` and inspect `AGENTS.override.md` before choosing a file. A default `~/.codex/AGENTS.md` and an account-specific global may coexist; inspect each intended target and resolve symbolic links. Preserve each named target's snapshot, but replace a shared underlying file only once and verify all aliases afterward.

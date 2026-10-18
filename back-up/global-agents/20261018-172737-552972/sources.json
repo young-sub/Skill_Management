@@ -1,0 +1,28 @@
+{
+  "created_utc": "2026-10-18T08:27:37.556972+00:00",
+  "base_head": "b39a5a2fcd93607b8025253de9df36e20929ffe4",
+  "sources": [
+    {
+      "source": "C:\\Users\\YS\\Desktop\\python\\Skill_Management\\authoring\\global\\AGENTS.md",
+      "resolved_source": "C:\\Users\\YS\\Desktop\\python\\Skill_Management\\authoring\\global\\AGENTS.md",
+      "snapshot": "repository-AGENTS.md",
+      "bytes": 7502,
+      "sha256": "015feb9bc7e8b105f23f6b2f13d6ee79586de1754fd2c4795ec09942994536e0"
+    },
+    {
+      "source": "C:\\Users\\YS\\AppData\\Roaming\\orca\\codex-accounts\\2aee60bf-4748-41e0-970d-a0075cbc1f92\\home\\AGENTS.md",
+      "resolved_source": "C:\\Users\\YS\\.codex\\AGENTS.md",
+      "snapshot": "account-AGENTS.md",
+      "bytes": 7502,
+      "sha256": "015feb9bc7e8b105f23f6b2f13d6ee79586de1754fd2c4795ec09942994536e0"
+    },
+    {
+      "source": "C:\\Users\\YS\\.codex\\AGENTS.md",
+      "resolved_source": "C:\\Users\\YS\\.codex\\AGENTS.md",
+      "snapshot": "AGENTS.md",
+      "bytes": 7502,
+      "sha256": "015feb9bc7e8b105f23f6b2f13d6ee79586de1754fd2c4795ec09942994536e0"
+    }
+  ],
+  "replacement_sha256": "bf960f552a46b3e80b0061e230a1fc3e0362d0c48ad093908da505b4b53c6923"
+}
