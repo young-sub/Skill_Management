@@ -7,6 +7,7 @@
 Read applicable AGENTS and `.harness/project.yaml` first. Load ignored `.harness/environment-exceptions.json` once per task; honor `skip_until_manual_reenable` and its fallback.
 
 - [Current design](research/agent-coding-system-direction.md): six outcomes, user flow, ownership and completion boundaries. This is the design authority.
+- [Improvement roadmap](research/agentic-coding-improvement-roadmap.md): staged pstack adoption, skill responsibilities, full-stack verification, feedback/UI reuse and evidence-based promotion; planning only.
 - [Current execution instructions](research/plugin-continuous-improvement-next-session.md): improve from observed gaps, without reopening completed work.
 - [System](system.md), [architecture](architecture/harness.md), [domain ownership](agents/domain.md): runtime and source boundaries.
 - [Feature Map](feature-map.md): user functions, owners and executable checks.

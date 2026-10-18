@@ -75,4 +75,4 @@ fixture, package CLI, 실제 프로젝트, native 발견/hook, 보호 host, 사�
 
 pstack의 호출부/소유권 중심 설계, 구조 우선 예방, 실제 사용자 흐름 실행·갱신을 선택적으로 참고한다. 검토 리비전 `101b274dd991f694e1f7024be2157e5f3adf07de` (0.15.25, MIT, Lauren Tan); [고정 조사](pstack-analysis.md). 프로토타입은 제품 효과의 증거가 아니다. 원문 재배포 시 출처·리비전·현지 변경·MIT 고지를 보존한다.
 
-현재 우선순위와 pstack 적용 판단은 [실전 비교 기록](pstack-practical-comparison.md)에 있다. 공개 조회는 bundle과 개별 plan 모두 이미 결속한 미추적 파일 내용을 재측정한다. 동일 코드 bytes라는 이유만으로 Git·실행 조건의 변화를 무시하지 않는다.
+앞으로의 도입 순서와 단계별 완료 기준은 [고도화 로드맵](agentic-coding-improvement-roadmap.md)에 있다. 기존 pstack 적용 판단과 실행 근거는 [실전 비교 기록](pstack-practical-comparison.md)에 보존한다. 공개 조회는 bundle과 개별 plan 모두 이미 결속한 미추적 파일 내용을 재측정한다. 동일 코드 bytes라는 이유만으로 Git·실행 조건의 변화를 무시하지 않는다.
