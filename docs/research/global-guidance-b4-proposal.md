@@ -1,6 +1,6 @@
 # B4 개정안과 확인 방법
 
-상태: **초안 작성·평가기 확인 완료, 모델 비교 미실행**. [B4 전역 후보](global-agent-instructions-b4.md)는 운영 파일과 분리했다. [B3 결과](global-guidance-b3-trial.md)의 미완료를 해결했다고 주장하지 않는다. 이전 후보와 원시 자료를 보존한다.
+상태: **아래는 실행 전 고정한 제안과 기준이며, 이후 4세션을 수행했다.** [실제 결과와 최종 판단](global-guidance-b4-results.md)을 우선한다. [B4 전역 후보](global-agent-instructions-b4.md)는 운영 파일과 분리했다. [B3 결과](global-guidance-b3-trial.md)의 미완료를 전반적으로 해결했다고 주장하지 않는다. 이전 후보와 원시 자료를 보존한다.
 
 ## 구체적인 수정
 
