@@ -20,6 +20,7 @@ Read applicable AGENTS and `.harness/project.yaml` first. Load ignored `.harness
 
 These are scoped execution records, not current task lists or fresh PASS results.
 
+- [Global guidance trial](research/global-guidance-trial.md): nine actual sessions, B2 rejection, the separate B1 proposal and budget-limited remaining comparisons; operating globals unchanged.
 - [pstack comparison and practical verification](research/pstack-practical-comparison.md): six outcome priorities, direct-lookup repair and bounded product evidence; no comparative model benchmark.
 - [0.1.70 follow-up consumption](research/workflow-followup-results.md): resumed product request, execution-derived runner repair, fresh-context reuse and host boundary disposition.
 - [0.1.69 workflow improvement](research/workflow-improvement-results.md): scoped request completion, structural prevention, guide reuse, frozen package and isolated product evidence.
