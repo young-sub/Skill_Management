@@ -128,3 +128,12 @@ and atomic final publication; `verification-results` still requires completed,
 bound native evidence. Neither running status nor a successful state write is a
 product verdict. Shared locks live under `.work/locks`, outside immutable Harness
 work directories; Windows case aliases use the same lock identity.
+
+## Installed release evidence
+
+[0.1.78 isolated installation experiments](research/installed-release-0.1.78-results.md)
+cover `skill-install`, `plugin-package`, `verification-results`,
+`workflow-obligations` and `work-preservation`: actual remote installers, five
+installed browser surfaces with fault/recovery controls, retained task results and
+interruption handling. These are execution observations, not native model discovery
+or general Skill quality claims.

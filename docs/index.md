@@ -26,6 +26,8 @@ Read applicable AGENTS and `.harness/project.yaml` first. Load ignored `.harness
 
 ## Results and historical evidence
 
+- [Installed release 0.1.78 experiments](research/installed-release-0.1.78-results.md): actual remote Skill/native plugin installs, browser fault controls, task reuse, interruption and optional global guidance in isolated homes; model discovery remains unverified.
+
 These are scoped execution records, not current task lists or fresh PASS results.
 
 - [Global guidance behavior comparison](research/global-guidance-behavior-results.md): five-task A/B4 comparison and one-clause follow-up; evidence for the subsequent B4 adoption and operating-environment limits.
