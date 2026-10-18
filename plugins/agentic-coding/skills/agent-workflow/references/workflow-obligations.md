@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: afa908746bc8797437890f3e6cfdfc8643f24d778afd3c58caad0171d3cb2ab8 -->
+<!-- Source-SHA256: 9dc3ea3921b4b5656033903c7adbbccd41f997e3c46248c979218387d06a3935 -->
 
 # Project workflow obligations
 
@@ -237,8 +237,8 @@ status.
 Preparation selects pending registered native-JSON assertions without launching
 commands and retains only the plan pointer in that same task state. Execution
 uses the existing viewer/capture/checkpoints and attaches results to that task.
-Standalone Skills may need `--run-check <project capture tool>`; the plugin and
-this source repository discover their existing capture tool. `execute --resume`
+Standalone Skills, the plugin and this source repository discover their bundled
+capture tool; `--run-check` is only an explicit override. `execute --resume`
 continues never-started checks, refuses unknown launches and does no work for a
 completed run. `lookup` and task `resume` read decisions, reviews, feedback, linked
 results, current gaps and any completed checkpoint; they never execute or repair.

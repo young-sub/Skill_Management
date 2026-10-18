@@ -1,6 +1,6 @@
 {
   "name": "agentic-coding",
-  "version": "0.1.77",
+  "version": "0.1.78",
   "description": "Delegate coding, inspect real verification, repair feedback, and maintain project UI and testing standards.",
   "skills": "./skills/",
   "hooks": "./hooks/hooks.json"

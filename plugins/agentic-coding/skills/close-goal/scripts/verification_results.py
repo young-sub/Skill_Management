@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/verification_results.py
-# Source-SHA256: 97d077963c6f76a210eabb73031276e7d72fb7096c43410e61753e0dde644ec3
+# Source-SHA256: 922792cca47f750c97e529fbc8174f0326e00f798dd458cfd6cf0c8861e337be
 
 """Read-only viewer for plan-bound verification captures and observations.
 
@@ -2094,7 +2094,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--current-context", dest="current_context", type=Path)
     parser.add_argument("--execute", action="store_true", help="Execute selected plan checks through the capture CLI")
     parser.add_argument('--resume', action='store_true', help='Resume the same plan/directory using current completed checkpoints; never replay an unknown launch')
-    parser.add_argument("--run-check", type=Path, help="Capture CLI override; an installed agentic-coding plugin uses its bundled scripts/run_check.py")
+    parser.add_argument("--run-check", type=Path, help="Optional capture CLI override; plugins and standalone Skills use their bundled tool")
     parser.add_argument("--evidence-dir", "--output-dir", dest="evidence_dir", type=Path, help="New directory for execution captures and bound results")
     parser.add_argument("--timeout", type=float, default=300, help="Execution timeout passed to run_check.py")
     parser.add_argument("--pretty", action="store_true")
@@ -2103,7 +2103,7 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def capture_tool() -> Path | None:
-    """Use the package's capture tool or the source repository's existing tool."""
+    """Use the repository, plugin, or standalone Skill's fixed bundled tool."""
     source = Path(__file__).resolve()
     repository = source.parents[2] / 'scripts/run_check.py'
     if source.parent.parent.name == 'authoring' and repository.is_file():
@@ -2117,7 +2117,8 @@ def capture_tool() -> Path | None:
                 return capture
         except (OSError, ValueError, AttributeError):
             pass
-    return None
+    capture = source.with_name('run_check.py')
+    return capture if capture.is_file() and not capture.is_symlink() else None
 
 
 def main(argv: list[str] | None = None) -> int:
