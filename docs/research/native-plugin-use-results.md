@@ -1,5 +1,38 @@
 # Native plugin use — 2026-10-17
 
+## Authorized 0.1.76 installation and two native tasks — 2026-10-18
+
+The user authorized registration, this plugin's hook trust, and at most two
+model tasks in the prepared current Orca home. Installation reports enabled
+0.1.76; `hooks/list` reports its prompt hook trusted. Existing config values were
+preserved and the original config was backed up inside that home. No Windows
+account, ACL or firewall setup was performed. All 254 inventory entries and the
+inventory itself match the frozen package, including the `.codex` cache path
+actually consumed by the model. Session evidence confirms `gpt-6.1-sol`, low
+reasoning and delivered workflow context. The observed native session policy
+was workspace-write/on-request, despite the launcher's `-a never` argument;
+the requested flag is not represented as the effective policy.
+
+| Native request | Observed result |
+| --- | --- |
+| Repair quantity 2 appearing as 3 | Agent registered feedback, traced FE serialization through API/Domain/SQLite, removed the extra increment and retained RED 9/14 then GREEN 14/14 browser assertions. Zero, negative rejection, restart/fresh read and normal UI controls remain covered. Existing oracle, runner, styles and guides have unchanged hashes. |
+| Read the same task without execution | Four read-only commands; no product tests/browser/build/service launches. All project/evidence file hashes unchanged. Feedback RESOLVED and task READY_FOR_REVIEW were distinguished from final acceptance. |
+
+These were **guided fixture tasks**, with the installed workflow explicitly
+invoked and existing check commands provided. They took about 218 seconds total;
+reported input tokens were 1,137,780 (1,027,712 cached), output 6,008. Currency cost
+is unknown. This is not a throughput/cost benchmark or unaided discovery proof.
+The native agent could not commit the fixture because Git metadata writes were
+restricted; code/test success does not prove autonomous delivery through commit.
+Production, concurrency, another UI change consuming the guide, and measurable
+benefit from deleting checks were not tested. No more tasks were launched.
+
+Raw captures, installed identity, config-preservation result, fixture snapshot
+and [machine-readable summary](../../.work/plugin-readiness-20261018/native-results.json)
+are retained in `.work/plugin-readiness-20261018/`. The local marketplace is also
+there; preserve it while this installation references it. The user requested
+stopping after this item; broader readiness/contract reconciliation remains open.
+
 ## Permission investigation and scoped review closure — 2026-10-17
 
 This follow-up starts from clean `main@f813430` and retains the earlier runs.
