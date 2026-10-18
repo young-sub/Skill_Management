@@ -8,6 +8,19 @@ B4 was adopted on 2026-10-18 after explicit user authorization: the canonical so
 
 ## Update Procedure
 
+For optional consumer installation after cloning this repository, use
+[`scripts/install_global_guidance.py`](../../scripts/install_global_guidance.py)
+with `--host codex` or `--host claude`. The default previews the target and proposed
+change; `--apply` installs a managed block. `--home` selects an explicit host home;
+otherwise the tool uses `CODEX_HOME` / `CLAUDE_CONFIG_DIR` or host defaults. Codex
+uses `AGENTS.md`, Claude uses `CLAUDE.md`. Existing surrounding text is preserved;
+ambiguous markers and Codex override shadowing block the operation. Backups retain
+the prior bytes and metadata under the selected home's `back-up/global-guidance/`.
+This installs the current canonical revision; it does not revise that source or
+require a Git repository in the consumer's home. The canonical revision procedure
+below still applies when changing the maintained global rules themselves.
+
+
 1. Resolve the actual target from `CODEX_HOME` and inspect `AGENTS.override.md` before choosing a file. A default `~/.codex/AGENTS.md` and an account-specific global may coexist; inspect each intended target and resolve symbolic links. Preserve each named target's snapshot, but replace a shared underlying file only once and verify all aliases afterward.
 2. Before changing a global file, create a unique `back-up/global-agents/<date-time>/` directory and copy its exact bytes there. Use separate filenames for distinct targets, such as `AGENTS.md` and `account-AGENTS.md`; record source paths, byte lengths, and SHA256 hashes in `sources.json`.
 3. Verify each snapshot against its source and its Git blob. This backup subtree disables Git text conversion in `.gitattributes` so checkout preserves the captured bytes. Historical snapshots are immutable and are excluded from ordinary cleanup. If backup or verification fails, leave the global target unchanged.

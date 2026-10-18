@@ -145,9 +145,9 @@ For a retained execution, `python <agent-workflow>/scripts/verification_results.
 Execution is a separate, opt-in CLI path. The caller provides a preselected plan
 and a new evidence directory. In an installed agentic-coding plugin the CLI uses
 that package's `scripts/run_check.py` automatically; no project copy or tool-path
-search is needed. A standalone Skill requires `--run-check`; an explicit path
-also overrides the plugin default. Discovery checks only the enclosing package
-identity and fixed local path, never PATH or unrelated installations. This is
+search is needed. Standalone Skills bundle the same capture CLI beside the viewer;
+`--run-check` is an optional override for either distribution. Discovery checks only
+the enclosing package identity and fixed bundled paths, never PATH or unrelated installations. This is
 local tool selection, not package authentication or protected acceptance.
 
 ```
@@ -262,8 +262,8 @@ python <agent-workflow>/scripts/verification_results.py --bundle <project>/.work
 python <agent-workflow>/scripts/project_workflow.py audit --root <project> --state .work/task.json
 ```
 
-Standalone/repository execution also passes `--run-check <project>/scripts/run_check.py`;
-the plugin already discovers its bundled capture tool. `--work-id` selects the
+Standalone Skills, plugins and repository execution discover their bundled capture
+tool automatically; `--run-check` remains an optional override. `--work-id` selects the
 existing Harness baseline instead of `--pending-state`. An explicit
 `--prepare <assertion-file>` remains supported. Preparation selects affected
 Features, keeps same-Feature exclusions/reuse explanations, and starts no command.

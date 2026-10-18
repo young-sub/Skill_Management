@@ -3055,7 +3055,7 @@ def main(argv=None):
     state_selection.add_argument('--work-id', help='Use the workflow baseline captured by Harness start')
     parser.add_argument('--context', help='Explicit context returned by start/connect; otherwise AGENT_WORKFLOW_CONTEXT')
     parser.add_argument('--output', help='New .work directory for prepare; default is a unique task run')
-    parser.add_argument('--run-check', type=Path, help='Project capture tool; plugin discovers its bundled tool')
+    parser.add_argument('--run-check', type=Path, help='Optional capture override; plugin and standalone Skill discover their bundled tool')
     parser.add_argument('--timeout', type=float, default=300)
     parser.add_argument('--resume', action='store_true', help='Execute only never-started checks of this prepared run')
     parser.add_argument('--summary', action='store_true', help='Read-only lookup/resume/audit summary with criteria, current reuse and raw pointers')

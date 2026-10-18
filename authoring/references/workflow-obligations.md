@@ -233,8 +233,8 @@ status.
 Preparation selects pending registered native-JSON assertions without launching
 commands and retains only the plan pointer in that same task state. Execution
 uses the existing viewer/capture/checkpoints and attaches results to that task.
-Standalone Skills may need `--run-check <project capture tool>`; the plugin and
-this source repository discover their existing capture tool. `execute --resume`
+Standalone Skills, the plugin and this source repository discover their bundled
+capture tool; `--run-check` is only an explicit override. `execute --resume`
 continues never-started checks, refuses unknown launches and does no work for a
 completed run. `lookup` and task `resume` read decisions, reviews, feedback, linked
 results, current gaps and any completed checkpoint; they never execute or repair.

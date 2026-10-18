@@ -1,5 +1,9 @@
 # Repository Feature Map
 
+`plugin-package` includes the optional preview/apply global-guidance installer: managed blocks preserve consumer text, exact backups precede changes, and duplicate apply is a no-op. This is separate from native plugin installation.
+
+`verification-results` includes execution from a single installed Skill without an external capture path; six isolated Skill copies execute real checks and resume completed evidence without rerunning commands.
+
 `plugin-package` also owns the portable package `README.md`: it routes the six
 outcomes to packaged Skills/references, is included in the content inventory, and
 has no checkout-relative guide dependency. The package regression verifies those

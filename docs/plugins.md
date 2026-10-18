@@ -60,7 +60,8 @@ The installed capture CLI is `<plugin-root>/scripts/run_check.py`, with its shar
 native unittest evidence reader beside it; workflow and
 result tools remain in the installed `skills/agent-workflow/scripts/` directory.
 The installed result CLI's `--execute` selects the package's capture script
-automatically. Use `--run-check` only to override it or with a standalone Skill.
+automatically. Standalone Skills also bundle the same capture tool beside their
+viewer. Use `--run-check` only for an explicit override.
 The repository-specific unittest adapter remains in this repository, not in the
 common plugin. Project native runners and business assertions retain ownership
 of product judgments.

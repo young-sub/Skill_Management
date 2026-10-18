@@ -20,6 +20,24 @@ claude plugin marketplace add young-sub/Skill_Management
 claude plugin install agentic-coding@agentic-coding
 ```
 
+### SSH 설치
+
+Codex:
+
+```powershell
+codex plugin marketplace add git@github.com:young-sub/Skill_Management.git
+codex plugin add agentic-coding@agentic-coding
+```
+
+Claude Code:
+
+```powershell
+claude plugin marketplace add git@github.com:young-sub/Skill_Management.git
+claude plugin install agentic-coding@agentic-coding
+```
+
+GitHub SSH 키가 필요합니다. SSH에 `ys` 별칭을 설정했다면 주소의 `git@github.com:`을 `git@ys:`로 바꿀 수 있습니다. 이미 같은 marketplace를 등록했다면 중복 등록할 필요는 없습니다.
+
 설치 후 새 세션을 시작합니다. Codex에서는 `agentic-coding:agent-workflow`를 선택하고, Claude Code에서는 `/agentic-coding:agent-workflow`로 요청합니다. hook 신뢰 검토가 필요한 호스트에서는 별도로 내용을 확인합니다. 설치 성공과 실제 업무 성공은 별도로 확인합니다.
 
 Codex가 `plugin add`를 지원하지 않으면 등록 후 데스크톱 앱의 Plugins Directory에서 `agentic-coding` 소스를 선택해 설치합니다. 기존 `agentic-coding-local` 개발 설치나 개별 스킬은 자동 삭제하지 않습니다. 중복 설치가 있으면 사용할 플러그인을 선택하고 실제 로드 경로를 확인합니다.
@@ -27,6 +45,35 @@ Codex가 `plugin add`를 지원하지 않으면 등록 후 데스크톱 앱의 P
 업데이트는 호스트의 marketplace 새로고침과 플러그인 업데이트 기능을 사용합니다. 설치 캐시는 직접 수정하지 않습니다. 로컬 캐시 수정이 있다면 먼저 보존합니다. 저장소의 `update_plugin.py`는 별도 로컬 marketplace 전용이며 Git 원격 marketplace를 교체하는 도구가 아닙니다.
 
 설치 형식: [OpenAI marketplace 안내](https://developers.openai.com/plugins/build/plugins), [Claude Code marketplace 안내](https://code.claude.com/docs/en/plugin-marketplaces).
+
+## 전역 지침 선택 설치 — 저장소 clone 필요
+
+플러그인 설치만으로 전역 지침이 바뀌지는 않습니다. 설치 도구는 이 저장소의 `scripts/install_global_guidance.py`, 지침 원본은 `authoring/global/AGENTS.md`입니다. Python이 필요하며, 아래는 원하는 작업 폴더에서 처음 한 번 실행합니다.
+
+```powershell
+git clone --branch main git@github.com:young-sub/Skill_Management.git
+Set-Location Skill_Management
+```
+
+이미 clone했다면 해당 폴더로 이동해 사용자 변경을 먼저 확인한 뒤 `git pull --ff-only`로 최신 main을 받습니다. 플러그인 캐시 내부에서 실행할 명령이 아닙니다.
+
+**Codex — 변경 내용 확인 후 적용:**
+
+```powershell
+python scripts/install_global_guidance.py --host codex
+python scripts/install_global_guidance.py --host codex --apply
+```
+
+**Claude Code — 변경 내용 확인 후 적용:**
+
+```powershell
+python scripts/install_global_guidance.py --host claude
+python scripts/install_global_guidance.py --host claude --apply
+```
+
+사용하는 호스트의 명령만 선택합니다. 기본 명령은 대상 경로와 diff를 보여주며 파일을 쓰지 않습니다. `--apply`를 붙여야 적용합니다. Codex는 `CODEX_HOME`(없으면 `~/.codex`)의 `AGENTS.md`, Claude Code는 `CLAUDE_CONFIG_DIR`(없으면 `~/.claude`)의 `CLAUDE.md`를 사용합니다. 앱이 계정별 home을 쓰면 실제 경로를 확인하고 두 명령 모두 `--home "실제 home 경로"`를 추가합니다.
+
+기존 사용자 문구는 유지하고 표시된 관리 구역만 갱신합니다. 기존 파일과 메타데이터는 선택한 home의 `back-up/global-guidance/`에 보존하며, 같은 내용을 다시 적용해도 중복 추가하지 않습니다. Codex의 `AGENTS.override.md`가 있거나 관리 구역이 모호하면 자동 덮어쓰기 대신 중단합니다. 기존 규칙과 새 지침의 의미 충돌은 미리보기에서 직접 확인해야 합니다. 적용 후 새 세션을 시작합니다.
 
 ## 시작하기
 
@@ -54,10 +101,15 @@ Codex가 `plugin add`를 지원하지 않으면 등록 후 데스크톱 앱의 P
 
 ## 개별 Skill 설치가 필요한 경우
 
+개별 스킬도 현재 main의 최신 배포본을 사용합니다. `@latest`는 설치 도구 버전이며, 스킬 내용은 저장소 main에서 받습니다. 기존 설치본은 main 갱신만으로 자동 변경되지 않으므로 같은 설치 명령으로 원하는 스킬과 범위를 다시 선택합니다.
+
+검증 실행에 필요한 capture 도구는 해당 스킬 안에 포함되어 `--run-check`나 플러그인 설치가 필요하지 않습니다. 프로젝트 자체의 테스트 명령과 실행 환경은 여전히 필요합니다. Harness 전체 흐름의 여섯 스킬은 기존 안내대로 함께 설치하고, 플러그인 사용자는 같은 스킬을 별도로 설치할 필요가 없습니다.
+
+
 대상 프로젝트 루트에서 실행한 뒤 설치할 Skill과 적용 범위를 선택합니다. 전체 흐름에는 `setup-agent-harness`, `design-goal`, `execute-codex-goal`, `diagnose`, `close-goal`, `maintain-agent-harness`를 선택하고, 아이디어 탐색이 필요하면 `explore-idea`를 추가합니다. 적용 범위는 사용할 에이전트와 Project를 선택합니다. `-g`를 사용하지 않으므로 프로젝트 로컬에 설치됩니다.
 
 ```powershell
-npx skills add git@github.com:young-sub/Skill_Management.git
+npx skills@latest add git@github.com:young-sub/Skill_Management.git
 ```
 
 설치 후 새 에이전트 세션을 시작하고 프로젝트 상태에 맞게 적용합니다.

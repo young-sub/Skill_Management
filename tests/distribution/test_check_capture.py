@@ -217,7 +217,7 @@ class CheckCaptureTests(unittest.TestCase):
                 root = Path(tmp)
                 record = root / 'execution.json'
                 with mock.patch.object(sys, 'path', [str(RUNNER.parent), *sys.path]):
-                    runner = runpy.run_path(str(RUNNER), run_name='run_check_test')
+                    runner = runpy.run_path(str(RUNNER.parents[1] / 'authoring/scripts/run_check.py'), run_name='run_check_test')
                 runner_subprocess = runner['subprocess']
                 original_run = runner_subprocess.run
 

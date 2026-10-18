@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "resources": [
+    {"source": "scripts/run_check.py", "targets": ["agent-workflow/scripts/run_check.py", "setup-project-verification/scripts/run_check.py", "maintain-project-verification/scripts/run_check.py", "close-goal/scripts/run_check.py", "maintain-agent-harness/scripts/run_check.py", "execute-codex-goal/scripts/run_check.py"]},
     {"source": "skills/swarm/SKILL.md", "targets": ["swarm/SKILL.md"]},
     {"source": "playbooks/feature.md", "targets": ["agent-workflow/playbooks/feature.md", "setup-project-verification/playbooks/feature.md", "maintain-project-verification/playbooks/feature.md"]},
     {"source": "playbooks/bug-fix.md", "targets": ["agent-workflow/playbooks/bug-fix.md", "setup-project-verification/playbooks/bug-fix.md", "maintain-project-verification/playbooks/bug-fix.md"]},
