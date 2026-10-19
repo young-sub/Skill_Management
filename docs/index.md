@@ -37,7 +37,7 @@ These are scoped execution records, not current task lists or fresh PASS results
 - [0.1.69 workflow improvement](research/workflow-improvement-results.md): scoped request completion, structural prevention, guide reuse, frozen package and isolated product evidence.
 - [0.1.68 hardening](research/core-hardening-results.md): required checks, TaskStore/public API, capture publication, package and isolated product evidence.
 - [Implementation results](research/agent-workflow-implementation-results.md): preceding versions and their limits.
-- [Luna benchmark execution](research/luna-benchmark-execution.md), [benchmark plan](research/agentic-harness-benchmark-plan.md): actual results versus unperformed boundaries.
+- [Luna 0.1.78 comparison](research/luna-0.1.78-benchmark-results.md): 60 fresh OFF/ON attempts, official outcomes, functional observations, evaluator limits and environment interruption; [earlier Luna execution](research/luna-benchmark-execution.md), [benchmark plan](research/agentic-harness-benchmark-plan.md).
 - [Labeler pilot](research/labeler-verification-pilot.md), [pstack analysis](research/pstack-analysis.md): bounded product/research evidence.
 - [Archive](research/archive/index.md): superseded design/review/next-session material and prior testing notes.
 - [v2 release](releases/v2.0.0.md), [v2 pilot](pilots/harness-v2-pilots.md): historical release evidence.
