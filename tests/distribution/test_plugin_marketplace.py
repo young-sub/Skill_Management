@@ -37,4 +37,11 @@ class PluginMarketplaceTests(unittest.TestCase):
             # Provenance belongs to the frozen source, not later documentation commits.
             expected.pop('build-origin.json')
             inventory.pop('build-origin.json')
-            self.assertEqual(expected, inventory)
+            self.assertEqual(set(expected), set(inventory))
+            for name in expected:
+                # Git checkout EOL conversion varies by host; inventory above stays byte-exact.
+                self.assertEqual(
+                    (fresh / name).read_bytes().replace(b'\r\n', b'\n'),
+                    (package / name).read_bytes().replace(b'\r\n', b'\n'),
+                    name,
+                )

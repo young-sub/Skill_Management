@@ -322,7 +322,8 @@ class CheckCaptureTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 124)
                 self.assertEqual(data['timeout_tree_cleanup_exit'], 0)
                 cleanup = data['timeout_tree_cleanup']
-                self.assertEqual(cleanup['command'][0], 'taskkill')
+                self.assertEqual(
+                    cleanup['command'][0], 'taskkill' if os.name == 'nt' else 'os.killpg')
                 self.assertEqual((cleanup['status'], cleanup['exit_code']), ('succeeded', 0))
                 self.assertIsInstance(cleanup['stdout'], str)
                 self.assertIsInstance(cleanup['stderr'], str)

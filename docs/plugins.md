@@ -36,8 +36,9 @@ Preserve the prior release before replacing only `plugins/agentic-coding` with t
 complete generated tree. Review removed files as well as additions. Run the
 `plugin-package` selector (including `test_plugin_marketplace`), resource drift and
 distribution checks, and install from both catalogs in isolated homes before
-publishing. The marketplace regression compares release bytes to a fresh build and
-verifies the frozen inventory; build provenance remains tied to the source commit.
+publishing. The marketplace regression verifies the frozen inventory byte-for-byte
+and compares fresh-build content with checkout CRLF/LF differences normalized;
+build provenance remains tied to the source commit.
 No credentials, project state, or installed host configuration belongs in this tree.
 Model scenario/benchmark acceptance is separate from distribution acceptance.
 
