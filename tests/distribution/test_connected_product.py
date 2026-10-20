@@ -20,6 +20,57 @@ REQUIRED_ENV = 'CONNECTED_PRODUCT_REQUIRED'
 
 
 class RuntimeDiscoveryTests(unittest.TestCase):
+    def test_healthy_foreign_service_is_not_the_owned_service(self):
+        runner = runpy.run_path(str(PROJECT / 'run_project.py'))
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            services = []
+            try:
+                for name in ('owned', 'foreign'):
+                    process, log = runner['server_process'](
+                        PROJECT, root / (name + '.sqlite'), root / (name + '.json'),
+                        root / (name + '.log'))
+                    services.append((process, log))
+                    runner['wait_for_server'](process, root / (name + '.json'),
+                                              root=PROJECT, database=root / (name + '.sqlite'))
+                with self.assertRaisesRegex(RuntimeError, 'identity'):
+                    runner['wait_for_server'](services[0][0], root / 'foreign.json',
+                                              root=PROJECT, database=root / 'owned.sqlite')
+                foreign = json.loads((root / 'foreign.json').read_text())
+                foreign['pid'] = services[0][0].pid
+                (root / 'foreign.json').write_text(json.dumps(foreign))
+                with self.assertRaisesRegex(RuntimeError, 'identity'):
+                    runner['wait_for_server'](services[0][0], root / 'foreign.json',
+                                              root=PROJECT, database=root / 'owned.sqlite')
+            finally:
+                for process, log in services:
+                    runner['stop_process'](process)
+                    log.close()
+
+    def test_wrong_database_and_stale_source_are_rejected(self):
+        runner = runpy.run_path(str(PROJECT / 'run_project.py'))
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            project = root / 'project'
+            shutil.copytree(PROJECT, project, ignore=shutil.ignore_patterns('__pycache__'))
+            database, port = root / 'data.sqlite', root / 'port.json'
+            process, log = runner['server_process'](project, database, port, root / 'server.log')
+            try:
+                ready = runner['wait_for_server'](process, port, root=project, database=database)
+                self.assertEqual(ready['health']['identity']['database'], str(database.resolve()))
+                with self.assertRaisesRegex(RuntimeError, 'identity'):
+                    runner['wait_for_server'](process, port, root=project, database=root / 'other.sqlite')
+                source = project / 'ui.js'
+                original = source.read_bytes()
+                source.write_bytes(original + b'\n// changed after launch\n')
+                with self.assertRaisesRegex(RuntimeError, 'identity'):
+                    runner['wait_for_server'](process, port, root=project, database=database)
+                source.write_bytes(original)
+                runner['wait_for_server'](process, port, root=project, database=database)
+            finally:
+                runner['stop_process'](process)
+                log.close()
+
     def test_missing_node_retains_blocked_report_without_launch(self):
         runner = runpy.run_path(str(PROJECT / 'run_project.py'))
         with tempfile.TemporaryDirectory() as temp:
@@ -139,7 +190,7 @@ class ConnectedProductTests(unittest.TestCase):
         observations = {'frontend': {'status': 'NOT_REQUIRED', 'reason': 'Direct API-only task'},
                         'domain': domain.stderr, 'responses': [], 'services': []}
         try:
-            ready = runner['wait_for_server'](service, port_file)
+            ready = runner['wait_for_server'](service, port_file, root=project, database=database)
             for value, status in ((2, 201), (-1, 422), (0, 201)):
                 request = urllib.request.Request(ready['url'] + '/api/items',
                     data=json.dumps({'quantity': value}).encode(), headers={'Content-Type': 'application/json'})
@@ -159,7 +210,7 @@ class ConnectedProductTests(unittest.TestCase):
             observations['services'].append({'pid': service.pid, 'exit_code': service.returncode})
             log.close()
             service, log = runner['server_process'](project, database, port_file, log_path)
-            restarted = runner['wait_for_server'](service, port_file)
+            restarted = runner['wait_for_server'](service, port_file, root=project, database=database)
             with urllib.request.urlopen(restarted['url'] + '/api/items', timeout=5) as response:
                 fresh = json.loads(response.read())['items']
             observations.update(before_restart=before, fresh_read=fresh, after_restart=runner['database_rows'](database))

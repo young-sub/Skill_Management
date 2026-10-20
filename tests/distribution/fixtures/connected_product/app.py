@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import argparse
 from contextlib import closing
+import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import os
 from pathlib import Path
 import sqlite3
 from urllib.parse import urlsplit
@@ -31,6 +33,7 @@ def initialize(database: Path) -> None:
 
 class Handler(BaseHTTPRequestHandler):
     database: Path
+    identity: dict
 
     def send_json(self, status: int, value: object) -> None:
         body = json.dumps(value, ensure_ascii=False).encode("utf-8")
@@ -62,7 +65,8 @@ class Handler(BaseHTTPRequestHandler):
         if route == "/health":
             with closing(connect(self.database)) as connection:
                 count = connection.execute("SELECT COUNT(*) FROM items").fetchone()[0]
-            self.send_json(200, {"ready": True, "storage": "sqlite", "item_count": count})
+            self.send_json(200, {"ready": True, "storage": "sqlite", "item_count": count,
+                                 "identity": self.identity})
             return
         if route == "/api/items":
             with closing(connect(self.database)) as connection:
@@ -109,9 +113,14 @@ def main() -> None:
     args.database.parent.mkdir(parents=True, exist_ok=True)
     initialize(args.database)
     Handler.database = args.database.resolve()
+    Handler.identity = {
+        "pid": os.getpid(), "root": str(ROOT), "database": str(Handler.database),
+        "source": {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
+                   for name in ("app.py", "domain.py", "ui.js", "index.html", "history.html", "shared.css")},
+    }
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
     server.daemon_threads = True
-    address = {"host": "127.0.0.1", "port": server.server_address[1], "pid": __import__("os").getpid()}
+    address = {"host": "127.0.0.1", "port": server.server_address[1], "pid": os.getpid()}
     args.port_file.write_text(json.dumps(address), encoding="utf-8")
     try:
         server.serve_forever(poll_interval=0.1)

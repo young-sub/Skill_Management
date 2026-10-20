@@ -6,6 +6,10 @@ retains BLOCKED without service launch. Shared setup guidance connects actual co
 target, role/data, observation and cleanup at the project owner. Resolution controls
 and real Chromium/API/SQLite/restart/fault scenarios live in `test_connected_product`;
 these do not establish production or unaided native-host acceptance.
+The fixture now rejects a foreign service (including a forged launch PID),
+wrong database and changed startup source before browser input, and rechecks
+identity after restart. Health/launch identities remain in native raw observations;
+the common capture runtime does not claim to attest a remote server.
 
 2026-10-21 `documentation`: the [current design](research/agent-coding-system-direction.md)
 separates local 0.1.80 evidence from the planned V1–V6 execution/observation improvements.

@@ -151,7 +151,15 @@ def stop_process(process: subprocess.Popen | None) -> None:
         process.wait(timeout=5)
 
 
-def wait_for_server(process: subprocess.Popen, port_file: Path, timeout: float = 20.0) -> dict:
+def wait_for_server(
+    process: subprocess.Popen, port_file: Path, timeout: float = 20.0, *,
+    root: Path, database: Path,
+) -> dict:
+    expected = {
+        "pid": process.pid, "root": str(root.resolve()), "database": str(database.resolve()),
+        "source": {name: sha256(root / name)
+                   for name in ("app.py", "domain.py", "ui.js", "index.html", "history.html", "shared.css")},
+    }
     deadline = time.monotonic() + timeout
     last_error = None
     while time.monotonic() < deadline:
@@ -160,10 +168,14 @@ def wait_for_server(process: subprocess.Popen, port_file: Path, timeout: float =
         if port_file.is_file():
             try:
                 address = json.loads(port_file.read_text(encoding="utf-8"))
+                if address.get("host") != "127.0.0.1" or address.get("pid") != process.pid:
+                    raise RuntimeError("Service identity mismatch in launch address")
                 url = "http://%s:%s" % (address["host"], address["port"])
                 with urllib.request.urlopen(url + "/health", timeout=2) as response:
                     health = json.loads(response.read().decode("utf-8"))
                 if response.status == 200 and health.get("ready") is True:
+                    if health.get("identity") != expected:
+                        raise RuntimeError("Service identity mismatch: process, source or database")
                     return {"url": url, "address": address, "health": health}
             except (OSError, ValueError, KeyError, urllib.error.URLError) as error:
                 last_error = str(error)
@@ -270,7 +282,7 @@ def main() -> int:
         runtime, runtime_env = browser_runtime()
         report["observed"]["browser"] = runtime
         service, server_log = server_process(ROOT, database, port_file, log_path)
-        ready = wait_for_server(service, port_file)
+        ready = wait_for_server(service, port_file, root=ROOT, database=database)
         port = int(ready["address"]["port"])
         report["execution"]["target"] = ready["url"]
         report["observed"]["services"].append(
@@ -326,7 +338,7 @@ def main() -> int:
             server_log.close()
             server_log = None
         service, server_log = server_process(ROOT, database, port_file, log_path, port=port)
-        restarted = wait_for_server(service, port_file)
+        restarted = wait_for_server(service, port_file, root=ROOT, database=database)
         report["observed"]["services"].append(
             {"pid": service.pid, "port": port, "launch": restarted, "status": "running"}
         )

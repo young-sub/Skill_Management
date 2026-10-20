@@ -16,6 +16,14 @@ ui.js owns the shared app-nav component and the page interactions. Both HTML scr
 
 ## Project runner
 
+Readiness compares the owned process, checkout, startup hashes of the served
+application/UI files, and isolated database path with the intended target, both
+before browser input and after restart. A healthy foreign service, wrong database
+or source edited after launch is rejected. The loopback fixture's health response
+retains that identity for observation; it is not a production endpoint pattern or
+cryptographic attestation. File replacement during execution remains outside this
+bounded preflight check.
+
 From this fixture's project root run `python run_project.py --report .work/connected-acceptance/<new-run-id>/browser.json`. The project runner owns service launch, readiness and SQLite doctor checks, the real Chromium drive, evidence collection, a process restart, and cleanup. The report path and its sibling artifact directory must be new. It retains raw browser responses, loading/empty/error/success observations, database rows before and after restart, desktop/mobile screenshots for both routes and mobile history after restart, a Playwright trace, and the server log; the temporary SQLite database and port file are removed during cleanup. Both owned service processes retain their observed stopped state and exit code after cleanup; registered assertions require their termination and no cleanup errors.
 
 The configured browser check is an end-to-end observation. It delays a real empty-history response to observe loading, then uses a controlled 503 response to exercise the read-error presentation. These route interceptions are observer conditions, not product defects. The isolated test_domain.py covers the business boundary directly; neither a successful server health response nor an HTTP success status alone passes the user flow.

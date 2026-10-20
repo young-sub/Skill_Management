@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/project-verification.md -->
-<!-- Source-SHA256: 4351eb3011f71a1238198067286e7b5be81f174761267362ded0f14c19711908 -->
+<!-- Source-SHA256: 2a1fe5001b9de2844b7f847d72fbf55edbdf6305e50e78087eeea48aad519239 -->
 
 # Project verification responsibilities
 
@@ -93,6 +93,15 @@ token names are assisted consumption, distinct from unaided discovery; a fresh
 context is useful when discovery is the claim, not compulsory for every small edit.
 
 ## One plan, one raw execution
+
+Before driving a mutating flow, compare the served target with the intended
+checkout/build and data environment using the project's existing launch/doctor
+path. An executable hash or healthy URL alone does not identify the served code.
+For an owned local service, compare launch/process identity, a startup source/build
+identity and the isolated storage target; recheck after restart. Reject a different
+healthy server, stale build or wrong database before writing. Preserve the observed
+identity in raw evidence. Use existing deployment metadata for remote targets;
+do not expose internal paths or credentials through a new public health endpoint.
 
 Before running, select Feature/check, expected result, criterion revision, required/excluded status and reason. Bind each actual run to command/cwd, source commit/diff, dependencies, fixture and served runtime identity. Preserve native exit/case/skip/error and raw assertion/observation location. A DB observation also needs its producing command, target, run and observed identifiers; matching values alone do not establish provenance.
 
