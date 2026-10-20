@@ -6,11 +6,11 @@ pstack의 스킬, 작업 절차, 서브에이전트, 자동화 팩과 실행 도
 
 이 문서는 외부 플러그인의 조사 기록이다. 이 저장소의 실행 지침은 [Agent workflow](../agents/workflow.md)와 기존 Harness 문서가 정한다.
 
-현재 채택·제외 기준과 다음 개선 순서는 [2026-10-15 설계 검토](archive/agent-coding-system-direction-through-0.1.68.md#design-review-2026-10-15), 실제 후속 구현은 [0.1.61 위임 인수 결과](agent-workflow-implementation-results.md#delegated-handoff-2026-10-15)에 정리했다. [과거 실행 프롬프트](archive/agent-coding-next-session-through-0.1.68.md)는 수행 범위의 기록이며 새 실행 지시가 아니다. 이전 배포 비교·Router 보류 판단은 [아카이브](archive/index.md)에 보존한다. 이 문서는 2026-10-03에 고정한 외부 소스의 조사 기록이며, 후보 전체의 품질 효과나 현재 플러그인 호스트 지원을 보증하지 않는다.
+현재 채택·제외 기준과 구현 순서는 [현재 설계](agent-coding-system-direction.md)를 따른다. 후속 0.15.25 / `101b274dd991f694e1f7024be2157e5f3adf07de` 조사는 [실전 비교](pstack-practical-comparison.md)에 있으며 아래 0.15.6 조사와 구분한다. 과거 채택 판단은 [2026-10-15 설계 검토](archive/agent-coding-system-direction-through-0.1.68.md#design-review-2026-10-15), 후속 구현은 [0.1.61 위임 인수 결과](agent-workflow-implementation-results.md#delegated-handoff-2026-10-15)에 정리했다. [과거 실행 프롬프트](archive/agent-coding-next-session-through-0.1.68.md)는 수행 범위의 기록이며 새 실행 지시가 아니다. 이전 배포 비교·Router 보류 판단은 [아카이브](archive/index.md)에 보존한다. 이 문서는 2026-10-03에 고정한 외부 소스의 조사 기록이며, 후보 전체의 품질 효과나 현재 플러그인 호스트 지원을 보증하지 않는다.
 
 ## 조사 범위와 근거
 
-2026-10-15의 현재 고도화 판단은 [현재 설계 검토](archive/agent-coding-system-direction-through-0.1.68.md#design-review-2026-10-15)를 따른다. 이번 갱신은 로컬 코드/근거와 환경 재시도에 대한 적용 판단이며 외부 소스를 새로 실행하거나 최신판을 조사한 결과가 아니다. [0.1.46 보완 검토](archive/agent-workflow-refinement-review-through-0.1.68.md#post-0146-review)의 D1–D3는 후속 구현에서 해결됐다. 이 링크 갱신은 아래 고정 소스를 새로 조사하거나 pstack을 실행했다는 뜻이 아니다. 기존 기능 인수와 새 구현을 구분하고 고정된 기준의 실패/정상 반례·실제 기능 조작·원인별 개선을 재사용한다. 아래 pstack 고정 소스 조사 범위는 바뀌지 않았으며 동일 과업 실행 비교나 최신 버전 우월성을 확인한 것은 아니다.
+2026-10-15 당시 고도화 판단은 [당시 설계 검토](archive/agent-coding-system-direction-through-0.1.68.md#design-review-2026-10-15)에 기록되어 있다. 해당 갱신은 로컬 코드/근거와 환경 재시도에 대한 적용 판단이며 외부 소스를 새로 실행하거나 최신판을 조사한 결과가 아니다. [0.1.46 보완 검토](archive/agent-workflow-refinement-review-through-0.1.68.md#post-0146-review)의 D1–D3는 후속 구현에서 해결됐다. 이 링크 갱신은 아래 고정 소스를 새로 조사하거나 pstack을 실행했다는 뜻이 아니다. 기존 기능 인수와 새 구현을 구분하고 고정된 기준의 실패/정상 반례·실제 기능 조작·원인별 개선을 재사용한다. 아래 pstack 고정 소스 조사 범위는 바뀌지 않았으며 동일 과업 실행 비교나 최신 버전 우월성을 확인한 것은 아니다.
 
 우리 체계의 2026-10-07 실제 구현·사용과 이 고정 소스의 비교는 [현재 구현 결과](agent-workflow-implementation-results.md#pinned-pstack-comparison)에 있다. 같은 커밋의 주요 1차 소스를 다시 확인했으며, pstack 실행이나 양쪽의 동일 과제 비교 실험을 한 것은 아니다.
 
@@ -247,7 +247,7 @@ poteto-mode의 외부 쓰기 자율성 지침, reflect의 일부 후속 처리, 
 
 이 항목은 조사에서 도출한 제안이다. 현재 저장소의 구현 상태나 승인된 변경 계획을 뜻하지 않는다.
 
-2026-10-15의 로컬 적용 재검토에서는 실행 가능한 가이드, 고정 기대와 실제 결과의 대조, 전달 시 현재성 확인을 계속 채택한다. 검사 바인딩 이관은 0.1.60에서, 요청/영향/프로젝트/미결정 구분과 미검증 기준의 명령·guide·raw 연결은 0.1.61에서 구현됐다. 다른 staff-access 업무의 도움받은 가이드 소비도 수행했다. 이를 새 구현으로 반복하지 않는다. 다음 우선순위는 **실제로 큰 summary와 긴 조회 비용**, **업무 규칙과 별도의 사업 모델 관찰**, **연결된 full-stack·예방의 다음 업무 인수**, **스타일 기준 변경 후 다른 소비자의 재사용**다. native 발견은 권한 상승과 임시 Skill roots에서 일부 확인했으나 설치본 Skill 호출·실제 hook 전달은 별도 미수행이다. 기존 고정 소스의 적용 판단이며 pstack 최신판 조회·실행·동일 과제 성능 비교를 새로 했다는 뜻이 아니다. 상세 반례와 종료 조건은 방향 문서 §10 한 곳에서 관리한다.
+2026-10-15의 로컬 적용 재검토에서는 실행 가능한 가이드, 고정 기대와 실제 결과의 대조, 전달 시 현재성 확인을 채택했다. 검사 바인딩 이관은 0.1.60에서, 요청/영향/프로젝트/미결정 구분과 미검증 기준의 명령·guide·raw 연결은 0.1.61에서 구현됐다. 다른 staff-access 업무의 도움받은 가이드 소비도 수행했다. 당시 우선순위는 큰 summary와 긴 조회 비용, 업무 규칙과 별도의 사업 모델 관찰, 연결된 full-stack·예방의 다음 업무 인수, 스타일 기준 변경 후 다른 소비자의 재사용이었다. 당시 native 발견은 권한 상승과 임시 Skill roots에서 일부 확인했으나 설치본 Skill 호출·실제 hook 전달은 별도 미수행이었다. 이는 과거 고정 소스의 적용 판단이며 최신판 조회·실행·동일 과제 비교 결과가 아니다. 당시 상세 판단은 [보관된 설계 검토](archive/agent-coding-system-direction-through-0.1.68.md#design-review-2026-10-15)에 남기고, 현재 상태와 구현 순서는 [현재 설계](agent-coding-system-direction.md)를 따른다.
 
 | 우선순위 | 적용 후보 | 도입 조건 |
 | --- | --- | --- |

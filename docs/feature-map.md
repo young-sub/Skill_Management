@@ -1,5 +1,11 @@
 # Repository Feature Map
 
+2026-10-21 `documentation`: the [current design](research/agent-coding-system-direction.md)
+separates local 0.1.80 evidence from the planned V1–V6 execution/observation improvements.
+The [execution entrypoint](research/plugin-continuous-improvement-next-session.md) follows
+that scope and current Git policy. This documentation change adds no runtime capability;
+future changes must update their affected Feature rows with actual evidence.
+
 0.1.80 follow-up: `harness-setup` validates the bundled capture scripts in the
 existing cohort allowlist. `workflow-obligations` counts final display omissions
 separately from uninspected task candidates. `verification-results` shares Git
