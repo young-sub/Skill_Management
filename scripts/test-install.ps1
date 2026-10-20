@@ -137,6 +137,7 @@ function Get-SkillTreeDrift {
                 [System.StringComparer]::Ordinal
             )
             foreach ($installedDirectory in Get-ChildItem -LiteralPath $installedSkill -Recurse -Directory) {
+                if ($installedDirectory.FullName -match '[\\/]__pycache__([\\/]|$)') { continue }
                 $relative = $installedDirectory.FullName.Substring($installedSkill.Length).TrimStart([char[]]'\/').Replace('\', '/')
                 [void]$installedDirectories.Add($relative)
             }
@@ -215,6 +216,7 @@ function Get-PublicSkillTreeDigest {
         foreach ($providerRoot in @('.agents\skills', '.claude\skills')) {
             $installedSkill = Join-Path $InstallRoot "$providerRoot\$skillName"
             foreach ($installedDirectory in Get-ChildItem -LiteralPath $installedSkill -Recurse -Directory) {
+                if ($installedDirectory.FullName -match '[\\/]__pycache__([\\/]|$)') { continue }
                 $relative = $installedDirectory.FullName.Substring($InstallRoot.Length).TrimStart([char[]]'\/').Replace('\', '/')
                 $entries.Add("directory:$relative")
             }

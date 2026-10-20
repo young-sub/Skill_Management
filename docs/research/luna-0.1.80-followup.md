@@ -118,3 +118,17 @@ loopback에서 401을 반환했다. 유료 inference나 모델의 자율 작업 
 에이전트가 최종 lookup을 실제 수행하는지에 대한 모델 행동 평가는 별도다.
 설치·발견, shell 훅 실행, native host 자동 전달과 유료 모델 성공을 구분한다.
 기존 설치본·전역 설정·readiness Goal·main·원격은 이 변경의 대상이 아니다.
+
+## 2026-10-20 release gate follow-up
+
+Scope: the user selected full regression/CI review and correction of measurement documentation; additional native installation was excluded. Feature impact is `skill-install` verification only. The frozen 0.1.80 runtime and generated package content are unchanged.
+
+The initial full run executed 510 tests in 842.887 seconds and failed seven install/update smoke cases. All seven rejected a Python `__pycache__` directory as extra, even though cache files were already excluded. `scripts/test-install.ps1` now excludes cache directories and descendants consistently in both tree comparison and digest. Ordinary unexpected empty directories remain errors. The focused install/distribution regression passed 16 tests, including cache-independent digests and rejection of a non-cache extra directory. This uses fixture CLI installs; it is not new external installer acceptance.
+
+After the fix, the full regression passed all 512 tests in 939.128 seconds, including required connected-product acceptance. Browser evidence was retained under `.work/connected-product-artifacts/84981f7a-d265-4c3b-8183-5766c5cd8c73`; frontend fault and style/focus evidence paths are recorded in the full capture stdout.
+
+The five timing rows in `luna-0.1.79-local-improvements.md` now match `before-frozen.json` / `after-frozen.json`, including p50/p95, file reads, Git calls, and context bytes. Earlier measurements and the original 60 experiment records were not rerun or replaced.
+
+Evidence root: `.work/release-gate-0180-20261020/`. Retain `full-regression.json` (original failure), `install-regression.json`, `full-regression-fixed.json`, `measurement-and-build-check.json`, `verified-source-hashes.json`, `environment.json`, and `preservation-check.json`. Resource drift, distribution validation, and a fresh CI-style package build passed; the fresh content matches the frozen package excluding build provenance. The existing frozen ZIP is preserved.
+
+CI uses Windows and Ubuntu, Python 3.12, Node 22.20.0, and required connected-product acceptance. This run uses local Windows, Python 3.12.10, Node 22.23.1, `PYTHONUTF8=1`, and `CONNECTED_PRODUCT_REQUIRED=1`. Hosted GitHub Actions and Ubuntu were not executed. No global installs, protected-main integration, push, publication, or paid inference were performed.

@@ -20,6 +20,7 @@ class InstallUpdateSmokeTests(unittest.TestCase):
         resolved_remote_commit: str | None = None,
         resolved_default_commit: str | None = None,
         leave_stale_harness_directories: bool = False,
+        extra_directory: str | None = None,
     ) -> tuple[str, dict[str, object]]:
         with tempfile.TemporaryDirectory() as temporary:
             temp = Path(temporary)
@@ -38,6 +39,9 @@ class InstallUpdateSmokeTests(unittest.TestCase):
                 "      New-Item -ItemType Directory -Path (Split-Path $target -Parent) -Force | Out-Null\n"
                 "      if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }\n"
                 "      Copy-Item -LiteralPath $entry.FullName -Destination $target -Recurse -Force\n"
+                "      if ($entry.Name -eq 'agent-workflow' -and $env:HARNESS_FAKE_EXTRA_DIRECTORY) {\n"
+                "        New-Item -ItemType Directory -Path (Join-Path $target $env:HARNESS_FAKE_EXTRA_DIRECTORY) -Force | Out-Null\n"
+                "      }\n"
                 "      if (\n"
                 "        $env:HARNESS_FAKE_STALE_HARNESS_DIRECTORIES -eq 'true' -and\n"
                 "        $entry.Name -in @('setup-agent-harness', 'design-goal', 'execute-codex-goal', 'close-goal', 'maintain-agent-harness', 'diagnose')\n"
@@ -88,6 +92,7 @@ class InstallUpdateSmokeTests(unittest.TestCase):
             )
             env = dict(__import__("os").environ)
             env["HARNESS_FAKE_SOURCE"] = str(ROOT)
+            env["HARNESS_FAKE_EXTRA_DIRECTORY"] = extra_directory or ""
             env["HARNESS_FAKE_UPDATE_MODE"] = update_mode
             env["HARNESS_FAKE_STALE_HARNESS_DIRECTORIES"] = (
                 "true" if leave_stale_harness_directories else "false"
@@ -147,7 +152,8 @@ class InstallUpdateSmokeTests(unittest.TestCase):
                     }
                     installed_directories = {
                         path.relative_to(installed_root).as_posix()
-                        for path in installed_root.rglob("*") if path.is_dir()
+                        for path in installed_root.rglob("*")
+                        if path.is_dir() and "__pycache__" not in path.parts
                     }
                     self.assertEqual(installed_directories, source_directories)
             return diagnostics, json.loads(evidence.read_text(encoding="utf-8-sig"))
@@ -155,6 +161,23 @@ class InstallUpdateSmokeTests(unittest.TestCase):
     def test_fake_cli_installs_and_updates_all_public_skills_for_both_providers(self) -> None:
         diagnostics, _ = self.run_fake_smoke(update_mode="full")
         self.assertNotIn("Native update unsupported/no-op for local source", diagnostics)
+
+    def test_python_cache_directories_do_not_change_tree_or_digest(self) -> None:
+        _, baseline = self.run_fake_smoke(update_mode="full")
+        _, cached = self.run_fake_smoke(
+            update_mode="full", extra_directory="scripts/__pycache__/nested",
+        )
+        self.assertEqual(
+            baseline["installed_tree_before_update_sha256"],
+            cached["installed_tree_before_update_sha256"],
+        )
+
+    def test_unexpected_empty_directory_is_still_rejected(self) -> None:
+        diagnostics, _ = self.run_fake_smoke(
+            update_mode="full", extra_directory="unexpected-empty",
+            expect_success=False,
+        )
+        self.assertIn("unexpected-empty:directory_extra", diagnostics)
 
     def test_install_atomically_replaces_harness_roots_and_removes_stale_directories(self) -> None:
         self.run_fake_smoke(
