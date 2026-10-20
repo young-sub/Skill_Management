@@ -60,9 +60,11 @@ task/report를 사용한다.
 | V5 / V3–V4 근거 이후 | 실제 검출 가치로 중복 실행·낡은 검사 통합 또는 제거. | 기존 `maintain-project-verification`, `project_workflow.py maintain`, 프로젝트 검사/registry. | 남은 검사가 같은 결함을 잡고 정상 사례를 허용. 요구 폐기는 실제 요구 변경·호출자 영향으로 입증. 근거 없는 삭제 보류. |
 | V6 / 각 단위 검증 후 | 수정 플러그인의 전달과 실제 Agent 소비 검증. | canonical source→mapped resources→집중 회귀→격리 소비→고정 package. 기존 `agent-workflow`/native 검증 경로 사용. | 짧은 요청에서 도구 선택·조작·오류 식별·수정·재검증 추적. fixture/package/product/native 구분. 실패·미실행·추가 힌트·사용자 개입 보존. 설치·유료 실행은 별도 권한 확인. |
 
-실제 제품과 대상 Feature는 아직 지정되지 않았다. V1–V2의 공통 연결 개선은 기존
-connected-product 예제로 먼저 재현할 수 있으나 이를 V3의 실제 제품 완료로 바꾸지 않는다.
-제품 선택 전에는 다른 체크아웃을 수정하지 않는다. 여러 구현 경계의 지속 조정이 필요하면
+실제 제품은 사용자가 지정한 `C:/Users/YS/Desktop/python/yeondoo-link`이며,
+대상은 `consultation`/`staff-access`의 상황별 섹션 선택 → 직원 안내 메뉴다.
+상담 API/DB나 외부 직원 알림은 없는 현재 구조를 미적용으로 구분하고
+실제 브라우저 관찰은 [0.1.81 결과](runtime-verification-0.1.81.md)에 기록한다.
+fixture의 API/SQLite 증거를 제품 증거로 대체하지 않는다. 여러 구현 경계의 지속 조정이 필요하면
 기존 Work Packet 절차로 단위를 묶고 과거 readiness task를 임의로 선택하지 않는다.
 
 ### 상황별 실행·관찰 연결
