@@ -1,5 +1,9 @@
 # Agent Documentation Index
 
+- [Local 0.1.81 runtime verification](research/runtime-verification-0.1.81.md):
+  project-first browser discovery, owned server/source/storage checks, controlled
+  failures and scoped package consumption; actual-product adoption remains separate.
+
 - [Local 0.1.80 follow-up](research/luna-0.1.80-followup.md): cohort installation
   alignment, accurate display omissions, preparation reuse and final-edit capture lookup.
 

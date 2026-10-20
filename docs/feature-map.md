@@ -10,6 +10,11 @@ The fixture now rejects a foreign service (including a forged launch PID),
 wrong database and changed startup source before browser input, and rechecks
 identity after restart. Health/launch identities remain in native raw observations;
 the common capture runtime does not claim to attest a remote server.
+Local 0.1.81 packages this guidance. A fresh isolated consumer discovered the
+project's acceptance/UI guide, reproduced and repaired a History focus defect
+without weakening the runner/assertions (15/16 to 16/16); package entrypoint
+assistance and parent screenshot inspection remain explicit in the
+[bounded results](research/runtime-verification-0.1.81.md).
 
 2026-10-21 `documentation`: the [current design](research/agent-coding-system-direction.md)
 separates local 0.1.80 evidence from the planned V1–V6 execution/observation improvements.

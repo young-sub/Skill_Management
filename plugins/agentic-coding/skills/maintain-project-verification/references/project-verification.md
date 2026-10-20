@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/project-verification.md -->
-<!-- Source-SHA256: 7262dc9363d791a58557f81c930dd2367143e46359718bf654c761082e41bdf8 -->
+<!-- Source-SHA256: 2a1fe5001b9de2844b7f847d72fbf55edbdf6305e50e78087eeea48aad519239 -->
 
 # Project verification responsibilities
 
@@ -56,6 +56,23 @@ Trace actual callers and data: external input → parsing/validation → typed d
 
 ## Execute and repair the existing guide
 
+Discover the actual control and observation path before declaring a connection.
+Use project-local dependencies and existing runners first, then a verified existing
+host tool as fallback. Identify the executable, target URL/process/build, test role,
+isolated data, expected outcome, raw artifact location and owned cleanup in the
+existing guide; do not copy credentials into it. A Skill instruction is not tool access.
+Missing tools or permissions need the unavailable observation, usable fallback and
+resume condition, not a PASS or an automatic installation.
+
+Select only relevant paths: browser input/navigation plus screenshot/DOM/network
+for FE; real HTTP plus independent persisted reads for API/Domain; submitted job
+and terminal result for workers; authorized sandbox callbacks plus internal state
+for integrations; actual execution and reopen/parse/render for CLI or file outputs.
+Use bounded readiness/state polling. Open visual artifacts to judge the result.
+Mock, sandbox and production observations remain distinct. Business-value claims
+need a metric, period and comparison from available product evidence; executable
+policy checks alone do not establish value.
+
 A usable project guide connects four steps to existing owners and commands:
 preparation (dependencies, isolated data, served target and readiness), action
 (actual user input/navigation), observation (expected state, visual/keyboard result
@@ -76,6 +93,15 @@ token names are assisted consumption, distinct from unaided discovery; a fresh
 context is useful when discovery is the claim, not compulsory for every small edit.
 
 ## One plan, one raw execution
+
+Before driving a mutating flow, compare the served target with the intended
+checkout/build and data environment using the project's existing launch/doctor
+path. An executable hash or healthy URL alone does not identify the served code.
+For an owned local service, compare launch/process identity, a startup source/build
+identity and the isolated storage target; recheck after restart. Reject a different
+healthy server, stale build or wrong database before writing. Preserve the observed
+identity in raw evidence. Use existing deployment metadata for remote targets;
+do not expose internal paths or credentials through a new public health endpoint.
 
 Before running, select Feature/check, expected result, criterion revision, required/excluded status and reason. Bind each actual run to command/cwd, source commit/diff, dependencies, fixture and served runtime identity. Preserve native exit/case/skip/error and raw assertion/observation location. A DB observation also needs its producing command, target, run and observed identifiers; matching values alone do not establish provenance.
 
