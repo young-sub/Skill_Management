@@ -49,7 +49,14 @@ def browser_runtime() -> tuple[dict, dict[str, str]]:
     node = shutil.which("node")
     if not node:
         raise RuntimeError("Node.js executable is not available on PATH")
-    if os.name == "nt":
+    environment = os.environ.copy()
+    resolver = "const req=require('node:module').createRequire(%s);" % json.dumps(str(DRIVER))
+    resolved = json.loads(command_output([node, "-e", resolver +
+        "try{console.log(JSON.stringify(req.resolve('playwright')))}"
+        "catch(e){if(e.code!=='MODULE_NOT_FOUND')throw e;console.log('null')}"],
+        timeout=15, env=environment))
+    npm_root = None
+    if resolved is None and os.name == "nt":
         npm_command = shutil.which("npm.cmd") or shutil.which("npm")
         if not npm_command:
             raise RuntimeError("npm is not available to locate the existing Playwright package")
@@ -57,28 +64,28 @@ def browser_runtime() -> tuple[dict, dict[str, str]]:
             npm_root = command_output(["cmd.exe", "/d", "/s", "/c", "npm root -g"])
         else:
             npm_root = command_output([npm_command, "root", "-g"])
-    else:
+    elif resolved is None:
         npm_command = shutil.which("npm")
         if not npm_command:
             raise RuntimeError("npm is not available to locate the existing Playwright package")
         npm_root = command_output([npm_command, "root", "-g"])
-    environment = os.environ.copy()
-    previous_node_path = environment.get("NODE_PATH")
-    environment["NODE_PATH"] = os.pathsep.join(value for value in (npm_root, previous_node_path) if value)
-    inspect = (
+    if npm_root is not None:
+        previous_node_path = environment.get("NODE_PATH")
+        environment["NODE_PATH"] = os.pathsep.join(value for value in (npm_root, previous_node_path) if value)
+    inspect = resolver + (
         "const path=require('node:path');"
-        "const playwright=require('playwright');"
-        "const packagePath=require.resolve('playwright/package.json');"
+        "const playwright=req('playwright');"
+        "const packagePath=req.resolve('playwright/package.json');"
         "const root=path.dirname(packagePath);"
-        "const corePackage=require.resolve('playwright-core/package.json',{paths:[root]});"
+        "const corePackage=req.resolve('playwright-core/package.json',{paths:[root]});"
         "const coreRoot=path.dirname(corePackage);"
         "console.log(JSON.stringify({node:process.execPath,node_version:process.version,"
-        "playwright_package:packagePath,playwright_entry:require.resolve('playwright'),"
+        "playwright_package:packagePath,playwright_entry:req.resolve('playwright'),"
         "playwright_lib_entry:path.join(root,'lib/index.js'),"
-        "core_package:corePackage,core_entry:require.resolve('playwright-core',{paths:[root]}),"
+        "core_package:corePackage,core_entry:req.resolve('playwright-core',{paths:[root]}),"
         "chromium_entry:path.join(coreRoot,'lib/server/chromium/chromium.js'),"
         "browser_metadata:path.join(coreRoot,'browsers.json'),"
-        "playwright_version:require('playwright/package.json').version,"
+        "playwright_version:req('playwright/package.json').version,"
         "chromium_executable:playwright.chromium.executablePath()}));"
     )
     details = json.loads(command_output([node, "-e", inspect], timeout=15, env=environment))
@@ -99,7 +106,7 @@ def browser_runtime() -> tuple[dict, dict[str, str]]:
     details["external_files"] = {
         name: {"path": str(path), "sha256": sha256(path)} for name, path in files.items()
     }
-    details["global_module_root"] = str(Path(npm_root).resolve())
+    details["global_module_root"] = str(Path(npm_root).resolve()) if npm_root else None
     details["python_version"] = sys.version
     details["sqlite_version"] = sqlite3.sqlite_version
     details["python_executable"] = str(Path(sys.executable).resolve())

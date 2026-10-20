@@ -52,6 +52,23 @@ Trace actual callers and data: external input → parsing/validation → typed d
 
 ## Execute and repair the existing guide
 
+Discover the actual control and observation path before declaring a connection.
+Use project-local dependencies and existing runners first, then a verified existing
+host tool as fallback. Identify the executable, target URL/process/build, test role,
+isolated data, expected outcome, raw artifact location and owned cleanup in the
+existing guide; do not copy credentials into it. A Skill instruction is not tool access.
+Missing tools or permissions need the unavailable observation, usable fallback and
+resume condition, not a PASS or an automatic installation.
+
+Select only relevant paths: browser input/navigation plus screenshot/DOM/network
+for FE; real HTTP plus independent persisted reads for API/Domain; submitted job
+and terminal result for workers; authorized sandbox callbacks plus internal state
+for integrations; actual execution and reopen/parse/render for CLI or file outputs.
+Use bounded readiness/state polling. Open visual artifacts to judge the result.
+Mock, sandbox and production observations remain distinct. Business-value claims
+need a metric, period and comparison from available product evidence; executable
+policy checks alone do not establish value.
+
 A usable project guide connects four steps to existing owners and commands:
 preparation (dependencies, isolated data, served target and readiness), action
 (actual user input/navigation), observation (expected state, visual/keyboard result

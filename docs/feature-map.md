@@ -1,5 +1,12 @@
 # Repository Feature Map
 
+2026-10-21 `native-verification` / `agent-workflow`: connected-product browser discovery
+resolves project dependencies before an existing global npm fallback. Missing Node
+retains BLOCKED without service launch. Shared setup guidance connects actual control,
+target, role/data, observation and cleanup at the project owner. Resolution controls
+and real Chromium/API/SQLite/restart/fault scenarios live in `test_connected_product`;
+these do not establish production or unaided native-host acceptance.
+
 2026-10-21 `documentation`: the [current design](research/agent-coding-system-direction.md)
 separates local 0.1.80 evidence from the planned V1–V6 execution/observation improvements.
 The [execution entrypoint](research/plugin-continuous-improvement-next-session.md) follows

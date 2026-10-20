@@ -7,14 +7,61 @@ import runpy
 import shutil
 import subprocess
 import sys
+import tempfile
 import urllib.error
 import urllib.request
 import uuid
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = ROOT / 'tests/distribution/fixtures/connected_product'
 REQUIRED_ENV = 'CONNECTED_PRODUCT_REQUIRED'
+
+
+class RuntimeDiscoveryTests(unittest.TestCase):
+    def test_missing_node_retains_blocked_report_without_launch(self):
+        runner = runpy.run_path(str(PROJECT / 'run_project.py'))
+        with tempfile.TemporaryDirectory() as temp:
+            report = Path(temp) / 'browser.json'
+            with patch.object(sys, 'argv', ['run_project.py', '--report', str(report)]):
+                with patch('shutil.which', return_value=None):
+                    self.assertEqual(runner['main'](), 2)
+            raw = json.loads(report.read_text(encoding='utf-8'))
+            self.assertEqual(raw['status'], 'BLOCKED')
+            self.assertFalse(raw['execution']['executed'])
+            self.assertEqual(raw['observed']['services'], [])
+            self.assertIn('Node.js', raw['errors'][0]['message'])
+            self.assertEqual(raw['cleanup']['errors'], [])
+
+    def test_project_browser_does_not_require_npm_or_global_modules(self):
+        runner = runpy.run_path(str(PROJECT / 'run_project.py'))
+        node = shutil.which('node')
+        self.assertIsNotNone(node)
+        with tempfile.TemporaryDirectory() as temp:
+            project = Path(temp)
+            modules = project / 'node_modules'
+            for name in ('playwright', 'playwright-core'):
+                package = modules / name
+                package.mkdir(parents=True)
+                (package / 'package.json').write_text(
+                    json.dumps({'name': name, 'version': 'test-local', 'main': 'index.js'}))
+                (package / 'index.js').write_text(
+                    "exports.chromium={executablePath:()=>__filename};")
+            for relative in ('playwright/lib/index.js',
+                             'playwright-core/lib/server/chromium/chromium.js',
+                             'playwright-core/browsers.json'):
+                target = modules / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text('{}')
+            with patch.dict(runner['browser_runtime'].__globals__,
+                            ROOT=project, DRIVER=project / 'browser_drive.cjs'):
+                with patch('shutil.which', side_effect=lambda name: node if name == 'node' else None):
+                    details, environment = runner['browser_runtime']()
+            self.assertEqual(details['playwright_version'], 'test-local')
+            self.assertEqual(Path(details['playwright_package']),
+                             modules / 'playwright/package.json')
+            self.assertIsNone(details['global_module_root'])
 
 
 class ConnectedProductTests(unittest.TestCase):
