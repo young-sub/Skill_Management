@@ -85,7 +85,20 @@ Skill 본문 반복 읽기와 모델 token 절감에 대한 새 유료 비교는
 - `preservation-after.json`: 위 71개 파일 해시가 모두 같음을 재확인했다.
 - `resource-drift-final.log`, `distribution-final.log`: 생성 리소스 및 배포 정적 검사 통과.
 
-훅 첫 구현 커밋은 `6d4afea`다. 이 기록의 후속 갱신에서 최종 패키지·관련 검사·보존 결과를 연결한다.
+훅 첫 구현 커밋은 `6d4afea`, 검증 바인딩·읽기 지침·생성 리소스의 소스 커밋은
+`91675aeae2ba4ee0c66b9f89b0496d0598d4bc6c`다.
+해당 clean 소스에서 `frozen-package/`의 284개 파일을 생성했다.
+기존 marketplace의 원본은 `previous-marketplace-0.1.78/`에 보존하고
+`plugins/agentic-coding/`만 동일한 생성 바이트로 갱신했다.
+
+- `frozen-package-capture.json`: plugin-package selector 20개 통과.
+  두 catalog, 생성 패키지 일치, 격리된 update/global guidance fixture 및
+  실제 패키지 실행/조회·shell 훅 소비를 포함한다. 실제 설치본에는 적용하지 않았다.
+- `frozen-hook-consumption.json`: 동결 패키지 자체의 shell 훅을 두 root 변수로
+  호출한 개발/비개발 4개 소비 통과. 소비 저장소와 패키지 바이트는 그대로다.
+- `package-freeze.json`: 소스 커밋, 변경 파일 목록, inventory와 ZIP SHA-256.
+  `agentic-coding-0.1.79-frozen.zip`의 SHA-256은
+  `c6776fcb3c5154f2fa2be2599b8a152bd5246a351f4e3671895eefa315fce313`이다.
 
 ## 한계
 
@@ -94,4 +107,5 @@ Skill 본문 반복 읽기와 모델 token 절감에 대한 새 유료 비교는
 일반 직접 작업에는 완료를 강제로 차단하는 호스트 기능을 추가하지 않았다.
 브라우저 검증은 프로젝트의 Playwright 경로를 사용했고, 비활성 in-app browser는 재시도하지 않았다.
 패키지 실행, native host의 자동 전달, 모델의 무도움 사용·해결률은 서로 다른 증거다.
+전체 저장소 테스트는 실행하지 않았다. 추가 검사에서 확인한 기존 설치 전환 2개 실패는 남아 있다.
 새 유료 비교, 설치본 업데이트, hook trust 변경, push/publish는 이 로컬 개선 범위에 없다.
