@@ -311,4 +311,17 @@ review's extra reference stales that review, rather than every sibling review.
 
 When stdout must be retained, use the package's existing `scripts/run_check.py --cwd <project> --output <new-capture.json> -- <lookup argv>`. It refuses overwrite. Read completed `stdout` JSON; exit zero is not task acceptance. A capture with `execution: running` is unfinished: wait on its owning process/tool and inspect the same path. If the owner stopped, preserve unknown status and reconcile instead of launching another capture.
 
+For ordinary direct work, no task or assertion plan is required to check final-edit
+freshness: capture the existing project command with `run_check.py --cwd <project>
+--output <new-ignored-capture.json> -- <argv>`, then after the final edit run
+`run_check.py --cwd <same-project> --lookup <capture.json>`. Lookup executes zero
+commands and writes no state. `source_status` is CURRENT, STALE or UNKNOWN; it is
+not a test verdict. Inspect the original command's assertions/output and exit code.
+A changed before/after/current Git identity is STALE; incomplete execution or
+unavailable identity is UNKNOWN. A failed command remains failed even with CURRENT
+source. Re-run affected checks into new evidence after an edit. Keep captures in
+an ignored path so evidence itself is not mistaken for changed source. Ignored
+inputs, dependencies, runtime/server identity and behavior are not attested by
+this lightweight lookup; use existing bound plans when those identities matter.
+
 For non-ASCII text or programs sent to native stdin on Windows, save a UTF-8 file with the editor, then use that capture's `--stdin-file <file>` before `--`. It validates UTF-8 and passes a byte snapshot, recording its hash; it does not use PowerShell's text pipeline encoding. Read back the resulting artifact. This protects that transport only: already replaced `?` characters are valid UTF-8 and cannot be recovered or identified as corruption automatically. Never send secrets through a retained check.

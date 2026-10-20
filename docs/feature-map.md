@@ -1,5 +1,13 @@
 # Repository Feature Map
 
+0.1.80 follow-up: `harness-setup` validates the bundled capture scripts in the
+existing cohort allowlist. `workflow-obligations` counts final display omissions
+separately from uninspected task candidates. `verification-results` shares Git
+snapshots inside preparation and preflight separately, retaining the later
+freshness check. `native-verification` / `agent-workflow` expose capture
+`--lookup` for ordinary final-edit source currentness without a task or rerun;
+CURRENT source never substitutes for interpreting the captured check outcome.
+
 `workflow-obligations`: prompt context validates an explicit task before its
 audit, or returns bounded candidates with `NOT_AUDITED`. It does not audit other
 active work. Task blockers/actions and exact lookup pointers have output priority.

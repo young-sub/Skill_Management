@@ -7,7 +7,7 @@ import sys
 import tempfile
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from pathlib import Path
 
 
@@ -390,7 +390,11 @@ class VerificationExecutionTests(unittest.TestCase):
 
         plan = root / '.work/shared/plan.json'
         plan.parent.mkdir(parents=True)
-        prepared = api['prepare_plan'](root, None, plan, report_dir=plan.parent / 'native')
+        patch_snapshot = Mock(wraps=api['_git_snapshot'])
+        with patch.dict(api['prepare_plan'].__globals__, _git_snapshot=patch_snapshot):
+            prepared = api['prepare_plan'](root, None, plan, report_dir=plan.parent / 'native')
+        self.assertEqual(patch_snapshot.call_count, 2,
+                         'Shared consumers reuse preparation and independently recheck before publication')
         self.assertEqual(prepared['status'], 'PREPARED', prepared)
         planned = json.loads(plan.read_text(encoding='utf-8'))
         self.assertEqual([check['conditions']['source']['file_patterns'] for check in planned['checks']],
@@ -407,6 +411,15 @@ class VerificationExecutionTests(unittest.TestCase):
         self.assertEqual({item['feature']: item['current_reuse'] for item in current['items']},
                          {'feature-a': 'STALE', 'feature-b': 'STALE'}, current)
         self.assertEqual((root / '.work/shared-calls').read_text(), '1', 'lookup must not rerun checks')
+        preflight = api['_preflight_execution']
+        def change_before_preflight(*args, **kwargs):
+            (root / 'src/b/logic.py').write_text('VALUE = 4\n')
+            return preflight(*args, **kwargs)
+        next_plan = root / '.work/changed/plan.json'
+        with patch.dict(api['prepare_plan'].__globals__, _preflight_execution=change_before_preflight):
+            with self.assertRaisesRegex(ValueError, 'pre-run source.file_hashes'):
+                api['prepare_plan'](root, None, next_plan, report_dir=next_plan.parent / 'native')
+        self.assertFalse(next_plan.exists(), 'Preparation cache cannot hide a later source edit')
 
     def test_native_unobserved_or_skipped_cases_are_not_product_assertion_failures(self):
         (self.project / '.gitignore').write_text('result.json\n.work/\n')

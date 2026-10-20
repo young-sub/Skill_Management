@@ -1,5 +1,11 @@
 # Testing and impact selection
 
+For a direct captured check, after the final edit use
+`python scripts/run_check.py --cwd . --lookup <ignored-capture.json>`.
+This read-only check reports source CURRENT/STALE/UNKNOWN and retains the command
+exit code; interpret behavior from the original assertions/output. It neither
+executes tests nor attests ignored inputs, dependencies or runtime identity.
+
 Prompt-hook regressions compare the same retained fixture and request modes,
 including unconfigured development/nondevelopment, unselected candidates and
 explicit task context. Measure elapsed p50/p95 alongside file/Git calls and UTF-8

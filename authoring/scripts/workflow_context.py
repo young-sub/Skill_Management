@@ -36,8 +36,21 @@ def hook_output(summary):
                                        if key.endswith(('_count', '_omitted'))})
     omitted = []
 
+    def display_count(target, key):
+        count_key, omitted_key = {
+            'task_candidates': ('task_candidate_count', 'task_candidate_display_omitted'),
+            'ui_systems': ('ui_system_count', 'ui_system_omitted'),
+            'features': ('feature_count', 'feature_omitted'),
+            'verification_blockers': ('verification_blocker_count', 'verification_blockers_omitted'),
+            'next_actions': ('next_action_count', 'next_action_omitted'),
+        }.get(key, (key + '_count', key + '_omitted'))
+        if count_key in target:
+            target[omitted_key] = max(0, target[count_key] - len(target.get(key, [])))
+
     def add(target, key, value, label):
         target[key] = value
+        if isinstance(value, list):
+            display_count(target, key)
         if len(encoded(result)) <= limit - 120:
             return
         if key == 'investigation' and isinstance(value, dict):
@@ -50,10 +63,13 @@ def hook_output(summary):
             target[key] = list(value)
             while target[key] and len(encoded(result)) > limit - 120:
                 target[key].pop()
+                display_count(target, key)
             if target[key]:
                 omitted.append(label)
                 return
         target.pop(key)
+        if isinstance(value, list):
+            display_count(target, key)
         omitted.append(label)
 
     if current:

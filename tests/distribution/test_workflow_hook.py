@@ -16,6 +16,24 @@ WORKFLOW = ROOT / 'authoring/scripts/project_workflow.py'
 
 
 class WorkflowHookTests(unittest.TestCase):
+    def test_budget_counts_final_display_omissions_separately_from_discovery(self):
+        output = runpy.run_path(str(HOOK))['hook_output']
+        summary = {'status': 'TASK_NOT_SELECTED', 'task_candidate_count': 5,
+            'task_candidate_omitted': 0, 'task_discovery_complete': True,
+            'task_candidates': [{'state': 'x' * 2000} for _ in range(5)],
+            'current_task': {'detail': {'action': 'lookup', 'state': '.work/task.json'},
+                'ui_system_count': 5, 'ui_system_omitted': 1,
+                'ui_systems': [{'guide': 'x' * 1500} for _ in range(4)]}}
+        text = output(summary)['hookSpecificOutput']['additionalContext']
+        result = json.loads(text.split('\n', 1)[1])
+        self.assertLessEqual(len(text), 5500)
+        self.assertEqual(result['task_candidate_omitted'], 0, 'Discovery omissions are unchanged')
+        self.assertTrue(result['task_discovery_complete'])
+        self.assertEqual(result['task_candidate_display_omitted'],
+                         5 - len(result.get('task_candidates', [])))
+        current = result['current_task']
+        self.assertEqual(current['ui_system_omitted'], 5 - len(current.get('ui_systems', [])))
+
     def test_unselected_prompt_discovers_candidates_without_inventory_or_audits(self):
         sys.path.insert(0, str(WORKFLOW.parent))
         import project_workflow as runtime

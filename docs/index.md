@@ -1,5 +1,8 @@
 # Agent Documentation Index
 
+- [Local 0.1.80 follow-up](research/luna-0.1.80-followup.md): cohort installation
+  alignment, accurate display omissions, preparation reuse and final-edit capture lookup.
+
 - [Local 0.1.79 improvements](research/luna-0.1.79-local-improvements.md): request-scoped
   hook context, opt-in final-source binding and local measurements after the retained
   0.1.78 experiment; separate from installed/native model acceptance.

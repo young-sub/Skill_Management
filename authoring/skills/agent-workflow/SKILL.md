@@ -46,6 +46,8 @@ Start with summary/status and exact evidence pointers; search a large report for
 the relevant failed observation before reading its section. Expand when omitted
 context affects the decision; retain applicable accessibility, UI and connected-flow criteria.
 Historical PASS/current STALE and missing evidence are not current acceptance.
+For direct checks captured with `run_check.py`, use its read-only `--lookup` after
+the final edit; source currentness and the command's behavior outcome are separate.
 Reuse project runners/parsers; missing binding does not justify inventing native JSON.
 
 For connected feedback and guide repair, use [repair and reuse](references/repair-and-reuse.md).
