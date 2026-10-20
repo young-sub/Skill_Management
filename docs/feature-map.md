@@ -1,5 +1,13 @@
 # Repository Feature Map
 
+`workflow-obligations`: prompt context validates an explicit task before its
+audit, or returns bounded candidates with `NOT_AUDITED`. It does not audit other
+active work. Task blockers/actions and exact lookup pointers have output priority.
+Unconfigured development requests receive existing-guide/caller/test discovery
+without setup. `tests.distribution.test_workflow_hook` covers request modes,
+budget pressure, ambiguity, UI references and read-only lookup; explicit full
+audits remain available.
+
 `plugin-package` includes the optional preview/apply global-guidance installer: managed blocks preserve consumer text, exact backups precede changes, and duplicate apply is a no-op. This is separate from native plugin installation.
 
 `verification-results` includes execution from a single installed Skill without an external capture path; six isolated Skill copies execute real checks and resume completed evidence without rerunning commands.
