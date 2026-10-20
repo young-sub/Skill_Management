@@ -211,6 +211,203 @@ class VerificationExecutionTests(unittest.TestCase):
                 self.assertEqual(observed.call_count,2,'The next scope observation must remeasure changed raw')
                 self.assertTrue(all(r['status']!='PASS' for r in changed['rows']))
 
+    def test_registered_source_scope_invalidates_only_affected_check_and_reruns_it(self):
+        import runpy
+
+        api = runpy.run_path(str(VIEWER))
+        workflow = runpy.run_path(str(VIEWER.with_name('project_workflow.py')))
+        root = self.project
+        (root / '.gitignore').write_text('.work/\n__pycache__/\n')
+        for directory in ('src/a', 'src/b', 'shared', 'criteria', '.harness'):
+            (root / directory).mkdir(parents=True, exist_ok=True)
+        (root / 'src/a/logic.py').write_text("VALUE = 'A'\n")
+        (root / 'src/b/logic.py').write_text("VALUE = 'B'\n")
+        (root / 'shared/theme.css').write_text(':root { --gap: 8px; }\n')
+        (root / 'shared/button.js').write_text('export const button = true;\n')
+        (root / 'criteria/a.md').write_text('Feature A keeps its observed value.\n')
+        (root / 'criteria/b.md').write_text('Feature B keeps its observed value.\n')
+        (root / 'criteria/ui.md').write_text('Shared controls follow this guide.\n')
+        (root / 'unrelated.txt').write_text('outside registered source roots\n')
+        for name in ('a', 'b'):
+            (root / f'check_{name}.py').write_text(
+                "import json, runpy, sys\nfrom pathlib import Path\n"
+                f"value = runpy.run_path('src/{name}/logic.py')['VALUE']\n"
+                f"counter = Path('.work/calls-{name}')\n"
+                "counter.parent.mkdir(exist_ok=True)\n"
+                "counter.write_text(str(int(counter.read_text()) + 1) if counter.exists() else '1')\n"
+                "report = Path(sys.argv[1])\nreport.parent.mkdir(parents=True, exist_ok=True)\n"
+                "report.write_text(json.dumps({'checks': [{'value': value}]}))\n")
+        features = []
+        checks = []
+        for name, letter in (('a', 'A'), ('b', 'B')):
+            feature_id, check_id = f'feature-{name}', f'check-{name}'
+            criterion = f'criteria/{name}.md'
+            features.append({'id': feature_id, 'partition': feature_id, 'sources': [f'src/{name}/*.py'],
+                             'map': [criterion], 'criteria': [criterion], 'checks': [check_id]})
+            checks.append({'id': check_id, 'feature_id': feature_id, 'expected': f'{letter} remains observable',
+                'required': True, 'selection': {'status': 'selected', 'reason': 'changed behavior'},
+                'source_scope': 'registered',
+                'dependency': {'file_refs': [f'check_{name}.py']}, 'fixture': {'file_refs': [criterion]},
+                'raw_observations': [{'path': f'{{report_dir}}/{name}.json', 'pointer': '/checks/0',
+                    'assertions': [{'pointer': '/checks/0/value', 'equals': letter}]}]})
+        project_config = {'commands': {f'check-{name}': [sys.executable, f'check_{name}.py', f'{{report_dir}}/{name}.json']
+                                        for name in ('a', 'b')},
+            'extensions': {'workflow': {'roots': ['src', 'shared'], 'assertions': 'assertions.json',
+                'features': features, 'ui_systems': {'shared-controls': {'guide': 'criteria/ui.md',
+                    'tokens': ['shared/*.css'], 'components': ['shared/*.js'], 'consumers': ['feature-a']}}}}}
+        (root / '.harness/project.yaml').write_text(json.dumps(project_config))
+        (root / 'assertions.json').write_text(json.dumps({'schema_version': 1, 'checks': checks}))
+        self._git('add', '-A')
+        self._git('commit', '-qm', 'registered source scope fixture')
+
+        state = workflow['begin'](root, project_config, 'change', ['feature-a', 'feature-b'])
+        state_path = root / '.work/task.json'
+        state_path.parent.mkdir(parents=True)
+        state_path.write_text(json.dumps(state))
+
+        def prepare(name):
+            output = root / f'.work/{name}/plan.json'
+            output.parent.mkdir(parents=True, exist_ok=True)
+            prepared = api['prepare_plan'](root, None, output, report_dir=output.parent / 'native',
+                                           pending_state=state_path.relative_to(root))
+            return output, prepared
+
+        plan, prepared = prepare('initial')
+        self.assertEqual({(row['feature'], row['check']) for row in prepared['selected_checks']},
+                         {('feature-a', 'check-a'), ('feature-b', 'check-b')})
+        (root / 'unrelated.txt').write_text('unrelated edit between preparation and execution\n')
+        initial = api['execute_plan'](plan, run_check_path=RUN_CHECK, evidence_dir=root / '.work/initial/evidence')
+        self.assertEqual(initial['status'], 'PASS', initial)
+        self.assertEqual(initial['test_commands_executed'], 2)
+        bundle = initial['execution']['bundle_path']
+        bundle_descriptor = json.loads(Path(bundle).read_text(encoding='utf-8'))
+        stale_context = json.loads(Path(bundle_descriptor['current_context']).read_text(encoding='utf-8'))
+
+        def direct_lookup():
+            return api['view_results'](bundle_descriptor['plan'],
+                record_paths=bundle_descriptor['records'], assessment_paths=bundle_descriptor['assessments'],
+                current_context=stale_context, include_scope=False)
+
+        def assert_source_scope(expected_a):
+            current = api['view_bundle'](bundle)
+            by_feature = {item['feature']: item for item in current['items']}
+            self.assertEqual(by_feature['feature-a']['current_reuse'], expected_a, current)
+            self.assertEqual(by_feature['feature-b']['current_reuse'], 'REUSABLE', current)
+            direct = direct_lookup()
+            direct_by_feature = {item['feature']: item for item in direct['items']}
+            self.assertEqual(direct_by_feature['feature-a']['current_reuse'], expected_a, direct)
+            self.assertEqual(direct_by_feature['feature-b']['current_reuse'], 'REUSABLE', direct)
+
+        (root / 'unrelated.txt').write_text('later unrelated edit outside registered sources\n')
+        unaffected = api['view_bundle'](bundle)
+        self.assertEqual({(item['feature'], item['current_status'], item['current_reuse'])
+                          for item in unaffected['items']},
+                         {('feature-a', 'PASS', 'REUSABLE'), ('feature-b', 'PASS', 'REUSABLE')})
+        self.assertEqual(unaffected['test_commands_executed'], 0)
+        direct_unaffected = direct_lookup()
+        self.assertTrue(all(item['current_reuse'] == 'REUSABLE' for item in direct_unaffected['items']),
+                        direct_unaffected)
+
+        a_source = root / 'src/a/logic.py'
+        a_original = a_source.read_bytes()
+        a_source.write_text("VALUE = 'A'  # scoped edit\n")
+        assert_source_scope('STALE')
+        a_source.write_bytes(a_original)
+        assert_source_scope('REUSABLE')
+
+        shared_css = root / 'shared/theme.css'
+        css_original = shared_css.read_bytes()
+        shared_css.write_text(':root { --gap: 12px; }\n')
+        assert_source_scope('STALE')
+        shared_css.write_bytes(css_original)
+        assert_source_scope('REUSABLE')
+
+        new_source = root / 'src/a/new module.py'
+        new_source.write_text("VALUE = 'new source under the registered glob'\n")
+        assert_source_scope('STALE')
+        new_source.unlink()
+        assert_source_scope('REUSABLE')
+
+        a_source.unlink()
+        assert_source_scope('STALE')
+        a_source.write_bytes(a_original)
+        assert_source_scope('REUSABLE')
+
+        a_source.write_text("VALUE = 'A'  # final source edit\n")
+        shared_css.write_text(':root { --gap: 12px; }\n')
+        new_source.write_text("VALUE = 'new source under the registered glob'\n")
+        audited = workflow['inspect_project'](root, project_config, json.loads(state_path.read_text()))
+        by_feature = {feature['id']: feature for feature in audited['features']}
+        self.assertEqual(by_feature['feature-a']['check_results'][0]['current_reuse'], 'STALE')
+        self.assertEqual(by_feature['feature-b']['check_results'][0]['current_status'], 'PASS')
+
+        rerun_plan, rerun_prepared = prepare('rerun-a')
+        self.assertEqual(rerun_prepared['selected_checks'], [{'feature': 'feature-a', 'check': 'check-a'}])
+        rerun = api['execute_plan'](rerun_plan, run_check_path=RUN_CHECK, evidence_dir=root / '.work/rerun-a/evidence')
+        self.assertEqual(rerun['status'], 'PASS', rerun)
+        self.assertEqual(rerun['test_commands_executed'], 1)
+        self.assertEqual((root / '.work/calls-a').read_text(), '2')
+        self.assertEqual((root / '.work/calls-b').read_text(), '1')
+        final = workflow['inspect_project'](root, project_config, json.loads(state_path.read_text()))
+        self.assertTrue(all(feature['verification_status'] == 'PASS' for feature in final['features']), final)
+
+    def test_registered_shared_check_binds_union_and_runs_once(self):
+        import runpy
+
+        api = runpy.run_path(str(VIEWER))
+        root = self.project
+        (root / '.gitignore').write_text('.work/\n__pycache__/\n')
+        for directory in ('src/a', 'src/b', 'criteria', '.harness'):
+            (root / directory).mkdir(parents=True, exist_ok=True)
+        (root / 'src/a/logic.py').write_text("VALUE = 1\n")
+        (root / 'src/b/logic.py').write_text("VALUE = 2\n")
+        (root / 'criteria/shared.md').write_text('Both Features share this observed requirement.\n')
+        (root / 'check_shared.py').write_text(
+            "import json, runpy, sys\nfrom pathlib import Path\n"
+            "total = runpy.run_path('src/a/logic.py')['VALUE'] + runpy.run_path('src/b/logic.py')['VALUE']\n"
+            "counter = Path('.work/shared-calls')\ncounter.parent.mkdir(exist_ok=True)\n"
+            "counter.write_text(str(int(counter.read_text()) + 1) if counter.exists() else '1')\n"
+            "report = Path(sys.argv[1])\nreport.parent.mkdir(parents=True, exist_ok=True)\n"
+            "report.write_text(json.dumps({'checks': [{'sum': total}]}))\n")
+        features = [
+            {'id': 'feature-a', 'partition': 'feature-a', 'sources': ['src/a/*.py'],
+             'map': ['criteria/shared.md'], 'criteria': ['criteria/shared.md'], 'checks': ['shared-readback']},
+            {'id': 'feature-b', 'partition': 'feature-b', 'sources': ['src/b/*.py'],
+             'map': ['criteria/shared.md'], 'criteria': ['criteria/shared.md'], 'checks': ['shared-readback']},
+        ]
+        project = {'commands': {'shared-readback': [sys.executable, 'check_shared.py', '{report_dir}/shared.json']},
+            'extensions': {'workflow': {'roots': ['src'], 'assertions': 'assertions.json', 'features': features}}}
+        checks = [{'id': 'shared-readback', 'feature_id': feature['id'], 'expected': 'Both inputs total three',
+            'required': True, 'selection': {'status': 'selected', 'reason': 'Shared behavior changed'},
+            'source_scope': 'registered', 'dependency': {'file_refs': ['check_shared.py']},
+            'fixture': {'file_refs': ['criteria/shared.md']},
+            'raw_observations': [{'path': '{report_dir}/shared.json', 'pointer': '/checks/0',
+                'assertions': [{'pointer': '/checks/0/sum', 'equals': 3}]}]} for feature in features]
+        (root / '.harness/project.yaml').write_text(json.dumps(project))
+        (root / 'assertions.json').write_text(json.dumps({'schema_version': 1, 'checks': checks}))
+        self._git('add', '-A')
+        self._git('commit', '-qm', 'registered shared producer source scope fixture')
+
+        plan = root / '.work/shared/plan.json'
+        plan.parent.mkdir(parents=True)
+        prepared = api['prepare_plan'](root, None, plan, report_dir=plan.parent / 'native')
+        self.assertEqual(prepared['status'], 'PREPARED', prepared)
+        planned = json.loads(plan.read_text(encoding='utf-8'))
+        self.assertEqual([check['conditions']['source']['file_patterns'] for check in planned['checks']],
+                         [['src/a/*.py', 'src/b/*.py'], ['src/a/*.py', 'src/b/*.py']])
+        result = api['execute_plan'](plan, run_check_path=RUN_CHECK, evidence_dir=plan.parent / 'evidence')
+        self.assertEqual(result['status'], 'PASS', result)
+        self.assertEqual(result['test_commands_executed'], 1)
+        record = json.loads(Path(result['execution']['bundle']['records'][0]).read_text(encoding='utf-8'))
+        self.assertEqual(record['shared_features'], ['feature-a', 'feature-b'])
+        self.assertEqual((root / '.work/shared-calls').read_text(), '1')
+
+        (root / 'src/b/logic.py').write_text("VALUE = 3  # consumed by the shared producer\n")
+        current = api['view_bundle'](result['execution']['bundle_path'])
+        self.assertEqual({item['feature']: item['current_reuse'] for item in current['items']},
+                         {'feature-a': 'STALE', 'feature-b': 'STALE'}, current)
+        self.assertEqual((root / '.work/shared-calls').read_text(), '1', 'lookup must not rerun checks')
+
     def test_native_unobserved_or_skipped_cases_are_not_product_assertion_failures(self):
         (self.project / '.gitignore').write_text('result.json\n.work/\n')
         self._git('add', '.gitignore')

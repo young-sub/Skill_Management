@@ -23,6 +23,8 @@ def hook_output(summary):
     # Reserve room for omission metadata before adding optional detail.
     limit = 5500 - len(prefix)
     result = {key: summary[key] for key in ('status', 'project_status', 'detail') if key in summary}
+    result.update({key: value for key, value in summary.items()
+                   if key.endswith(('_count', '_omitted')) or key == 'task_discovery_complete'})
     current = summary.get('current_task')
     if current:
         required = ('status', 'reason', 'task_id', 'work_id', 'state', 'detail',
@@ -30,6 +32,8 @@ def hook_output(summary):
                     'verification_blockers', 'verification_blockers_omitted',
                     'next_action_count', 'action_scope_counts')
         result['current_task'] = {key: current[key] for key in required if key in current}
+        result['current_task'].update({key: value for key, value in current.items()
+                                       if key.endswith(('_count', '_omitted'))})
     omitted = []
 
     def add(target, key, value, label):

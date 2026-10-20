@@ -1,5 +1,9 @@
 # Agent Documentation Index
 
+- [Local 0.1.79 improvements](research/luna-0.1.79-local-improvements.md): request-scoped
+  hook context, opt-in final-source binding and local measurements after the retained
+  0.1.78 experiment; separate from installed/native model acceptance.
+
 - [Plugin readiness](research/agent-coding-system-direction.md#현재-완성도--2026-10-18): six requested outcomes, current local acceptance and remaining native boundaries; [build and use](plugins.md).
 
 - [Native plugin use](research/native-plugin-use-results.md): prepared permission-profile comparison and scoped task review closure; retained 0.1.75 reuse, repairs and Narrator evidence. Authenticated test-home native completion remains separate; Claude Code excluded by user choice.

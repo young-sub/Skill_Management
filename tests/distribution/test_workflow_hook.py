@@ -45,7 +45,7 @@ class WorkflowHookTests(unittest.TestCase):
             'status': 'PARTIAL', 'task_acceptance': 'BLOCKED',
             'verification_blocker_count': 1, 'verification_blockers': ['prepared_plan_task_mismatch'],
             'next_action_count': 1, 'next_actions': [{'target': 'api', 'requires': ['verification']}],
-            'detail': pointer, 'features': [{'criteria': ['가' * 9000]}],
+            'detail': pointer, 'feature_count': 9, 'features': [{'criteria': ['가' * 9000]}],
             'obligations': [{'huge': 'x' * 10000}], 'request': {'summary': 'x' * 10000}}}
         text = output(summary)['hookSpecificOutput']['additionalContext']
         self.assertLess(len(text), 6000)
@@ -54,6 +54,7 @@ class WorkflowHookTests(unittest.TestCase):
         self.assertEqual(current['verification_blockers'], ['prepared_plan_task_mismatch'])
         self.assertEqual(current['next_actions'], summary['current_task']['next_actions'])
         self.assertEqual(current['task_acceptance'], 'BLOCKED')
+        self.assertEqual(current['feature_count'], 9)
 
     def test_prompt_context_prioritizes_target_ui_guides_and_feature_ui_paths(self):
         runtime = runpy.run_path(str(WORKFLOW))

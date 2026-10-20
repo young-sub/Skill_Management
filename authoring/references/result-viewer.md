@@ -1,8 +1,9 @@
 # Existing-result lookup
 
 Source identity is shared only within one lookup and exact command/capture cwd.
-Both bundle and direct plan lookup remeasure the captured untracked-file digest;
-editing an already untracked input can leave Git's status text unchanged.
+Both bundle and direct plan lookup remeasure source bytes (registered patterns
+for scoped plans, whole-Git identity for legacy plans); editing an already
+untracked input can leave Git's status text unchanged.
 Historical current-context files cannot substitute for that live observation.
 Before returning, a final Git snapshot rechecks those observations; a changed or
 unavailable source invalidates current reuse. Each later invocation measures again.
@@ -66,11 +67,25 @@ Assertions are project-selected raw facts, not a generic runner parser. Each has
 
 Captures use the existing `run_check.py` format. Assessments bind `feature`, `check`, `run_id`, `status`, and observed `conditions`; if `evidence` is supplied its `sha256` must match the capture. A project raw observation without identity fields may be joined only through an explicit raw descriptor. These are editable consistency records, not authenticated attestation.
 
-`current.json` supplies independently checked current conditions under `conditions`, or per-check overrides under `checks: {"feature/check": {conditions: ...}}`. The viewer independently compares live Git HEAD/diff/status to the capture. It cannot independently attest an external runtime, dependencies, fixture, or the completeness of project criteria. Recheck those identities through the project guide; copied historical values are not current evidence. Without a current context, show historical observations and keep current reuse unavailable.
+`current.json` supplies independently checked current conditions under `conditions`, or per-check overrides under `checks: {"feature/check": {conditions: ...}}`. The viewer independently remeasures source: registered scoped plans use their source patterns and file hashes; legacy unscoped plans compare whole-Git HEAD/diff/status. It cannot independently attest an external runtime or the completeness of declared dependencies, fixture and project criteria. Recheck those identities through the project guide; copied historical values are not current evidence. Without a current context, show historical observations and keep current reuse unavailable.
 
 The output preserves capture path/hash/argv/exit, raw paths/hashes/pointers/producer, assertion values, original judgments, current reuse reasons and conditions. A raw document's top-level `status`, when present, participates in judgment even without `--observation`; an ISSUES/BLOCKED report cannot be hidden by selecting only its successful sub-observations. Unknown status vocabulary remains UNKNOWN for project interpretation. A historical PASS can be STALE or UNKNOWN today. Native nonzero exit, timeout, cleanup failure, required skip/not-run, missing raw or changed conditions prevent current PASS. Read-only requests never backfill missing evidence by rerunning or changing source.
 
 ## Prepare a registered execution plan
+
+An assertion check may opt in with `"source_scope": "registered"` only after
+reviewing complete source ownership and declared dependencies. Preparation then binds its Feature's source patterns, including
+shared UI owners, as `source.file_patterns` and `source.file_hashes`. Current lookup
+remeasures matching Git-visible files, including additions and deletions. A final
+related edit makes that check STALE; an unrelated edit leaves its source binding
+reusable. Criteria, commands, declared dependencies/fixtures, runtime and raw
+producer bindings still apply. New preparation selects the stale checks and
+preserves reusable evidence. Full Git identity remains in the historical capture.
+Unscoped existing registered and direct plans retain conservative whole-repository invalidation.
+Completeness of the registered ownership/dependency scope is still a project
+responsibility; direct editing outside this workflow has no automatic completion gate.
+Shared check IDs require every registered consumer to opt in and bind the union
+of their source patterns, so one producer keeps all consumers' inputs.
 
 For a configured project, the same CLI can assemble deterministic plan metadata:
 
@@ -156,7 +171,7 @@ python <agent-workflow>/scripts/verification_results.py --execute \
   --evidence-dir .work/verification/run-1 --pretty
 ```
 
-Before starting any child, the executor validates the selected check's exact `conditions.command.argv` and absolute `cwd`, current `conditions.source.revision`/`diff`, and each native `raw_observations` descriptor. A selected check must provide one new report path and explicit `equals`, `min_count`, or `min` assertions. Report paths and evidence captures cannot be reused. Excluded and `not_required` checks are not run.
+Before starting any child, the executor validates the selected check's exact `conditions.command.argv` and absolute `cwd`, current source binding (scoped patterns/hashes or legacy revision/diff), and each native `raw_observations` descriptor. A selected check must provide one new report path and explicit `equals`, `min_count`, or `min` assertions. Report paths and evidence captures cannot be reused. Excluded and `not_required` checks are not run.
 
 `conditions.dependency.file_refs` and `conditions.fixture.file_refs` may list project files (the `files` key is accepted as an alias). The executor measures their SHA-256 values before preflight and immediately before every child; a prior child changing a later check's inputs prevents that child from starting. It also records the selected command's resolved executable, executable SHA-256, and wrapper Python version when the executable is the wrapper itself; the same runtime identity is remeasured before each child and during bundle lookup. File references must be relative, non-private, and free of symlink/junction components. `file_refs` stay inside the command directory; `repository_file_refs` use the independently observed Git root and cannot escape it. Both are hashed before execution and during lookup; `.git` metadata references are refused. Source identity includes untracked files across that repository, including siblings of the command directory. Native report paths must be new, non-private, non-aliased, and inside either the command project or the evidence directory. A changed or missing file makes reuse stale or unknown. The source plan is never rewritten; generated `bound-plan.json`, captures, assessments, `current-context.json`, and a persisted `bundle.json` are written under the supplied evidence directory.
 

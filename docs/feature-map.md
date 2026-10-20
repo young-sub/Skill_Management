@@ -8,6 +8,19 @@ without setup. `tests.distribution.test_workflow_hook` covers request modes,
 budget pressure, ambiguity, UI references and read-only lookup; explicit full
 audits remain available.
 
+`verification-results`: assertion checks may explicitly select
+`source_scope: registered` after reviewing source/dependency completeness.
+Preparation binds registered owners and shared UI sources; related edits,
+matching additions and deletions stale affected checks while unrelated edits
+remain reusable. Shared check owners bind their union. Existing unscoped checks
+keep whole-Git invalidation. `test_verification_execution` exercises actual
+execution, final edits, read-only stale lookup and only-affected reexecution.
+
+`agent-workflow`: discovery starts at project criteria and affected code, with
+section-level references for remaining needs. Large result lookup starts at
+summary and exact failed observations; reusable criteria are not reread merely
+because another Skill links them. This changes guidance, not model compliance guarantees.
+
 `plugin-package` includes the optional preview/apply global-guidance installer: managed blocks preserve consumer text, exact backups precede changes, and duplicate apply is a no-op. This is separate from native plugin installation.
 
 `verification-results` includes execution from a single installed Skill without an external capture path; six isolated Skill copies execute real checks and resume completed evidence without rerunning commands.

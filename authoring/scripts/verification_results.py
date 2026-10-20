@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+from fnmatch import fnmatchcase
 import hashlib
 import json
 import math
@@ -534,7 +535,8 @@ def _item_result(
     assessments: list[dict[str, Any]],
     observations: list[dict[str, Any]],
     current: dict[str, Any] | None,
-    source_cache: dict[Path, dict[str, str]] | None = None,
+    source_cache: dict[Path, dict[str, Any]] | None = None,
+    source_scope_cache: dict[tuple[str, tuple[str, ...]], dict[str, str]] | None = None,
 ) -> dict[str, Any]:
     feature = check["feature_id"]
     check_id = check["id"]
@@ -564,6 +566,14 @@ def _item_result(
     assessment = _entry_data(assessment_entry)
     observation = _entry_data(observation_entry)
     expected_conditions = check["conditions"]
+    scoped_source = expected_conditions['source'].get('file_patterns')
+    observed_expected = expected_conditions
+    if scoped_source:
+        observed_expected = copy.deepcopy(expected_conditions)
+        observed_expected['source'] = {
+            key: expected_conditions['source'][key]
+            for key in ('file_patterns', 'file_hashes') if key in expected_conditions['source']
+        }
     reasons: list[str] = []
 
     fallback_descriptors = _raw_descriptors(assessment, assessment_entry["path"] if assessment_entry else plan_path)
@@ -648,9 +658,9 @@ def _item_result(
         observed_sources.append(("observation", _assessment_conditions(observation)))
     observed_conditions = _combine_conditions(actual for _, actual in observed_sources)
     if selected:
-        reasons.extend(_compare_conditions(expected_conditions, observed_conditions, "observed"))
+        reasons.extend(_compare_conditions(observed_expected, observed_conditions, "observed"))
         for label, actual in observed_sources:
-            reasons.extend(_compare_present(expected_conditions, actual, f"observed.{label}"))
+            reasons.extend(_compare_present(observed_expected, actual, f"observed.{label}"))
         reasons.extend(raw_findings)
         if not current:
             reasons.append("current_context_missing")
@@ -664,16 +674,33 @@ def _item_result(
         # A copied historical context file cannot override the current checkout.
         if record and isinstance(record.get('cwd'), str):
             try:
+                command_cwd = expected_conditions['command'].get('cwd')
+                if scoped_source:
+                    if not isinstance(command_cwd, str):
+                        raise ViewerInputError('current source command cwd is missing')
+                    source_cwd = _safe_cwd(Path(command_cwd), 'current source')
+                else:
+                    source_cwd = Path(record['cwd'])
                 live_source = _current_source_identity(
-                    record['cwd'], {} if source_cache is None else source_cache,
+                    source_cwd, {} if source_cache is None else source_cache,
                 )
-                keys = ('revision', 'diff', 'untracked') if 'untracked' in expected_conditions['source'] else ('revision', 'diff')
-                for key in keys:
-                    if expected_conditions['source'].get(key) != live_source[key]:
-                        current_findings.append(f'condition_mismatch:current.source.{key}')
-                if ('status' in record.get('after', {})
-                        and live_source.get('status') != record['after']['status']):
-                    current_findings.append('condition_mismatch:current.source.status')
+                if scoped_source:
+                    expected_hashes = expected_conditions['source'].get('file_hashes')
+                    if not isinstance(expected_hashes, dict):
+                        current_findings.append('condition_missing:current.source.file_hashes')
+                    else:
+                        actual_hashes = _registered_source_hashes(
+                            scoped_source, source_cwd, live_source, cache=source_scope_cache)
+                        if expected_hashes != actual_hashes:
+                            current_findings.append('condition_mismatch:current.source.file_hashes')
+                else:
+                    keys = ('revision', 'diff', 'untracked') if 'untracked' in expected_conditions['source'] else ('revision', 'diff')
+                    for key in keys:
+                        if expected_conditions['source'].get(key) != live_source[key]:
+                            current_findings.append(f'condition_mismatch:current.source.{key}')
+                    if ('status' in record.get('after', {})
+                            and live_source.get('status') != record['after']['status']):
+                        current_findings.append('condition_mismatch:current.source.status')
             except (OSError, ValueError, subprocess.CalledProcessError):
                 current_findings.append('condition_missing:current.source.git')
         else:
@@ -682,8 +709,20 @@ def _item_result(
         if not current:
             current_findings.append("current_context_missing")
         else:
-            current_findings.extend(_compare_conditions(expected_conditions, current_conditions, "current"))
-            reasons.extend(_compare_conditions(expected_conditions, current_conditions, "current"))
+            current_expected = expected_conditions
+            current_observed = current_conditions
+            if scoped_source:
+                expected_sources = expected_conditions['source']
+                observed_sources = current_conditions.get('source', {})
+                current_expected = copy.deepcopy(expected_conditions)
+                current_observed = copy.deepcopy(current_conditions)
+                current_expected['source'] = {key: expected_sources[key] for key in ('file_patterns', 'file_hashes')
+                                              if key in expected_sources}
+                current_observed['source'] = {key: observed_sources[key] for key in ('file_patterns', 'file_hashes')
+                                              if key in observed_sources}
+            comparisons = _compare_conditions(current_expected, current_observed, "current")
+            current_findings.extend(comparisons)
+            reasons.extend(comparisons)
     if selected and required:
         stale = raw_outcome == "STALE" or any("condition_mismatch:current" in reason for reason in current_findings)
         unknown = raw_outcome == "UNKNOWN" or any(
@@ -802,28 +841,85 @@ def _repository_root(cwd: Path) -> Path:
     return _safe_cwd(Path(root), 'repository root')
 
 
-def _git_snapshot(cwd: Path) -> dict[str, str]:
+def _git_snapshot(cwd: Path) -> dict[str, Any]:
     """Read the fixed source identity used by execution and current reuse."""
     def git(*tokens: str) -> bytes:
         return subprocess.check_output(["git", "-C", str(cwd), *tokens], stderr=subprocess.DEVNULL)
 
     root = _repository_root(cwd)
-    names = git('-C', str(root), 'ls-files', '--others', '--exclude-standard', '--full-name', '-z').decode('utf-8').split('\0')
+    entries = git('-C', str(root), 'ls-files', '--cached', '--others', '--exclude-standard',
+                  '--full-name', '-z', '-t').split(b'\0')
+    all_names: set[str] = set()
+    untracked_names: set[str] = set()
+    for entry in entries:
+        if not entry:
+            continue
+        if entry[1:2] != b' ':
+            raise ViewerInputError('Git source path listing has an invalid tag')
+        name = entry[2:].decode('utf-8')
+        all_names.add(name)
+        if entry[:1] == b'?':
+            untracked_names.add(name)
     untracked = {name: _path_hash(_safe_path(name, root=root, label='untracked source'), 'untracked source')
-                 for name in sorted(names) if name}
+                 for name in sorted(untracked_names)}
     return {
         "revision": git("rev-parse", "HEAD").decode().strip(),
         "diff": sha256(git("diff", "HEAD", "--binary")),
         "status": git("status", "--porcelain").decode("utf-8", errors="replace"),
         "untracked": sha256(json.dumps(untracked, sort_keys=True).encode('utf-8')),
+        "file_paths": sorted(all_names),
     }
 
 
-def _current_source_identity(cwd: str | Path, cache: dict[Path, dict[str, str]]) -> dict[str, str]:
+def _current_source_identity(cwd: str | Path, cache: dict[Path, dict[str, Any]]) -> dict[str, Any]:
     key = Path(cwd).absolute()
     if key not in cache:
         cache[key] = _git_snapshot(key)
     return cache[key]
+
+
+def _registered_source_hashes(
+    patterns: Any, cwd: Path, snapshot: dict[str, Any], *, require_matches: bool = False,
+    cache: dict[tuple[str, tuple[str, ...]], dict[str, str]] | None = None,
+) -> dict[str, str]:
+    """Hash only Git-visible files selected by the registered source patterns."""
+    if (not isinstance(patterns, list) or not patterns
+            or any(not isinstance(pattern, str) or not pattern.strip() for pattern in patterns)):
+        raise ViewerInputError('registered source patterns must be a nonempty string list')
+    root = _repository_root(cwd)
+    cache_key = (str(root), tuple(patterns))
+    if cache is not None and cache_key in cache and not require_matches:
+        return dict(cache[cache_key])
+    file_cache = None if cache is None else cache.setdefault((str(root), ()), {})
+    names = snapshot.get('file_paths')
+    if not isinstance(names, list) or any(not isinstance(name, str) for name in names):
+        raise ViewerInputError('current Git source paths are unavailable')
+    hashes: dict[str, str] = {}
+    for pattern in patterns:
+        raw = Path(pattern)
+        if (raw.is_absolute() or '..' in raw.parts or '.git' in {part.lower() for part in raw.parts}
+                or _private_path(raw)):
+            raise ViewerInputError(f'registered source pattern is unsafe: {pattern}')
+        _safe_path(pattern, root=root, label='registered source pattern')
+        matched = [name for name in names if fnmatchcase(name, pattern)]
+        if require_matches and not matched:
+            raise ViewerInputError(f'registered source pattern has no Git-visible files: {pattern}')
+        for name in matched:
+            path = _safe_path(name, root=root, label='registered source file')
+            if name not in hashes:
+                if file_cache is not None and name in file_cache:
+                    hashes[name] = file_cache[name]
+                elif path.is_file():
+                    hashes[name] = _path_hash(path, 'registered source file')
+                else:
+                    hashes[name] = 'MISSING'
+                    if require_matches:
+                        raise ViewerInputError(f'registered source file is missing: {name}')
+                if file_cache is not None:
+                    file_cache[name] = hashes[name]
+    if cache is not None:
+        cache[cache_key] = dict(hashes)
+    return hashes
 
 
 _PRIVATE_PATH_PARTS = {".env", ".dev.vars", "auth", "auth.json", "credentials", "secrets"}
@@ -999,7 +1095,11 @@ def _runtime_identity(check: dict[str, Any]) -> dict[str, str]:
     return identity
 
 
-def _execution_conditions(check: dict[str, Any], cwd: Path, *, source_snapshot: dict[str, str] | None = None) -> dict[str, Any]:
+def _execution_conditions(
+    check: dict[str, Any], cwd: Path, *, source_snapshot: dict[str, Any] | None = None,
+    require_source_matches: bool = False,
+    source_scope_cache: dict[tuple[str, tuple[str, ...]], dict[str, str]] | None = None,
+) -> dict[str, Any]:
     conditions = copy.deepcopy(check["conditions"])
     snapshot = source_snapshot if source_snapshot is not None else _git_snapshot(cwd)
     source = conditions["source"]
@@ -1008,6 +1108,10 @@ def _execution_conditions(check: dict[str, Any], cwd: Path, *, source_snapshot: 
     source['untracked'] = snapshot['untracked']
     if "status" in source:
         source["status"] = snapshot["status"]
+    if source.get('file_patterns'):
+        source['file_hashes'] = _registered_source_hashes(
+            source['file_patterns'], cwd, snapshot, require_matches=require_source_matches,
+            cache=source_scope_cache)
     conditions["runtime"].update(_runtime_identity(check))
     for name in ("dependency", "fixture"):
         group = conditions[name]
@@ -1080,15 +1184,21 @@ def _preflight_execution(
             continue
         cwd, descriptor, report_path = _validate_execution_check(
             check, index, evidence_dir, completed=index in (completed or set()))
-        measured = _execution_conditions(check, cwd)
+        scoped_source = check['conditions']['source'].get('file_patterns')
+        measured = _execution_conditions(check, cwd, require_source_matches=bool(scoped_source))
         expected = check["conditions"]
-        for key in ("revision", "diff"):
-            if expected["source"].get(key) != measured["source"][key]:
-                raise ViewerInputError(f"checks[{index}] pre-run source.{key} does not match current checkout")
-        if "status" in expected["source"] and expected["source"]["status"] != measured["source"]["status"]:
-            raise ViewerInputError(f"checks[{index}] pre-run source.status does not match current checkout")
-        if 'untracked' in expected['source'] and expected['source']['untracked'] != measured['source']['untracked']:
-            raise ViewerInputError(f'checks[{index}] pre-run untracked source bytes changed')
+        if scoped_source:
+            for key in ('file_patterns', 'file_hashes'):
+                if expected['source'].get(key) != measured['source'].get(key):
+                    raise ViewerInputError(f'checks[{index}] pre-run source.{key} does not match current registered sources')
+        else:
+            for key in ("revision", "diff"):
+                if expected["source"].get(key) != measured["source"][key]:
+                    raise ViewerInputError(f"checks[{index}] pre-run source.{key} does not match current checkout")
+            if "status" in expected["source"] and expected["source"]["status"] != measured["source"]["status"]:
+                raise ViewerInputError(f"checks[{index}] pre-run source.status does not match current checkout")
+            if 'untracked' in expected['source'] and expected['source']['untracked'] != measured['source']['untracked']:
+                raise ViewerInputError(f'checks[{index}] pre-run untracked source bytes changed')
         for name in ("dependency", "fixture"):
             expected_hashes = expected[name].get("file_hashes")
             if expected_hashes is not None and expected_hashes != measured[name].get("file_hashes"):
@@ -1208,7 +1318,8 @@ def resolve_bundle_file(value: Any, *, base: Path, label: str) -> Path:
 
 
 def _bundle_current_context(
-    plan: dict[str, Any], *, source_cache: dict[Path, dict[str, str]] | None = None,
+    plan: dict[str, Any], *, source_cache: dict[Path, dict[str, Any]] | None = None,
+    source_scope_cache: dict[tuple[str, tuple[str, ...]], dict[str, str]] | None = None,
 ) -> tuple[dict[str, Any], list[str]]:
     current: dict[str, Any] = {"checks": {}}
     findings: list[str] = []
@@ -1228,7 +1339,8 @@ def _bundle_current_context(
             if source is None:
                 source = _git_snapshot(cwd)
                 source_cache[cwd] = source
-            current["checks"][key] = {"conditions": _execution_conditions(check, cwd, source_snapshot=source)}
+            current["checks"][key] = {"conditions": _execution_conditions(
+                check, cwd, source_snapshot=source, source_scope_cache=source_scope_cache)}
             runtime = check["conditions"]["runtime"]
             if not isinstance(runtime.get("executable"), str) or not runtime.get("executable_sha256"):
                 findings.append(f"runtime_identity_missing:{key}")
@@ -1320,7 +1432,24 @@ def view_bundle_with_context(bundle: dict[str, Any] | str | Path, *, workflow_st
             for field in ("id", "feature_id", "expected", "criteria_revision", "required", "selection"):
                 if selected[field] != bound[field]:
                     raise ViewerInputError(f"bound plan changed {field}")
-            if _missing_or_mismatched(selected["conditions"], bound["conditions"], "conditions"):
+            selected_conditions = selected['conditions']
+            bound_conditions = bound['conditions']
+            selected_patterns = selected_conditions['source'].get('file_patterns')
+            bound_patterns = bound_conditions['source'].get('file_patterns')
+            if bool(selected_patterns) != bool(bound_patterns):
+                raise ViewerInputError('bound plan changed source freshness scope')
+            if selected_patterns:
+                selected_conditions = copy.deepcopy(selected_conditions)
+                bound_conditions = copy.deepcopy(bound_conditions)
+                selected_conditions['source'] = {
+                    key: selected_conditions['source'][key]
+                    for key in ('file_patterns', 'file_hashes') if key in selected_conditions['source']
+                }
+                bound_conditions['source'] = {
+                    key: bound_conditions['source'][key]
+                    for key in ('file_patterns', 'file_hashes') if key in bound_conditions['source']
+                }
+            if _missing_or_mismatched(selected_conditions, bound_conditions, "conditions"):
                 raise ViewerInputError("bound plan changed selected conditions")
             # Missing raw evidence remains a failed check; present evidence cannot weaken its oracle.
             if bound.get("raw_observations"):
@@ -1334,8 +1463,10 @@ def view_bundle_with_context(bundle: dict[str, Any] | str | Path, *, workflow_st
                     if (cwd / before["path"]).resolve() != Path(after["path"]).resolve():
                         raise ViewerInputError("bound plan changed raw path")
         _validate_bundle_report_paths(plan, evidence_dir)
-        source_cache: dict[Path, dict[str, str]] = {}
-        current, condition_findings = _bundle_current_context(plan, source_cache=source_cache)
+        source_cache: dict[Path, dict[str, Any]] = {}
+        source_scope_cache: dict[tuple[str, tuple[str, ...]], dict[str, str]] = {}
+        current, condition_findings = _bundle_current_context(
+            plan, source_cache=source_cache, source_scope_cache=source_scope_cache)
         result = _view_results(
             bound_plan,
             record_paths=records,
@@ -1343,6 +1474,7 @@ def view_bundle_with_context(bundle: dict[str, Any] | str | Path, *, workflow_st
             observation_paths=observations,
             current_context=current,
             source_cache=source_cache,
+            source_scope_cache=source_scope_cache,
             workflow_state=workflow_state,
             include_scope=include_scope,
             workflow_bases=workflow_bases,
@@ -1801,7 +1933,8 @@ def _view_results(
     observation_paths: Iterable[str | Path] = (),
     current_context_path: str | Path | None = None,
     current_context: dict[str, Any] | None = None,
-    source_cache: dict[Path, dict[str, str]] | None = None,
+    source_cache: dict[Path, dict[str, Any]] | None = None,
+    source_scope_cache: dict[tuple[str, tuple[str, ...]], dict[str, str]] | None = None,
     workflow_state: Path | None = None,
     include_scope: bool = True,
     workflow_bases: dict[str, str] | None = None,
@@ -1827,7 +1960,9 @@ def _view_results(
         current = copy.deepcopy(current_context)
     checks = plan_checks(plan)
     source_cache = {} if source_cache is None else source_cache
-    items = [_item_result(check, plan_file, records, assessments, observations, current, source_cache)
+    source_scope_cache = {} if source_scope_cache is None else source_scope_cache
+    items = [_item_result(check, plan_file, records, assessments, observations, current,
+                          source_cache, source_scope_cache)
              for check in checks]
     historical = _summary(items, "historical_status")
     current_summary = _summary(items, "current_status", required_only=True)
@@ -1958,6 +2093,7 @@ def prepare_plan(root: Path, spec_path: Path | None, output: Path, *, report_dir
     spec, _ = read_json(spec_file)
     if not isinstance(spec, dict) or spec.get('schema_version') != 1 or not isinstance(spec.get('checks'), list) or not spec['checks']:
         raise ViewerInputError('Preparation requires schema_version 1 and explicit checks')
+    all_spec_checks = [item for item in spec['checks'] if isinstance(item, dict)]
     state, state_path, selection = None, None, None
     if pending_state or work_id:
         if workflow_state is not None:
@@ -1976,14 +2112,33 @@ def prepare_plan(root: Path, spec_path: Path | None, output: Path, *, report_dir
         task_features = {item['feature'] for item in selection['selected_checks']}
         spec['checks'] = [item for item in spec['checks'] if isinstance(item, dict) and item.get('feature_id') in task_features]
     features = {feature['id']: feature for feature in config['features']}
+    scoped_assertions: dict[str, set[str]] = {}
+    for assertion in all_spec_checks:
+        if 'source_scope' not in assertion:
+            continue
+        if assertion['source_scope'] != 'registered':
+            raise ViewerInputError('source_scope must be registered when supplied')
+        if not isinstance(assertion.get('id'), str) or not isinstance(assertion.get('feature_id'), str):
+            raise ViewerInputError('registered source scope requires a check and Feature identity')
+        scoped_assertions.setdefault(assertion['id'], set()).add(assertion['feature_id'])
+    check_source_patterns: dict[str, list[str]] = {}
+    for check_id, scoped_features in scoped_assertions.items():
+        owners = [feature for feature in config['features'] if check_id in feature['checks']]
+        if not owners or {feature['id'] for feature in owners} != scoped_features:
+            raise ViewerInputError(f'registered source scope must be declared by every Feature owning check {check_id}')
+        check_source_patterns[check_id] = list(dict.fromkeys(
+            pattern for owner in owners for pattern in workflow.source_patterns(config, owner)))
     commands = dict(project.get('commands', {}))
     commands.update(project.get('impact', {}).get('feature_selectors', {}))
     ui_systems = workflow.inspect_ui_systems(root, config, workflow.inventory(root, config['roots']))
     checks = []
     for item in spec['checks']:
-        allowed = {'id', 'feature_id', 'expected', 'required', 'selection', 'raw_observations', 'dependency', 'fixture'}
-        if not isinstance(item, dict) or set(item) != allowed:
+        required_fields = {'id', 'feature_id', 'expected', 'required', 'selection', 'raw_observations', 'dependency', 'fixture'}
+        if (not isinstance(item, dict) or not required_fields.issubset(item)
+                or set(item) - required_fields not in (set(), {'source_scope'})):
             raise ViewerInputError('Preparation checks require only semantic selection, raw assertions, dependency and fixture inputs')
+        if 'source_scope' in item and item['source_scope'] != 'registered':
+            raise ViewerInputError('source_scope must be registered when supplied')
         feature = features.get(item['feature_id'])
         if feature is None or item['id'] not in feature['checks'] or item['id'] not in commands:
             raise ViewerInputError('Preparation check is not registered to the selected Feature')
@@ -1993,7 +2148,8 @@ def prepare_plan(root: Path, spec_path: Path | None, output: Path, *, report_dir
         criterion_files = {name: _path_hash(_safe_path(name, root=root, label='criteria'), 'criteria')
                            for name in feature['criteria']}
         revision = workflow.digest(criterion_files)
-        check = copy.deepcopy({key: value for key, value in item.items() if key not in {'dependency', 'fixture'}})
+        check = copy.deepcopy({key: value for key, value in item.items()
+                               if key not in {'dependency', 'fixture', 'source_scope'}})
         if selection is not None:
             decision = dispositions[(item['feature_id'], item['id'])]
             check['required'] = decision['selected']
@@ -2011,7 +2167,14 @@ def prepare_plan(root: Path, spec_path: Path | None, output: Path, *, report_dir
                 if ignored.returncode:
                     raise ViewerInputError('Native report output must be Git-ignored')
         check['criteria_revision'] = revision
-        check['conditions'] = {'source': _git_snapshot(cwd), 'criteria': {'revision': revision},
+        source_snapshot = _git_snapshot(cwd)
+        source_patterns = check_source_patterns.get(item['id'], [])
+        source_identity = {key: value for key, value in source_snapshot.items() if key != 'file_paths'}
+        source_conditions = dict(source_identity)
+        if source_patterns:
+            source_conditions['file_patterns'] = source_patterns
+        check['conditions'] = {'source': source_conditions,
+                               'criteria': {'revision': revision},
                                'command': {'argv': argv, 'cwd': str(cwd)},
                                'dependency': copy.deepcopy(item['dependency']), 'fixture': copy.deepcopy(item['fixture']),
                                'runtime': {}}
@@ -2030,7 +2193,8 @@ def prepare_plan(root: Path, spec_path: Path | None, output: Path, *, report_dir
                                 for name in [*system['source_hashes'], *system['reference_hashes']]])]
         refs.append(os.path.relpath(spec_file, repository_root))
         fixtures['repository_file_refs'] = list(dict.fromkeys(refs))
-        check['conditions'] = _execution_conditions(check, cwd)
+        check['conditions'] = _execution_conditions(check, cwd, source_snapshot=source_snapshot,
+                                                   require_source_matches=bool(source_patterns))
         checks.append(check)
     plan = {'schema_version': 1, 'checks': checks}
     selected = set(item['feature_id'] for item in checks)

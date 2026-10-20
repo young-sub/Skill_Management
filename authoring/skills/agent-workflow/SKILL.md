@@ -5,7 +5,7 @@ description: Coordinate a coding task through relevant project capabilities, act
 
 # Agent Workflow
 
-Understand the request and authorized scope, then discover existing project criteria/code/guides, select only needed changes and verification, execute, explain results, and reuse improvements in the next related task. Read AGENTS/index, checkout/dirty baseline and applicable capability exceptions once. Share that investigation across selected capabilities; the user need not name Skills or their order.
+Understand the request and authorized scope. Read the project's AGENTS/index and relevant verification guide, then trace the affected code/callers/tests. Select a procedure below only for a remaining need, execute, and explain the observed result. Read checkout/dirty baseline and applicable capability exceptions once; reuse that investigation across capabilities while its inputs remain current.
 
 | Request | Bounded responsibility |
 | --- | --- |
@@ -27,7 +27,7 @@ Understand the request and authorized scope, then discover existing project crit
 
 For implementation with shared ownership or contract impact, use [change impact](references/change-impact.md) before choosing the design and affected regressions; keep local edits direct.
 
-For implementation/verification, select only the applicable task and impact guidance in [project verification](references/project-verification.md); setup/maintenance use the same criteria. For feedback/UI read [repair and reuse](references/repair-and-reuse.md). Missing optional capabilities use existing project commands; never count missing checks as passed or turn the task into a tooling installation.
+For missing task or impact criteria, consult the applicable section of [project verification](references/project-verification.md); setup/maintenance use the same criteria. For feedback/UI use the relevant section of [repair and reuse](references/repair-and-reuse.md). Links are discovery paths, not a recursive reading checklist: reuse already-read criteria instead of reopening Skill bodies and their shared references. Missing optional capabilities use existing project commands; never count missing checks as passed or turn the task into a tooling installation.
 
 For human direction corrections, successful decisions or an explicit request to reuse a turn/artifact, read [feedback and success reuse](references/feedback-and-success.md). A first clear correction is enough; no repeated mistake is required. Praise alone does not request a persistent rule.
 
@@ -42,6 +42,9 @@ among active tasks. Completed checkpoints are reused; unknown launches are not r
 For existing results and native evidence, follow [result lookup and execution](references/result-viewer.md).
 It owns handoff/currentness, omitted detail, preparation/execution, capture and
 Windows UTF-8 transport. Lookup runs zero product commands and writes no state.
+Start with summary/status and exact evidence pointers; search a large report for
+the relevant failed observation before reading its section. Expand when omitted
+context affects the decision; retain applicable accessibility, UI and connected-flow criteria.
 Historical PASS/current STALE and missing evidence are not current acceptance.
 Reuse project runners/parsers; missing binding does not justify inventing native JSON.
 

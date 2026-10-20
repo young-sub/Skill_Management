@@ -1,5 +1,16 @@
 # Testing and impact selection
 
+Prompt-hook regressions compare the same retained fixture and request modes,
+including unconfigured development/nondevelopment, unselected candidates and
+explicit task context. Measure elapsed p50/p95 alongside file/Git calls and UTF-8
+context bytes; small local samples are not model token/cost or native-host latency
+claims. Snapshot task/evidence bytes and require zero product commands during
+lookup. Scoped source reuse additionally needs actual execution, independent
+related/shared/addition/deletion controls, unrelated edits, saved-context replay
+rejection and only-affected reexecution. Legacy undeclared inputs must retain
+conservative stale checks. The [local improvement record](research/luna-0.1.79-local-improvements.md)
+links the retained measurements and failed attempts.
+
 For non-secret Unicode input to a foreground native command, `scripts/run_check.py --stdin-file <UTF-8-file> --cwd <project> --output <new-capture> -- <argv>` snapshots and passes exact input bytes, independently of the calling shell's output encoding. Relative input paths resolve against cwd. Invalid UTF-8 fails before launch; input path/size/hash are retained. Use the editor to create the file and inspect output bytes. Existing `?` replacement is irreversible and valid UTF-8, so this does not detect arbitrary previously damaged prose or protect commands that bypass this transport.
 
 Choose the smallest useful regression case or validation while editing. If a change cannot affect executable behavior, no new test is required. At Item completion, inspect the changed function, method, branch, state transition, or configuration rule plus its direct callers and public behavior using the existing diff and symbol searches. Record `changed_logic`, `affected_behaviors`, `scope`, and `reason`. Documentation-only changes with no executable, schema, test-discovery, or workflow effect may use `scope: none` and `tests: []`; use the relevant document, resource, or distribution check instead. Paths and filenames only discover candidate tests/features; they do not decide scope.
