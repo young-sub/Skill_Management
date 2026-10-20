@@ -65,6 +65,52 @@ p95는 작은 표본의 nearest-rank 최댓값이다.
 제품 검사는 3회, 조회에 의한 재실행과 파일 변경은 각각 0회다.
 기존 실행 결과를 덮어쓰지 않았고 별도 task/계약/검증 계획을 요구하지 않았다.
 
+## 동결 패키지와 native 소비
+
+소스 커밋 `6658a695f550c42f1a4ecded3ed79fc6de61674d`의 clean tree에서
+0.1.80의 284개 파일을 동결했다. `package-freeze.json`은 source/tree/dirty,
+inventory와 ZIP 해시를 기록한다. ZIP SHA-256은
+`56c53ced82116bd624986b907b118bff8075e0461b09bbb33074ebc869c8c3a1`이다.
+기존 marketplace 패키지를 `previous-marketplace-0.1.79/`에 보존한 뒤
+생성 트리만 갱신했다. `frozen-package-regression.json`의 20개 검사가 통과했다.
+
+- `native-marketplace.json`, `native-install.json`: 작업 전용 `native-home/`에서
+  실제 Codex CLI로 로컬 marketplace를 등록하고 0.1.80 설치를 확인했다.
+- `native-discovery.json`: 실제 app-server의 `skills/list` / `hooks/list`에서
+  이름·버전 경로·plugin ID가 일치한다. 훅은 enabled이지만 untrusted다.
+  발견 호출은 model turn을 시작하지 않았다.
+- `packaged-direct-consumption.json`: 동결 패키지와 native 설치본 각각에서
+  동일 직접 실행 증거의 CURRENT를 확인했다. 소비 파일 변경·재실행은 없으며
+  설치된 패키지의 inventory 바이트도 대조했다.
+- `native-untrusted-transport.json`: 실제 host prompt를 loopback 수신기로
+  보내고 401로 종료했다. 새 최종 lookup 지침은 prompt에서 확인했지만,
+  훅 context는 미신뢰 상태 때문에 전달되지 않았다. 모델 추론은 0회다.
+
+사용자가 해당 격리 홈의 단일 훅 신뢰 변경을 명시적으로 승인했다.
+`native-config-before-trust.toml`에 이전 바이트를 보존하고 해당 key의
+`trusted_hash`만 기록했다. `native-trust-change.json`은 다른 설정이 같음을
+확인하고 `native-trusted-discovery.json`은 호스트의 trusted 판정을 기록한다.
+`native-trusted-transport.json`에서는 실제 요청 본문에 새 훅 context와
+미설정 fallback 및 최종 lookup 지침이 모두 도달했다.
+
+훅 key는 `agentic-coding@agentic-coding-local:hooks/hooks.json:user_prompt_submit:0:0`,
+호스트가 관측한 정의 해시는
+`sha256:38bc6e7c44bbd8138ef44c35e0d69cc66020a337d55e31ebd343174b0dcd557e`다.
+미신뢰 상태를 우회하거나 기본 설치본의 신뢰 설정을 복사하지 않았다.
+
+`native-task-start.json`에는 잘못된 `start --state` 호출이 쓰기 없이 거부된
+시도를 보존했다. 올바른 `start`의 `native-task-start-valid.json`에서 새
+격리 task와 context를 받았다. 반환 PARTIAL은 미완료 fixture의 실제 상태이며
+성공으로 치환하지 않았다. 이후 같은 task를 다시 만들지 않고
+`native-task-lookup.json`에서 설치본의 읽기 전용 조회와 파일 보존을 확인했다.
+`native-selected-transport.json`은 native prompt에 SELECTED_TASK와 정확한
+state 경로가 자동 전달됨을 확인한다. 테스트 명령 실행은 0회다.
+
+세 transport 관측은 모두 `gpt-6-luna` / `medium`을 설정했지만 수신기는
+loopback에서 401을 반환했다. 유료 inference나 모델의 자율 작업 성공을
+실행한 결과가 아니다. 설치된 Skill 본문의 새 지침 전달, 훅 자동 전달,
+명시 task 연결 및 결과 조회까지의 경로는 실제 native host에서 관측했다.
+
 ## 한계와 운영 경계
 
 직접 lookup은 Git 관측만 비교한다. ignored 입력, 의존성, runtime/server identity,

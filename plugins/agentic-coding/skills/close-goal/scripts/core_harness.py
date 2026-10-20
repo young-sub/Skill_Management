@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/core_harness.py
-# Source-SHA256: 4a3c567b57e6a89fbf7379d5b819a725a1edad9bd73aa4f2a4534f97f5f9cf04
+# Source-SHA256: f9433ee2feb13623b50c0c919b4aab77376c02ae8683fe1d35a56c2b9b0413cf
 
 #!/usr/bin/env python3
 """Deterministic Core-First Agent Harness contracts and compatibility checks."""
@@ -3320,6 +3320,7 @@ REQUIRED_COHORT_RESOURCES = frozenset({
     "close-goal/schemas/work.schema.json",
     "close-goal/scripts/core_harness.py",
     "close-goal/scripts/project_workflow.py",
+    "close-goal/scripts/run_check.py",
     "close-goal/scripts/task_store.py",
     "close-goal/scripts/unittest_evidence.py",
     "close-goal/scripts/verification_results.py",
@@ -3338,6 +3339,7 @@ REQUIRED_COHORT_RESOURCES = frozenset({
     "execute-codex-goal/schemas/work.schema.json",
     "execute-codex-goal/scripts/core_harness.py",
     "execute-codex-goal/scripts/project_workflow.py",
+    "execute-codex-goal/scripts/run_check.py",
     "execute-codex-goal/scripts/task_store.py",
     "execute-codex-goal/scripts/unittest_evidence.py",
     "execute-codex-goal/scripts/verification_results.py",
@@ -3347,6 +3349,7 @@ REQUIRED_COHORT_RESOURCES = frozenset({
     "maintain-agent-harness/schemas/work.schema.json",
     "maintain-agent-harness/scripts/core_harness.py",
     "maintain-agent-harness/scripts/project_workflow.py",
+    "maintain-agent-harness/scripts/run_check.py",
     "maintain-agent-harness/scripts/task_store.py",
     "maintain-agent-harness/scripts/unittest_evidence.py",
     "maintain-agent-harness/scripts/verification_results.py",

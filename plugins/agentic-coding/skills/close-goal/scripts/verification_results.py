@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/verification_results.py
-# Source-SHA256: 48b00fe96f11e65f31d09907cfe1a89ec264f1dad55fcca202d106c9f4a81165
+# Source-SHA256: 7067e166079536699da0bc4684319388526a3a67f092876ae4e3b2ea0837112d
 
 """Read-only viewer for plan-bound verification captures and observations.
 
@@ -1182,6 +1182,7 @@ def _preflight_execution(
 ) -> dict[int, dict[str, Any]]:
     preconditions: dict[int, dict[str, Any]] = {}
     report_paths: dict[Path, int] = {}
+    source_cache: dict[Path, dict[str, Any]] = {}
     for index, check in enumerate(checks):
         selected, _ = _selection(check)
         if not selected:
@@ -1189,7 +1190,9 @@ def _preflight_execution(
         cwd, descriptor, report_path = _validate_execution_check(
             check, index, evidence_dir, completed=index in (completed or set()))
         scoped_source = check['conditions']['source'].get('file_patterns')
-        measured = _execution_conditions(check, cwd, require_source_matches=bool(scoped_source))
+        measured = _execution_conditions(check, cwd,
+            source_snapshot=_current_source_identity(cwd, source_cache),
+            require_source_matches=bool(scoped_source))
         expected = check["conditions"]
         if scoped_source:
             for key in ('file_patterns', 'file_hashes'):
@@ -2136,6 +2139,7 @@ def prepare_plan(root: Path, spec_path: Path | None, output: Path, *, report_dir
     commands.update(project.get('impact', {}).get('feature_selectors', {}))
     ui_systems = workflow.inspect_ui_systems(root, config, workflow.inventory(root, config['roots']))
     checks = []
+    source_cache: dict[Path, dict[str, Any]] = {}
     for item in spec['checks']:
         required_fields = {'id', 'feature_id', 'expected', 'required', 'selection', 'raw_observations', 'dependency', 'fixture'}
         if (not isinstance(item, dict) or not required_fields.issubset(item)
@@ -2171,7 +2175,7 @@ def prepare_plan(root: Path, spec_path: Path | None, output: Path, *, report_dir
                 if ignored.returncode:
                     raise ViewerInputError('Native report output must be Git-ignored')
         check['criteria_revision'] = revision
-        source_snapshot = _git_snapshot(cwd)
+        source_snapshot = _current_source_identity(cwd, source_cache)
         source_patterns = check_source_patterns.get(item['id'], [])
         source_identity = {key: value for key, value in source_snapshot.items() if key != 'file_paths'}
         source_conditions = dict(source_identity)

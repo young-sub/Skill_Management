@@ -4,7 +4,7 @@ description: Coordinate a coding task through relevant project capabilities, act
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: 58d6c3547430e07bb8d7280c295ad14a40bdae5150e1ba510eaafec6b3d8eba2 -->
+<!-- Source-SHA256: 91760dbb39ee9a2bf144e8c8ded18a17a70d7aa38f709ab3332353394dce4ee0 -->
 
 
 # Agent Workflow
@@ -50,6 +50,8 @@ Start with summary/status and exact evidence pointers; search a large report for
 the relevant failed observation before reading its section. Expand when omitted
 context affects the decision; retain applicable accessibility, UI and connected-flow criteria.
 Historical PASS/current STALE and missing evidence are not current acceptance.
+For direct checks captured with `run_check.py`, use its read-only `--lookup` after
+the final edit; source currentness and the command's behavior outcome are separate.
 Reuse project runners/parsers; missing binding does not justify inventing native JSON.
 
 For connected feedback and guide repair, use [repair and reuse](references/repair-and-reuse.md).
