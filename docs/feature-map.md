@@ -1,5 +1,9 @@
 # Repository Feature Map
 
+2026-10-21 `agent-workflow`: repository workflow roots include the already declared
+playbook, repair/reference and recall sources. The documentation audit rejects missing
+declared sources as well as unmapped discovered files (`test_repository_docs.py`).
+
 2026-10-21 `native-verification` / `agent-workflow`: connected-product browser discovery
 resolves project dependencies before an existing global npm fallback. Missing Node
 retains BLOCKED without service launch. Shared setup guidance connects actual control,

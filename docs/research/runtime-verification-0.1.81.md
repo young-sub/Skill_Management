@@ -83,5 +83,12 @@ browser-runner에 검증용 `--port`를 연결했다. 여섯 suite의 assertion�
 BLOCKED로 판정했다. 이 원본을 수정하지 않고 문서 확정 뒤 `final-bound-current/`에
 새 검증을 연결한다. 과거 timeout·stale을 성공으로 치환하지 않는다.
 
+`final-bound-current/`의 패키지 20개, 리소스 20개, workflow 131개는 통과했다.
+종료 감사에서는 기존 `.harness/project.yaml`이 등록한 playbook/참조/recall 경로를
+inventory roots에서 누락한 문제를 발견했다. 실제 파일이 있어도 `missing_source` 10건이
+발생하는 RED를 `registry-red.json`으로 보존하고 기존 roots에 해당 경로만 추가했다.
+기존 문서 검사는 이제 미등록 파일뿐 아니라 등록 소스의 탐색 누락도 거부한다.
+최종 설정을 포함한 연결 검증은 `final-registry/`가 소유한다.
+
 사업 가치 지표와 운영 외부 연동, 무감독 일반 성공률·비용 절감은 미측정이다.
 현재 플러그인의 기능 검증과 다른 프로젝트의 실행 경로 연결 완료는 별도다.

@@ -20,6 +20,10 @@ class RepositoryDocsTests(unittest.TestCase):
         self.assertIn(audit['status'], ('PARTIAL', 'READY_FOR_REVIEW'))
         # Existing unfinished work may remain; undiscoverable source owners may not.
         self.assertEqual(audit['unmapped'], [])
+        self.assertEqual(
+            [finding for finding in audit['findings'] if finding.startswith('missing_source:')],
+            [],
+        )
 
     def test_git_policy_requires_commits_for_complete_functional_units(self) -> None:
         repository = json.loads((ROOT / ".harness" / "project.yaml").read_text(encoding="utf-8"))
