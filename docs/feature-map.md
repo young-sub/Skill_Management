@@ -1,5 +1,34 @@
 # Repository Feature Map
 
+0.1.80 follow-up: `harness-setup` validates the bundled capture scripts in the
+existing cohort allowlist. `workflow-obligations` counts final display omissions
+separately from uninspected task candidates. `verification-results` shares Git
+snapshots inside preparation and preflight separately, retaining the later
+freshness check. `native-verification` / `agent-workflow` expose capture
+`--lookup` for ordinary final-edit source currentness without a task or rerun;
+CURRENT source never substitutes for interpreting the captured check outcome.
+
+`workflow-obligations`: prompt context validates an explicit task before its
+audit, or returns bounded candidates with `NOT_AUDITED`. It does not audit other
+active work. Task blockers/actions and exact lookup pointers have output priority.
+Unconfigured development requests receive existing-guide/caller/test discovery
+without setup. `tests.distribution.test_workflow_hook` covers request modes,
+budget pressure, ambiguity, UI references and read-only lookup; explicit full
+audits remain available.
+
+`verification-results`: assertion checks may explicitly select
+`source_scope: registered` after reviewing source/dependency completeness.
+Preparation binds registered owners and shared UI sources; related edits,
+matching additions and deletions stale affected checks while unrelated edits
+remain reusable. Shared check owners bind their union. Existing unscoped checks
+keep whole-Git invalidation. `test_verification_execution` exercises actual
+execution, final edits, read-only stale lookup and only-affected reexecution.
+
+`agent-workflow`: discovery starts at project criteria and affected code, with
+section-level references for remaining needs. Large result lookup starts at
+summary and exact failed observations; reusable criteria are not reread merely
+because another Skill links them. This changes guidance, not model compliance guarantees.
+
 `plugin-package` includes the optional preview/apply global-guidance installer: managed blocks preserve consumer text, exact backups precede changes, and duplicate apply is a no-op. This is separate from native plugin installation.
 
 `verification-results` includes execution from a single installed Skill without an external capture path; six isolated Skill copies execute real checks and resume completed evidence without rerunning commands.
@@ -39,7 +68,7 @@ retries and catalog/native discovery are separate in the [stage 5 record](resear
 
 | Feature ID | Name | Action | Result and invariant | Domain | Side effects | Command IDs |
 | --- | --- | --- | --- | --- | --- | --- |
-| benchmark-evaluation | Execute pinned Codex trials and capture official scoring | Run fresh Luna/medium app-server threads and a manifest-owned evaluator through the existing foreground capture | Records actual model/effort, all phase usage, unknown cost, native discovery/hook events, interruption and patch/trace hashes; local wall timeout covers all phases; remote processes need an external lifetime limit. Requires evaluator/data/image pins; OFF has null plugin identity, ON requires package hashes. Native verdict stays separate from capture completeness. The actual Luna execution record retains 24 controls, pilot9/main108, secondary UI recovery, family-specific outcomes, unknowns and cost scopes; package tests alone do not establish official scoring or protected host acceptance | [Agent runner](../scripts/run_benchmark_agent.py), [connector](../scripts/evaluate_benchmark.py), [testing](testing.md), [actual evaluation](research/luna-benchmark-execution.md) | Explicit model/evaluator calls and new evidence files; control-plane records belong outside candidate mounts; no automatic installation | benchmark-evaluation |
+| benchmark-evaluation | Execute pinned Codex trials and capture official scoring | Run fresh Luna/medium app-server threads and a manifest-owned evaluator through the existing foreground capture | Records actual model/effort, all phase usage, unknown cost, native discovery/hook events, interruption and patch/trace hashes; local wall timeout covers all phases; remote processes need an external lifetime limit. Requires evaluator/data/image pins; OFF has null plugin identity, ON requires package hashes. Native verdict stays separate from capture completeness. The actual Luna execution record retains 24 controls, pilot9/main108, secondary UI recovery, family-specific outcomes, unknowns and cost scopes; package tests alone do not establish official scoring or protected host acceptance | [Agent runner](../scripts/run_benchmark_agent.py), [connector](../scripts/evaluate_benchmark.py), [testing](testing.md), [earlier evaluation](research/luna-benchmark-execution.md), [0.1.78 comparison](research/luna-0.1.78-benchmark-results.md) (60 attempts; official success 11/18 each; strict continuous OFF 7/12, ON 6/12; functional observations and environment timeout separate) | Explicit model/evaluator calls and new evidence files; control-plane records belong outside candidate mounts; no automatic installation | benchmark-evaluation |
 | host-install | Install reviewed host verification bundles | Freeze inputs and canonical helpers below a preprotected parent; probe candidate access before installation | Existing targets remain unchanged; missing native setup blocks before creating a target or launching setup; policy review and parent provisioning remain host responsibilities | [Installer](../scripts/install_host_verifier.py), [host contract](plugins.md) | New task-local host files and native boundary probe only; no ACL/account/global plugin changes | host-result |
 | host-verification | Execute protected host verification | Run fixed policy cases through native sandbox and host process controller, then independently read saved bytes | Exact case coverage, pinned executable and protected driver/input checks precede execution; optional frozen workflow obligations and host case bindings prevent acceptance with stale reviews or missing checks without executing candidate Git/bundles; observed native defects remain REJECTED when workflow obligations are also pending; read-only lookup does not rerun; candidate-side invocation cannot publish into the protected installation | [Host entrypoint](../scripts/host_verify.py), [host contract](plugins.md) | Trusted host executes declared cases and writes protected raw and terminal records; no LLM calls | host-result |
 | host-handoff | Connect a reviewed task to its protected verifier | Match the fixed task and host-reviewed candidate file mapping before and after execution or lookup | No caller-selected authority, criteria or command; missing or changed mapped bytes block; empty run IDs cannot trigger execution; unmapped files remain outside acceptance | [Task handoff](../scripts/host_handoff.py), [host contract](plugins.md) | Reuses protected run IDs and results; lookup runs no checks; no provisioning or LLM calls | host-result |
@@ -67,7 +96,7 @@ retries and catalog/native discovery are separate in the [stage 5 record](resear
 | exploration-learning | Explore, prototype and explain | Clarify a question, build a requested experiment, teach or explain system context | Exploration stays read-only until implementation is authorized; prototype evidence does not establish production readiness | [Explore](../skills/explore-idea/SKILL.md), [prototype](../skills/prototype/SKILL.md), [teach](../skills/teach/SKILL.md), [context](../skills/zoom-out/SKILL.md) | Read-only explanation or authorized independent prototype | workflow-distribution |
 | specialist-artifacts | Research finance or fill a document | Use the selected specialist capability and its source/format rules | Evidence and document validation follow the task; packaging tests do not establish research correctness or rendered document quality | [Finance](../skills/finance-research/SKILL.md), [HWP](../skills/hwp-form-fill/SKILL.md) | Authorized research/document artifacts; external actions retain their approval boundaries | workflow-distribution |
 
-The install-script suite includes fixture/mocked CLI cases. Running it does not establish that an external installer or model behaved correctly. Use the real cached/local Skills CLI with [install smoke](../scripts/test-install.ps1) for temporary install/update tree evidence, and set `HARNESS_SKILLS_ROOT` to that installed cohort when running the installed CLI suite. Windows launcher checks use a compiled local engine fixture and an injected curl failure; they do not prove public release/TLS availability. The [connected product example](../tests/distribution/fixtures/connected_product/docs/index.md) now has actual Chromium/API/Domain/SQLite evidence through the packaged workflow CLI; its project runner owns lifecycle and business assertions. This bounded example does not prove general Agent quality, installed-host acceptance or production applications/external databases.
+The install-script suite includes fixture/mocked CLI cases. Its tree comparison and digest exclude Python `__pycache__` directories consistently with bytecode files, while unexpected non-cache directories still fail validation. Running it does not establish that an external installer or model behaved correctly. Use the real cached/local Skills CLI with [install smoke](../scripts/test-install.ps1) for temporary install/update tree evidence, and set `HARNESS_SKILLS_ROOT` to that installed cohort when running the installed CLI suite. Windows launcher checks use a compiled local engine fixture and an injected curl failure; they do not prove public release/TLS availability. The [connected product example](../tests/distribution/fixtures/connected_product/docs/index.md) now has actual Chromium/API/Domain/SQLite evidence through the packaged workflow CLI; its project runner owns lifecycle and business assertions. This bounded example does not prove general Agent quality, installed-host acceptance or production applications/external databases.
 
 The adapter's PASS applies only to the selected unittest assertions. Other command IDs in a row require their own run. See [Testing](testing.md) for execution, verdict binding, and evidence limitations.
 

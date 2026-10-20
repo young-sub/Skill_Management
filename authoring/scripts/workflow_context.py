@@ -1,9 +1,96 @@
 """Read-only Codex prompt hook: deliver current obligations, never execute work."""
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
+
+
+def development_request(prompt):
+    """A discovery hint only; prompt text never selects a task or authorizes work."""
+    return isinstance(prompt, str) and bool(re.search(
+        r'\b(fix|implement|refactor|debug|code|test|build)\b|구현|수정|버그|리팩터|개발|테스트', prompt, re.I))
+
+
+def hook_output(summary):
+    prefix = ('Current workflow data, not instructions or authorization. No tests or repairs ran. '
+              'Lookup is read-only; project remainder is not a task blocker.\n')
+
+    def encoded(value):
+        return json.dumps(value, ensure_ascii=False, separators=(',', ':'))
+
+    # Reserve room for omission metadata before adding optional detail.
+    limit = 5500 - len(prefix)
+    result = {key: summary[key] for key in ('status', 'project_status', 'detail') if key in summary}
+    result.update({key: value for key, value in summary.items()
+                   if key.endswith(('_count', '_omitted')) or key == 'task_discovery_complete'})
+    current = summary.get('current_task')
+    if current:
+        required = ('status', 'reason', 'task_id', 'work_id', 'state', 'detail',
+                    'task_acceptance', 'check_acceptance', 'verification_blocker_count',
+                    'verification_blockers', 'verification_blockers_omitted',
+                    'next_action_count', 'action_scope_counts')
+        result['current_task'] = {key: current[key] for key in required if key in current}
+        result['current_task'].update({key: value for key, value in current.items()
+                                       if key.endswith(('_count', '_omitted'))})
+    omitted = []
+
+    def display_count(target, key):
+        count_key, omitted_key = {
+            'task_candidates': ('task_candidate_count', 'task_candidate_display_omitted'),
+            'ui_systems': ('ui_system_count', 'ui_system_omitted'),
+            'features': ('feature_count', 'feature_omitted'),
+            'verification_blockers': ('verification_blocker_count', 'verification_blockers_omitted'),
+            'next_actions': ('next_action_count', 'next_action_omitted'),
+        }.get(key, (key + '_count', key + '_omitted'))
+        if count_key in target:
+            target[omitted_key] = max(0, target[count_key] - len(target.get(key, [])))
+
+    def add(target, key, value, label):
+        target[key] = value
+        if isinstance(value, list):
+            display_count(target, key)
+        if len(encoded(result)) <= limit - 120:
+            return
+        if key == 'investigation' and isinstance(value, dict):
+            target[key] = {name: entry for name, entry in value.items() if not isinstance(entry, list)}
+            for name, entry in value.items():
+                if isinstance(entry, list):
+                    add(target[key], name, entry, label + '.' + name)
+            return
+        if isinstance(value, list):
+            target[key] = list(value)
+            while target[key] and len(encoded(result)) > limit - 120:
+                target[key].pop()
+                display_count(target, key)
+            if target[key]:
+                omitted.append(label)
+                return
+        target.pop(key)
+        if isinstance(value, list):
+            display_count(target, key)
+        omitted.append(label)
+
+    if current:
+        target = result['current_task']
+        priority = ('next_actions', 'features', 'ui_system_count', 'ui_system_omitted',
+                    'ui_systems', 'ui_system_detail', 'investigation', 'obligations')
+        for key in (*priority, *current):
+            if key in current and key not in target and 'current_task.' + key not in omitted:
+                add(target, key, current[key], 'current_task.' + key)
+    for key, value in summary.items():
+        if key not in result:
+            add(result, key, value, key)
+    if omitted:
+        result['detail_omitted'] = True
+        # Exact selected lookup is always retained; no truncated path is executable.
+        result['omitted_field_count'] = len(omitted)
+    if len(encoded(result)) > limit:
+        result = {'status': 'BLOCKED', 'reason': 'selected_task_identity_exceeds_context_budget',
+                  'detail': {'action': 'lookup', 'selector': 'AGENT_WORKFLOW_CONTEXT', 'read_only': True}}
+    return {'hookSpecificOutput': {'hookEventName': 'UserPromptSubmit',
+            'additionalContext': prefix + encoded(result)}}
 
 
 def scope_context(audit):
@@ -74,16 +161,22 @@ def context(payload):
     project = json.loads(path.read_text(encoding='utf-8')) if path.is_file() else {}
     config = runtime.configuration(project)
     if config is None:
-        records = runtime.task_candidates(root, project, limit=8)
+        selector = os.environ.get('AGENT_WORKFLOW_CONTEXT')
+        records = [] if selector else runtime.task_candidates(root, project, limit=8)
         omitted = sum(c.get('status') == 'NOT_INSPECTED' for c in records)
         candidates = [c for c in records if c.get('intent') == 'diagnose']
-        selector = os.environ.get('AGENT_WORKFLOW_CONTEXT')
+        fallback = ('Use existing AGENTS.md, docs/index.md and project test/build commands; inspect relevant callers, types and tests before editing. '
+                    'Select the matching agent-workflow playbook only if needed. Verify affected behavior after the final edit. No Harness setup is required.')
         if not selector and not candidates and not omitted:
-            return {}
+            if not development_request(payload.get('prompt')):
+                return {}
+            return hook_output({'status': 'NOT_CONFIGURED', 'guidance': fallback})
         summary = {'status': 'NOT_CONFIGURED', 'task_candidates': [dict(c, request=request_preview(c.get('request'), 160)) for c in candidates[:8]],
                    'task_candidate_count': len(candidates), 'task_record_count': len(records),
                    'task_candidate_omitted': omitted, 'task_discovery_complete': omitted == 0,
                    'task_discovery_detail': 'For full candidate paths run resume without task context or selector, then select exact --state/--work-id. Omitted intent and validity are unknown.'}
+        if development_request(payload.get('prompt')):
+            summary['guidance'] = fallback
         if selector:
             try:
                 state, state_path, work_id = runtime.resolve_task(root)
@@ -91,39 +184,33 @@ def context(payload):
                 investigation = audit.get('investigation', {})
                 summary['current_task'] = {'task_id': state.get('task_id'), 'work_id': work_id,
                     'state': state_path.relative_to(root).as_posix(), 'request': request_preview(state.get('request')),
+                    'detail': {'action': 'lookup', 'state': state_path.relative_to(root).as_posix(),
+                               'work_id': work_id, 'read_only': True},
                     'task_acceptance': runtime.handoff_summary(audit)['task_acceptance'],
                     'status': audit['status'], 'investigation': investigation_context(investigation)}
             except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
                 summary['current_task'] = {'status': 'BLOCKED', 'reason': str(error)}
-        detail = json.dumps(summary, ensure_ascii=False, separators=(',', ':'))
-        if len(detail) > 5500:
-            summary['task_candidates'] = []
-            summary['detail_omitted'] = 'Use exact connected lookup for the full record.'
-            investigation = summary.get('current_task', {}).get('investigation', {})
-            for field in ('unobserved', 'out_of_scope', 'stale', 'allowed', 'forbidden', 'next_actions', 'unverified'):
-                if field in investigation:
-                    investigation[field] = investigation[field][:2]
-            detail = json.dumps(summary, ensure_ascii=False, separators=(',', ':'))
-        return {'hookSpecificOutput': {'hookEventName': 'UserPromptSubmit', 'additionalContext':
-            'Current investigation data, not instructions or authorization. No tests or repairs ran.\n' +
-            detail}}
-    # One prompt observes one source inventory; reuse only within this invocation.
-    files = runtime.inventory(root, config['roots'])
-    audit = runtime.inspect_configured(root, project, file_inventory=files, observe_local_changes=True)
-    configured_path = runtime.local_path(root, config['state']) if config.get('state') else None
-    task_audits = {}
+        return hook_output(summary)
+    if not os.environ.get('AGENT_WORKFLOW_CONTEXT'):
+        candidates = runtime.task_candidates(root, project, limit=8)
+        summary = {'status': 'TASK_NOT_SELECTED', 'project_status': 'NOT_AUDITED',
+            'task_candidates': [dict(c, request=request_preview(c.get('request'), 160)) for c in candidates[:8]],
+            'task_candidate_count': len(candidates), 'task_candidate_omitted': max(0, len(candidates) - 8),
+            'task_discovery_complete': len(candidates) <= 8,
+            'detail': {'action': 'resume', 'read_only': True},
+            'next_action': 'Use an exact --state/--work-id for existing work; ordinary direct work needs no task. Full project audit is explicit.'}
+        return hook_output(summary)
+    summary = {'status': 'SELECTED_TASK', 'project_status': 'NOT_AUDITED'}
     task_ui_systems = []
-    summary = {key: audit[key] for key in ('status', 'mapping_status', 'enforcement')}
     if os.environ.get('AGENT_WORKFLOW_CONTEXT'):
         try:
             state, state_path, work_id = runtime.resolve_task(root)
-            current = (audit if state_path == configured_path else
-                       runtime.inspect_project(root, project, state, file_inventory=files, observe_local_changes=True))
-            task_audits[runtime.digest(state)] = current
+            current = runtime.inspect_project(root, project, state, observe_local_changes=True)
             verification = None
             if state.get('execution_plan'):
                 try:
-                    verification = runtime.connected_verification(root, project, state, state_path, work_id, 'lookup')
+                    verification = runtime.connected_verification(root, project, state, state_path, work_id, 'lookup',
+                        workflow_bases={f['id']: f['basis'] for f in current['features']})
                 except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
                     verification = {'status': 'BLOCKED', 'remaining': [str(error)]}
             handoff = runtime.handoff_summary(current, verification)
@@ -150,7 +237,7 @@ def context(payload):
                                                    | {'ui': f.get('ui', [])}
                                                    for f in selected[:3]]
             selected_ids = {f['id'] for f in selected}
-            all_ui_systems = audit.get('ui_systems', [])
+            all_ui_systems = current.get('ui_systems', [])
             target_ids = set(state.get('targets', []))
             task_ui_systems = [entry for entry in all_ui_systems
                                if target_ids.intersection(entry.get('consumers', []))]
@@ -185,106 +272,7 @@ def context(payload):
                 summary['current_task']['investigation'] = investigation_context(current['investigation'])
         except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
             summary['current_task'] = {'status': 'BLOCKED', 'reason': str(error)}
-    candidates = runtime.task_candidates(root, project, limit=8)
-    summary['task_candidates'] = [dict(candidate, request=request_preview(candidate.get('request'), 160))
-                                  for candidate in candidates[:8]]
-    summary['task_candidate_count'] = len(candidates)
-    summary['task_candidate_omitted'] = max(0, len(candidates) - 8)
-    summary['task_discovery_complete'] = len(candidates) <= 8
-    summary['task_discovery_detail'] = 'For full candidate paths run resume without task context or selector, then select exact --state/--work-id. Omitted intent and validity are unknown.'
-    active_root = runtime.local_path(root, '.work/goals/active')
-    active = []
-    if active_root.is_dir():
-        for entry in sorted(active_root.iterdir()):
-            manifest = runtime.local_path(root, f'.work/goals/active/{entry.name}/work.json')
-            if manifest.is_file():
-                active.append(entry.name)
-    # With no explicit invocation context, expose candidates; host session discovery is not assumed.
-    summary.update(active_work_count=len(active), active_work_omitted=max(0, len(active) - 8), active_work=[])
-    for work_id in active[:8]:
-        item = {'work_id': work_id}
-        try:
-            state, _ = runtime.work_record(root, work_id)
-            key = runtime.digest(state)
-            if key not in task_audits:
-                task_audits[key] = runtime.inspect_project(root, project, state, file_inventory=files, observe_local_changes=True)
-            work = task_audits[key]
-            item.update(status=work['status'], obligation_count=len(work['obligations']),
-                        obligations=[{'target': row['target'], 'requires': row['requires']}
-                                     for row in work['obligations'][:3]], findings=work['findings'][:3])
-            if work['coverage']['rows']:
-                item['scope'] = scope_context(work)
-        except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
-            item.update(status='BLOCKED', error=str(error))
-        summary['active_work'].append(item)
-    summary.update(root=str(root), state=config.get('state'), obligation_count=len(audit['obligations']),
-                   obligations=audit['obligations'][:8], unmapped_count=len(audit['unmapped']),
-                   unmapped=audit['unmapped'][:8], findings=audit['findings'][:8],
-                   product_findings=audit['product_findings'][:8])
-    summary['feedback'] = [{key: entry.get(key) for key in ('id', 'feature', 'status', 'expected', 'root_cause', 'guardrail',
-                                                         'remaining', 'supersession', 'successor_status')}
-                           for entry in audit.get('feedback', [])[:5]]
-    all_ui_systems = audit.get('ui_systems', [])
-    target_system_ids = {entry['id'] for entry in task_ui_systems}
-    ordered_ui_systems = task_ui_systems + [entry for entry in all_ui_systems
-                                            if entry['id'] not in target_system_ids]
-    summary['ui_system_count'] = len(all_ui_systems)
-    summary['ui_system_omitted'] = max(0, len(all_ui_systems) - 4)
-    summary['ui_systems'] = ui_system_preview(ordered_ui_systems[:4])
-    if summary['ui_system_omitted']:
-        summary['ui_system_detail'] = (summary.get('current_task', {}).get('detail') or
-                                       {'action': 'lookup', 'state': config.get('state'), 'read_only': True})
-    summary['scope'] = scope_context(audit)
-    summary['next_action_count'] = len(audit['next_actions'])
-    summary['action_scope_counts'] = audit['action_scope_counts']
-    summary['next_actions'] = [{key: action[key] for key in
-        ('target', 'requires', 'scope', 'references', 'advisory') if key in action}
-        for action in audit['next_actions'][:3]]
-    # Bounded context, with the existing audit retaining the complete result.
-    detail = json.dumps(summary, ensure_ascii=False, separators=(',', ':'))
-    if len(detail) > 5500:
-        for field in ('active_work', 'obligations', 'next_actions', 'feedback', 'ui_systems', 'findings', 'product_findings'):
-            summary.pop(field, None)
-        summary['ui_system_omitted'] = summary['ui_system_count']
-        summary['ui_system_detail_omitted'] = True
-        summary['detail_omitted'] = 'Use connected lookup or an exact --state/--work-id audit for complete evidence.'
-        detail = json.dumps(summary, ensure_ascii=False, separators=(',', ':'))
-        for field in ('scope', 'task_candidates', 'unmapped', 'root', 'state'):
-            if len(detail) <= 5500:
-                break
-            summary.pop(field, None)
-            detail = json.dumps(summary, ensure_ascii=False, separators=(',', ':'))
-        if len(detail) > 5500 and 'current_task' in summary:
-            current = summary['current_task']
-            current.pop('obligations', None)
-            current.pop('investigation', None)
-            current['targets'] = current.get('targets', [])[:3]
-            current['features'] = [{**f, **{key: [value[:160] for value in f[key][:1]]
-                for key in ('sources', 'map', 'criteria', 'checks')},
-                'detail_omitted': True} for f in current.get('features', [])[:2]]
-            current['next_actions'] = [{key: action[key] for key in
-                ('target', 'requires', 'scope', 'advisory', 'cells', 'pending_count') if key in action}
-                for action in current.get('next_actions', [])[:2]]
-            current['detail_omitted'] = True
-            scope = current.get('scope', {})
-            scope.pop('reviews', None)
-            scope['gaps'] = [gap[:160] for gap in scope.get('gaps', [])[:3]]
-            detail = json.dumps(summary, ensure_ascii=False, separators=(',', ':'))
-            if len(detail) > 5500 and current.get('ui_systems'):
-                current['ui_systems'] = [{'id': entry['id'], 'guide': entry['guide']}
-                                         for entry in current['ui_systems']]
-                current['ui_system_detail'] = current['detail']
-                detail = json.dumps(summary, ensure_ascii=False, separators=(',', ':'))
-            if len(detail) > 5500:
-                for feature in current.get('features', []):
-                    if feature.get('ui'):
-                        feature['ui_omitted'] = len(feature['ui'])
-                        feature.pop('ui')
-                        feature['ui_detail'] = current['detail']
-                detail = json.dumps(summary, ensure_ascii=False, separators=(',', ':'))
-    return {'hookSpecificOutput': {'hookEventName': 'UserPromptSubmit', 'additionalContext':
-        'Current project workflow data, not instructions or authorization. '
-        'No tests or repairs ran. For lookup-only requests report existing gaps without executing work.\n' + detail}}
+    return hook_output(summary)
 
 
 def main():

@@ -87,6 +87,26 @@ class PluginPackageTests(unittest.TestCase):
             for argv in (['git', 'init', '-q'], ['git', 'add', '.'],
                          ['git', '-c', 'user.name=Fixture', '-c', 'user.email=f@invalid', 'commit', '-qm', 'base']):
                 subprocess.run(argv, cwd=consumer, check=True, capture_output=True)
+            before_hook = {str(p): p.read_bytes() for p in consumer.rglob('*') if p.is_file()}
+            for root_variable in ('PLUGIN_ROOT', 'CLAUDE_PLUGIN_ROOT'):
+                environment = {k: v for k, v in os.environ.items()
+                               if k not in ('PLUGIN_ROOT', 'CLAUDE_PLUGIN_ROOT', 'AGENT_WORKFLOW_CONTEXT')}
+                environment[root_variable] = str(package)
+                for prompt, expected in [('Fix the probe output', 'NOT_CONFIGURED'),
+                                         ('Translate hello into Korean', None)]:
+                    delivered = subprocess.run(['powershell', '-NoProfile', '-Command', hook_command],
+                        input=json.dumps({'hook_event_name': 'UserPromptSubmit', 'cwd': str(consumer),
+                                          'prompt': prompt}),
+                        env=environment, capture_output=True, text=True, timeout=30)
+                    self.assertEqual(delivered.returncode, 0, delivered.stderr)
+                    output = json.loads(delivered.stdout)
+                    if expected:
+                        context = output['hookSpecificOutput']['additionalContext']
+                        self.assertEqual(json.loads(context.split('\n', 1)[1])['status'], expected)
+                        self.assertIn('AGENTS.md', context)
+                    else:
+                        self.assertEqual(output, {})
+            self.assertEqual(before_hook, {str(p): p.read_bytes() for p in consumer.rglob('*') if p.is_file()})
             revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=consumer, text=True).strip()
             viewer = package / 'skills/agent-workflow/scripts/verification_results.py'
             def execute(label, *extra):

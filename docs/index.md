@@ -1,5 +1,12 @@
 # Agent Documentation Index
 
+- [Local 0.1.80 follow-up](research/luna-0.1.80-followup.md): cohort installation
+  alignment, accurate display omissions, preparation reuse and final-edit capture lookup.
+
+- [Local 0.1.79 improvements](research/luna-0.1.79-local-improvements.md): request-scoped
+  hook context, opt-in final-source binding and local measurements after the retained
+  0.1.78 experiment; separate from installed/native model acceptance.
+
 - [Plugin readiness](research/agent-coding-system-direction.md#현재-완성도--2026-10-18): six requested outcomes, current local acceptance and remaining native boundaries; [build and use](plugins.md).
 
 - [Native plugin use](research/native-plugin-use-results.md): prepared permission-profile comparison and scoped task review closure; retained 0.1.75 reuse, repairs and Narrator evidence. Authenticated test-home native completion remains separate; Claude Code excluded by user choice.
@@ -37,7 +44,7 @@ These are scoped execution records, not current task lists or fresh PASS results
 - [0.1.69 workflow improvement](research/workflow-improvement-results.md): scoped request completion, structural prevention, guide reuse, frozen package and isolated product evidence.
 - [0.1.68 hardening](research/core-hardening-results.md): required checks, TaskStore/public API, capture publication, package and isolated product evidence.
 - [Implementation results](research/agent-workflow-implementation-results.md): preceding versions and their limits.
-- [Luna benchmark execution](research/luna-benchmark-execution.md), [benchmark plan](research/agentic-harness-benchmark-plan.md): actual results versus unperformed boundaries.
+- [Luna 0.1.78 comparison](research/luna-0.1.78-benchmark-results.md): 60 fresh OFF/ON attempts, official outcomes, functional observations, evaluator limits and environment interruption; [earlier Luna execution](research/luna-benchmark-execution.md), [benchmark plan](research/agentic-harness-benchmark-plan.md).
 - [Labeler pilot](research/labeler-verification-pilot.md), [pstack analysis](research/pstack-analysis.md): bounded product/research evidence.
 - [Archive](research/archive/index.md): superseded design/review/next-session material and prior testing notes.
 - [v2 release](releases/v2.0.0.md), [v2 pilot](pilots/harness-v2-pilots.md): historical release evidence.

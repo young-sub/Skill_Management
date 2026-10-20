@@ -28,7 +28,7 @@ Production, concurrency, another UI change consuming the guide, and measurable
 benefit from deleting checks were not tested. No more tasks were launched.
 
 Raw captures, installed identity, config-preservation result, fixture snapshot
-and [machine-readable summary](../../.work/plugin-readiness-20261018/native-results.json)
+and machine-readable summary (`.work/plugin-readiness-20261018/native-results.json`)
 are retained in `.work/plugin-readiness-20261018/`. The local marketplace is also
 there; preserve it while this installation references it. The user requested
 stopping after this item; broader readiness/contract reconciliation remains open.
@@ -47,7 +47,7 @@ prerequisite. Both the existing Orca account home and `C:/Users/YS/.codex` have
 the prerequisites and an existing `workspace-with-poppler` profile extending
 `:workspace`. Initial sandbox-denied reads were resolved with an authorized
 read-only host preflight; absence and access denial were not conflated.
-[Preflight](../../.work/native-plugin-use-20261017/permission-followup/host-preflight.json).
+Preflight (`.work/native-plugin-use-20261017/permission-followup/host-preflight.json`).
 
 The actual executable comparison used the **already prepared current Orca home**:
 
@@ -63,7 +63,7 @@ codex sandbox --include-managed-config --permission-profile workspace-with-poppl
 
 The existing matrix launches the exact same Node executable with `--version`;
 all successful children report `v22.23.1`. The explicit sandbox invocation exits
-0: [capture](../../.work/native-plugin-use-20261017/permission-followup/prepared-cli-capture.json).
+0: capture (`.work/native-plugin-use-20261017/permission-followup/prepared-cli-capture.json`).
 This establishes an executable prepared permission boundary, not repaired
 authenticated-test-home execution or autonomous product acceptance. The precise
 Windows/Node pipe-denial cause remains unconfirmed: the historical unelevated
@@ -86,7 +86,7 @@ documented Windows 11 / CLI 0.162+ one-command probe conditions.
 All three homes' configuration and setup-file fingerprints/presence match the
 preflight. The local account list and ACLs at the six sampled paths also match;
 this is not a system-wide ACL audit.
-[Preservation](../../.work/native-plugin-use-20261017/permission-followup/host-preservation.json).
+Preservation (`.work/native-plugin-use-20261017/permission-followup/host-preservation.json`).
 
 The independently reviewed task is `1fc25a64-0c9a-4b34-a2f5-ecb79c66e01e`,
 targeting `staff-access` and `catalog-import`. Source ownership, callers,
@@ -104,7 +104,7 @@ criteria for each target are PASS. Lookup executes zero product commands and
 preserves all 3,096 existing product `.work` files byte-for-byte. Review writes
 changed only this task's state and added two review files; its previous state
 is retained separately. Final task state and preservation are recorded in
-[task closure](../../.work/native-plugin-use-20261017/permission-followup/task-closure.json).
+task closure (`.work/native-plugin-use-20261017/permission-followup/task-closure.json`).
 This is a review/evidence update for `native-verification` and
 `workflow-obligations`; repository Feature behavior and the feature map do not
 change. No Harness contract was created solely to close an ordinary task.
@@ -125,11 +125,11 @@ marketplace and frozen 0.1.73/0.1.74 packages remain retained.
 
 | Requested item | Actual result and direct evidence | Remaining boundary |
 | --- | --- | --- |
-| 1. Native execution | **Incomplete.** Same-home Codex diagnostic executed exact Node/Python/Git children: Node piped spawn fails EPERM, inherited stdio and Python-to-Node work. Native test/browser/build failures remain in [diagnostic capture](../../.work/native-plugin-use-20261017/followthrough/native-probe-host-network.json). Parent public execution ran the selected tests/browser/reporter and build: [final task execution](../../.work/native-plugin-use-20261017/followthrough/task-execute-final.json), [build](../../.work/native-plugin-use-20261017/followthrough/product-build-parent.json). | Parent host success is assisted, not native full completion. Build capture has no Git identity and is process evidence only. The user allowed one process elevated comparison, not provisioning. Its first CLI attempt failed on missing `--permission-profile`; [preflight](../../.work/native-plugin-use-20261017/followthrough/elevated-preflight.json) then found both setup prerequisites absent. No setup/account/ACL change was attempted. |
-| 2. Feedback to next request | **Bounded loop implemented.** Existing public task/feedback APIs bind the focus calibration repair to current source/check evidence. Changing source reopened the previously RESOLVED feedback ([stale lookup](../../.work/native-plugin-use-20261017/followthrough/stale-feedback-lookup.json)). 0.1.74 falsely rejected a valid preselected shared capture; 0.1.75 resolves the same bytes with zero product commands ([before](../../.work/native-plugin-use-20261017/followthrough/shared-binding-0.1.74.json), [after](../../.work/native-plugin-use-20261017/followthrough/shared-binding-0.1.75.json)). | Feedback RESOLVED does not finish the task. Current task semantic reviews and project remainder remain separately visible. Registration is used for this recurring defect, not imposed on every small edit. |
+| 1. Native execution | **Incomplete.** Same-home Codex diagnostic executed exact Node/Python/Git children: Node piped spawn fails EPERM, inherited stdio and Python-to-Node work. Native test/browser/build failures remain in diagnostic capture (`.work/native-plugin-use-20261017/followthrough/native-probe-host-network.json`). Parent public execution ran the selected tests/browser/reporter and build: final task execution (`.work/native-plugin-use-20261017/followthrough/task-execute-final.json`), build (`.work/native-plugin-use-20261017/followthrough/product-build-parent.json`). | Parent host success is assisted, not native full completion. Build capture has no Git identity and is process evidence only. The user allowed one process elevated comparison, not provisioning. Its first CLI attempt failed on missing `--permission-profile`; preflight (`.work/native-plugin-use-20261017/followthrough/elevated-preflight.json`) then found both setup prerequisites absent. No setup/account/ACL change was attempted. |
+| 2. Feedback to next request | **Bounded loop implemented.** Existing public task/feedback APIs bind the focus calibration repair to current source/check evidence. Changing source reopened the previously RESOLVED feedback (stale lookup (`.work/native-plugin-use-20261017/followthrough/stale-feedback-lookup.json`)). 0.1.74 falsely rejected a valid preselected shared capture; 0.1.75 resolves the same bytes with zero product commands (before (`.work/native-plugin-use-20261017/followthrough/shared-binding-0.1.74.json`), after (`.work/native-plugin-use-20261017/followthrough/shared-binding-0.1.75.json`)). | Feedback RESOLVED does not finish the task. Current task semantic reviews and project remainder remain separately visible. Registration is used for this recurring defect, not imposed on every small edit. |
 | 3. Prior model mistakes | **Bounded prevention implemented.** P's shared focus predicate has real-browser controls for disabled-button release, forbidden pointer input focus and missing keyboard recovery; actual PIN/backup assertions use it. The old bad predicate fails the calibration. The existing capture accepts strict UTF-8 `--stdin-file`, snapshots bytes and passes binary stdin, avoiding PowerShell transcoding. | Focus calibration protects these assertions, not all model reasoning or browsers. UTF-8 transport protects that path, not already-corrupted valid `?` text or arbitrary shell bypasses. Actual speech is separate. |
-| 4. Screen reader / user UI | **Confirmed with user assistance.** Browser screenshots, DOM/error connection and keyboard recovery were observed. After excluding the shortcut from the first reply, the user followed the Start-menu Narrator procedure and confirmed both errors' actual speech and keyboard recovery. [User confirmation](../../.work/native-plugin-use-20261017/followthrough/user-screen-reader-confirmation.json), [DOM evidence](../../.work/native-plugin-use-20261017/followthrough/ui-readiness.json), [PIN](../../.work/native-plugin-use-20261017/followthrough/pin-ready.png), [backup](../../.work/native-plugin-use-20261017/followthrough/backup-ready.png). | User-observed speech, not agent audio capture; bounded to these two flows and this environment. No global installation/settings change. Earlier UNVERIFIED records reflect their earlier observation time. |
-| 5. FE/API/Domain/storage | **Implemented in isolated real Labeler.** A stale version update could replace the winner's offers and return 200. The Domain now aborts the atomic D1 batch on zero guarded UPDATE changes; direct edit, import and operator callers share the owner. Real D1 race tests preserve winner data and roll back sibling imports. Browser form create/edit → authenticated API → D1 → fresh GET → reload observed. | Local isolated consumption, not provider/production or native Codex execution. Isolated commit `d23a464`; original Labeler remains clean at `000ffd1`. [Evidence and failure/fallback details](../../.work/native-consumption/product-version-guard-summary.md), [patch](../../.work/native-plugin-use-20261017/followthrough/labeler-product-version-guard.patch). |
+| 4. Screen reader / user UI | **Confirmed with user assistance.** Browser screenshots, DOM/error connection and keyboard recovery were observed. After excluding the shortcut from the first reply, the user followed the Start-menu Narrator procedure and confirmed both errors' actual speech and keyboard recovery. User confirmation (`.work/native-plugin-use-20261017/followthrough/user-screen-reader-confirmation.json`), DOM evidence (`.work/native-plugin-use-20261017/followthrough/ui-readiness.json`), PIN (`.work/native-plugin-use-20261017/followthrough/pin-ready.png`), backup (`.work/native-plugin-use-20261017/followthrough/backup-ready.png`). | User-observed speech, not agent audio capture; bounded to these two flows and this environment. No global installation/settings change. Earlier UNVERIFIED records reflect their earlier observation time. |
+| 5. FE/API/Domain/storage | **Implemented in isolated real Labeler.** A stale version update could replace the winner's offers and return 200. The Domain now aborts the atomic D1 batch on zero guarded UPDATE changes; direct edit, import and operator callers share the owner. Real D1 race tests preserve winner data and roll back sibling imports. Browser form create/edit → authenticated API → D1 → fresh GET → reload observed. | Local isolated consumption, not provider/production or native Codex execution. Isolated commit `d23a464`; original Labeler remains clean at `000ffd1`. Evidence and failure/fallback details (`.work/native-consumption/product-version-guard-summary.md`), patch (`.work/native-plugin-use-20261017/followthrough/labeler-product-version-guard.patch`). |
 | 6. Verification value / procedure | **Evaluated for these cases.** Race regression catches lost updates; focus calibration rejects the old false oracle while allowing native disabled focus release; exact-byte transport catches shell corruption. 0.1.75 removes a concrete label-only execution demand without dropping stale/malformed consumer rejection. Existing selection ran 15 Feature/check joins with three distinct commands. | No general cost/time improvement or benchmark score claimed. No further check deletion justified: required assertions, source freshness, state/replay safeguards and calibration cover different failures. |
 
 ### Ownership, errors and reuse
@@ -150,13 +150,13 @@ mixed-language input through the revised existing runner matches exactly in
 `E/utf8-file.bin` and `E/unicode-file-capture.json`. The initial native follow-up
 used installed 0.1.74 guidance, created a separate task, inherited prevention/UI
 references, and round-tripped 3,543 bytes of Korean text with no loss:
-[native reuse](../../.work/native-plugin-use-20261017/followthrough/native-reuse.json).
+native reuse (`.work/native-plugin-use-20261017/followthrough/native-reuse.json`).
 That observation remains tied to its then-current revision; the later source
 change correctly invalidated its old prevention binding.
 
 Final installed 0.1.75 was consumed by a fresh authenticated Codex request:
-[capture](../../.work/native-plugin-use-20261017/followthrough/native-final-0175.json),
-[answer](../../.work/native-plugin-use-20261017/followthrough/native-final-0175-answer.txt).
+capture (`.work/native-plugin-use-20261017/followthrough/native-final-0175.json`),
+answer (`.work/native-plugin-use-20261017/followthrough/native-final-0175-answer.txt`).
 It created task `1fc25a64-0c9a-4b34-a2f5-ecb79c66e01e`, discovered and inherited
 the repaired prevention and UI/verification guidance, and round-tripped a new
 1,246-byte Korean handoff through installed `--stdin-file`. The handoff bytes and
@@ -165,30 +165,30 @@ separate from old/new task INCOMPLETE, and did not promote project remainder to
 completed work. Its speech-UNVERIFIED statement predates the user's subsequent
 explicit confirmation. Actual model/effort, failed/retried sessions, elapsed time,
 usage and assistance are retained in
-[native trials](../../.work/native-plugin-use-20261017/followthrough/native-trials-final.json);
+native trials (`.work/native-plugin-use-20261017/followthrough/native-trials-final.json`);
 currency cost remains unknown. No benchmark was needed for these uncertainties.
 
 The later human confirmation is also joined through public `review` to the new
 task's StaffGate and CatalogImport source references:
-[human review binding](../../.work/native-plugin-use-20261017/followthrough/human-review-binding.json).
+human review binding (`.work/native-plugin-use-20261017/followthrough/human-review-binding.json`).
 It does not grant PASS to broader declared owner/screen criteria. The final
 read-only lookup preserves existing task/evidence bytes and executes no product
 commands; previous native outputs are retained with their observation-time limits.
 
 The final lookup also executes zero product commands and preserves all existing
 P `.work` files byte-for-byte:
-[lookup preservation](../../.work/native-plugin-use-20261017/followthrough/final-lookup-preservation.json).
+lookup preservation (`.work/native-plugin-use-20261017/followthrough/final-lookup-preservation.json`).
 Frozen `.work/native-plugin-use-20261017/frozen-0.1.75` and the installed package
 have identical inventoried bytes (254 files including inventory):
-[identity](../../.work/native-plugin-use-20261017/followthrough/package-identity-0.1.75.json).
+identity (`.work/native-plugin-use-20261017/followthrough/package-identity-0.1.75.json`).
 The build records `d871423` with dirty execution-instruction documentation;
 the consumed package was frozen as-is, not rebuilt to invent clean provenance.
 The original product's pre-existing evidence remains unchanged; only the two
 intended existing observer/guide files changed relative to this run's byte
-inventory ([preservation](../../.work/native-plugin-use-20261017/followthrough/preservation-final.json)).
+inventory (preservation (`.work/native-plugin-use-20261017/followthrough/preservation-final.json`)).
 Owned ports 11116, 11126 and 4263 are closed, while the pre-existing 5173 listener
 remains. User browser/Narrator control is preserved
-([cleanup](../../.work/native-plugin-use-20261017/followthrough/cleanup-final.json)).
+(cleanup (`.work/native-plugin-use-20261017/followthrough/cleanup-final.json`)).
 No new worktree was created or deleted. The verified repository units and this
 handoff are integrated into local main; no push, publish or deploy occurred.
 
@@ -196,8 +196,8 @@ The 0.1.75 runtime fix accepts a target only in a valid preselected consumer
 list, retaining source, evidence hash, execution and required-check checks.
 Focused public API regression exercises same-source reuse, stale source,
 malformed/duplicate/unrelated consumers and inherited new-task obligations.
-[Runtime/state tests](../../.work/native-plugin-use-20261017/followthrough/shared-capture-regression.json)
-and [package/resource tests](../../.work/native-plugin-use-20261017/followthrough/package-0175-checks.json)
+Runtime/state tests (`.work/native-plugin-use-20261017/followthrough/shared-capture-regression.json`)
+and package/resource tests (`.work/native-plugin-use-20261017/followthrough/package-0175-checks.json`)
 passed. Resource drift, distribution validation and diff checks passed.
 Full was not repeated for this localized capture-consumer correction.
 The earlier broad package run timed out; its uncompleted tail was checked

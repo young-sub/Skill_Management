@@ -36,8 +36,9 @@ Preserve the prior release before replacing only `plugins/agentic-coding` with t
 complete generated tree. Review removed files as well as additions. Run the
 `plugin-package` selector (including `test_plugin_marketplace`), resource drift and
 distribution checks, and install from both catalogs in isolated homes before
-publishing. The marketplace regression compares release bytes to a fresh build and
-verifies the frozen inventory; build provenance remains tied to the source commit.
+publishing. The marketplace regression verifies the frozen inventory byte-for-byte
+and compares fresh-build content with checkout CRLF/LF differences normalized;
+build provenance remains tied to the source commit.
 No credentials, project state, or installed host configuration belongs in this tree.
 Model scenario/benchmark acceptance is separate from distribution acceptance.
 
@@ -342,13 +343,17 @@ publication remain separate authorized actions.
 
 The package includes `hooks/hooks.json` and `hooks/workflow_context.py`, with an
 explicit compatibility-manifest hook path. `UserPromptSubmit` resolves the Git
-project from the supplied working directory and reuses its existing workflow
-audit and configured task state. It delivers a bounded summary of outstanding
-obligations and references. It does not interpret the prompt, read transcripts,
-start a task, run project checks, write project files, or block lookup requests.
-Projects without workflow configuration receive no additional context; invalid
-configuration/state produces an unavailable warning. Full results remain in the
-existing audit CLI. This handoff does not implement protected completion.
+project from the supplied working directory. An explicit `AGENT_WORKFLOW_CONTEXT`
+is validated before auditing its task; selected sources still use the existing
+impact and freshness checks. Without a selector it lists bounded candidates and
+marks the project `NOT_AUDITED`, without inventory or active-work detail audits.
+The output reserves room for task blockers, next actions and an exact lookup
+pointer before optional detail. It never starts tasks, reads transcripts, runs
+project checks or writes state. An unconfigured development prompt receives a
+short existing-guide/caller/test fallback; the prompt is only a discovery hint,
+never a task selector or authorization. Other fresh unconfigured requests stay
+silent. Full inspection remains available through explicit `audit`/`resume`.
+This handoff does not implement protected completion.
 
 OpenAI documents plugin hooks and a separate trust review before command hooks
 run ([plugin packaging](https://developers.openai.com/plugins/build/plugins),
@@ -364,14 +369,12 @@ actual execution to the local workflow; protected acceptance remains unsupported
 See the current implementation results. Installation itself does not
 grant hook trust. No ordinary home or project trust setting was changed.
 
-The read-only context includes separate summaries for up to eight existing active
-Harness work records, using the same baseline reader as close. Project-wide status
-does not replace those per-work obligations. Invalid work records remain visible
-as BLOCKED, and omitted work counts are explicit. There is no trusted host
-session-to-work discovery. With an explicit `AGENT_WORKFLOW_CONTEXT`, the hook
-validates and exposes that task separately. Otherwise these remain candidates;
-standard non-Harness task states are listed too. The hook neither reads the prompt
-to guess a work ID nor executes pending checks.
+Unselected context reads at most eight candidate records, including standard
+non-Harness states. Invalid candidates remain BLOCKED and omitted counts remain
+explicit; no candidate is implicitly attached. Selected context does not discover
+other tasks. There is no trusted host session-to-work discovery. The selected
+audit's Feature bases are passed to connected evidence lookup within the same
+invocation, avoiding a second audit while remeasuring the next invocation.
 
 For an isolated Codex host, place the built package at
 `<marketplace>/plugins/agentic-coding` and create

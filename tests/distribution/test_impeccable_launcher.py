@@ -15,6 +15,11 @@ SCRIPTS = Path(__file__).resolve().parents[2] / 'skills/impeccable/scripts'
 WINDOWS = Path(os.environ.get('SystemRoot', 'C:/Windows'))
 CSC = WINDOWS / 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
 SH = shutil.which('sh')
+if os.name == 'nt' and SH:
+    # Git's bin/sh.exe wrapper prepends its own curl ahead of the injected fixture.
+    direct_shell = Path(SH).parent.parent / 'usr/bin/sh.exe'
+    if direct_shell.is_file():
+        SH = str(direct_shell)
 
 
 @unittest.skipUnless(os.name == 'nt' and CSC.is_file(), 'Native Windows launcher regression')

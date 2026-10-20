@@ -1,5 +1,18 @@
 # Harness Architecture
 
+Prompt context is a read-only request boundary, not a project maintenance pass.
+`workflow_context.py` resolves an explicit selector before invoking the existing
+task audit and reuses its bases for evidence lookup. Without a selector it reads
+bounded candidate metadata only. Full inventory and other work audits remain
+explicit CLI operations. Output prioritizes selected blockers/actions and exact
+lookup references; omitted optional detail never implies acceptance.
+
+The result viewer owns final-source currentness. Registered assertion checks
+can opt in to scoped source patterns/hashes; shared check IDs bind the union of
+their registered Feature owners. Live lookup independently remeasures those
+bytes even when a caller submits an old current-context file. Unscoped checks
+retain whole-Git currentness, because a legacy Feature map may omit dependencies.
+
 Human corrections and successful procedure extraction use the existing
 `agent-workflow` / `diagnose` entrypoints and canonical
 [feedback/success reference](../../authoring/references/feedback-and-success.md).

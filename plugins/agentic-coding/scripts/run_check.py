@@ -17,10 +17,36 @@ import uuid
 from unittest_evidence import git_identity
 
 
+def lookup_capture(path, cwd):
+    """Recheck captured Git identity without running a command or inferring behavior."""
+    raw = path.read_bytes()
+    record = json.loads(raw)
+    if not isinstance(record, dict) or record.get('cwd') != str(cwd):
+        raise ValueError('Capture must belong to the requested working directory')
+    current = git_identity(cwd)
+    identities = [record.get(name) for name in ('before', 'after')]
+    if (record.get('execution') != 'exited' or type(record.get('exit_code')) is not int
+            or record.get('cleanup_incomplete') or current is None
+            or any(not isinstance(value, dict) or set(value) != set(current) for value in identities)):
+        status, reason = 'UNKNOWN', 'Completed capture and comparable Git identities are required'
+    elif any(value != current for value in identities):
+        status, reason = 'STALE', 'Source changed during or after the captured command'
+    else:
+        status, reason = 'CURRENT', 'Captured Git identities match the current checkout'
+    return {'source_status': status, 'reason': reason, 'read_only': True,
+            'test_commands_executed': 0, 'behavior_verdict': None,
+            'run_id': record.get('run_id'), 'argv': record.get('argv'),
+            'execution': record.get('execution'), 'exit_code': record.get('exit_code'),
+            'evidence': str(path.resolve()), 'evidence_sha256': hashlib.sha256(raw).hexdigest(),
+            'limit': 'Source currentness is not a behavior verdict. Ignored inputs, dependencies, runtime data and server identity are not attested.'}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, epilog='Use argv after --. Do not pass secrets or launch background services. Inspect runner counts/skips and behavior independently. Output must be a new file.')
     parser.add_argument('--cwd', required=True, type=Path)
-    parser.add_argument('--output', required=True, type=Path)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument('--output', type=Path)
+    mode.add_argument('--lookup', type=Path, help='Read-only final-edit check of an existing capture; never reruns its command or assigns a behavior verdict')
     parser.add_argument('--feature', help='Optional project-owned Feature ID')
     parser.add_argument('--also-feature', action='append', default=[], help='Additional preselected consumer of this same check')
     parser.add_argument('--check', help='Optional project-owned command ID')
@@ -30,6 +56,18 @@ def main():
     parser.add_argument('command', nargs=argparse.REMAINDER)
     args = parser.parse_args()
     argv = args.command[1:] if args.command[:1] == ['--'] else args.command
+    if args.lookup:
+        if (argv or args.stdin_file or args.json_report or args.feature or args.also_feature
+                or args.check or not args.cwd.is_dir()):
+            parser.error('--lookup requires an existing --cwd and no execution inputs')
+        try:
+            result = lookup_capture(args.lookup, args.cwd.resolve())
+        except (OSError, ValueError, TypeError) as error:
+            result = {'source_status': 'UNKNOWN', 'reason': str(error), 'read_only': True,
+                      'test_commands_executed': 0, 'behavior_verdict': None}
+        print(json.dumps(result, ensure_ascii=False))
+        return (2 if result['source_status'] == 'UNKNOWN' else
+                0 if result['source_status'] == 'CURRENT' and result['exit_code'] == 0 else 1)
     if not argv or not args.cwd.is_dir() or not math.isfinite(args.timeout) or args.timeout <= 0:
         parser.error('A command and existing working directory are required')
     if args.also_feature and (not args.feature or not args.check or any(not name.strip() for name in args.also_feature)):

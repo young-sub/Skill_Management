@@ -15,6 +15,53 @@ from unittest import mock
 RUNNER = Path(__file__).resolve().parents[2] / 'scripts/run_check.py'
 
 class CheckCaptureTests(unittest.TestCase):
+    def test_direct_lookup_detects_final_edit_without_reexecution(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / '.gitignore').write_text('.work/\n')
+            (root / 'logic.py').write_text('VALUE = 1\n')
+            for argv in (['git', 'init', '-q'], ['git', 'add', '.'],
+                         ['git', '-c', 'user.name=Fixture', '-c', 'user.email=f@invalid', 'commit', '-qm', 'base']):
+                subprocess.run(argv, cwd=root, check=True, capture_output=True)
+            def capture(name, command):
+                path = root / '.work' / name
+                result = subprocess.run([sys.executable, str(RUNNER), '--cwd', tmp,
+                    '--output', str(path), '--', sys.executable, '-c', command],
+                    capture_output=True, text=True)
+                return path, result
+            command = ('from pathlib import Path; import runpy; '
+                       'p=Path(".work/count"); p.write_text(str(int(p.read_text())+1) if p.exists() else "1"); '
+                       'assert runpy.run_path("logic.py")["VALUE"] == 1')
+            path, result = capture('first.json', command)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            def lookup(expected, code=0):
+                before = {str(p): p.read_bytes() for p in root.rglob('*') if p.is_file()}
+                result = subprocess.run([sys.executable, str(RUNNER), '--cwd', tmp,
+                    '--lookup', str(path)], capture_output=True, text=True)
+                self.assertEqual(result.returncode, code, result.stdout + result.stderr)
+                value = json.loads(result.stdout)
+                self.assertEqual(value['source_status'], expected)
+                self.assertIsNone(value['behavior_verdict'])
+                self.assertEqual(value['test_commands_executed'], 0)
+                self.assertEqual(before, {str(p): p.read_bytes() for p in root.rglob('*') if p.is_file()})
+                return value
+            lookup('CURRENT')
+            (root / 'logic.py').write_text('VALUE =\n')
+            lookup('STALE', 1)
+            self.assertEqual((root / '.work/count').read_text(), '1')
+            (root / 'logic.py').write_text('VALUE = 1  # repaired final edit\n')
+            path, result = capture('second.json', command)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            lookup('CURRENT')
+            path, result = capture('failed.json', 'raise SystemExit(7)')
+            self.assertEqual(result.returncode, 7)
+            value = lookup('CURRENT', 1)
+            self.assertEqual(value['exit_code'], 7, 'Current source must not hide a failed check')
+            record = json.loads(path.read_text())
+            record['after'] = None
+            path.write_text(json.dumps(record))
+            lookup('UNKNOWN', 2)
+
     def test_stdin_file_preserves_unicode_and_bytes_without_shell_transcoding(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -275,7 +322,8 @@ class CheckCaptureTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 124)
                 self.assertEqual(data['timeout_tree_cleanup_exit'], 0)
                 cleanup = data['timeout_tree_cleanup']
-                self.assertEqual(cleanup['command'][0], 'taskkill')
+                self.assertEqual(
+                    cleanup['command'][0], 'taskkill' if os.name == 'nt' else 'os.killpg')
                 self.assertEqual((cleanup['status'], cleanup['exit_code']), ('succeeded', 0))
                 self.assertIsInstance(cleanup['stdout'], str)
                 self.assertIsInstance(cleanup['stderr'], str)

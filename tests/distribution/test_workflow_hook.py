@@ -16,6 +16,64 @@ WORKFLOW = ROOT / 'authoring/scripts/project_workflow.py'
 
 
 class WorkflowHookTests(unittest.TestCase):
+    def test_budget_counts_final_display_omissions_separately_from_discovery(self):
+        output = runpy.run_path(str(HOOK))['hook_output']
+        summary = {'status': 'TASK_NOT_SELECTED', 'task_candidate_count': 5,
+            'task_candidate_omitted': 0, 'task_discovery_complete': True,
+            'task_candidates': [{'state': 'x' * 2000} for _ in range(5)],
+            'current_task': {'detail': {'action': 'lookup', 'state': '.work/task.json'},
+                'ui_system_count': 5, 'ui_system_omitted': 1,
+                'ui_systems': [{'guide': 'x' * 1500} for _ in range(4)]}}
+        text = output(summary)['hookSpecificOutput']['additionalContext']
+        result = json.loads(text.split('\n', 1)[1])
+        self.assertLessEqual(len(text), 5500)
+        self.assertEqual(result['task_candidate_omitted'], 0, 'Discovery omissions are unchanged')
+        self.assertTrue(result['task_discovery_complete'])
+        self.assertEqual(result['task_candidate_display_omitted'],
+                         5 - len(result.get('task_candidates', [])))
+        current = result['current_task']
+        self.assertEqual(current['ui_system_omitted'], 5 - len(current.get('ui_systems', [])))
+
+    def test_unselected_prompt_discovers_candidates_without_inventory_or_audits(self):
+        sys.path.insert(0, str(WORKFLOW.parent))
+        import project_workflow as runtime
+        hook = runpy.run_path(str(HOOK))['context']
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+            (root / '.harness').mkdir()
+            (root / '.harness/project.yaml').write_text(json.dumps({'extensions': {'workflow': {
+                'roots': ['src'], 'features': [{'id': 'api', 'partition': 'domain',
+                    'sources': ['src/api.py'], 'map': ['map.md'], 'criteria': ['map.md'], 'checks': []}],
+                'state': '.work/task.json'}}}))
+            with mock.patch.dict(os.environ, AGENT_WORKFLOW_CONTEXT=''), \
+                 mock.patch.object(runtime, 'inventory', side_effect=AssertionError('unrequested inventory')), \
+                 mock.patch.object(runtime, 'inspect_project', side_effect=AssertionError('unrequested audit')):
+                for prompt in ('show results only', 'Plan the change', 'Fix bug; use W-untrusted'):
+                    result = hook({'hook_event_name': 'UserPromptSubmit', 'cwd': str(root), 'prompt': prompt})
+                    detail = json.loads(result['hookSpecificOutput']['additionalContext'].split('\n', 1)[1])
+                    self.assertEqual(detail['status'], 'TASK_NOT_SELECTED')
+                    self.assertNotIn('current_task', detail)
+            self.assertFalse((root / '.work').exists())
+
+    def test_budget_preserves_blocker_next_action_and_exact_lookup_before_optional_details(self):
+        output = runpy.run_path(str(HOOK))['hook_output']
+        pointer = {'action': 'lookup', 'state': '.work/tasks/exact/state.json', 'read_only': True}
+        summary = {'status': 'SELECTED_TASK', 'current_task': {
+            'status': 'PARTIAL', 'task_acceptance': 'BLOCKED',
+            'verification_blocker_count': 1, 'verification_blockers': ['prepared_plan_task_mismatch'],
+            'next_action_count': 1, 'next_actions': [{'target': 'api', 'requires': ['verification']}],
+            'detail': pointer, 'feature_count': 9, 'features': [{'criteria': ['가' * 9000]}],
+            'obligations': [{'huge': 'x' * 10000}], 'request': {'summary': 'x' * 10000}}}
+        text = output(summary)['hookSpecificOutput']['additionalContext']
+        self.assertLess(len(text), 6000)
+        current = json.loads(text.split('\n', 1)[1])['current_task']
+        self.assertEqual(current['detail'], pointer)
+        self.assertEqual(current['verification_blockers'], ['prepared_plan_task_mismatch'])
+        self.assertEqual(current['next_actions'], summary['current_task']['next_actions'])
+        self.assertEqual(current['task_acceptance'], 'BLOCKED')
+        self.assertEqual(current['feature_count'], 9)
+
     def test_prompt_context_prioritizes_target_ui_guides_and_feature_ui_paths(self):
         runtime = runpy.run_path(str(WORKFLOW))
         hook = runpy.run_path(str(HOOK))['context']
@@ -83,14 +141,7 @@ class WorkflowHookTests(unittest.TestCase):
             self.assertEqual(len(current['ui_systems']), 4)
             self.assertEqual(current['ui_system_detail'], current['detail'])
             self.assertEqual(current.get('ui_systems', [])[0]['guide'], 'docs/ui-cart.md')
-            if detail.get('ui_systems'):
-                self.assertEqual(detail['ui_systems'][0]['id'], 'shared-cart')
-                self.assertEqual(detail['ui_system_count'], 9)
-                self.assertEqual(detail['ui_system_omitted'], 5)
-                self.assertEqual(detail['ui_system_detail'], current['detail'])
-            else:
-                self.assertTrue(detail.get('ui_system_detail_omitted'))
-                self.assertEqual(detail['ui_system_omitted'], detail['ui_system_count'])
+            self.assertNotIn('ui_systems', detail, 'Do not duplicate project UI systems outside the task')
 
     def test_fresh_unconfigured_checkout_keeps_hook_read_only_without_a_task(self):
         hook = runpy.run_path(str(HOOK))['context']
@@ -102,7 +153,13 @@ class WorkflowHookTests(unittest.TestCase):
             with mock.patch.dict(os.environ, AGENT_WORKFLOW_CONTEXT=''):
                 result = hook({'hook_event_name': 'UserPromptSubmit', 'cwd': str(root),
                                'prompt': 'Fix the failing user flow. PRIVATE PROMPT'})
-            self.assertEqual(result, {})
+            context = result['hookSpecificOutput']['additionalContext']
+            self.assertIn('NOT_CONFIGURED', context)
+            self.assertIn('AGENTS.md', context)
+            self.assertNotIn('PRIVATE PROMPT', context)
+            with mock.patch.dict(os.environ, AGENT_WORKFLOW_CONTEXT=''):
+                self.assertEqual(hook({'hook_event_name': 'UserPromptSubmit', 'cwd': str(root),
+                                       'prompt': 'Translate hello into Korean'}), {})
             self.assertFalse((root / '.work').exists())
             self.assertEqual(before, {str(p): p.read_bytes() for p in root.rglob('*') if p.is_file()})
 
@@ -197,12 +254,11 @@ class WorkflowHookTests(unittest.TestCase):
             result = invoke()
             self.assertEqual(result['hookSpecificOutput']['hookEventName'], 'UserPromptSubmit')
             context = result['hookSpecificOutput']['additionalContext']
-            self.assertIn('regression', context)
-            self.assertIn('map.md', context)
             details = json.loads(context.split('\n', 1)[1])
-            self.assertIn('scope', details, 'Later work must consume current scope gaps from the existing audit')
-            self.assertEqual(details['scope']['status'], 'PARTIAL')
-            self.assertTrue(any('UNDECIDED' in gap for gap in details['scope']['gaps']))
+            self.assertEqual(details['status'], 'TASK_NOT_SELECTED')
+            self.assertEqual(details['project_status'], 'NOT_AUDITED')
+            self.assertNotIn('scope', details)
+            self.assertEqual(details['task_candidates'][0]['state'], '.work/task.json')
             self.assertNotIn('NEVER ECHO THIS', context)
             self.assertNotIn('decision', result)
             self.assertEqual(invoke(), result)
@@ -227,12 +283,12 @@ class WorkflowHookTests(unittest.TestCase):
             snapshot = {str(p): p.read_bytes() for p in root.rglob('*') if p.is_file() and '.git' not in p.parts}
             context = invoke()['hookSpecificOutput']['additionalContext']
             details = json.loads(context.split('\n', 1)[1])
-            self.assertEqual(details['status'], 'READY_FOR_REVIEW')
-            self.assertEqual(details['active_work_count'], 2)
-            works = {item['work_id']: item for item in details['active_work']}
-            self.assertEqual(works['W-A']['status'], 'PARTIAL')
-            self.assertIn('verification', works['W-A']['obligations'][0]['requires'])
-            self.assertEqual(works['W-B']['status'], 'READY_FOR_REVIEW')
+            self.assertEqual(details['status'], 'TASK_NOT_SELECTED')
+            self.assertNotIn('active_work', details)
+            self.assertEqual(details['task_candidate_count'], 3)
+            for work_id, expected in [('W-A', 'PARTIAL'), ('W-B', 'READY_FOR_REVIEW')]:
+                selected, _ = runtime['work_record'](root, work_id)
+                self.assertEqual(runtime['inspect_project'](root, project, selected)['status'], expected)
             self.assertNotIn('selected_work_id', details, 'Prompt text is not a trusted session binding')
             a_state, a_path = runtime['work_record'](root, 'W-A')
             binding = runtime['task_context'](root, a_state, a_path, 'W-A')
@@ -244,20 +300,21 @@ class WorkflowHookTests(unittest.TestCase):
             self.assertEqual(snapshot, {str(p): p.read_bytes() for p in root.rglob('*') if p.is_file() and '.git' not in p.parts})
             (root / '.work/goals/active/W-A/workflow.json').write_text('null')
             details = json.loads(invoke()['hookSpecificOutput']['additionalContext'].split('\n', 1)[1])
-            self.assertEqual(details['active_work'][0]['status'], 'BLOCKED')
-            self.assertEqual(details['active_work'][1]['status'], 'READY_FOR_REVIEW')
+            invalid = next(c for c in details['task_candidates'] if c.get('work_id') == 'W-A')
+            self.assertEqual(invalid['status'], 'BLOCKED')
             for index in range(9):
                 directory = root / '.work/goals/active' / f'W-Z{index}'
                 directory.mkdir()
                 (directory / 'work.json').write_text('{}')
             context = invoke()['hookSpecificOutput']['additionalContext']
             details = json.loads(context.split('\n', 1)[1])
-            self.assertEqual(details['active_work_count'], 11)
-            self.assertEqual(details['active_work_omitted'], 3)
-            self.assertEqual(len(details['active_work']), 8)
+            self.assertEqual(details['task_candidate_count'], 12)
+            self.assertEqual(details['task_candidate_omitted'], 4)
+            self.assertEqual(len(details['task_candidates']), 8)
             self.assertLess(len(context), 6000)
             (root / '.work/task.json').write_text('null')
-            self.assertIn('workflow_state_must_be_object', invoke()['systemMessage'])
+            broken = json.loads(invoke()['hookSpecificOutput']['additionalContext'].split('\n', 1)[1])
+            self.assertEqual(broken['task_candidates'][0]['status'], 'BLOCKED')
             config.write_text('{}')
             missing_config = invoke()
             omissions = json.loads(missing_config['hookSpecificOutput']['additionalContext'].split('\n', 1)[1])
