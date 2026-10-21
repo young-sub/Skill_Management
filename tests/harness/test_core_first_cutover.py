@@ -106,7 +106,8 @@ class CoreFirstCutoverTests(unittest.TestCase):
         self.assertIn(".harness/project.yaml", agents)
         self.assertTrue((ROOT / "docs" / "index.md").is_file())
         self.assertFalse((ROOT / "docs" / "work-packets" / "ys" / "wp-20260802-007-core-first-harness.md").exists())
-        self.assertEqual(set(config["commands"]), {"targeted", "feature", "lint", "type", "build", "full", "live", "eval"})
+        self.assertTrue({"targeted", "feature", "lint", "type", "build", "full", "live", "eval"}.issubset(config["commands"]))
+        self.assertEqual(load_core().validate_project_config(config), [])
         self.assertEqual(load_core().build_mapping_plan(ROOT, config["paths"])["unresolved"], [])
         forward = "tests.harness.test_core_first_forward_workflows"
         self.assertIn(forward, config["commands"]["feature"]["argv"])
