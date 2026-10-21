@@ -21,6 +21,14 @@ import uuid
 
 ROOT = Path(__file__).resolve().parent
 DRIVER = ROOT / "browser_drive.cjs"
+SCREENSHOTS = (
+    ("entry_desktop_screenshot", "entry-1280.png"),
+    ("entry_mobile_screenshot", "entry-390.png"),
+    ("history_desktop_screenshot", "history-1280.png"),
+    ("history_mobile_screenshot", "history-390.png"),
+    ("history_mobile_after_restart_screenshot", "history-390-after-restart.png"),
+)
+TRACE = ("browser_trace", "browser-trace.zip")
 
 
 def now() -> str:
@@ -33,6 +41,67 @@ def sha256(path: Path) -> str:
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def preflight_artifact_dir(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True)
+    names = [filename for _, filename in (*SCREENSHOTS, TRACE)]
+    collisions = [str(path / name) for name in names
+                  if (path / name).exists() or (path / name).is_symlink()]
+    if collisions:
+        raise FileExistsError("Refusing to overwrite existing artifacts: " + ", ".join(collisions))
+
+    probe = path / (".artifact-access-" + uuid.uuid4().hex)
+    payload = uuid.uuid4().bytes
+    try:
+        with probe.open("xb") as stream:
+            stream.write(payload)
+        if probe.read_bytes() != payload:
+            raise OSError("Artifact location failed its write/read preflight")
+    finally:
+        probe.unlink(missing_ok=True)
+
+
+def record_artifact(report: dict, kind: str, path: Path, *, required: bool = False) -> bool:
+    screenshot = kind.endswith("_screenshot")
+    record = {
+        "kind": kind,
+        "path": str(path),
+        "browser_capture": "NOT_CHECKED",
+        "readable_by_runner": None,
+        "visual_observation": "NOT_PERFORMED" if screenshot else "NOT_APPLICABLE",
+    }
+    try:
+        present = path.is_file()
+    except OSError as error:
+        present = False
+        message = str(error)
+    else:
+        message = "expected artifact was not created"
+    if not present:
+        record["browser_capture"] = "MISSING"
+        record["error"] = message
+        report["artifacts"].append(record)
+        if required:
+            report["errors"].append({"phase": "artifact_access", "kind": kind, "message": message})
+            report["skipped"].append({"phase": "artifact_access", "kind": kind,
+                                      "reason": "required evidence is missing"})
+        return not required
+
+    record["browser_capture"] = "FILE_PRESENT"
+    try:
+        record["sha256"] = sha256(path)
+        record["readable_by_runner"] = True
+    except OSError as error:
+        record["readable_by_runner"] = False
+        record["error"] = str(error)
+        report["errors"].append({"phase": "artifact_access", "kind": kind, "message": str(error)})
+        report["skipped"].append({"phase": "artifact_access", "kind": kind,
+                                  "reason": "runner could not read the captured evidence"})
+        report["artifacts"].append(record)
+        return False
+    report["artifacts"].append(record)
+    return True
 
 
 def command_output(argv: list[str], *, timeout: int = 10, env: dict[str, str] | None = None) -> str:
@@ -232,9 +301,12 @@ def read_line_with_timeout(process: subprocess.Popen, timeout: int = 90) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run the connected product acceptance path.")
     parser.add_argument("--report", type=Path, required=True, help="New raw JSON observation path")
+    parser.add_argument("--artifact-dir", type=Path,
+                        help="Directory for browser screenshots and trace (defaults beside the report)")
     args = parser.parse_args()
     report_path = args.report.resolve()
     report_dir = report_path.parent / report_path.stem
+    artifact_dir = (args.artifact_dir or report_dir).resolve()
     database = report_dir / "product.sqlite"
     port_file = report_dir / "server-port.json"
     log_path = report_dir / "server.log"
@@ -255,13 +327,20 @@ def main() -> int:
             "project_root": str(ROOT),
             "report_path": str(report_path),
             "database_path": str(database),
+            "artifact_directory": str(artifact_dir),
             "started_at_utc": now(),
             "target": None,
             "executed": False,
             "phases": [],
         },
         "checks": [],
-        "observed": {"services": [], "api_responses": [], "database": {}, "browser": {}},
+        "observed": {"services": [], "api_responses": [], "database": {}, "browser": {},
+                     "artifact_access": {
+                         "directory": str(artifact_dir),
+                         "preflight": "NOT_RUN",
+                         "readable_by_runner": "NOT_VERIFIED",
+                         "visual_observation": "NOT_PERFORMED",
+                     }},
         "skipped": [],
         "errors": [],
         "counts": {"assertions": 0, "passed": 0, "failed": 0, "skipped": 0, "errors": 0},
@@ -275,8 +354,17 @@ def main() -> int:
     runtime_env = None
     port = 0
     fatal_error = False
-    phase = "doctor"
+    phase = "artifact_access"
     try:
+        report["execution"]["phases"].append({"name": "artifact_access", "started_at_utc": now()})
+        try:
+            preflight_artifact_dir(artifact_dir)
+        except (OSError, ValueError) as error:
+            report["observed"]["artifact_access"]["preflight"] = "FAILED"
+            raise error
+        report["observed"]["artifact_access"].update(preflight="PASS", readable_by_runner="PASS")
+        report["execution"]["phases"][-1]["finished_at_utc"] = now()
+
         phase = "launch"
         report["execution"]["phases"].append({"name": "launch", "started_at_utc": now()})
         runtime, runtime_env = browser_runtime()
@@ -303,7 +391,7 @@ def main() -> int:
 
         phase = "drive"
         report["execution"]["phases"].append({"name": "drive", "started_at_utc": now()})
-        browser = start_browser(ROOT, runtime_env, ready["url"], report_dir)
+        browser = start_browser(ROOT, runtime_env, ready["url"], artifact_dir)
         report["execution"]["executed"] = True
         event_line = read_line_with_timeout(browser)
         if not event_line:
@@ -384,7 +472,7 @@ def main() -> int:
         report["errors"].append(
             {"phase": phase, "type": type(error).__name__, "message": str(error)}
         )
-        if phase in {"doctor", "launch"}:
+        if phase in {"artifact_access", "doctor", "launch"}:
             report["skipped"].append({"phase": "browser_flow", "reason": str(error)})
         if browser is not None and browser.poll() is None:
             try:
@@ -421,20 +509,14 @@ def main() -> int:
                     report["cleanup"]["removed_paths"].append(str(path))
             except OSError as error:
                 report["cleanup"]["errors"].append({"path": str(path), "error": str(error)})
-        if log_path.is_file():
-            report["artifacts"].append(
-                {"kind": "server_log", "path": str(log_path), "sha256": sha256(log_path)}
-            )
-        for name, path in (
-            ("entry_desktop_screenshot", report_dir / "entry-1280.png"),
-            ("entry_mobile_screenshot", report_dir / "entry-390.png"),
-            ("history_desktop_screenshot", report_dir / "history-1280.png"),
-            ("history_mobile_screenshot", report_dir / "history-390.png"),
-            ("history_mobile_after_restart_screenshot", report_dir / "history-390-after-restart.png"),
-            ("browser_trace", report_dir / "browser-trace.zip"),
-        ):
-            if path.is_file():
-                report["artifacts"].append({"kind": name, "path": str(path), "sha256": sha256(path)})
+        if log_path.is_file() and not record_artifact(report, "server_log", log_path):
+            fatal_error = True
+        for name, filename in SCREENSHOTS:
+            if not record_artifact(report, name, artifact_dir / filename, required=True):
+                fatal_error = True
+        name, filename = TRACE
+        if (artifact_dir / filename).exists() and not record_artifact(report, name, artifact_dir / filename):
+            fatal_error = True
         report["execution"]["phases"][-1]["finished_at_utc"] = now()
         if report["cleanup"]["errors"]:
             fatal_error = True

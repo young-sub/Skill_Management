@@ -16,6 +16,80 @@ SCRIPT = ROOT / 'authoring/scripts/project_workflow.py'
 
 
 class ProjectWorkflowTests(unittest.TestCase):
+    def test_harness_inspection_reads_same_unmapped_and_plan_blockers_without_execution(self):
+        from tests.harness.test_core_first_close_lifecycle import load_core
+        runtime = self.runtime()
+        core = load_core()
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        state = runtime.begin_work(self.root, self.project)
+        directory = '.work/goals/active/W-inspect/'
+        self.write(directory + 'work.json', json.dumps({'work_id': 'W-inspect', 'state': 'active',
+                   'source_commit': state['base'], 'workflow_baseline': state}))
+        path = self.write(directory + 'workflow.json', json.dumps(state))
+        before = path.read_bytes()
+        with patch.dict(sys.modules, {'project_workflow': runtime}):
+            observed = core.inspect_project_workflow(self.root, self.project, work_id='W-inspect')
+            self.assertEqual(observed['handoff']['task_acceptance'], 'READY_FOR_REVIEW')
+            self.assertEqual(observed['test_commands_executed'], 0)
+            self.write('outside.py', 'unowned_behavior = True\n')
+            observed = core.inspect_project_workflow(self.root, self.project, work_id='W-inspect')
+            self.assertEqual(observed['handoff']['task_acceptance'], 'INCOMPLETE')
+            self.assertIn('outside.py', observed['unmapped_changes'])
+            self.assertEqual(path.read_bytes(), before)
+            state['execution_plan'] = '.work/foreign-plan.json'
+            self.write(state['execution_plan'], json.dumps({'workflow_scope': {}}))
+            path.write_text(json.dumps(state), encoding='utf-8')
+            before = path.read_bytes()
+            observed = core.inspect_project_workflow(self.root, self.project, work_id='W-inspect')
+            self.assertEqual(observed['status'], 'BLOCKED')
+            self.assertIn('prepared_plan_task_mismatch', observed['findings'])
+            self.assertEqual(path.read_bytes(), before)
+
+    def test_review_cli_accepts_batch_and_rejects_invalid_batch_without_partial_write(self):
+        runtime = self.runtime()
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        state = runtime.begin(self.root, self.project, 'init')
+        path = self.write('.work/batch/state.json', json.dumps(state))
+        features = runtime.inspect_project(self.root, self.project, state)['features']
+        reviews = [{'feature': f['id'], 'basis': f['basis'], 'analysis': 'Reviewed owner and requirement',
+                    'references': ['docs/map.md'], 'findings': []} for f in features]
+        batch = self.write('.work/batch/reviews.json', json.dumps([reviews[0], dict(reviews[1], basis='stale')]))
+        before = path.read_bytes()
+        _, failed = self.invoke('review', '--state', '.work/batch/state.json', '--review', str(batch))
+        self.assertIn('stale_or_unknown_review', failed['findings'])
+        self.assertEqual(path.read_bytes(), before)
+        batch.write_text(json.dumps(reviews), encoding='utf-8')
+        self.invoke('review', '--state', '.work/batch/state.json', '--review', str(batch))
+        self.assertEqual(set(json.loads(path.read_bytes())['reviews']), {'api', 'cli'})
+
+    def test_harness_baseline_limits_unchanged_features_without_hiding_changes(self):
+        runtime = self.runtime()
+        state = runtime.begin_work(self.root, self.project)
+        audit = runtime.inspect_project(self.root, self.project, state)
+        self.assertEqual({a['scope'] for a in audit['next_actions']}, {'project_remaining'})
+        self.assertEqual(runtime.handoff_summary(audit)['task_acceptance'], 'READY_FOR_REVIEW')
+        self.write('src/cli.py', 'print(11)\n')
+        changed = runtime.inspect_project(self.root, self.project, state)
+        self.assertEqual(next(a for a in changed['next_actions'] if a['target'] == 'cli')['scope'], 'impact_required')
+        self.assertEqual(runtime.handoff_summary(changed)['task_acceptance'], 'INCOMPLETE')
+
+    def test_review_batch_is_one_audit_and_atomic_on_invalid_or_duplicate_entry(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'init')
+        features = runtime.inspect_project(self.root, self.project, state)['features']
+        reviews = [{'feature': f['id'], 'basis': f['basis'], 'analysis': 'Reviewed current owner',
+                    'references': ['docs/map.md'], 'findings': []} for f in features]
+        original = json.loads(json.dumps(state))
+        with patch.object(runtime, 'inspect_project', wraps=runtime.inspect_project) as audit:
+            updated = runtime.record_reviews(self.root, self.project, state, reviews)
+        self.assertEqual(audit.call_count, 1)
+        self.assertEqual(set(updated['reviews']), {'api', 'cli'})
+        self.assertEqual(state, original)
+        for invalid in [reviews + [reviews[0]], [reviews[0], dict(reviews[1], basis='stale')], []]:
+            with self.assertRaises(ValueError):
+                runtime.record_reviews(self.root, self.project, state, invalid)
+            self.assertEqual(state, original)
+
     def test_two_process_reviews_reject_stale_write_and_allow_explicit_reapply(self):
         import time
         runtime = self.runtime()

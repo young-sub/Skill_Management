@@ -59,6 +59,44 @@ class VerifyProductTests(unittest.TestCase):
         self.assertGreater(verdict['tests_run'], 0)
         return record
 
+    def enable_scoped_check(self):
+        project_path = self.root / '.harness/project.yaml'
+        project = json.loads(project_path.read_text())
+        project['commands']['fixture']['evidence_inputs'] = ['deps/*.py']
+        project['extensions'] = {'workflow': {'roots': ['logic.py'], 'features': [{
+            'id': 'native-verification', 'partition': 'verification', 'sources': ['logic.py'],
+            'map': ['docs/feature-map.md'], 'criteria': ['docs/criteria.md'], 'checks': ['fixture']} ]}}
+        project_path.write_text(json.dumps(project), encoding='utf-8')
+        (self.root / 'docs/criteria.md').write_text('The selected unittest result must be current.\n')
+        (self.root / 'logic.py').write_text('from deps.helper import VALUE\n')
+        (self.root / 'deps').mkdir()
+        (self.root / 'deps/__init__.py').write_text('')
+        (self.root / 'deps/helper.py').write_text('VALUE = 42\n')
+        self.suite.write_text(
+            'import unittest\nfrom pathlib import Path\nfrom logic import VALUE\n'
+            'class Behavior(unittest.TestCase):\n'
+            ' def test_value(self):\n'
+            '  p=Path("evidence/count"); p.parent.mkdir(exist_ok=True)\n'
+            '  p.write_text(str(int(p.read_text())+1) if p.exists() else "1")\n'
+            '  self.assertEqual(VALUE, 42)\n')
+        self.git('add', '.')
+        self.git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@localhost',
+                 'commit', '-m', 'configure scoped check')
+
+    def check_read_only_lookup(self, path, expected, code=0):
+        before = {p.relative_to(self.root).as_posix(): p.read_bytes()
+                  for p in self.root.rglob('*') if p.is_file() and '.git' not in p.parts}
+        result = subprocess.run([sys.executable, str(CAPTURE), '--cwd', str(self.root),
+                                 '--lookup', str(path)], capture_output=True, text=True)
+        self.assertEqual(result.returncode, code, result.stdout + result.stderr)
+        value = json.loads(result.stdout)
+        self.assertEqual(value['source_status'], expected, value)
+        self.assertEqual(value['test_commands_executed'], 0)
+        after = {p.relative_to(self.root).as_posix(): p.read_bytes()
+                 for p in self.root.rglob('*') if p.is_file() and '.git' not in p.parts}
+        self.assertEqual(before, after, 'Read-only lookup must not change project or evidence bytes')
+        return value
+
     def test_real_command_is_bound_to_feature_and_current_source(self):
         record = self.run_check()
         code, verdict = self.verify('--evidence', str(self.output), '--run-id', record['run_id'])
@@ -182,6 +220,47 @@ class VerifyProductTests(unittest.TestCase):
         self.assertEqual(failed.returncode, 1, failed.stderr + failed.stdout)
         self.assertEqual(json.loads(failed.stdout)['status'], 'ISSUES')
 
+    def test_scoped_shared_check_unions_distinct_feature_sources(self):
+        self.enable_scoped_check()
+        project_path = self.root / '.harness/project.yaml'
+        project = json.loads(project_path.read_text())
+        project['extensions']['workflow']['features'].append({
+            'id': 'second', 'partition': 'verification', 'sources': ['other.py'],
+            'map': ['docs/feature-map.md'], 'criteria': ['docs/criteria.md'], 'checks': ['fixture']})
+        project_path.write_text(json.dumps(project), encoding='utf-8')
+        (self.root / 'other.py').write_text('VALUE = 7\n')
+        mapping = self.root / 'docs/feature-map.md'
+        mapping.write_text(mapping.read_text() +
+            '| second | Check | Run | Shared native result | tests | evidence | fixture |\n')
+        self.suite.write_text('import unittest\nfrom pathlib import Path\n'
+            'from logic import VALUE as LOGIC_VALUE\nfrom other import VALUE as OTHER_VALUE\n'
+            'p=Path("evidence/count"); p.parent.mkdir(exist_ok=True)\n'
+            'p.write_text(str(int(p.read_text())+1) if p.exists() else "1")\n'
+            'class Behavior(unittest.TestCase):\n'
+            ' def test_first_source(self): self.assertEqual(LOGIC_VALUE, 42)\n'
+            ' def test_second_source(self): self.assertEqual(OTHER_VALUE, 7)\n')
+        command = [sys.executable, str(VERIFIER), '--root', str(self.root), '--features',
+                   'native-verification', 'second', '--all-checks', '--output',
+                   str(self.root / 'evidence/scoped-shared')]
+        ran = subprocess.run(command, capture_output=True, text=True)
+        self.assertEqual(ran.returncode, 0, ran.stderr + ran.stdout)
+        outcome = json.loads(ran.stdout)
+        self.assertEqual((self.root / 'evidence/count').read_text(), '1',
+                         'The shared native check must execute exactly once')
+        bundles = {key: json.loads(Path(path).read_text())
+                   for key, path in outcome['bundles'].items()}
+        first = bundles['native-verification']['records'][0]
+        second = bundles['second']['records'][0]
+        self.assertEqual(first, second)
+        capture = json.loads((self.root / first['path']).read_text())
+        self.assertTrue({'logic.py', 'other.py'}.issubset(capture['input_scope']))
+        runtime = runpy.run_path(str(ROOT / 'authoring/scripts/project_workflow.py'))
+        for feature in ('native-verification', 'second'):
+            observed = runtime['inspect_evidence'](
+                self.root, {'id': feature, 'checks': ['fixture']}, project['commands'],
+                Path(outcome['bundles'][feature]).relative_to(self.root).as_posix())
+            self.assertEqual(observed['status'], 'PASS', observed)
+
     def test_pending_work_selects_only_needed_checks_and_reuses_current_evidence(self, connected=False):
         runtime = runpy.run_path(str(ROOT / 'authoring/scripts/project_workflow.py'))
         self.root.joinpath('.gitignore').write_text('evidence/\n.work/\n__pycache__/\n')
@@ -263,6 +342,83 @@ class VerifyProductTests(unittest.TestCase):
         dependency.write_text('value = 11\n')
         code, verdict = self.verify('--evidence', str(self.output), '--run-id', record['run_id'])
         self.assertEqual(verdict['status'], 'BLOCKED', verdict)
+
+    def test_declared_scope_reuses_after_unrelated_docs_and_lookup_has_no_side_effects(self):
+        self.enable_scoped_check()
+        path = self.root / 'evidence/scoped.json'
+        code, verdict = self.verify('--output', str(path))
+        self.assertEqual((code, verdict['status']), (0, 'PASS'), verdict)
+        record = json.loads(path.read_text())
+        self.assertTrue({'logic.py', 'suite.py', 'deps/helper.py', 'docs/criteria.md',
+                         'docs/feature-map.md', '.harness/project.yaml'}.issubset(record['input_scope']))
+        (self.root / 'docs/unrelated.md').write_text('A report outside this check.\n')
+        self.check_read_only_lookup(path, 'CURRENT')
+        self.assertEqual((self.root / 'evidence/count').read_text(), '1')
+
+    def test_declared_scope_invalidates_every_registered_input_and_new_matching_file(self):
+        self.enable_scoped_check()
+        tracked = ['logic.py', 'suite.py', 'deps/helper.py', 'docs/criteria.md',
+                   'docs/feature-map.md', '.harness/project.yaml']
+        original = {name: (self.root / name).read_bytes() for name in tracked}
+        for index, name in enumerate(tracked):
+            with self.subTest(input=name):
+                for path, value in original.items():
+                    (self.root / path).write_bytes(value)
+                evidence = self.root / f'evidence/stale-{index}.json'
+                code, verdict = self.verify('--output', str(evidence))
+                self.assertEqual((code, verdict['status']), (0, 'PASS'), verdict)
+                target = self.root / name
+                if name == 'docs/feature-map.md':
+                    target.write_text(target.read_text().replace('| Check |', '| Changed label |'))
+                elif name == '.harness/project.yaml':
+                    project = json.loads(target.read_text())
+                    project['commands']['fixture']['timeout_seconds'] = 321
+                    target.write_text(json.dumps(project), encoding='utf-8')
+                else:
+                    target.write_bytes(target.read_bytes() + b'\n# changed\n')
+                code, verdict = self.verify('--evidence', str(evidence),
+                                            '--run-id', json.loads(evidence.read_text())['run_id'])
+                self.assertEqual(verdict['status'], 'BLOCKED', verdict)
+        for path, value in original.items():
+            (self.root / path).write_bytes(value)
+        evidence = self.root / 'evidence/new-matching-file.json'
+        code, verdict = self.verify('--output', str(evidence))
+        self.assertEqual((code, verdict['status']), (0, 'PASS'), verdict)
+        (self.root / 'deps/extra.py').write_text('EXTRA = True\n')
+        code, verdict = self.verify('--evidence', str(evidence),
+                                    '--run-id', json.loads(evidence.read_text())['run_id'])
+        self.assertEqual(verdict['status'], 'BLOCKED', verdict)
+
+    def test_scoped_capture_cannot_omit_registered_inputs(self):
+        self.enable_scoped_check()
+        code, verdict = self.verify('--output', str(self.output))
+        self.assertEqual((code, verdict['status']), (0, 'PASS'), verdict)
+        record = json.loads(self.output.read_text())
+        record['input_scope'].remove('suite.py')
+        self.output.write_text(json.dumps(record))
+        code, verdict = self.verify('--evidence', str(self.output), '--run-id', record['run_id'])
+        self.assertEqual(verdict['status'], 'BLOCKED', verdict)
+
+    def test_registered_timeout_and_explicit_override_are_applied(self):
+        project_path = self.root / '.harness/project.yaml'
+        project = json.loads(project_path.read_text())
+        project['commands']['fixture']['timeout_seconds'] = 0.15
+        project_path.write_text(json.dumps(project), encoding='utf-8')
+        self.suite.write_text('import time; time.sleep(0.6)\nimport unittest\n'
+                              'class T(unittest.TestCase):\n def test_result(self): self.assertEqual(2 + 2, 4)\n')
+        short = self.root / 'evidence/registered-timeout.json'
+        code, verdict = self.verify('--output', str(short))
+        self.assertNotEqual(code, 0)
+        self.assertEqual(verdict['status'], 'BLOCKED', verdict)
+        record = json.loads(short.read_text())
+        self.assertEqual(record['timeout_seconds'], 0.15)
+        self.assertEqual(record['execution'], 'timeout')
+
+        long = self.root / 'evidence/explicit-override.json'
+        code, verdict = self.verify('--output', str(long), '--timeout', '3')
+        self.assertEqual((code, verdict['status']), (0, 'PASS'), verdict)
+        record = json.loads(long.read_text())
+        self.assertEqual(record['timeout_seconds'], 3.0)
 
     def test_unlinked_missing_or_wrong_target_evidence_never_passes(self):
         record = self.run_check()

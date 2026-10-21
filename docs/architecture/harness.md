@@ -183,3 +183,15 @@ and prototype candidate comparisons inform architect without new runtime/state.
 reuses host delegation, project worktrees, task/context and checkpoint-aware runners;
 shared records have one writer and the main agent owns integrated verification.
 It adds no runtime, state schema or review engine.
+
+
+## Verification reliability
+
+Harness closure and workflow lookup share task acceptance, including selected
+plan and unmapped-change blockers. New work baselines use change-derived scope;
+legacy baselines retain conservative scope. Batch review validates all distinct
+Feature entries against one audit before the existing atomic state write.
+Named command descriptors are validated like the standard commands and are also
+available to impact selection. Explicit unittest input scopes retain registry,
+test and shared-consumer dependencies; undeclared checks retain whole-Git binding.
+See [testing](../testing.md) for timeouts and observation boundaries.

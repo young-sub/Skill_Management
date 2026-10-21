@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from tests.harness.test_core_first_design_execution import (
     authorized_contract,
@@ -85,6 +86,29 @@ def close_impact(core, scope: str = "local") -> tuple[dict, dict]:
 
 
 class CoreFirstCloseLifecycleTests(unittest.TestCase):
+    def test_close_uses_task_acceptance_instead_of_project_status(self) -> None:
+        for project_status, task_status, expected in [
+            ('READY_FOR_REVIEW', 'INCOMPLETE', 'incomplete'),
+            ('PARTIAL', 'READY_FOR_REVIEW', 'completed'),
+            ('READY_FOR_REVIEW', 'BLOCKED', 'incomplete'),
+        ]:
+            with self.subTest(task=task_status), tempfile.TemporaryDirectory() as temp_dir:
+                core = load_core()
+                root = Path(temp_dir)
+                active, source = started_work(core, root, 'W-task-close')
+                project, impact = close_impact(core)
+                project['extensions'] = {'workflow': {}}
+                result = result_payload()
+                result['full']['rule'] = impact['not_required_rule_ids'][0]
+                observed = {'status': project_status, 'handoff': {'task_acceptance': task_status},
+                            'unmapped_changes': ['unowned.py'] if task_status == 'INCOMPLETE' else []}
+                with patch.object(core, 'inspect_project_workflow', return_value=observed):
+                    closed = core.close_work(root, 'W-task-close', contract=source, result=result,
+                        impact=impact, project=project, completed_at='2026-10-21T12:00:00+09:00',
+                        completed_days=30, trash_days=7)
+                self.assertEqual(closed['status'], expected, closed)
+                self.assertEqual(active.exists(), expected != 'completed')
+
     def test_close_blocks_when_cumulative_changed_paths_outgrow_logic_assessment(self) -> None:
         core = load_core()
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -42,7 +42,7 @@
         "build": {"$ref": "#/$defs/command"}, "full": {"$ref": "#/$defs/command"},
         "live": {"$ref": "#/$defs/command"}, "eval": {"$ref": "#/$defs/command"}
       },
-      "additionalProperties": false
+      "additionalProperties": {"$ref": "#/$defs/command"}
     },
     "documents": {
       "type": "object", "required": ["boundaries"],
@@ -85,7 +85,8 @@
         "capability": {"type": "string", "minLength": 1},
         "source_revision": {"type": "string"}, "inherit_env": {"type": "boolean"},
         "env": {"type": "object", "additionalProperties": {"type": "string"}},
-        "timeout_seconds": {"type": "number", "exclusiveMinimum": 0}
+        "timeout_seconds": {"type": "number", "exclusiveMinimum": 0},
+        "evidence_inputs": {"$ref": "#/$defs/pathList"}
       },
       "additionalProperties": false
     },

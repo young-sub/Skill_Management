@@ -1,5 +1,7 @@
 # Agent Documentation Index
 
+- [Verification reliability follow-up](research/verification-reliability-0.1.82.md): task closure, scoped native evidence, execution lifecycle, accessible artifacts and atomic review batches.
+
 - [Local 0.1.81 runtime verification](research/runtime-verification-0.1.81.md):
   project-first browser discovery, owned server/source/storage checks, controlled
   failures and scoped package consumption; actual-product adoption remains separate.

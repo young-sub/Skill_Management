@@ -17,6 +17,26 @@ def load_core():
 
 
 class CoreFirstSchemaTests(unittest.TestCase):
+    def test_named_command_metadata_is_validated_and_available_to_impact(self) -> None:
+        core = load_core()
+        project = json.loads((ROOT / 'authoring/templates/project/project.yaml').read_text(encoding='utf-8'))
+        project['commands']['workflow-check'] = {
+            **project['commands']['feature'], 'id': 'workflow-check',
+            'argv': ['python', '-m', 'unittest', 'tests.test_app'],
+            'evidence_inputs': ['src', 'tests'], 'timeout_seconds': 900,
+        }
+        project['impact']['rules'] = [{'id': 'app', 'source_prefixes': ['src/'],
+                                      'tests': ['tests/test_app.py'], 'feature': 'workflow-check', 'triggers': []}]
+        self.assertEqual(core.validate_project_config(project), [])
+        result = core.select_impacted_checks(['src/app.py'], project)
+        self.assertEqual(result['feature_commands'][0]['argv'], project['commands']['workflow-check']['argv'])
+        project['commands']['workflow-check']['evidence_inputs'] = 'src'
+        self.assertIn('project_config:expected_list:commands.workflow-check.evidence_inputs',
+                      core.validate_project_config(project))
+        project['commands']['workflow-check']['unexpected'] = True
+        self.assertIn('project_config:unknown_field:commands.workflow-check.unexpected',
+                      core.validate_project_config(project))
+
     def test_current_project_config_rejects_missing_and_unknown_fields(self) -> None:
         core = load_core()
 
@@ -227,8 +247,9 @@ class CoreFirstSchemaTests(unittest.TestCase):
         self.assertNotIn("harness", project["properties"])
         self.assertNotIn("migration", project["properties"])
         self.assertNotIn("component", project["$defs"])
-        for section in ("paths", "impact", "commands", "documents", "work", "git", "baseline"):
+        for section in ("paths", "impact", "documents", "work", "git", "baseline"):
             self.assertFalse(project["properties"][section]["additionalProperties"], section)
+        self.assertEqual(project['properties']['commands']['additionalProperties'], {'$ref': '#/$defs/command'})
         self.assertEqual(set(project["properties"]["commands"]["required"]), {"targeted", "feature", "lint", "type", "build", "full", "live", "eval"})
         descriptor = project["$defs"]["command"]
         self.assertFalse(descriptor["additionalProperties"])

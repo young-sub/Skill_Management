@@ -122,6 +122,8 @@ class CheckCaptureTests(unittest.TestCase):
                 running = json.loads(record.read_text())
                 self.assertEqual(running['execution'], 'running')
                 self.assertIsNone(running['exit_code'])
+                self.assertGreater(running['timeout_seconds'], 0)
+                self.assertEqual(running['progress']['stage'], 'command_running')
                 self.assertEqual(running['capture_pid'], process.pid)
                 before = record.read_bytes()
                 duplicate = subprocess.run(argv, capture_output=True, timeout=10)
@@ -256,6 +258,34 @@ class CheckCaptureTests(unittest.TestCase):
             self.assertEqual(data['execution'], 'timeout')
             self.assertIsNone(data['behavior_verdict'])
             self.assertIn('started', data['stdout'])
+
+    def test_timeout_publishes_cleanup_progress_and_final_owned_result(self):
+        with mock.patch.object(sys, 'path', [str(RUNNER.parent), *sys.path]):
+            runner = runpy.run_path(str(RUNNER.parents[1] / 'authoring/scripts/run_check.py'),
+                                    run_name='run_check_progress_test')
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            record = root / 'execution.json'
+            stages = []
+            publish = runner['publish_record']
+
+            def observe(path, value):
+                stages.append(value.get('progress', {}).get('stage'))
+                return publish(path, value)
+
+            argv = [str(RUNNER), '--cwd', tmp, '--output', str(record), '--timeout', '0.2', '--',
+                    sys.executable, '-c', 'import time; print("started", flush=True); time.sleep(30)']
+            with mock.patch.dict(runner['main'].__globals__, publish_record=observe), \
+                    mock.patch.object(sys, 'argv', argv), contextlib.redirect_stdout(io.StringIO()):
+                code = runner['main']()
+            final = json.loads(record.read_text(encoding='utf-8'))
+            self.assertEqual(code, 124)
+            self.assertIn('command_running', stages)
+            self.assertIn('timeout_cleanup', stages)
+            self.assertEqual(final['timeout_seconds'], 0.2)
+            self.assertEqual(final['execution'], 'timeout')
+            self.assertNotIn('progress', final)
+            self.assertIn('timeout_tree_cleanup', final)
 
     @unittest.skipUnless(os.name == 'nt', 'Windows taskkill')
     def test_timeout_keeps_taskkill_failure_output_and_cleanup_error(self):

@@ -558,7 +558,7 @@ def inspect_investigation(root, state):
 
 def begin_work(root, project):
     """Use the same follow-up rules for ordinary tasks and Harness start."""
-    return begin(root, project, 'change')
+    return dict(begin(root, project, 'change'), scope_mode='impact')
 
 
 def work_record(root, work_id):
@@ -1022,7 +1022,7 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
         in_task = not state or state.get('intent') == 'init' or bool(affected) or needs_behavior
         work_scope = ('request_required' if identity in state.get('targets', []) or state.get('intent') == 'init' else
                       'impact_required' if state and (affected or verification_inputs_changed or assertion_changed) else
-                      'scope_undetermined' if not state.get('targets') or identity not in state.get('verification_bases', {})
+                      'scope_undetermined' if (not state.get('targets') and state.get('scope_mode') != 'impact') or identity not in state.get('verification_bases', {})
                           or unresolved_feedback or any(r['status'] != 'PRESERVED' for r in retirements) else
                       'project_remaining')
         scope_basis = {'targets': state.get('targets', []), 'changed': affected,
@@ -2664,7 +2664,10 @@ def inspect_unittest_evidence(root, feature, commands, binding):
         path = local_path(root, record['path'])
         captured = json.loads(path.read_text(encoding='utf-8'))
         try:
-            observed = reader.assess(path, record['run_id'], feature['id'], check, [sys.executable, *argv[1:]], cwd.resolve())
+            command = [sys.executable, *argv[1:]]
+            scope = reader.verification_inputs(root, feature['id'], check, command,
+                descriptor.get('evidence_inputs') if isinstance(descriptor, dict) else None)
+            observed = reader.assess(path, record['run_id'], feature['id'], check, command, cwd.resolve(), input_scope=scope)
         except (OSError, ValueError) as error:
             observed = {'status': 'BLOCKED', 'reason': str(error)}
         items.append({'id': check, 'feature': feature['id'], 'historical_status': observed['status'],
@@ -2858,9 +2861,27 @@ def current_review(root, review, basis):
     return not review['findings']
 
 
-def record_review(root, project, state, review):
-    validate_review(root, review)
+def record_reviews(root, project, state, reviews):
+    """Validate a batch against one snapshot; the caller commits once or not at all."""
+    if not isinstance(reviews, list) or not reviews:
+        raise ValueError('nonempty_review_batch_required')
+    for review in reviews:
+        validate_review(root, review)
+    names = [review.get('feature') for review in reviews]
+    if any(not isinstance(name, str) for name in names) or len(names) != len(set(names)):
+        raise ValueError('duplicate_or_invalid_review_feature')
     result = inspect_project(root, project, state)
+    updated = state
+    for review in reviews:
+        updated = _record_review(root, project, updated, review, result)
+    return updated
+
+
+def record_review(root, project, state, review):
+    return record_reviews(root, project, state, [review])
+
+
+def _record_review(root, project, state, review, result):
     feature = next((item for item in result['features'] + result['retired'] if item['id'] == review.get('feature')), None)
     if feature is None or feature['basis'] != review.get('basis'):
         raise ValueError('stale_or_unknown_review')
@@ -3063,7 +3084,7 @@ def main(argv=None):
     parser.add_argument('--request-summary', help='Ordinary task request; Harness work keeps its existing contract reference')
     parser.add_argument('--outcome-ref', action='append', default=[], help='Existing project-relative expected-outcome document')
     parser.add_argument('--target', action='append', default=[])
-    parser.add_argument('--review', type=Path)
+    parser.add_argument('--review', type=Path, help='JSON review object or atomic array of distinct Feature reviews')
     parser.add_argument('--investigation', type=Path, help='Agent observations and remaining scope in the existing task')
     parser.add_argument('--feedback', type=Path, help='Register/update a complaint and repair chain in the existing work state')
     parser.add_argument('--history-bundle', action='append', default=[], help='Project-relative retained bundle for read-only maintenance costs/detection review')
@@ -3149,7 +3170,8 @@ def main(argv=None):
             else:
                 if state is None or args.review is None:
                     raise ValueError('existing_state_and_review_required')
-                state = record_review(root, project, state, json.loads(args.review.read_text(encoding='utf-8')))
+                reviews = json.loads(args.review.read_text(encoding='utf-8'))
+                state = record_reviews(root, project, state, reviews if isinstance(reviews, list) else [reviews])
                 changed = True
             if changed:
                 write_state(state_path, state, staging=root / '.work' if args.work_id else None)

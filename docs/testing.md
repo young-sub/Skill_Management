@@ -39,6 +39,30 @@ The project-workflow interruption regression exits a real child during begin/rev
 
 Windows Impeccable transport regressions run with `python -m unittest tests.distribution.test_impeccable_launcher`. Native cmd and Git Bash launchers download a compiled fixture and its checksum from loopback into temporary version caches, reuse that cache across working directories, expose transport failures, and refuse missing or mismatched checksums. A failing curl fixture exercises PowerShell fallback without weakening certificate validation. This verifies local transport/cache behavior, not public release availability or live TLS/revocation access. On other platforms the native Windows cases are skipped; a skip is not PASS for those paths.
 
+## Native capture reuse and observation
+
+Named command descriptors may declare `evidence_inputs` (project-relative files,
+directories or patterns). Review all transitive dependencies before opting in.
+The unittest adapter always adds the registry, selected test modules and each
+consumer's Feature sources/map/criteria. Shared execution binds their union.
+Matching additions/deletions or changes invalidate the capture; unrelated edits
+outside this declared scope do not. Ignored files, aliases and sensitive inputs
+cannot be declared. Without opt-in, whole-Git invalidation remains in force.
+This does not attest installed dependencies or external runtime state.
+
+`verify_product.py` uses CLI `--timeout`, then the command's `timeout_seconds`,
+then 300 seconds. The measured long `workflow-obligations` check declares 900.
+Capture publishes a running stage/PID and a timeout-cleanup stage; timeout is
+never PASS. Cleanup targets the process tree started by that capture, retains
+cleanup failures and bounds pipe draining. Inspect a retained cleanup failure
+before retrying; it is not permission to stop unrelated processes.
+
+The connected-product fixture accepts `--artifact-dir` inside an accessible
+workspace. It probes write/read access before launch and refuses to overwrite
+existing artifacts. Browser capture, runner readability and actual visual
+observation are separate facts. The agent must open the screenshot itself and
+record its observation; readable bytes alone do not prove a visual review.
+
 ## Commands
 
 Use `.harness/project.yaml` feature selectors for affected behavior. Common direct commands:

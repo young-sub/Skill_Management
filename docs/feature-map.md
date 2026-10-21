@@ -1,5 +1,13 @@
 # Repository Feature Map
 
+2026-10-21 reliability follow-up: `work-close` and `workflow-obligations` share
+request acceptance and atomic multi-Feature reviews. `native-verification`
+adds explicit dependency-scoped unittest reuse, per-command timeouts, retained
+cleanup outcomes and accessible browser artifacts. `plugin-package` owns the
+generated Skill/package surfaces so changed copies are not silently unmapped.
+Focused controls and actual visual observations are recorded in the
+[reliability record](research/verification-reliability-0.1.82.md).
+
 2026-10-21 `agent-workflow`: repository workflow roots include the already declared
 playbook, repair/reference and recall sources. The documentation audit rejects missing
 declared sources as well as unmapped discovered files (`test_repository_docs.py`).

@@ -13,28 +13,33 @@ import runpy
 import subprocess
 import sys
 
-from unittest_evidence import assess
+from unittest_evidence import assess, verification_inputs
+
+DEFAULT_TIMEOUT = 300
 
 
-def capture_check(argv, cwd, output, feature, check, timeout, also_features=()):
-    result = subprocess.run([sys.executable, str(Path(__file__).with_name('run_check.py')),
+def capture_check(argv, cwd, output, feature, check, timeout, also_features=(), input_scope=None):
+    command = [sys.executable, str(Path(__file__).with_name('run_check.py')),
                              '--cwd', str(cwd), '--output', str(output),
                              '--feature', feature, '--check', check,
                              *[token for name in also_features for token in ('--also-feature', name)],
-                             '--timeout', str(timeout), '--', *argv],
+                             '--timeout', str(timeout)]
+    if input_scope is not None:
+        command.extend(token for name in input_scope for token in ('--input', name))
+    result = subprocess.run([*command, '--', *argv],
                             capture_output=True, text=True, encoding='utf-8', errors='replace')
     if not result.stdout.strip():
         raise ValueError('Capture did not produce a new run; inspect path/permissions')
     return json.loads(result.stdout)['run_id']
 
 
-def execute_feature(root, feature, output, timeout):
+def execute_feature(root, feature, output, timeout=None):
     outcome = execute_features(root, [feature], output, timeout)
     return {'status': outcome['status'], 'feature': feature,
             'bundle': outcome['bundles'][feature], 'results': outcome['results'][feature]}
 
 
-def execute_features(root, features, output, timeout, selected_checks=None):
+def execute_features(root, features, output, timeout=None, selected_checks=None):
     """Share only the same registered check/argv/cwd within this execution batch."""
     project = json.loads((root / '.harness/project.yaml').read_text(encoding='utf-8'))
     commands = dict(project['commands'])
@@ -44,25 +49,38 @@ def execute_features(root, features, output, timeout, selected_checks=None):
     if not features or any(not mapping.get(feature) for feature in features):
         raise ValueError('Feature has no connected checks')
     selected = {}
+    scopes = {}
+    timeouts = {}
     for feature in features:
         for check in dict.fromkeys(mapping[feature]):
             if selected_checks is not None and (feature, check) not in selected_checks:
                 continue
             argv, cwd = check_target(root, feature, check)
-            selected.setdefault((check, tuple(argv), cwd), []).append(feature)
+            signature = (check, tuple(argv), cwd)
+            selected.setdefault(signature, []).append(feature)
+            descriptor = commands.get(check)
+            declared = descriptor.get('evidence_inputs') if isinstance(descriptor, dict) else None
+            scopes.setdefault(signature, []).append(
+                verification_inputs(root, feature, check, argv, declared))
+            timeouts[signature] = command_timeout(descriptor, timeout)
     output = output.resolve()
     if not output.is_relative_to(root):
         raise ValueError('Workflow evidence must be inside the project')
     output.mkdir(parents=True, exist_ok=False)
     records = {feature: [] for feature in features}
     executed = []
-    for index, ((check, argv, cwd), consumers) in enumerate(selected.items()):
+    for index, (signature, consumers) in enumerate(selected.items()):
+        check, argv, cwd = signature
         path = output / f'{index}.json'
-        run_id = capture_check(argv, cwd, path, consumers[0], check, timeout, consumers[1:])
+        declared_scopes = scopes[signature]
+        input_scope = (sorted({name for current in declared_scopes for name in current})
+                       if all(current is not None for current in declared_scopes) else None)
+        run_id = capture_check(argv, cwd, path, consumers[0], check, timeouts[signature],
+                               consumers[1:], input_scope)
         record = {'check': check, 'run_id': run_id, 'path': path.relative_to(root).as_posix()}
         for feature in consumers:
             records[feature].append(record)
-        executed.append((record, list(argv), cwd, consumers))
+        executed.append((record, list(argv), cwd, consumers, declared_scopes))
     bundles = {}
     for feature in features:
         bundle = output / ('bundle.json' if len(features) == 1 else feature + '.bundle.json')
@@ -70,15 +88,31 @@ def execute_features(root, features, output, timeout, selected_checks=None):
                                      'records': records[feature]}), encoding='utf-8')
         bundles[feature] = str(bundle)
     results = {feature: [] for feature in features}
-    for record, argv, cwd, consumers in executed:
-        for feature in consumers:
+    for record, argv, cwd, consumers, declared_scopes in executed:
+        for feature, input_scope in zip(consumers, declared_scopes):
             try:
-                results[feature].append(assess(root / record['path'], record['run_id'], feature, record['check'], argv, cwd))
+                results[feature].append(assess(root / record['path'], record['run_id'], feature,
+                                               record['check'], argv, cwd, input_scope))
             except (OSError, ValueError, KeyError, TypeError) as error:
                 results[feature].append({'check': record['check'], 'status': 'BLOCKED', 'reason': str(error)})
     statuses = {item['status'] for values in results.values() for item in values}
     return {'status': 'BLOCKED' if 'BLOCKED' in statuses else 'ISSUES' if 'ISSUES' in statuses else 'PASS',
             'bundles': bundles, 'results': results, 'executed_checks': len(executed)}
+
+
+def command_timeout(descriptor, override=None):
+    value = override if override is not None else (
+        descriptor.get('timeout_seconds', DEFAULT_TIMEOUT) if isinstance(descriptor, dict) else DEFAULT_TIMEOUT)
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
+        raise ValueError('Registered check timeout must be finite and positive')
+    return value
+
+
+def command_descriptor(root, check):
+    project = json.loads((root / '.harness/project.yaml').read_text(encoding='utf-8'))
+    commands = dict(project.get('commands', {}))
+    commands.update(project.get('impact', {}).get('feature_selectors', {}))
+    return commands[check]
 
 
 def feature_checks(root, commands):
@@ -169,10 +203,11 @@ def main():
     source.add_argument('--evidence', type=Path, help='Existing evidence; assess without execution')
     parser.add_argument('--run-id', help='Required when assessing an existing run')
     parser.add_argument('--bundle-output', type=Path, help='New workflow binding for this native capture; no test rerun')
-    parser.add_argument('--timeout', type=float, default=300)
+    parser.add_argument('--timeout', type=float, default=None,
+                        help='Override the registered per-check timeout (default: command timeout_seconds or 300)')
     args = parser.parse_args()
     try:
-        if not math.isfinite(args.timeout) or args.timeout <= 0:
+        if args.timeout is not None and (not math.isfinite(args.timeout) or args.timeout <= 0):
             raise ValueError('Timeout must be finite and positive')
         context = args.context or (os.environ.get('AGENT_WORKFLOW_CONTEXT') if not args.feature and not args.features else None)
         root = (args.root or (Path(json.loads(context)['root']) if context else Path(__file__).resolve().parents[1])).resolve()
@@ -193,12 +228,18 @@ def main():
         if args.bundle_output and args.bundle_output.exists():
             raise ValueError('Bundle output already exists')
         argv, cwd = check_target(root, args.feature, args.check)
+        descriptor = command_descriptor(root, args.check)
+        declared = descriptor.get('evidence_inputs') if isinstance(descriptor, dict) else None
+        input_scope = verification_inputs(root, args.feature, args.check, argv, declared)
+        timeout = command_timeout(descriptor, args.timeout)
         run_id = args.run_id
         if args.output:
-            run_id = capture_check(argv, cwd, args.output, args.feature, args.check, args.timeout)
+            run_id = capture_check(argv, cwd, args.output, args.feature, args.check,
+                                   timeout, input_scope=input_scope)
         elif not run_id:
             raise ValueError('Existing evidence requires an explicit run ID')
-        verdict = assess(args.output or args.evidence, run_id, args.feature, args.check, argv, cwd)
+        verdict = assess(args.output or args.evidence, run_id, args.feature, args.check,
+                         argv, cwd, input_scope)
         if args.bundle_output:
             capture = (args.output or args.evidence).resolve()
             if not capture.is_relative_to(root):

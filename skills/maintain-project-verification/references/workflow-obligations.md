@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: 9dc3ea3921b4b5656033903c7adbbccd41f997e3c46248c979218387d06a3935 -->
+<!-- Source-SHA256: fe3a900cd9dcf1ffd1859fbf592c28428f7629c0b5bfd8d56ccccb1741cbab32 -->
 
 # Project workflow obligations
 
@@ -57,8 +57,9 @@ not gaps; UNDECIDED, NOT_RUN, STALE and unavailable evidence stay visible. Expan
 scope follows the current audit, including changed shared owners. Bounded context
 keeps an explicitly selected task and its detail pointer ahead of other candidates.
 Without a host-provided context, candidates are discovery only, not selection or
-proof of automatic host delivery. Whole-map/Git changes remain conservatively stale;
-complete Feature-local dependency coverage has not been established.
+proof of automatic host delivery. Undeclared native unittest inputs retain conservative whole-Git invalidation.
+A command may opt into `evidence_inputs` only after reviewing dependency coverage;
+registered owners, maps, criteria, configuration and test modules remain mandatory.
 
 `READY_FOR_REVIEW` describes retained request review readiness, not complete project or full-stack coverage. Undeclared matrix cells remain UNDECIDED in the coverage view; they do not create six mandatory next actions. Declared criteria, current check requirements and explicit cell decisions still block when missing/stale/failed. Unchanged unmapped project inventory remains project debt; new/changed unmapped sources block scoped request acceptance. Full initialization still accounts for all unmapped sources.
 The hook preserves selected Feature references, current check reuse and an exact
@@ -66,6 +67,17 @@ read-only detail pointer when trimming. It shares one source inventory and audit
 identical selected/active task state within a single invocation. New invocations
 remeasure bytes; different task states still inspect their own evidence. This
 does not weaken Git/bundle stale checks or claim a persistent discovery cache.
+
+Harness `close` uses the same task acceptance as lookup, including unmapped
+changes and connected-plan blockers. New Harness baselines derive their scope
+from actual changes; unchanged project debt stays visible outside the task.
+Legacy or missing baselines remain conservative. Neither path executes checks.
+
+`review --review <file>` accepts one review object or an array of distinct Feature
+reviews. A batch inspects the project once and writes once after every review
+passes; duplicate, stale or invalid entries reject the entire batch. Each entry
+still requires the applicable semantic review and current basis. Batch submission
+does not replace review with a blanket PASS.
 
 Task `begin` shares one current source inventory for its initial Feature bases,
 prior-state reuse assessment and new baseline. That snapshot lives only for that
