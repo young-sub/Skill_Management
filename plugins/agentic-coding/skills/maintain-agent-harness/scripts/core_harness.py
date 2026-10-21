@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/core_harness.py
-# Source-SHA256: f9433ee2feb13623b50c0c919b4aab77376c02ae8683fe1d35a56c2b9b0413cf
+# Source-SHA256: 25052c29d0d27de3bdce2db68353d76ed6dcce53ab128711e0eb3b33d1c82c69
 
 #!/usr/bin/env python3
 """Deterministic Core-First Agent Harness contracts and compatibility checks."""
@@ -13,6 +13,7 @@ from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 from hashlib import sha256
 import json
+import math
 import os
 from pathlib import Path, PurePosixPath
 import re
@@ -250,11 +251,13 @@ def validate_project_config(project: dict[str, Any]) -> list[str]:
         string_list(impact.get("full_triggers"), "impact.full_triggers")
 
     command_names = {"targeted", "feature", "lint", "type", "build", "full", "live", "eval"}
-    commands = object_fields(top.get("commands"), "commands", command_names)
+    command_value = top.get("commands")
+    commands = object_fields(command_value, "commands", command_names,
+                             set(command_value) - command_names if isinstance(command_value, dict) else set())
     if commands is not None:
         required_command = {"id", "argv", "working_directory", "platform", "runtime", "capability"}
-        optional_command = {"source_revision", "inherit_env", "env", "timeout_seconds"}
-        for name in sorted(command_names):
+        optional_command = {"source_revision", "inherit_env", "env", "timeout_seconds", "evidence_inputs"}
+        for name in sorted(commands):
             descriptor = object_fields(commands.get(name), f"commands.{name}", required_command, optional_command)
             if descriptor is None:
                 continue
@@ -269,6 +272,8 @@ def validate_project_config(project: dict[str, Any]) -> list[str]:
                         errors.append(f"project_config:expected_string:commands.{name}.argv.{index}")
             if "source_revision" in descriptor and not isinstance(descriptor["source_revision"], str):
                 errors.append(f"project_config:expected_string:commands.{name}.source_revision")
+            if "evidence_inputs" in descriptor:
+                string_list(descriptor["evidence_inputs"], f"commands.{name}.evidence_inputs")
             if "inherit_env" in descriptor and not isinstance(descriptor["inherit_env"], bool):
                 errors.append(f"project_config:expected_boolean:commands.{name}.inherit_env")
             if "env" in descriptor:
@@ -280,7 +285,7 @@ def validate_project_config(project: dict[str, Any]) -> list[str]:
                     errors.append(f"project_config:expected_string_map:commands.{name}.env")
             if "timeout_seconds" in descriptor:
                 timeout = descriptor["timeout_seconds"]
-                if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout <= 0:
+                if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or not math.isfinite(timeout) or timeout <= 0:
                     errors.append(f"project_config:expected_positive_number:commands.{name}.timeout_seconds")
 
     documents = object_fields(top.get("documents"), "documents", {"boundaries"})
@@ -2519,7 +2524,8 @@ def select_impacted_checks(
     project = normalized_project["project"]
     impact_config = project.get("impact", {})
     rules = impact_config.get("rules", [])
-    feature_selectors = impact_config.get("feature_selectors", {})
+    feature_selectors = {name: descriptor["argv"] for name, descriptor in project.get("commands", {}).items()}
+    feature_selectors.update(impact_config.get("feature_selectors", {}))
     full_triggers = set(impact_config.get("full_triggers", []))
     normalized_paths = list(dict.fromkeys(path.replace("\\", "/") for path in changed_paths))
     matched_rules: list[str] = []
@@ -2979,7 +2985,7 @@ def _close_work_locked(
         return {"status": "incomplete", "errors": ["workflow_configuration_missing"]}
     if project and project.get("extensions", {}).get("workflow") is not None:
         workflow = inspect_project_workflow(root, project, work_id=work_id if "workflow_baseline" in manifest else None)
-        if workflow["status"] != "READY_FOR_REVIEW":
+        if workflow.get("handoff", {}).get("task_acceptance", workflow["status"]) != "READY_FOR_REVIEW":
             return {"status": "incomplete", "errors": ["project_workflow_incomplete"], "workflow": workflow}
     evaluation = evaluate_result(stored_contract, result, impact)
     if evaluation["status"] != "complete":
@@ -3632,8 +3638,18 @@ def inspect_project_workflow(root: Path, project: dict[str, Any], *, work_id: st
     try:
         import project_workflow as workflow_api
         if work_id is not None:
-            state, _ = workflow_api.work_record(root, work_id)
-            return workflow_api.inspect_project(root, project, state)
+            state, path = workflow_api.work_record(root, work_id)
+            result = workflow_api.inspect_project(root, project, state)
+            verification = None
+            if state.get('execution_plan'):
+                verification = workflow_api.connected_verification(
+                    root, project, state, path, work_id, 'lookup',
+                    workflow_bases={f['id']: f['basis'] for f in result['features']})
+                result['verification'] = verification
+            result['test_commands_executed'] = 0
+            result['read_only'] = True
+            result['handoff'] = workflow_api.handoff_summary(result, verification)
+            return result
         return workflow_api.inspect_configured(root, project)
     except (OSError, ValueError, TypeError, KeyError, subprocess.CalledProcessError) as error:
         return {"status": "BLOCKED", "findings": [str(error)]}
@@ -3729,7 +3745,7 @@ def maintain_harness(
                 add("MAINT-IMPACT-UNMAPPED", normalized, "tracked surface has no impact rule", "high")
         for rule in rules:
             feature = rule.get("feature")
-            if feature not in selectors:
+            if feature not in selectors and feature not in project.get("commands", {}):
                 add("MAINT-IMPACT-SELECTOR", str(rule.get("id", "unnamed")), "feature selector is missing", "high")
         checks["MAINT-IMPACT-UNMAPPED"] = "checked"
         checks["MAINT-IMPACT-SELECTOR"] = "checked"

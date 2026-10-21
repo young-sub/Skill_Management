@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/run_check.py
-# Source-SHA256: 04a870b147dc94d1c8f5dbf5d01430b14c6bae732b2041f60a4e7094d868c5db
+# Source-SHA256: d6252d9a106a90e8eeba3c0806a6952d1e82dca99ed727d4fff2a4ef00ac962a
 
 """Capture a finite, foreground check. Output is evidence to inspect, never a verdict."""
 import argparse
@@ -18,7 +18,8 @@ import time
 import uuid
 
 
-from unittest_evidence import git_identity
+from unittest_evidence import (git_identity, normalize_input_scope,
+                               repository_root, validate_captured_scope)
 
 
 def lookup_capture(path, cwd):
@@ -27,12 +28,19 @@ def lookup_capture(path, cwd):
     record = json.loads(raw)
     if not isinstance(record, dict) or record.get('cwd') != str(cwd):
         raise ValueError('Capture must belong to the requested working directory')
-    current = git_identity(cwd)
+    try:
+        inputs = validate_captured_scope(cwd, record) if record.get('input_scope') is not None else None
+    except (OSError, ValueError, TypeError, KeyError) as error:
+        inputs = None
+        scope_error = str(error)
+    else:
+        scope_error = None
+    current = git_identity(cwd, inputs)
     identities = [record.get(name) for name in ('before', 'after')]
     if (record.get('execution') != 'exited' or type(record.get('exit_code')) is not int
             or record.get('cleanup_incomplete') or current is None
             or any(not isinstance(value, dict) or set(value) != set(current) for value in identities)):
-        status, reason = 'UNKNOWN', 'Completed capture and comparable Git identities are required'
+        status, reason = 'UNKNOWN', scope_error or 'Completed capture and comparable source identities are required'
     elif any(value != current for value in identities):
         status, reason = 'STALE', 'Source changed during or after the captured command'
     else:
@@ -42,7 +50,24 @@ def lookup_capture(path, cwd):
             'run_id': record.get('run_id'), 'argv': record.get('argv'),
             'execution': record.get('execution'), 'exit_code': record.get('exit_code'),
             'evidence': str(path.resolve()), 'evidence_sha256': hashlib.sha256(raw).hexdigest(),
-            'limit': 'Source currentness is not a behavior verdict. Ignored inputs, dependencies, runtime data and server identity are not attested.'}
+            'input_scope': record.get('input_scope'),
+            'limit': 'Source currentness is not a behavior verdict. Runtime dependencies, generated state and server identity are not attested.'}
+
+
+def publish_record(path, record):
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=path.parent,
+                prefix=path.name + '.', suffix='.pending', delete=False) as stream:
+            temporary = Path(stream.name)
+            json.dump(record, stream, ensure_ascii=False, indent=2)
+            stream.write('\n')
+            stream.flush()
+            os.fsync(stream.fileno())
+        temporary.replace(path)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 def main():
@@ -56,12 +81,14 @@ def main():
     parser.add_argument('--check', help='Optional project-owned command ID')
     parser.add_argument('--stdin-file', type=Path, help='Non-secret UTF-8 input file, relative to cwd; pass exact bytes without shell text transcoding')
     parser.add_argument('--json-report', type=Path, help='New native JSON report path (relative to cwd); embed after execution, without assigning a verdict. Must contain no secrets.')
+    parser.add_argument('--input', action='append', default=None,
+                        help='Project-relative file in an explicitly scoped capture; repeat for every declared input')
     parser.add_argument('--timeout', type=float, default=300, help='Seconds before stopping the owned process tree (default: 300)')
     parser.add_argument('command', nargs=argparse.REMAINDER)
     args = parser.parse_args()
     argv = args.command[1:] if args.command[:1] == ['--'] else args.command
     if args.lookup:
-        if (argv or args.stdin_file or args.json_report or args.feature or args.also_feature
+        if (argv or args.stdin_file or args.json_report or args.feature or args.also_feature or args.input
                 or args.check or not args.cwd.is_dir()):
             parser.error('--lookup requires an existing --cwd and no execution inputs')
         try:
@@ -77,6 +104,15 @@ def main():
     if args.also_feature and (not args.feature or not args.check or any(not name.strip() for name in args.also_feature)):
         parser.error('Shared capture requires nonempty Feature and check IDs')
     cwd = args.cwd.resolve()
+    input_scope = None
+    if args.input is not None:
+        root = repository_root(cwd)
+        if root is None:
+            parser.error('--input requires a Git project root')
+        try:
+            input_scope = normalize_input_scope(root, args.input)
+        except (OSError, ValueError) as error:
+            parser.error(f'Invalid --input scope: {error}')
     input_bytes = None
     if args.stdin_file:
         input_path = (cwd / args.stdin_file).resolve()
@@ -92,11 +128,12 @@ def main():
         report.parent.mkdir(parents=True, exist_ok=True)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     # Reserve first: an old result can neither be overwritten nor mistaken for this run.
-    with args.output.open('x', encoding='utf-8') as stream, \
-            (tempfile.TemporaryFile() if input_bytes is not None else nullcontext()) as input_stream:
+    with (tempfile.TemporaryFile() if input_bytes is not None else nullcontext()) as input_stream:
         record = {'run_id': str(uuid.uuid4()), 'feature': args.feature, 'check': args.check,
                   'argv': argv, 'cwd': str(cwd), 'started_at': datetime.now(timezone.utc).isoformat(),
-                  'behavior_verdict': None}
+                  'behavior_verdict': None, 'timeout_seconds': args.timeout}
+        if input_scope is not None:
+            record['input_scope'] = input_scope
         if input_stream is not None:
             # Snapshot bytes before launch; ambient PowerShell encoding cannot alter this input.
             input_stream.write(input_bytes)
@@ -106,15 +143,25 @@ def main():
         if args.also_feature:
             record['shared_features'] = list(dict.fromkeys([args.feature, *args.also_feature]))
         record.update(execution='running', exit_code=None, capture_pid=os.getpid(),
-                      progress='Wait for this capture to finish; do not launch the command again. '
-                               'If the owner exited, the outcome is unknown until reconciled.')
-        json.dump(record, stream, ensure_ascii=False, indent=2)
-        stream.flush()
-        os.fsync(stream.fileno())
-        record['before'] = git_identity(cwd)
+                      progress={'stage': 'command_starting', 'updated_at': datetime.now(timezone.utc).isoformat(),
+                                'message': 'Wait for this capture to finish; do not launch the command again.',
+                                'timeout_seconds': args.timeout})
+        with args.output.open('x', encoding='utf-8') as reservation:
+            json.dump(record, reservation, ensure_ascii=False, indent=2)
+            reservation.flush()
+            os.fsync(reservation.fileno())
+        record['before'] = (git_identity(cwd, input_scope) if input_scope is not None
+                            else git_identity(cwd))
         start = time.monotonic()
         try:
             process = subprocess.Popen(argv, cwd=cwd, stdin=input_stream, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace', start_new_session=os.name != 'nt')
+            record['progress'] = {'stage': 'command_running', 'updated_at': datetime.now(timezone.utc).isoformat(),
+                                  'message': 'Command is running; wait on this capture.',
+                                  'timeout_seconds': args.timeout, 'process_pid': process.pid}
+            try:
+                publish_record(args.output, record)
+            except OSError as error:
+                record['progress_write_error'] = str(error)
             try:
                 stdout, stderr = process.communicate(timeout=args.timeout)
                 record.update(execution='exited', exit_code=process.returncode, stdout=stdout, stderr=stderr)
@@ -122,6 +169,13 @@ def main():
             except subprocess.TimeoutExpired:
                 cleanup = {'command': None, 'status': 'not_attempted', 'exit_code': None,
                            'stdout': '', 'stderr': ''}
+                record['progress'] = {'stage': 'timeout_cleanup', 'updated_at': datetime.now(timezone.utc).isoformat(),
+                                      'message': 'Timeout reached; stopping the process tree started by this capture.',
+                                      'timeout_seconds': args.timeout, 'process_pid': process.pid}
+                try:
+                    publish_record(args.output, record)
+                except OSError as error:
+                    record['progress_write_error'] = str(error)
                 if process.poll() is None:
                     cleanup['command'] = (['taskkill', '/PID', str(process.pid), '/T', '/F']
                                           if os.name == 'nt' else
@@ -131,6 +185,7 @@ def main():
                             result = subprocess.run(
                                 cleanup['command'], capture_output=True, text=True,
                                 encoding='utf-8', errors='replace',
+                                timeout=10,
                             )
                             cleanup.update(
                                 status='succeeded' if result.returncode == 0 else 'failed',
@@ -139,6 +194,15 @@ def main():
                         else:
                             os.killpg(process.pid, signal.SIGKILL)
                             cleanup.update(status='succeeded', exit_code=0)
+                    except subprocess.TimeoutExpired as error:
+                        stdout = error.stdout or ''
+                        stderr = error.stderr or ''
+                        if isinstance(stdout, bytes):
+                            stdout = stdout.decode('utf-8', errors='replace')
+                        if isinstance(stderr, bytes):
+                            stderr = stderr.decode('utf-8', errors='replace')
+                        cleanup.update(status='failed', error='Owned process-tree cleanup command timed out',
+                                        stdout=stdout, stderr=stderr)
                     except OSError as error:
                         cleanup.update(status='failed', error=str(error))
                     if process.poll() is None:
@@ -172,7 +236,8 @@ def main():
             record.update(execution='unavailable', exit_code=None, stdout='', stderr=str(error))
             code = 127
         record.pop('progress', None)
-        record.update(elapsed_seconds=time.monotonic() - start, after=git_identity(cwd))
+        after = git_identity(cwd, input_scope) if input_scope is not None else git_identity(cwd)
+        record.update(elapsed_seconds=time.monotonic() - start, after=after)
         if report:
             captured = {'path': str(report.resolve()), 'sha256': None, 'data': None, 'error': None}
             try:
@@ -184,21 +249,8 @@ def main():
             except (OSError, ValueError) as error:
                 captured['error'] = str(error)
             record['json_report'] = captured
-        # Publish completion atomically: readers see either progress or the whole result.
-        stream.close()
-        temporary = None
-        try:
-            with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=args.output.parent,
-                    prefix=args.output.name + '.', suffix='.pending', delete=False) as final:
-                temporary = Path(final.name)
-                json.dump(record, final, ensure_ascii=False, indent=2)
-                final.write('\n')
-                final.flush()
-                os.fsync(final.fileno())
-            temporary.replace(args.output)
-        finally:
-            if temporary is not None:
-                temporary.unlink(missing_ok=True)
+        # Publish completion atomically; readers see a valid running or final record.
+        publish_record(args.output, record)
     print(json.dumps({'run_id': record['run_id'], 'execution': record['execution'], 'exit_code': record['exit_code'], 'evidence': str(args.output.resolve()), 'behavior_verdict': None}))
     return code
 
