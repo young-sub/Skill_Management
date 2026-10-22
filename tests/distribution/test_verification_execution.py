@@ -792,6 +792,10 @@ class VerificationExecutionTests(unittest.TestCase):
         state = workflow['record_feedback'](self.project, project, state, complaint)
         self.assertEqual(workflow['inspect_project'](self.project, project, state)['feedback'][0]['status'], 'RESOLVED')
         if bypass:
+            omitted = __import__('copy').deepcopy(state)
+            del omitted['feedback']['negative']['guardrail']['bypass_pointers']
+            self.assertIn('active_prevention_link_missing',
+                workflow['inspect_project'](self.project, project, omitted)['feedback'][0]['remaining'])
             for pointers in (['$.missing'], [guardrail['normal_pointer']], [], ['$.checks[0].alternate'] * 2):
                 changed = dict(complaint, guardrail=dict(guardrail, bypass_pointers=pointers))
                 self.assertTrue(workflow['feedback_evidence'](self.project, feature, changed), pointers)

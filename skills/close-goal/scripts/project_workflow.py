@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: 2063dda3518812fd2bf97f1c59297ae09a29da26473a04c71d3748106befec19
+# Source-SHA256: 835a05ec99ae25ff0485fd499d15cbe981c66d0106a854c4f6c0213b8ba04c68
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -2503,9 +2503,7 @@ def inspect_feedback(root, config, state, *, bundle_cache=None):
             required = (('failure', 'scope', 'owner_refs', 'normal_exception', 'reconsider') if structural else
                         ('failure', 'scope', 'check', 'normal_exception', 'reconsider', 'regression_pointer', 'normal_pointer'))
             remaining.extend(f'guardrail.{key}' for key in required if not guardrail.get(key))
-            link_keys = ('failure', 'normal_exception', 'scope', 'reconsider') + (('mechanism', 'owner_refs') if structural else ('check',))
-            if 'bypass_pointers' in guardrail:
-                link_keys += ('bypass_pointers',)
+            link_keys = ('failure', 'normal_exception', 'scope', 'reconsider', 'bypass_pointers') + (('mechanism', 'owner_refs') if structural else ('check',))
             if guardrail and ((not structural and guardrail.get('check') not in feature['checks']) or not any(
                     all(p.get(key) == guardrail.get(key) for key in link_keys) for p in feature.get('prevention', []))):
                 remaining.append('active_prevention_link_missing')

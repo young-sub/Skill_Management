@@ -61,6 +61,11 @@ active Feature prevention mapping must retain them. Missing, aliased, duplicated
 failing or weakened bypass proof cannot resolve feedback. Existing undeclared
 and structural-prevention contracts retain their behavior. `i3-final.json` covers
 real failure/fix/follow-up runs and the alternate -2 path; earlier failures remain.
+Independent review found that a feedback record could omit pointers declared in
+the Feature prevention mapping. `bypass-omission-red.json` reproduces that gap;
+the final fix compares the optional field in both directions, so omission cannot
+resolve feedback. The interrupted pre-review final suites are retained separately
+from the final runs on this correction.
 
 ## I4: Guide reuse
 
