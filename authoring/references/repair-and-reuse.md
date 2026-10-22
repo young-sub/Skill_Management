@@ -139,6 +139,15 @@ existing conservative identity policy; preserved red evidence stays historical.
 Other native adapters remain usable evidence, but this automatic feedback evidence
 join currently requires prepared native-JSON bundles; absent bindings stay OPEN.
 
+For alternate callers or bypasses, declare `bypass_pointers` on the feedback
+guardrail and its active Feature prevention row before the RED/GREEN execution.
+This optional nonempty list names distinct assertions other than the original
+regression and nearby normal assertion. Each must retain its exact RED criterion
+and pass in current GREEN; missing, failed or weakened bypass evidence keeps OPEN.
+Existing records without the field retain their previous bounded evidence, not
+an implicit claim that alternate bypasses were tested. Structural prevention uses
+its existing `prevention_review.bypass` instead.
+
 ## Structural or type/constraint prevention
 
 Use an existing Feature `prevention` row and matching feedback `guardrail` with `mechanism: structure` or `type_constraint`, `failure`, `scope`, existing source `owner_refs`, `normal_exception` and `reconsider`. No new registered check, JSON assertion adapter or fabricated RED/GREEN pair is required. The source owner must actually change. Automatic regression prevention keeps its fixed-oracle contract above.

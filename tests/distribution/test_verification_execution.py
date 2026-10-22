@@ -734,7 +734,7 @@ class VerificationExecutionTests(unittest.TestCase):
     def test_semantic_review_can_join_retained_results_without_execution(self):
         self.test_registered_report_directory_runs_twice_without_configuration_edits(coverage=True, semantic=True, semantic_after=True)
 
-    def test_feedback_red_green_normal_and_subsequent_revalidation(self, maintenance=False):
+    def test_feedback_red_green_normal_and_subsequent_revalidation(self, maintenance=False, bypass=False):
         import runpy
         api = runpy.run_path(str(VIEWER))
         workflow = runpy.run_path(str(VIEWER.with_name('project_workflow.py')))
@@ -744,13 +744,16 @@ class VerificationExecutionTests(unittest.TestCase):
         (self.project / 'check.py').write_text(
             "import json,sys\nfrom pathlib import Path\nfrom domain import valid\n"
             "p=Path(sys.argv[1]);p.parent.mkdir(parents=True,exist_ok=True)\n"
-            "p.write_text(json.dumps({'checks':[{'rejected':not valid(-1),'normal':valid(0)}]}))\n")
+            "p.write_text(json.dumps({'checks':[{'rejected':not valid(-1),'normal':valid(0),'alternate':not valid(-2)}]}))\n")
         guardrail = {'failure': 'Negative allowed', 'scope': 'Domain quantities', 'check': 'arithmetic-readback',
                      'normal_exception': 'Zero is valid', 'reconsider': 'Quantity contract changes',
                      'regression_pointer': '$.checks[0].rejected', 'normal_pointer': '$.checks[0].normal'}
         feature = {'id': 'fixture-product', 'partition': 'orders', 'sources': ['domain.py', 'check.py'],
                    'map': ['fixture.json'], 'criteria': ['fixture.json'], 'checks': ['arithmetic-readback'],
                    'prevention': [{key: guardrail[key] for key in ('failure', 'scope', 'check', 'normal_exception', 'reconsider')}]}
+        if bypass:
+            guardrail['bypass_pointers'] = ['$.checks[0].alternate']
+            feature['prevention'][0]['bypass_pointers'] = guardrail['bypass_pointers']
         project = {'commands': {'arithmetic-readback': [sys.executable, 'check.py', '{report_dir}/result.json']},
                    'extensions': {'workflow': {'roots': ['domain.py', 'check.py'], 'state': '.work/state.json', 'features': [feature]}}}
         if maintenance:
@@ -764,6 +767,8 @@ class VerificationExecutionTests(unittest.TestCase):
             {'pointer': guardrail['regression_pointer'], 'equals': True}, {'pointer': guardrail['normal_pointer'], 'equals': True}]}],
             dependency={'file_refs': ['dependency.txt']}, fixture={'file_refs': ['fixture.json']})
         specs = [spec]
+        if bypass:
+            spec['raw_observations'][0]['assertions'].append({'pointer': '$.checks[0].alternate', 'equals': True})
         if maintenance:
             redundant = __import__('copy').deepcopy(spec)
             redundant['id'] = 'redundant'
@@ -786,6 +791,30 @@ class VerificationExecutionTests(unittest.TestCase):
                          red_bundle='.work/red/evidence/bundle.json', green_bundle='.work/green/evidence/bundle.json')
         state = workflow['record_feedback'](self.project, project, state, complaint)
         self.assertEqual(workflow['inspect_project'](self.project, project, state)['feedback'][0]['status'], 'RESOLVED')
+        if bypass:
+            for pointers in (['$.missing'], [guardrail['normal_pointer']], [], ['$.checks[0].alternate'] * 2):
+                changed = dict(complaint, guardrail=dict(guardrail, bypass_pointers=pointers))
+                self.assertTrue(workflow['feedback_evidence'](self.project, feature, changed), pointers)
+            followup = workflow['begin'](self.project, project, 'change', ['fixture-product'], prior_state=state)
+            self.assertEqual(followup['feedback']['negative']['guardrail']['bypass_pointers'], guardrail['bypass_pointers'])
+            (self.project / 'domain.py').write_text('def valid(value):\n    return value != -1\n')
+            bypass_plan = self.project / '.work/bypass/plan.json'
+            api['prepare_plan'](self.project, Path('assertions.json'), bypass_plan, report_dir=Path('.work/bypass/native'))
+            failed = api['execute_plan'](bypass_plan, run_check_path=RUN_CHECK, evidence_dir=self.project / '.work/bypass/evidence')
+            self.assertEqual(failed['status'], 'ISSUES')
+            broken = dict(complaint, green_bundle='.work/bypass/evidence/bundle.json')
+            self.assertIn('bypass_evidence_missing_or_changed:$.checks[0].alternate',
+                          workflow['feedback_evidence'](self.project, feature, broken))
+            spec['raw_observations'][0]['assertions'][-1]['equals'] = False
+            (self.project / 'assertions.json').write_text(json.dumps({'schema_version': 1, 'checks': [spec]}))
+            weak_plan = self.project / '.work/weakened/plan.json'
+            api['prepare_plan'](self.project, Path('assertions.json'), weak_plan, report_dir=Path('.work/weakened/native'))
+            weakened = api['execute_plan'](weak_plan, run_check_path=RUN_CHECK, evidence_dir=self.project / '.work/weakened/evidence')
+            self.assertEqual(weakened['status'], 'PASS')
+            broken['green_bundle'] = '.work/weakened/evidence/bundle.json'
+            self.assertIn('bypass_evidence_missing_or_changed:$.checks[0].alternate',
+                          workflow['feedback_evidence'](self.project, feature, broken))
+            return
         if not maintenance:
             state = workflow['record_feedback'](self.project, project, state, dict(complaint,
                 id='duplicate', root_cause='Initially misdiagnosed as a caller issue', repair_paths=['check.py']))
@@ -856,6 +885,9 @@ class VerificationExecutionTests(unittest.TestCase):
 
     def test_maintenance_cost_overlap_and_actual_consolidation_preserve_detection(self):
         self.test_feedback_red_green_normal_and_subsequent_revalidation(maintenance=True)
+
+    def test_feedback_requires_declared_bypass_observations(self):
+        self.test_feedback_red_green_normal_and_subsequent_revalidation(bypass=True)
 
     def test_shared_feature_command_runs_once_and_keeps_independent_assertions(self, second_sum=5):
         import copy

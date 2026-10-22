@@ -1,5 +1,10 @@
 # Repository Feature Map
 
+2026-10-22 `workflow-obligations` / `feedback-repair`: declared alternate-bypass
+assertions join original RED and current GREEN with unchanged criteria. Missing,
+failed, duplicate or normal/regression aliases cannot close automatic prevention.
+The active prevention link and subsequent task preserve these declarations.
+
 2026-10-22 `native-verification`: the opt-in Labeler storage adapter connects actual
 browser input, Worker policy, independent local D1 reads and reload. It observes
 zero/negative boundaries and account isolation; an injected FE payload fault is

@@ -2176,6 +2176,18 @@ def feedback_evidence(root, feature, entry, *, original_check=None, bundle_cache
             reasons.append('prior_detector_evidence_missing')
     if normal == regression or not any(obs['assertion']['pointer'] == normal and obs['matched'] for obs in assertions(after)):
         reasons.append('nearby_normal_evidence_missing')
+    if 'bypass_pointers' in entry['guardrail']:
+        pointers = entry['guardrail']['bypass_pointers']
+        if (not isinstance(pointers, list) or not pointers
+                or any(not isinstance(pointer, str) or not pointer or pointer in (normal, regression) for pointer in pointers)
+                or len(pointers) != len(set(pointers))):
+            reasons.append('bypass_pointers_invalid')
+        else:
+            for pointer in pointers:
+                original = [obs['assertion'] for obs in assertions(before) if obs['assertion']['pointer'] == pointer]
+                if not original or not all(any(obs['matched'] and obs['assertion'] == assertion
+                        for obs in assertions(after)) for assertion in original):
+                    reasons.append('bypass_evidence_missing_or_changed:' + pointer)
     if before and after:
         descriptor = green['bundle']
         bound = viewer.read_json(viewer.resolve_bundle_file(descriptor['plan'],
@@ -2460,6 +2472,8 @@ def inspect_feedback(root, config, state, *, bundle_cache=None):
                         ('failure', 'scope', 'check', 'normal_exception', 'reconsider', 'regression_pointer', 'normal_pointer'))
             remaining.extend(f'guardrail.{key}' for key in required if not guardrail.get(key))
             link_keys = ('failure', 'normal_exception', 'scope', 'reconsider') + (('mechanism', 'owner_refs') if structural else ('check',))
+            if 'bypass_pointers' in guardrail:
+                link_keys += ('bypass_pointers',)
             if guardrail and ((not structural and guardrail.get('check') not in feature['checks']) or not any(
                     all(p.get(key) == guardrail.get(key) for key in link_keys) for p in feature.get('prevention', []))):
                 remaining.append('active_prevention_link_missing')
