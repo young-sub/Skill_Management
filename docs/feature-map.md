@@ -1,5 +1,10 @@
 # Repository Feature Map
 
+2026-10-22 `workflow-obligations` / `agent-workflow`: summary and selected hook
+Features expose `reuse` references even after obligations resolve: verification/UI
+guides, shared owners, scoped exceptions and active prevention. Missing guides keep
+NEEDS_REPAIR; existing audit invalidation selects affected consumers.
+
 2026-10-22 `workflow-obligations` / `feedback-repair`: declared alternate-bypass
 assertions join original RED and current GREEN with unchanged criteria. Missing,
 failed, duplicate or normal/regression aliases cannot close automatic prevention.

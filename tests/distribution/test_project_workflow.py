@@ -1359,6 +1359,12 @@ class ProjectWorkflowTests(unittest.TestCase):
         initial = runtime.inspect_project(self.root, self.project, state)
         self.assertEqual(initial['unmapped'], [])
         self.assertEqual(initial['ui_systems'][0]['exceptions'][0]['feature'], 'cli')
+        later = runtime.begin(self.root, self.project, 'change', ['cli'], prior_state=state)
+        summary = runtime.summarize_lookup(runtime.inspect_project(self.root, self.project, later), self.project, self.root)
+        reuse = next(f for f in summary['features'] if f['id'] == 'cli')['reuse']
+        self.assertIn('docs/ui.md', reuse['guides'])
+        self.assertEqual(reuse['shared_ui'][0]['components'], ['src/shared.py'])
+        self.assertEqual(reuse['shared_ui'][0]['exceptions'][0]['reconsider'], 'GUI is introduced')
         self.write('src/tokens.css', ':root { --space: 2rem; }\n')
         result = runtime.inspect_project(self.root, self.project, state)
         self.assertEqual([item['target'] for item in result['obligations']], ['api', 'cli'])
@@ -1368,6 +1374,8 @@ class ProjectWorkflowTests(unittest.TestCase):
             self.assertIn('src/tokens.css', obligation['changed'])
         (self.root / 'docs/ui.md').unlink()
         self.assertIn('missing_ui_guide:shared:docs/ui.md', runtime.inspect_project(self.root, self.project, state)['findings'])
+        summary = runtime.summarize_lookup(runtime.inspect_project(self.root, self.project, later), self.project, self.root)
+        self.assertEqual(summary['features'][0]['reuse']['shared_ui'][0]['status'], 'NEEDS_REPAIR')
         config['features'].pop()
         self.assertIn('removed_ui_consumer:shared:cli', runtime.inspect_project(self.root, self.project, state)['findings'])
 

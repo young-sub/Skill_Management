@@ -136,6 +136,9 @@ class WorkflowHookTests(unittest.TestCase):
             current = detail['current_task']
             features = {feature['id']: feature for feature in current['features']}
             self.assertEqual(features['price'].get('ui'), ['docs/ui-price.md'])
+            self.assertIn('docs/ui-price.md', features['price']['reuse']['guides'])
+            self.assertEqual(features['cart']['reuse']['shared_ui_count'], 5)
+            self.assertEqual(features['cart']['reuse']['shared_ui_omitted'], 1)
             self.assertEqual(current['ui_system_count'], 5)
             self.assertEqual(current['ui_system_omitted'], 1)
             self.assertEqual(len(current['ui_systems']), 4)

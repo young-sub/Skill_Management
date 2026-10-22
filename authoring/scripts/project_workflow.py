@@ -215,6 +215,20 @@ def inspect_ui_systems(root, config, files):
     return result
 
 
+def reuse_references(feature, audit):
+    """Discover existing owners even when no repair obligation remains."""
+    systems = [system for system in audit.get('ui_systems', []) if feature['id'] in system['consumers']]
+    guides = list(dict.fromkeys([*feature.get('criteria', []), *feature.get('ui', []),
+                                *(system['guide'] for system in systems)]))
+    prevention = feature.get('prevention', [])
+    return {'guides': guides, 'shared_ui': [
+        {key: deepcopy(system[key]) for key in ('id', 'guide', 'tokens', 'components', 'status', 'findings')} |
+        {'exceptions': [deepcopy(entry) for entry in system.get('exceptions', []) if entry['feature'] == feature['id']]}
+        for system in systems[:4]], 'shared_ui_count': len(systems), 'shared_ui_omitted': max(0, len(systems) - 4),
+        'prevention': deepcopy(prevention[:4]), 'prevention_count': len(prevention),
+        'prevention_omitted': max(0, len(prevention) - 4)}
+
+
 def coverage_rows(feature, review, basis, items=(), *, current_basis=None, semantic_valid=True, scope_states=None):
     """Declared scope only; the Agent decides which requirements/layers apply."""
     tests = {item['id']: item for item in items if item['feature'] == feature['id']}
@@ -2964,6 +2978,7 @@ def summarize_lookup(result, project, root):
         row = {key: deepcopy(feature[key]) for key in ('id', 'partition', 'verification_status', 'checks', 'excluded_checks', 'reviewed')}
         row['work_scope'] = feature.get('work_scope', 'scope_undetermined')
         row.update({key: config[feature['id']][key] for key in ('sources', 'map', 'criteria')})
+        row['reuse'] = reuse_references(config[feature['id']], result)
         row['in_task'] = feature['id'] in active
         row['bundles'] = task.get('results', {}).get(feature['id'], [])
         row['structural_evidence'] = feature.get('structural_evidence', [])

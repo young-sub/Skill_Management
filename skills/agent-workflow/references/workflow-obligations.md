@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: d1c6f4c79997ac4b51a4d41dc0d41953e8dcaa154e751127d5a3dd8ebd7af653 -->
+<!-- Source-SHA256: bbde1655fd93a6d6d16644ee0c729eb0efb6384097a110d886ade9d8fa76a61e -->
 
 # Project workflow obligations
 
@@ -10,6 +10,13 @@ evidence reference. Omitted outcome IDs remain available for exact lookup.
 No declared outcome is reported as UNDECLARED, never inferred from test counts.
 `business_value: NOT_ASSESSED_BY_CODE_CHECKS` keeps business impact separate;
 consult the linked requirement's metric, period and product observations.
+
+Feature `reuse` in summary and selected prompt context exposes existing criteria/UI
+guides, shared token/component owners, that Feature's intentional exceptions and
+active prevention links. Counts retain omitted systems/prevention entries. This
+discovery survives resolved obligations; CONNECTED is linkage, not visual approval.
+Follow current guide commands and inspect actual artifacts. Missing owners/guides
+remain NEEDS_REPAIR and must not be replaced by a copied, competing standard.
 
 The prompt hook projects existing project/task obligations; it never chooses a
 task, creates configuration or runs project checks. Fresh projects without work
