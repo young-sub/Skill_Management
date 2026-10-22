@@ -1,5 +1,10 @@
 # Repository Feature Map
 
+2026-10-22 `workflow-obligations`: outcome-oriented summary joins declared expected
+behavior and selection reasons to current evidence without running commands.
+Missing checks and unperformed semantic reviews remain visible; code checks do
+not certify business value. Focused controls live in `test_project_workflow`.
+
 2026-10-21 reliability follow-up: `work-close` and `workflow-obligations` share
 request acceptance and atomic multi-Feature reviews. `native-verification`
 adds explicit dependency-scoped unittest reuse, per-command timeouts, retained

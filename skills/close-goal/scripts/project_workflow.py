@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: 4ac91ae667f6efc0e5775d4656b31985e15faaa083fcd8d141bc7dd8a23e5e88
+# Source-SHA256: ee1514f07bff1b3b66380d831a18c9fe3d2b58b158f38033e53fb37a4415757c
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -2960,6 +2960,25 @@ def summarize_lookup(result, project, root):
         row['evidence_status'] = ('AVAILABLE' if feature['check_results'] or row['structural_evidence'] else
             'UNAVAILABLE' if row['bundles'] else 'NOT_RUN' if feature['verification_status'] == 'REQUIRED' else 'NOT_REQUIRED')
         row['check_results'] = viewer.summarize_results({'items': feature['check_results']})['items']
+        outcomes = []
+        for coverage in result['coverage'].get('rows', []):
+            if coverage['feature'] != feature['id']:
+                continue
+            evidence = coverage.get('evidence') or {}
+            outcomes.append({
+                'id': coverage['id'], 'expected': coverage.get('outcome'),
+                'requirement': coverage.get('requirement'), 'kind': coverage['kind'],
+                'perspectives': coverage.get('perspectives', []), 'areas': coverage.get('areas', []),
+                'status': coverage['status'], 'reasons': coverage.get('reasons', []),
+                'reason': evidence.get('selection', {}).get('reason') or evidence.get('reason'),
+                'evidence_ref': feature['id'] + '/' + coverage['check']
+                    if coverage.get('check') and evidence.get('run_id') else None,
+            })
+        row['outcomes'] = outcomes[:8]
+        row['outcome_ids'] = [outcome['id'] for outcome in outcomes]
+        row['outcomes_omitted'] = max(0, len(outcomes) - 8)
+        row['outcome_mapping'] = 'DECLARED' if outcomes else 'UNDECLARED'
+        row['business_value'] = 'NOT_ASSESSED_BY_CODE_CHECKS'
         for item in row['check_results']:
             for key in ('historical_source', 'historical_statuses', 'assessment', 'observation', 'criteria_revision'):
                 item.pop(key, None)

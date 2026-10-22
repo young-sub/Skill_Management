@@ -1133,6 +1133,13 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertEqual(result['coverage']['rows'][0]['evidence']['run_id'], 'run')
         summary = runtime.summarize_lookup(result, self.project, self.root)
         self.assertEqual(summary['coverage']['rows'][0]['evidence']['evidence_ref'], 'api/check')
+        outcomes = summary['features'][0]['outcomes']
+        self.assertEqual(outcomes[0]['expected'], 'Price ten')
+        self.assertEqual(outcomes[0]['reason'], 'price rule changed')
+        self.assertEqual(outcomes[0]['evidence_ref'], 'api/check')
+        self.assertEqual(outcomes[1]['status'], 'NOT_RUN')
+        self.assertEqual(outcomes[2]['status'], 'MISSING')
+        self.assertEqual(summary['features'][0]['business_value'], 'NOT_ASSESSED_BY_CODE_CHECKS')
         raw = summary['features'][0]['check_results'][0]['raw'][0]
         self.assertNotIn('observations', raw, 'Coverage must not leak the raw values omitted by summary results')
         self.assertEqual((raw['observation_count'], raw['observations_omitted']), (1, True))

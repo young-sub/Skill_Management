@@ -1,8 +1,15 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: fe3a900cd9dcf1ffd1859fbf592c28428f7629c0b5bfd8d56ccccb1741cbab32 -->
+<!-- Source-SHA256: d1c6f4c79997ac4b51a4d41dc0d41953e8dcaa154e751127d5a3dd8ebd7af653 -->
 
 # Project workflow obligations
+
+Summary Features expose bounded `outcomes`: expected behavior, requirement,
+business-rule/architecture axes, current status, selection reason and a check
+evidence reference. Omitted outcome IDs remain available for exact lookup.
+No declared outcome is reported as UNDECLARED, never inferred from test counts.
+`business_value: NOT_ASSESSED_BY_CODE_CHECKS` keeps business impact separate;
+consult the linked requirement's metric, period and product observations.
 
 The prompt hook projects existing project/task obligations; it never chooses a
 task, creates configuration or runs project checks. Fresh projects without work

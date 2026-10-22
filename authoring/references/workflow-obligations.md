@@ -1,5 +1,12 @@
 # Project workflow obligations
 
+Summary Features expose bounded `outcomes`: expected behavior, requirement,
+business-rule/architecture axes, current status, selection reason and a check
+evidence reference. Omitted outcome IDs remain available for exact lookup.
+No declared outcome is reported as UNDECLARED, never inferred from test counts.
+`business_value: NOT_ASSESSED_BY_CODE_CHECKS` keeps business impact separate;
+consult the linked requirement's metric, period and product observations.
+
 The prompt hook projects existing project/task obligations; it never chooses a
 task, creates configuration or runs project checks. Fresh projects without work
 retain ordinary Skill discovery and project guides without an automatic prompt
