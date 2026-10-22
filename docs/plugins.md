@@ -181,29 +181,9 @@ evidence checks; Agents retain diagnosis, architecture/design sufficiency and
 semantic consolidation judgment. Read the [usage contract](../authoring/references/project-verification.md)
 and [current implementation evidence](research/agent-workflow-implementation-results.md).
 No automatic feedback collector, visual detector, universal parser or host-enforced
-request registration is claimed. The local package does not update an installed
-copy or change protected-host acceptance.
+request registration is claimed. The local package does not update an installed copy.
 
 The builder never installs, publishes, changes global settings, or trusts hooks.
-[`install_host_verifier.py`](../scripts/install_host_verifier.py) stages a reviewed
-host bundle with `--bundle PATH --target NEW_PATH` below an **already provisioned
-protected parent**. It freezes declared inputs as bytes, supplies canonical host
-helpers instead of importing bundle helpers, refuses existing targets, probes the
-native candidate's write/delete/create/rename and security-descriptor access, then
-validates configuration and writes an installation manifest. Failed targets are
-retained; nothing is overwritten or recursively cleaned up. This command does not
-provision accounts/ACLs or authorize unreviewed policies/drivers.
-
-Both installation and execution check for the native setup marker and sandbox
-account file before invoking the native CLI. Only file presence is inspected;
-credential contents are never read or copied. Missing setup returns BLOCKED
-without invoking a setup dialog. Presence alone does not attest credential
-validity; the native launcher still validates its own state. The missing-account
-trial was subsequently repaired with the explicit native setup command running
-from an elevated process against that same isolated home. Fresh installations
-then passed real candidate-account boundary probes; see the current
-[native results](research/agent-workflow-implementation-results.md).
-
 For repeated authorized development trials, reuse the same authenticated isolated
 home and trusted workspace. Set that home's top-level `approval_policy = "never"`
 and `sandbox_mode = "workspace-write"`. For ordinary development that must avoid
@@ -215,128 +195,10 @@ explicitly. These settings suppress per-command approval prompts, not sandbox
 restrictions. Do not recreate the home, repeat account setup, or change the ordinary
 installation for each task. Checks outside the authorized environment remain
 BLOCKED; a new trust boundary is a separate operation, not a reason to repeat
-setup for routine tests. The protected verifier still explicitly requires its
-elevated account artifacts and boundary probe; ordinary unelevated execution
-does not substitute for protected acceptance. Keep that scope BLOCKED if its
-required account state is absent instead of silently weakening its boundary.
-
-The protected-host [`host_verify.py`](../scripts/host_verify.py) entrypoint joins
-execution, independent saved-byte readback and result publication. Install it with
-`host_result.py`, `windows_job.py`, `policy.json`, `execution.json` and the frozen
-driver/inputs in the host-owned directory, outside the candidate workspace.
-Run that installed file with isolated Python and `run`; use
-`lookup --run-id ID --task TASK` for a read-only lookup. There is no CLI switch for
-an alternate policy, command, authority directory or submitted result.
-
-`execution.json` declares absolute `workspace`, `home`, `codex` and `python`
-paths, `codex_sha256`, `python_sha256`, a positive finite `timeout`, and `cases`.
-Each case has `id`, `argv`, relative `saved` and `initial_hex`. The case IDs must
-exactly cover the protected policy. Commands use the pinned Python with `-I` and
-a protected driver; `{authority}` and `{runtime}` expand to protected inputs and
-fresh per-case output directories. Referenced protected files must be in the
-policy snapshot, including all files of a referenced directory. Bind the three
-host modules and `execution.json` too. The host checks executable bytes before
-and after execution, keeps the native sandbox root fixed, and reads saved bytes
-only after job cleanup. Missing/aliased outputs or incomplete execution block
-acceptance. The current adapter supports Python drivers; FE/BE tools can be
-invoked by an explicitly reviewed driver with their dependencies bound by the
-host policy. This is not automatic full-project obligation discovery.
-
-`execution.json` may additionally bind a reviewed workflow snapshot:
-
-```json
-"workflow": {
-  "root": "project",
-  "state": "project/state.json",
-  "checks": {"price": {"price-check": ["saved-price", "invalid-price"]}}
-}
-```
-
-The snapshot directory contains `.harness/project.yaml`, candidate source and
-references; every file, the baseline/review state, and canonical
-`project_workflow.py` must be included in `policy.json`'s snapshot. The installer
-supplies that evaluator from repository canonical source, never from bundle code.
-The installation owner reviews the original baseline, semantic reviews and exact
-Feature/check-to-case associations. An unrelated oracle does not validate a check
-merely because its identifier is mapped. Relocation changes only the state root;
-source/review bases remain intact.
-
-The host recomputes obligations using frozen file hashes and its collected
-case observations. It never runs candidate Git, imports candidate modules or
-reads submitted verification bundles. Stale/missing reviews, unmapped sources,
-unresolved findings and missing/rejected case evidence prevent acceptance even
-when the other product cases pass. A complete native product mismatch remains REJECTED even
-when workflow review is pending; missing review blocks an otherwise passing run.
-Workflow findings remain in the protected raw record, and rejected runs retain
-their execution lifecycle facts. Without `workflow`, acceptance covers only
-the declared cases. Integration coverage and the actual five-case native
-price-save trial both distinguish accepted normal behavior from missing review
-and defective behavior. That bounded host trial does not establish whole-system
-acceptance. The ordinary candidate-side `accept` stays BLOCKED.
-
-For a reviewed task, optionally include canonical `host_handoff.py` and
-`handoff.json` in the protected policy snapshot. The installer supplies the
-handoff code from this repository, not from candidate bundle code. The host-owned
-configuration has exactly `candidate` (an absolute candidate checkout path) and
-`files` (candidate-relative path to protected snapshot-relative path):
-
-```json
-{"candidate":"C:/isolated/project","files":{"src/price.py":"project/src/price.py"}}
-```
-
-Invoke the installed `host_handoff.py --task TASK` with the pinned Python, or add
-`--run-id ID` for read-only lookup. There is no authority/configuration/command
-path argument. The task must match the protected policy, and mapped candidate
-bytes must match the reviewed frozen snapshot both before and after execution.
-A changed candidate blocks current handoff while preserving the original run.
-The returned run ID and result come from the existing protected publisher;
-no candidate success submission or duplicate result ledger is introduced.
-
-The host reviewer owns mapping completeness and baseline/oracle/semantic review.
-Unmapped files are outside this binding, so a partial map never establishes
-whole-project acceptance. This entrypoint does not provision accounts, install
-an unreviewed task, discover the originating chat, or approve semantic changes.
-Its actual native execution still needs the existing sandbox boundary; current
-missing-account preflight remains BLOCKED without requesting setup.
-
-The host-only [`host_result.py`](../scripts/host_result.py) publisher binds a
-protected `policy.json`, explicit snapshot files and a unique run. The host calls
-`begin(authority_root)` before execution, then `finish(authority_root, run_id,
-observations, executions=executions)` with independently collected
-`{id, exit, saved_hex}` facts. Each execution has `id`, `exit`, `timed_out`,
-`descendants_killed` and `remaining`, collected by the host process controller.
-Missing lifecycle evidence, timeout or forced descendant cleanup blocks acceptance
-even when the saved bytes match. The
-policy declares `task`, nonempty `snapshot` paths and nonempty expected `cases`
-with those same three fields. `lookup(authority_root, run_id, task)` remeasures
-policy, publisher and snapshot bytes. Missing/duplicate/extra cases are BLOCKED;
-complete but different bytes/exits are REJECTED. Pending, malformed terminal,
-wrong-task and stale records cannot become accepted by lookup or repeated finish.
-
-This helper is installed by a trusted host alongside its protected policy and
-snapshots, not copied into candidate-writable plugin resources. It does not create
-ACLs, authenticate arbitrary supplied directories, execute checks, or prove child
-process cleanup. Only host-collected observations may reach `finish`; a candidate
-report is not that interface's trusted caller. Its ACCEPTED verdict covers the
-declared snapshot and cases, not all workflow obligations. Ordinary plugin
-`project_workflow.py accept` remains BLOCKED until the actual host adapter owns
-those obligations and the complete execution lifecycle.
-
-[`windows_job.py`](../scripts/windows_job.py) supplies Windows process lifetime
-control around an existing native sandbox launcher. Its trusted isolated-Python
-child waits before executing candidate code. The host assigns it to an unnamed
-[Windows Job Object](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects)
-with kill-on-close and without breakaway, then opens the gate. The job handle stays
-in the host. Normal completion measures remaining processes; lingering children
-are terminated and reported, while timeout and controller death also terminate
-the job. `run(launcher, command, cwd=..., timeout=..., env=...)` returns lifecycle
-facts, not a product verdict. Pin the installed helper, interpreter and launcher;
-keep the sandbox workspace root stable. This does not attest unrelated brokered
-services, external effects or every possible sandbox escape.
+setup for routine tests.
 
 Local marketplace installation, fresh-host discovery, installed Agent task
-behavior, and protected acceptance are separate checks. An editable local state
-file is not a protected acceptance boundary. Ordinary installation and remote
+behavior are separate checks. Ordinary installation and remote
 publication remain separate authorized actions.
 
 ## Read-only request handoff
