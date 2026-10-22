@@ -62,12 +62,14 @@ rule cannot express.
 | Expectation | Existing-tool examples | Discrimination proof |
 | --- | --- | --- |
 | Dependency direction, layer access, forbidden imports, single validation boundary | JS/TS: ESLint `no-restricted-imports` or boundaries plugin, dependency-cruiser. Python: import-linter contracts, Ruff banned API. JVM: ArchUnit. .NET: NetArchTest. | A synthetic violating import in an isolated copy fails; the real tree passes. |
-| UI values come from shared tokens | Stylelint or ESLint rules that reject raw color/spacing literals outside token owners; the component's typed props. | A literal outside the token owner fails; token usage and declared `exceptions` pass. |
+| UI values come from shared tokens | Stylelint or ESLint rules that reject raw color/spacing literals outside token owners; the component's typed props; with legacy literals, a ratchet baseline that may only shrink. | A new literal outside the token owner fails; token usage, declared `exceptions` and recorded legacy values pass. |
 | Shared component appearance stays stable | The project's browser runner screenshot comparison (for example Playwright `toHaveScreenshot`) per consumer route, at desktop and narrow width. | A controlled style fault fails; an intended change updates the baseline in the same change with its request/decision reference. |
 
-Use the project's installed dependencies first. If no suitable tool exists, propose
-the smallest configuration in the linter or runner it already has; do not write a
-bespoke checker or install a framework without authorization. Record the gap as
+Use the project's installed dependencies first. If no linter covers the rule, follow
+the project's existing check convention (its test runner or existing `check-*`
+script pattern) without adding a dependency; installing a new framework needs
+authorization. Wire the check into the commands the project already runs (test,
+build or CI) so it cannot be skipped silently. Record the gap as
 UNAVAILABLE rather than passing it. Keep the violating input out of the delivered
 tree, and never relax the rule or regenerate a baseline to make a failure pass.
 

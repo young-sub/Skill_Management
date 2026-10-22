@@ -1,10 +1,10 @@
 ---
 name: agent-workflow
-description: Coordinate a coding task through relevant project capabilities, actual verification, and results. Use for feature additions, bug fixes, behavior-preserving refactoring, work recall/resume, complex design and change impact, connecting verification, viewing results, human corrections, reusing successful decisions or extracting a repeatable procedure from a satisfactory turn or artifact, and reusing UI standards. Select only needed procedures; ordinary small edits stay direct.
+description: Coordinate a coding task through relevant project capabilities, actual verification, and results. Use for feature additions, bug fixes, behavior-preserving refactoring, work recall/resume, complex design and change impact, connecting verification, viewing results, guardrails that stop a mistake or style/architecture drift from recurring (lint, boundary or regression checks), human corrections, reusing successful decisions or extracting a repeatable procedure from a satisfactory turn or artifact, and reusing UI standards. Select only needed procedures; ordinary small edits stay direct.
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: 8cfbf95f7f3465118cd773f657dea8f7541a30becbb7f00919c63a721153bb88 -->
+<!-- Source-SHA256: 72e47b1a68e87c5c667a75b1cd94993075780b5e3d40a980500c08d558283958 -->
 
 
 # Agent Workflow

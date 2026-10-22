@@ -87,3 +87,36 @@ guard allowed this session's actual transcript, where tests ran after the final 
 edits; the blocking case is covered by fixtures. The Full suite, isolated-home
 installs from both catalogs, native Codex delivery and any installed or global
 update were not run.
+
+## Follow-up 0.1.85 — installed update, removal and actual use
+
+The user authorized pushing to `main` and updating both hosts. `main` received the
+0.1.84 commits (`ab01d9e`). Claude Code, the Orca Codex home and `~/.codex` were then
+updated natively from the Git marketplace to 0.1.84. Each installed cache matched all
+284 inventory hashes. Fifteen standalone global Skills in `~/.claude/skills` and
+`~/.agents/skills` duplicated plugin Skills with older descriptions. They were copied to
+`~/.agentic-coding-backup/global-skills-20261022` and removed. `write-a-skill` and
+`synced` are not plugin Skills and remain.
+
+The protected host verifier (`host_*`, `windows_job`, `install_host_verifier`, their
+tests, five Features and the always-BLOCKED `accept` action) was removed. It was not
+packaged or called, and the workflow/Harness regressions (211) passed afterward.
+`finance-research` and `hwp-form-fill` stay in the plugin by user choice.
+
+Actual use with installed 0.1.84, through headless Claude Code with a natural request
+in an isolated clone of `yeondoo-link@d17f0c2` (raw: `.work/p2-real-20261022/`):
+
+- Token guardrail request: the Agent ratcheted 96 legacy literals and caught new
+  literals. It proved the rule with synthetic violations on the real stylesheet and
+  wired it into `npm test`/`build` with no new dependency. It did not invoke any
+  plugin Skill. An independent recheck confirmed 59/59 tests, a failing probe
+  `#123456` with its line, a passing `var(--ink)`/`transparent` probe and a
+  successful build.
+- Guard probe: after an edit with "run nothing", the Stop hook blocked once. The
+  Agent then stated that no execution was performed and why, and the next stop was
+  allowed.
+
+Repairs from these observations: the `agent-workflow` description now names
+guardrails that stop recurrence. The guardrail criteria follow the project's
+existing check convention instead of forbidding a project-local check script.
+They also add the ratchet-baseline case for legacy literals.
