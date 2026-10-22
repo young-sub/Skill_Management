@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/project-verification.md -->
-<!-- Source-SHA256: 2a1fe5001b9de2844b7f847d72fbf55edbdf6305e50e78087eeea48aad519239 -->
+<!-- Source-SHA256: f1ea849edd8228e1b0d02803ce6ed9fbe374a541888649aca61371b7489c969a -->
 
 # Project verification responsibilities
 
@@ -53,6 +53,27 @@ Trace actual callers and data: external input → parsing/validation → typed d
 | Access/transaction/failure | Allow/deny, preserved data or rollback/readback and affected user state. Unavailable real credentials remain BLOCKED. |
 | UI/shared component | Actual affected desktop/mobile, keyboard/focus and relevant loading/empty/error states. Saving requires readback; unrelated persistence can be excluded with reason. |
 | Behavior-preserving architecture | Touched interface/callers and equivalent baseline GREEN; no unrelated flow requirement. |
+
+## Executable guardrails before semantic review
+
+Prefer a rule the project already runs over an Agent judgment that must be repeated.
+When an architecture or UI expectation can be stated mechanically, express it in
+an existing project tool, register it as a command and link a Feature `coverage`
+row of `kind: test` with the matching `perspectives`/`areas`. A REQUIRED scope cell
+then depends on that check's current result; semantic review covers only what the
+rule cannot express.
+
+| Expectation | Existing-tool examples | Discrimination proof |
+| --- | --- | --- |
+| Dependency direction, layer access, forbidden imports, single validation boundary | JS/TS: ESLint `no-restricted-imports` or boundaries plugin, dependency-cruiser. Python: import-linter contracts, Ruff banned API. JVM: ArchUnit. .NET: NetArchTest. | A synthetic violating import in an isolated copy fails; the real tree passes. |
+| UI values come from shared tokens | Stylelint or ESLint rules that reject raw color/spacing literals outside token owners; the component's typed props. | A literal outside the token owner fails; token usage and declared `exceptions` pass. |
+| Shared component appearance stays stable | The project's browser runner screenshot comparison (for example Playwright `toHaveScreenshot`) per consumer route, at desktop and narrow width. | A controlled style fault fails; an intended change updates the baseline in the same change with its request/decision reference. |
+
+Use the project's installed dependencies first. If no suitable tool exists, propose
+the smallest configuration in the linter or runner it already has; do not write a
+bespoke checker or install a framework without authorization. Record the gap as
+UNAVAILABLE rather than passing it. Keep the violating input out of the delivered
+tree, and never relax the rule or regenerate a baseline to make a failure pass.
 
 ## Execute and repair the existing guide
 
