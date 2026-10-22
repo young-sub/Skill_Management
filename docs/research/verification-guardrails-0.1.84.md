@@ -75,4 +75,15 @@ Not removed, pending a user decision:
 | `test_repository_docs`, `test_workflow_hook`, `test_completion_guard`, `test_plugin_package`, `test_runtime_api` | 20 OK |
 | Resource drift, distribution validation, `git diff --check` | passed |
 
-Release packaging results are recorded below.
+## Release packaging
+
+`scripts/build_plugin.py` built 0.1.84 (22 Skills, 285 files) into
+`.work/packages/agentic-coding-0.1.84`. The prior tree is preserved at
+`.work/packages/agentic-coding-0.1.83-preserved`. Replacing `plugins/agentic-coding`
+added only `hooks/completion_guard.py` and removed nothing. The `plugin-package`
+selector, `test_repository_docs` (24 OK), resource drift and distribution validation
+passed. The packaged `--report` rendered this repository's real state. The packaged
+guard allowed this session's actual transcript, where tests ran after the final code
+edits; the blocking case is covered by fixtures. The Full suite, isolated-home
+installs from both catalogs, native Codex delivery and any installed or global
+update were not run.
