@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: 4ac91ae667f6efc0e5775d4656b31985e15faaa083fcd8d141bc7dd8a23e5e88
+# Source-SHA256: 835a05ec99ae25ff0485fd499d15cbe981c66d0106a854c4f6c0213b8ba04c68
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -217,6 +217,20 @@ def inspect_ui_systems(root, config, files):
         result.append(dict(system, id=identity, source_hashes=sources, reference_hashes=references,
                            status='NEEDS_REPAIR' if findings else 'CONNECTED', findings=findings))
     return result
+
+
+def reuse_references(feature, audit):
+    """Discover existing owners even when no repair obligation remains."""
+    systems = [system for system in audit.get('ui_systems', []) if feature['id'] in system['consumers']]
+    guides = list(dict.fromkeys([*feature.get('criteria', []), *feature.get('ui', []),
+                                *(system['guide'] for system in systems)]))
+    prevention = feature.get('prevention', [])
+    return {'guides': guides, 'shared_ui': [
+        {key: deepcopy(system[key]) for key in ('id', 'guide', 'tokens', 'components', 'status', 'findings')} |
+        {'exceptions': [deepcopy(entry) for entry in system.get('exceptions', []) if entry['feature'] == feature['id']]}
+        for system in systems[:4]], 'shared_ui_count': len(systems), 'shared_ui_omitted': max(0, len(systems) - 4),
+        'prevention': deepcopy(prevention[:4]), 'prevention_count': len(prevention),
+        'prevention_omitted': max(0, len(prevention) - 4)}
 
 
 def coverage_rows(feature, review, basis, items=(), *, current_basis=None, semantic_valid=True, scope_states=None):
@@ -1960,7 +1974,21 @@ def maintenance_summary(root, project, state=None, history=(), *, retirements=()
             'runs': sorted(group['runs']), 'statuses': sorted(group['statuses'])}
             for (check, feature, signature), group in variations.items()
             if check == row['id'] and len(group['runs']) > 1 and len(group['statuses']) > 1]
+    executions = {(run['run_id'], run['capture_sha256']): run
+                  for row in checks.values() for run in row['runs']}
+    measured = [run['elapsed_seconds'] for run in executions.values()
+                if type(run['elapsed_seconds']) in (int, float)
+                and math.isfinite(run['elapsed_seconds']) and run['elapsed_seconds'] >= 0]
+    prior_checks = {check for links in state.get('check_links', {}).values() for check in links.get('checks', [])}
+    active_checks = {check for feature in config['features'] for check in feature['checks']}
+    removed = prior_checks - active_checks
+    proven = {row['id'] for row in checks.values() if row['disposition'].startswith('removed_with_')}
     return {'read_only': True, 'test_commands_executed': 0, 'checks': list(checks.values()), 'findings': findings,
+            'check_footprint': {'prior': len(prior_checks), 'active': len(active_checks),
+                'removed_with_proof': sorted(removed & proven), 'removed_without_proof': sorted(removed - proven)},
+            'execution_cost': {'unique_runs': len(executions), 'measured_runs': len(measured),
+                'elapsed_seconds': sum(measured) if measured else None,
+                'meaning': 'Retained execution time, deduplicated across checks; not measured savings or model cost'},
             'meaning': 'Declared overlap and outcome variation require Agent judgment; counts/cost never authorize deletion'}
 
 
@@ -2180,6 +2208,18 @@ def feedback_evidence(root, feature, entry, *, original_check=None, bundle_cache
             reasons.append('prior_detector_evidence_missing')
     if normal == regression or not any(obs['assertion']['pointer'] == normal and obs['matched'] for obs in assertions(after)):
         reasons.append('nearby_normal_evidence_missing')
+    if 'bypass_pointers' in entry['guardrail']:
+        pointers = entry['guardrail']['bypass_pointers']
+        if (not isinstance(pointers, list) or not pointers
+                or any(not isinstance(pointer, str) or not pointer or pointer in (normal, regression) for pointer in pointers)
+                or len(pointers) != len(set(pointers))):
+            reasons.append('bypass_pointers_invalid')
+        else:
+            for pointer in pointers:
+                original = [obs['assertion'] for obs in assertions(before) if obs['assertion']['pointer'] == pointer]
+                if not original or not all(any(obs['matched'] and obs['assertion'] == assertion
+                        for obs in assertions(after)) for assertion in original):
+                    reasons.append('bypass_evidence_missing_or_changed:' + pointer)
     if before and after:
         descriptor = green['bundle']
         bound = viewer.read_json(viewer.resolve_bundle_file(descriptor['plan'],
@@ -2463,7 +2503,7 @@ def inspect_feedback(root, config, state, *, bundle_cache=None):
             required = (('failure', 'scope', 'owner_refs', 'normal_exception', 'reconsider') if structural else
                         ('failure', 'scope', 'check', 'normal_exception', 'reconsider', 'regression_pointer', 'normal_pointer'))
             remaining.extend(f'guardrail.{key}' for key in required if not guardrail.get(key))
-            link_keys = ('failure', 'normal_exception', 'scope', 'reconsider') + (('mechanism', 'owner_refs') if structural else ('check',))
+            link_keys = ('failure', 'normal_exception', 'scope', 'reconsider', 'bypass_pointers') + (('mechanism', 'owner_refs') if structural else ('check',))
             if guardrail and ((not structural and guardrail.get('check') not in feature['checks']) or not any(
                     all(p.get(key) == guardrail.get(key) for key in link_keys) for p in feature.get('prevention', []))):
                 remaining.append('active_prevention_link_missing')
@@ -2954,12 +2994,32 @@ def summarize_lookup(result, project, root):
         row = {key: deepcopy(feature[key]) for key in ('id', 'partition', 'verification_status', 'checks', 'excluded_checks', 'reviewed')}
         row['work_scope'] = feature.get('work_scope', 'scope_undetermined')
         row.update({key: config[feature['id']][key] for key in ('sources', 'map', 'criteria')})
+        row['reuse'] = reuse_references(config[feature['id']], result)
         row['in_task'] = feature['id'] in active
         row['bundles'] = task.get('results', {}).get(feature['id'], [])
         row['structural_evidence'] = feature.get('structural_evidence', [])
         row['evidence_status'] = ('AVAILABLE' if feature['check_results'] or row['structural_evidence'] else
             'UNAVAILABLE' if row['bundles'] else 'NOT_RUN' if feature['verification_status'] == 'REQUIRED' else 'NOT_REQUIRED')
         row['check_results'] = viewer.summarize_results({'items': feature['check_results']})['items']
+        outcomes = []
+        for coverage in result['coverage'].get('rows', []):
+            if coverage['feature'] != feature['id']:
+                continue
+            evidence = coverage.get('evidence') or {}
+            outcomes.append({
+                'id': coverage['id'], 'expected': coverage.get('outcome'),
+                'requirement': coverage.get('requirement'), 'kind': coverage['kind'],
+                'perspectives': coverage.get('perspectives', []), 'areas': coverage.get('areas', []),
+                'status': coverage['status'], 'reasons': coverage.get('reasons', []),
+                'reason': evidence.get('selection', {}).get('reason') or evidence.get('reason'),
+                'evidence_ref': feature['id'] + '/' + coverage['check']
+                    if coverage.get('check') and evidence.get('run_id') else None,
+            })
+        row['outcomes'] = outcomes[:8]
+        row['outcome_ids'] = [outcome['id'] for outcome in outcomes]
+        row['outcomes_omitted'] = max(0, len(outcomes) - 8)
+        row['outcome_mapping'] = 'DECLARED' if outcomes else 'UNDECLARED'
+        row['business_value'] = 'NOT_ASSESSED_BY_CODE_CHECKS'
         for item in row['check_results']:
             for key in ('historical_source', 'historical_statuses', 'assessment', 'observation', 'criteria_revision'):
                 item.pop(key, None)

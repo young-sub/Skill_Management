@@ -1,8 +1,22 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: fe3a900cd9dcf1ffd1859fbf592c28428f7629c0b5bfd8d56ccccb1741cbab32 -->
+<!-- Source-SHA256: 3cf0c748bac8ee13287bbf3dfdd06c60d648b2127de18ea1cde91a7d06d53773 -->
 
 # Project workflow obligations
+
+Summary Features expose bounded `outcomes`: expected behavior, requirement,
+business-rule/architecture axes, current status, selection reason and a check
+evidence reference. Omitted outcome IDs remain available for exact lookup.
+No declared outcome is reported as UNDECLARED, never inferred from test counts.
+`business_value: NOT_ASSESSED_BY_CODE_CHECKS` keeps business impact separate;
+consult the linked requirement's metric, period and product observations.
+
+Feature `reuse` in summary and selected prompt context exposes existing criteria/UI
+guides, shared token/component owners, that Feature's intentional exceptions and
+active prevention links. Counts retain omitted systems/prevention entries. This
+discovery survives resolved obligations; CONNECTED is linkage, not visual approval.
+Follow current guide commands and inspect actual artifacts. Missing owners/guides
+remain NEEDS_REPAIR and must not be replaced by a copied, competing standard.
 
 The prompt hook projects existing project/task obligations; it never chooses a
 task, creates configuration or runs project checks. Fresh projects without work
@@ -441,6 +455,10 @@ executing its original plan. Neither query rewrites the plan/state nor retries a
 command; execute keeps the exact task/path binding requirement.
 
 Read-only `maintain` adds measured `maintenance` for explicitly linked bundles.
+Its `check_footprint` separates prior/active checks and removals with/without
+current preservation proof. `execution_cost` deduplicates retained captures across
+checks; elapsed time is historical execution cost, not measured savings or model
+usage. Counts never authorize removal and missing measurements stay unknown.
 Removing baseline checks from an active Feature retains `check_retirements` and
 `check_preservation` until a current reasoned review connects preserved defect and
 normal evidence. Details live in [verification responsibilities](project-verification.md).

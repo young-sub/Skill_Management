@@ -234,7 +234,7 @@ def context(payload):
             feature_by_id = {f['id']: f for f in config['features']}
             selected = [feature_by_id[identity] for identity in selected_ids if identity in feature_by_id]
             summary['current_task']['features'] = [{key: f[key] for key in ('id', 'sources', 'map', 'criteria', 'checks')}
-                                                   | {'ui': f.get('ui', [])}
+                                                   | {'ui': f.get('ui', []), 'reuse': runtime.reuse_references(f, current)}
                                                    for f in selected[:3]]
             selected_ids = {f['id'] for f in selected}
             all_ui_systems = current.get('ui_systems', [])

@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/repair-and-reuse.md -->
-<!-- Source-SHA256: 04f8879268dc145c2e5fb85605369fd26c1e49dbd5ffac1c98d295ac53326bab -->
+<!-- Source-SHA256: 651fbec62cc312793df1e9ebcadbd31d85f7c39ee48231e94a1b1da42cc9132d -->
 
 # Repair and subsequent reuse
 
@@ -142,6 +142,15 @@ can require revalidation after a commit or unrelated condition change under the
 existing conservative identity policy; preserved red evidence stays historical.
 Other native adapters remain usable evidence, but this automatic feedback evidence
 join currently requires prepared native-JSON bundles; absent bindings stay OPEN.
+
+For alternate callers or bypasses, declare `bypass_pointers` on the feedback
+guardrail and its active Feature prevention row before the RED/GREEN execution.
+This optional nonempty list names distinct assertions other than the original
+regression and nearby normal assertion. Each must retain its exact RED criterion
+and pass in current GREEN; missing, failed or weakened bypass evidence keeps OPEN.
+Existing records without the field retain their previous bounded evidence, not
+an implicit claim that alternate bypasses were tested. Structural prevention uses
+its existing `prevention_review.bypass` instead.
 
 ## Structural or type/constraint prevention
 
