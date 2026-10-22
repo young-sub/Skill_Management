@@ -15,3 +15,4 @@ These documents preserve unique decisions, scope and evidence from earlier work.
 - [testing](testing-through-0.1.68.md): retained scope, rationale and references through 0.1.68.
 
 - [October 18 improvement roadmap](agentic-coding-improvement-roadmap.md): completed stages 0–6, including 4A; archived after `ca4d7b7`. Original roadmap bytes remain in that commit. Stage results remain outside the archive; implementation completion does not establish general efficiency or unaided native-host discovery.
+- [Feature Map change history](feature-map-history.md): dated release/stage notes moved verbatim from the Feature Map on 2026-10-22; current behavior stays in the map rows.
