@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: bbde1655fd93a6d6d16644ee0c729eb0efb6384097a110d886ade9d8fa76a61e -->
+<!-- Source-SHA256: 3cf0c748bac8ee13287bbf3dfdd06c60d648b2127de18ea1cde91a7d06d53773 -->
 
 # Project workflow obligations
 
@@ -455,6 +455,10 @@ executing its original plan. Neither query rewrites the plan/state nor retries a
 command; execute keeps the exact task/path binding requirement.
 
 Read-only `maintain` adds measured `maintenance` for explicitly linked bundles.
+Its `check_footprint` separates prior/active checks and removals with/without
+current preservation proof. `execution_cost` deduplicates retained captures across
+checks; elapsed time is historical execution cost, not measured savings or model
+usage. Counts never authorize removal and missing measurements stay unknown.
 Removing baseline checks from an active Feature retains `check_retirements` and
 `check_preservation` until a current reasoned review connects preserved defect and
 normal evidence. Details live in [verification responsibilities](project-verification.md).

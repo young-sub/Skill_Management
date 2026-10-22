@@ -1,5 +1,7 @@
 # Agent Documentation Index
 
+- [Delegation verification 0.1.83](research/delegation-verification-20261022.md): outcome summaries, actual Labeler storage/permission checks, bypass prevention, guide reuse and proof-backed check consolidation.
+
 - [Verification reliability follow-up](research/verification-reliability-0.1.82.md): task closure, scoped native evidence, execution lifecycle, accessible artifacts and atomic review batches.
 
 - [Local 0.1.81 runtime verification](research/runtime-verification-0.1.81.md):

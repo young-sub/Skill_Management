@@ -451,6 +451,10 @@ executing its original plan. Neither query rewrites the plan/state nor retries a
 command; execute keeps the exact task/path binding requirement.
 
 Read-only `maintain` adds measured `maintenance` for explicitly linked bundles.
+Its `check_footprint` separates prior/active checks and removals with/without
+current preservation proof. `execution_cost` deduplicates retained captures across
+checks; elapsed time is historical execution cost, not measured savings or model
+usage. Counts never authorize removal and missing measurements stay unknown.
 Removing baseline checks from an active Feature retains `check_retirements` and
 `check_preservation` until a current reasoned review connects preserved defect and
 normal evidence. Details live in [verification responsibilities](project-verification.md).

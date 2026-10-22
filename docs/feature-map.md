@@ -214,6 +214,13 @@ work directories; Windows case aliases use the same lock identity.
 
 ## Installed release evidence
 
+The delegation verification follow-up exposes outcome and reusable guide/owner
+summaries (`workflow-obligations`), binds declared bypass observations to feedback
+prevention (`feedback-repair`), and reports deduplicated execution cost and
+proof-backed check consolidation (`verification-results`). Actual Labeler storage
+and isolated guide consumption evidence is documented in
+[the implementation record](research/delegation-verification-20261022.md).
+
 [0.1.78 isolated installation experiments](research/installed-release-0.1.78-results.md)
 cover `skill-install`, `plugin-package`, `verification-results`,
 `workflow-obligations` and `work-preservation`: actual remote installers, five

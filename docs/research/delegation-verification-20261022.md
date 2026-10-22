@@ -52,3 +52,44 @@ opened: saved synthetic products and prices were visible on desktop; the mobile
 table uses horizontal overflow. This does not establish whole-product accessibility.
 `labeler-payload-fault` rejected the FE fault. Earlier selector, preparation and
 proxy failures are not successes or evidence of product defects.
+
+## I3: Feedback prevention
+
+Declared `bypass_pointers` must identify distinct alternate failure observations
+in the original RED and current GREEN evidence, with unchanged assertions. The
+active Feature prevention mapping must retain them. Missing, aliased, duplicated,
+failing or weakened bypass proof cannot resolve feedback. Existing undeclared
+and structural-prevention contracts retain their behavior. `i3-final.json` covers
+real failure/fix/follow-up runs and the alternate -2 path; earlier failures remain.
+
+## I4: Guide reuse
+
+Task summaries and selected hook Features expose existing testing/UI guides,
+shared token/component owners, scoped exceptions and prevention references, with
+omitted counts. Missing guides remain NEEDS_REPAIR. `i4-final.json` and
+`i4-hook-final.json` verify discovery and hook consumption.
+
+A fresh-context agent received only the frozen package path, isolated connected
+product path and the 48px request. It discovered the existing shared token,
+changed that owner, strengthened the browser minimum from 44px to 48px, and
+updated the existing UI guide and Feature map. Its browser report under
+`reuse-product/.work/ui-48px-20261022-01/browser.json` passed all 16 observations,
+including both routes at 1280/390px, saving 2 and 0, rejecting -1, and reading
+`[2, 0]` after restart. Screenshots were inspected and both owned services stopped.
+This is assisted package consumption, not unaided native-host discovery or a
+claim about Labeler's UI consistency. No dependency installation was needed.
+
+## I5: Detection-preserving maintenance
+
+Read-only maintenance now reports prior/active check counts, removals with or
+without current preservation proof, and capture-deduplicated execution cost.
+Historical elapsed time is not a speedup claim; model token/cost is not measured.
+The executable consolidation scenario removes an actual registered redundant
+check and command (2 active checks become 1). Removal is blocked until original
+and replacement defect detection plus normal-case evidence is connected; wrong
+original target evidence reopens the block. `i5-final.json` passes this scenario.
+This reduces the demonstrated fixture's checks, not arbitrary product suites.
+
+The five changes are packaged as 0.1.83 in the repository. Installed/global
+plugins and production Labeler are outside this implementation. Final suite and
+package verification captures are retained beside the per-item evidence.

@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: 39bc742add3674043a3dc23d356488414434eaf8d6642c893d32bba58bfdc355
+# Source-SHA256: 2063dda3518812fd2bf97f1c59297ae09a29da26473a04c71d3748106befec19
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -1974,7 +1974,21 @@ def maintenance_summary(root, project, state=None, history=(), *, retirements=()
             'runs': sorted(group['runs']), 'statuses': sorted(group['statuses'])}
             for (check, feature, signature), group in variations.items()
             if check == row['id'] and len(group['runs']) > 1 and len(group['statuses']) > 1]
+    executions = {(run['run_id'], run['capture_sha256']): run
+                  for row in checks.values() for run in row['runs']}
+    measured = [run['elapsed_seconds'] for run in executions.values()
+                if type(run['elapsed_seconds']) in (int, float)
+                and math.isfinite(run['elapsed_seconds']) and run['elapsed_seconds'] >= 0]
+    prior_checks = {check for links in state.get('check_links', {}).values() for check in links.get('checks', [])}
+    active_checks = {check for feature in config['features'] for check in feature['checks']}
+    removed = prior_checks - active_checks
+    proven = {row['id'] for row in checks.values() if row['disposition'].startswith('removed_with_')}
     return {'read_only': True, 'test_commands_executed': 0, 'checks': list(checks.values()), 'findings': findings,
+            'check_footprint': {'prior': len(prior_checks), 'active': len(active_checks),
+                'removed_with_proof': sorted(removed & proven), 'removed_without_proof': sorted(removed - proven)},
+            'execution_cost': {'unique_runs': len(executions), 'measured_runs': len(measured),
+                'elapsed_seconds': sum(measured) if measured else None,
+                'meaning': 'Retained execution time, deduplicated across checks; not measured savings or model cost'},
             'meaning': 'Declared overlap and outcome variation require Agent judgment; counts/cost never authorize deletion'}
 
 

@@ -838,6 +838,8 @@ class VerificationExecutionTests(unittest.TestCase):
             self.assertEqual(check['declared_overlap'], ['redundant'])
             self.assertEqual(check['same_conditions_outcome_variation'], [])
             self.assertEqual(check['disposition'], 'retain')
+            self.assertEqual(summary['execution_cost']['unique_runs'], 4)
+            self.assertEqual(summary['check_footprint']['active'], 2)
             # Actual registry consolidation is blocked before proof, then accepted
             # only with old and replacement RED plus current GREEN/normal evidence.
             feature['checks'].remove('redundant')
@@ -859,7 +861,12 @@ class VerificationExecutionTests(unittest.TestCase):
                                             'green_bundle': '.work/after/evidence/bundle.json'}]}}}
             state = workflow['record_review'](self.project, project, state, review)
             self.assertEqual(workflow['inspect_project'](self.project, project, state)['check_retirements'][0]['status'], 'PRESERVED')
-            linked = workflow['maintenance_summary'](self.project, project, state)
+            linked = workflow['maintenance_summary'](self.project, project, state,
+                retirements=workflow['inspect_project'](self.project, project, state)['check_retirements'])
+            self.assertEqual(linked['check_footprint'], {'prior': 2, 'active': 1,
+                'removed_with_proof': ['redundant'], 'removed_without_proof': []})
+            self.assertEqual(linked['execution_cost']['unique_runs'], 5)
+            self.assertGreater(linked['execution_cost']['elapsed_seconds'], 0)
             self.assertEqual(next(c for c in linked['checks'] if c['id'] == 'arithmetic-readback')['cost']['unique_runs'], 3,
                              'Consolidation proof runs must be consumed without re-entering their history paths')
             # An old detector with a mismatched target cannot prove preservation,
