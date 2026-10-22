@@ -1,5 +1,10 @@
 # Repository Feature Map
 
+2026-10-22 `native-verification`: the opt-in Labeler storage adapter connects actual
+browser input, Worker policy, independent local D1 reads and reload. It observes
+zero/negative boundaries and account isolation; an injected FE payload fault is
+rejected. Local product evidence and fixture evidence remain separate.
+
 2026-10-22 `workflow-obligations`: outcome-oriented summary joins declared expected
 behavior and selection reasons to current evidence without running commands.
 Missing checks and unperformed semantic reviews remain visible; code checks do

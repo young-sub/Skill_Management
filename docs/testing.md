@@ -1,5 +1,10 @@
 # Testing and impact selection
 
+Actual Labeler storage acceptance uses the project-specific
+`scripts/verify_labeler_storage.mjs`; isolated setup, environment inputs and raw
+boundaries are in [the sequential verification record](research/delegation-verification-20261022.md).
+It is opt-in local-product acceptance, not part of fixture-only Full runs.
+
 For a direct captured check, after the final edit use
 `python scripts/run_check.py --cwd . --lookup <ignored-capture.json>`.
 This read-only check reports source CURRENT/STALE/UNKNOWN and retains the command
