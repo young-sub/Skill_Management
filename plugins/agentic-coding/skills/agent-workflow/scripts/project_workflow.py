@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: 7f41ba2bb172e7b5ec2718723fca4cd81ecaa4a894d4a2ef1c7623eec97fa192
+# Source-SHA256: 01846d38834ed5a6dcb9ae1e9d3badce3782c6e1ddc6f6a44260a70a1f821bbc
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -3205,7 +3205,7 @@ def main(argv=None):
     from task_store import TaskStore
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', choices=['begin', 'start', 'connect', 'resume', 'prepare', 'execute', 'lookup',
-                                          'audit', 'maintain', 'review', 'feedback', 'investigate', 'accept'])
+                                          'audit', 'maintain', 'review', 'feedback', 'investigate'])
     parser.add_argument('--root', type=Path, help='Project root; connected calls may omit it')
     parser.add_argument('--project', default='.harness/project.yaml')
     state_selection = parser.add_mutually_exclusive_group()
@@ -3334,7 +3334,7 @@ def main(argv=None):
         if result is None:
             result = inspect_project(root, project, state)
         result['test_commands_executed'] = (verification or {}).get('test_commands_executed', 0)
-        result['read_only'] = args.action in {'connect', 'resume', 'lookup', 'audit', 'maintain', 'accept'}
+        result['read_only'] = args.action in {'connect', 'resume', 'lookup', 'audit', 'maintain'}
         if verification is not None:
             result['verification'] = verification
         if args.action == 'maintain':
@@ -3342,9 +3342,6 @@ def main(argv=None):
                                                         retirements=result['check_retirements'])
         elif args.history_bundle:
             raise ValueError('history_bundle_requires_read_only_maintain')
-        if args.action == 'accept':
-            result['status'] = 'BLOCKED'
-            result['findings'].append('host_protected_acceptance_unavailable')
         if state is not None:
             if configuration(project) is not None:
                 selection = pending_selection(result)
