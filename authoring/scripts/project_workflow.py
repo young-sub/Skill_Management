@@ -2992,7 +2992,7 @@ def summarize_lookup(result, project, root):
         row.update({key: config[feature['id']][key] for key in ('sources', 'map', 'criteria')})
         row['reuse'] = reuse_references(config[feature['id']], result)
         row['in_task'] = feature['id'] in active
-        row['bundles'] = task.get('results', {}).get(feature['id'], [])
+        row['bundles'] = (task.get('results') or {}).get(feature['id'], [])
         row['structural_evidence'] = feature.get('structural_evidence', [])
         row['evidence_status'] = ('AVAILABLE' if feature['check_results'] or row['structural_evidence'] else
             'UNAVAILABLE' if row['bundles'] else 'NOT_RUN' if feature['verification_status'] == 'REQUIRED' else 'NOT_REQUIRED')

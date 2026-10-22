@@ -500,6 +500,20 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertEqual(current.get('task_acceptance'), 'READY_FOR_REVIEW')
         self.assertEqual(current['next_action_count'], 0)
 
+    def test_summary_reads_legacy_state_without_result_links(self):
+        runtime = self.runtime()
+        state = runtime.begin(self.root, self.project, 'init')
+        for key in ('results', 'feedback', 'task_id'):
+            state.pop(key, None)
+        path = self.write('.work/project-verification/state.json', json.dumps(state))
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        before = path.read_bytes()
+        code, result = self.invoke('lookup', '--state', '.work/project-verification/state.json', '--summary')
+        self.assertIn('features', result, result)
+        self.assertTrue(all(row['bundles'] == [] for row in result['features']))
+        self.assertEqual(result['test_commands_executed'], 0)
+        self.assertEqual(path.read_bytes(), before)
+
     def test_summary_deduplicates_evidence_and_leads_with_task_handoff(self):
         runtime = self.runtime()
         state = runtime.begin(self.root, self.project, 'change', ['api'])

@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: 835a05ec99ae25ff0485fd499d15cbe981c66d0106a854c4f6c0213b8ba04c68
+# Source-SHA256: 5d3514fe979e610e77127163c7e1a3726c08622f708c85bf8724b24949f15fb7
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -2996,7 +2996,7 @@ def summarize_lookup(result, project, root):
         row.update({key: config[feature['id']][key] for key in ('sources', 'map', 'criteria')})
         row['reuse'] = reuse_references(config[feature['id']], result)
         row['in_task'] = feature['id'] in active
-        row['bundles'] = task.get('results', {}).get(feature['id'], [])
+        row['bundles'] = (task.get('results') or {}).get(feature['id'], [])
         row['structural_evidence'] = feature.get('structural_evidence', [])
         row['evidence_status'] = ('AVAILABLE' if feature['check_results'] or row['structural_evidence'] else
             'UNAVAILABLE' if row['bundles'] else 'NOT_RUN' if feature['verification_status'] == 'REQUIRED' else 'NOT_REQUIRED')
