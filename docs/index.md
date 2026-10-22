@@ -1,5 +1,7 @@
 # Agent Documentation Index
 
+- [Verification guardrails 0.1.84](research/verification-guardrails-0.1.84.md): human Markdown verification report, final-edit Stop guard, executable architecture/UI guardrail criteria, legacy lookup fix and Feature Map history move.
+
 - [Delegation verification 0.1.83](research/delegation-verification-20261022.md): outcome summaries, actual Labeler storage/permission checks, bypass prevention, guide reuse and proof-backed check consolidation.
 
 - [Verification reliability follow-up](research/verification-reliability-0.1.82.md): task closure, scoped native evidence, execution lifecycle, accessible artifacts and atomic review batches.
