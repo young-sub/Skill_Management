@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/repair-and-reuse.md -->
-<!-- Source-SHA256: 651fbec62cc312793df1e9ebcadbd31d85f7c39ee48231e94a1b1da42cc9132d -->
+<!-- Source-SHA256: 7b9ed65fd6c80bac33480a670219a01f4f1fd32ae28b2a0f4a3774b5a8effcbe -->
 
 # Repair and subsequent reuse
 
@@ -175,7 +175,9 @@ Use expected outcome → reproduced observation → actual caller/state/data flo
 | Observed cause | Appropriate prevention |
 | --- | --- |
 | Product data/state error | Correct the existing state/domain/persistence owner; use fitting validation, type, transaction or DB constraint. |
-| Repeated UI inconsistency | Existing shared token/component/state API; preserve intentional exceptions. |
+| Repeated UI inconsistency | Existing shared token/component/state API; preserve intentional exceptions. Make recurrence mechanical with the project's token lint rule or browser screenshot baseline, proven against a synthetic violation. |
+| Architecture drift (layer bypass, forbidden dependency, validation outside its boundary) | Repair the caller, then add the boundary rule to the project's existing linter/architecture tool. |
+| Agent workflow behavior (finished without exercising the final edit, wrong tool or skipped guide) | Repair the plugin/project owner that routes or guards it: Skill routing, guide discovery or a host hook such as the packaged Stop guard. Another prose rule is insufficient. |
 | Missed defect in verification | A discriminating user-flow or boundary regression, connected to its Feature. |
 | Wrong target/report/exit | Runner adapter, capture or runtime identification. |
 | Instruction exists but unused | Discovery or conflicting routing; do not append the same rule again. |

@@ -355,6 +355,21 @@ never a task selector or authorization. Other fresh unconfigured requests stay
 silent. Full inspection remains available through explicit `audit`/`resume`.
 This handoff does not implement protected completion.
 
+## Final-edit completion guard
+
+`hooks/completion_guard.py` is a `Stop` hook. It reads only the host transcript
+supplied in the payload and considers the turn since the latest human prompt.
+When files inside the payload `cwd` with non-documentation suffixes were edited
+by `Edit`/`Write`/`MultiEdit`/`NotebookEdit` after the last `Bash`/`PowerShell`
+command that is not pure inspection (`git status/diff/add/commit`, `cat`, `ls`,
+`grep`, `sed -n` and similar), it blocks that stop once with the changed paths.
+The Agent then runs the affected check against the final edit or states why no
+execution applies. `stop_hook_active`, a missing/unparseable transcript or
+`AGENT_COMPLETION_GUARD=off` allow the stop. It runs no project command and
+writes nothing; a passing guard is not verification, and any executed command
+(not necessarily the right one) clears it. Hosts whose transcript format differs
+are allowed rather than trapped.
+
 OpenAI documents plugin hooks and a separate trust review before command hooks
 run ([plugin packaging](https://developers.openai.com/plugins/build/plugins),
 [hook lifecycle](https://learn.chatgpt.com/docs/hooks)). The local Codex 0.160.0

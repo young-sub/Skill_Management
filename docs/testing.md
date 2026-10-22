@@ -73,7 +73,7 @@ record its observation; readable bytes alone do not prove a visual review.
 Use `.harness/project.yaml` feature selectors for affected behavior. Common direct commands:
 
 ```powershell
-python -m unittest tests.distribution.test_project_workflow tests.distribution.test_workflow_refinement tests.distribution.test_workflow_hook
+python -m unittest tests.distribution.test_project_workflow tests.distribution.test_workflow_refinement tests.distribution.test_workflow_hook tests.distribution.test_completion_guard
 python -m unittest tests.distribution.test_verification_results tests.distribution.test_verification_execution
 python -m unittest tests.distribution.test_task_store tests.distribution.test_runtime_api tests.distribution.test_check_capture
 python -m unittest tests.distribution.test_repository_docs

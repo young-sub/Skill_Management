@@ -514,6 +514,44 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertEqual(result['test_commands_executed'], 0)
         self.assertEqual(path.read_bytes(), before)
 
+    def test_report_renders_scope_matrix_outcomes_and_remainder_without_writes(self):
+        runtime = self.runtime()
+        self.project['extensions']['workflow']['features'][0]['coverage'] = [dict(
+            id='check-scope', requirement='docs/requirement.md', outcome='Saved price reads back as ten',
+            perspectives=['business'], areas=['Domain'], kind='test', check='check')]
+        state = runtime.begin(self.root, self.project, 'change', ['api'])
+        basis = runtime.inspect_project(self.root, self.project, state)['features'][0]['basis']
+        exclusion = {'status': 'NOT_REQUIRED', 'reason': 'No browser surface in this change',
+                     'analysis': 'CLI and API only', 'references': ['src/api.py']}
+        state = runtime.record_review(self.root, self.project, state, {
+            'feature': 'api', 'basis': basis, 'analysis': 'API owner reviewed',
+            'references': ['src/api.py'], 'findings': [],
+            'scope_reviews': {'business:FE': exclusion, 'architecture:FE': exclusion}})
+        path = self.write('.work/task.json', json.dumps(state))
+        self.write('.harness/project.yaml', json.dumps(self.project))
+        before = path.read_bytes()
+        env = {k: v for k, v in os.environ.items() if k != 'AGENT_WORKFLOW_CONTEXT'}
+        report = subprocess.run([sys.executable, str(SCRIPT), 'lookup', '--root', str(self.root),
+                                 '--state', '.work/task.json', '--report'],
+                                capture_output=True, text=True, encoding='utf-8', env=env)
+        text = report.stdout
+        self.assertTrue(text.startswith('# Verification report'), report.stderr)
+        row = next(line for line in text.splitlines() if line.startswith('| api |'))
+        self.assertEqual(row.split('|')[1:8], [' api ', ' NOT_REQUIRED ', ' UNDECIDED ', ' UNDECIDED ',
+                                               ' NOT_REQUIRED ', ' UNDECIDED ', ' UNDECIDED '])
+        self.assertIn('0/1 current PASS | NOT_RUN', row)
+        self.assertIn('- business FE not required: No browser surface in this change', text)
+        self.assertIn('Outcome `check-scope` [NOT_RUN]: Saved price reads back as ten (check `check`)', text)
+        self.assertIn('Commands executed by this report: 0', text)
+        self.assertIn('Project remainder outside this request: 1 Feature(s) (cli).', text)
+        self.assertNotIn('| cli |', text)
+        self.assertEqual(path.read_bytes(), before)
+        refused = subprocess.run([sys.executable, str(SCRIPT), 'lookup', '--root', str(self.root),
+                                  '--state', '.work/task.json', '--report', '--summary'],
+                                 capture_output=True, text=True, encoding='utf-8', env=env)
+        self.assertEqual(refused.returncode, 2)
+        self.assertIn('- report_requires_read_only_lookup_without_summary', refused.stdout)
+
     def test_summary_deduplicates_evidence_and_leads_with_task_handoff(self):
         runtime = self.runtime()
         state = runtime.begin(self.root, self.project, 'change', ['api'])

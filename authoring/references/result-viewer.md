@@ -30,6 +30,13 @@ not that runtime was unobserved. Repeat the same lookup without `--summary` to
 see assertions and actual values. Summary `raw_availability: UNAVAILABLE`
 identifies missing/unreadable raw, while
 `NOT_ATTACHED` distinguishes a capture-only native adapter without a JSON descriptor.
+
+For a person, use workflow `lookup/resume/audit --report` (not with `--summary`).
+It renders the complete read-only result as Markdown: task acceptance, a
+Feature × business/architecture × FE/API/Domain table of declared decisions,
+`NOT_REQUIRED` reasons, expected outcomes, current/historical check status with
+capture/raw paths, feedback, remaining request actions and the project-remainder
+count. It runs no checks and is not a verdict; cells never infer coverage.
 Retained historical PASS with `current_reuse: STALE` and `current_status: UNKNOWN` requires
 revalidation. NOT_RUN denotes no execution. Native runner BLOCKED is distinct from
 an observed product assertion ISSUES. Neither summary launches a check or repairs

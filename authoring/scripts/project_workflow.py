@@ -2967,6 +2967,11 @@ def _record_review(root, project, state, review, result):
     return updated
 
 
+def evidence_status(feature, bundles):
+    return ('AVAILABLE' if feature['check_results'] or feature.get('structural_evidence') else
+            'UNAVAILABLE' if bundles else 'NOT_RUN' if feature['verification_status'] == 'REQUIRED' else 'NOT_REQUIRED')
+
+
 def summarize_lookup(result, project, root):
     """Present already inspected facts; discovery never audits other task bundles."""
     summary = {key: deepcopy(result[key]) for key in ('handoff', 'status', 'mapping_status', 'read_only',
@@ -2994,8 +2999,7 @@ def summarize_lookup(result, project, root):
         row['in_task'] = feature['id'] in active
         row['bundles'] = (task.get('results') or {}).get(feature['id'], [])
         row['structural_evidence'] = feature.get('structural_evidence', [])
-        row['evidence_status'] = ('AVAILABLE' if feature['check_results'] or row['structural_evidence'] else
-            'UNAVAILABLE' if row['bundles'] else 'NOT_RUN' if feature['verification_status'] == 'REQUIRED' else 'NOT_REQUIRED')
+        row['evidence_status'] = evidence_status(feature, row['bundles'])
         row['check_results'] = viewer.summarize_results({'items': feature['check_results']})['items']
         outcomes = []
         for coverage in result['coverage'].get('rows', []):
@@ -3124,6 +3128,75 @@ def summarize_lookup(result, project, root):
     return {key: summary[key] for key in leading if key in summary} | {key: value for key, value in summary.items() if key not in leading}
 
 
+REPORT_AXES = [(p, a) for p in ('business', 'architecture') for a in ('FE', 'BE/API', 'Domain')]
+
+
+def render_report(result):
+    """Human-readable view of the full read-only lookup; it adds no state or verdicts."""
+    def cell(value):
+        return str(value if value not in (None, '') else '-').replace('|', '\\|').replace('\n', ' ')
+
+    task, handoff = result.get('task') or {}, result.get('handoff') or {}
+    lines = ['# Verification report', '',
+             f"- Task: {cell(task.get('task_id') or task.get('work_id'))} ({cell(task.get('intent'))}) "
+             f"state `{cell(task.get('state'))}` base `{cell(task.get('base'))}`",
+             f"- Request: {cell((task.get('request') or {}).get('summary') if isinstance(task.get('request'), dict) else task.get('request'))}",
+             f"- Task acceptance: **{cell(handoff.get('task_acceptance'))}**; project: {cell(result.get('status'))}; "
+             f"checks: {cell(handoff.get('check_acceptance'))}",
+             f"- Commands executed by this report: {result.get('test_commands_executed', 0)}", '']
+    if not result.get('features'):
+        lines += ['No Feature result is available.', ''] + [f'- {cell(f)}' for f in result.get('findings', [])]
+        return '\n'.join(lines) + '\n'
+    matrix = result.get('coverage', {}).get('matrix', [])
+    cells = {(c['feature'], c['perspective'], c['area']): c for c in matrix}
+    active = {c['feature'] for c in matrix if c.get('in_task', True)}
+    features = [f for f in result['features'] if f['id'] in active or f.get('work_scope') != 'project_remaining']
+    remaining = [f['id'] for f in result['features'] if f not in features]
+    lines += ['## Current request scope', '',
+              '| Feature | ' + ' | '.join(f'{p[:4].title()} {a}' for p, a in REPORT_AXES) + ' | Checks | Evidence |',
+              '|' + ' --- |' * (len(REPORT_AXES) + 3)]
+    for feature in features:
+        current = [i for i in feature['check_results'] if i.get('current_status') == 'PASS']
+        bundles = (task.get('results') or {}).get(feature['id'], [])
+        lines.append(f"| {cell(feature['id'])} | " + ' | '.join(
+            cell(cells.get((feature['id'], p, a), {}).get('status')) for p, a in REPORT_AXES) +
+            f" | {len(current)}/{len(feature.get('checks', []))} current PASS | {evidence_status(feature, bundles)} |")
+    lines += ['', 'Cells show the Agent-declared scope decision and linked evidence: PASS, NOT_REQUIRED (with reason), '
+              'UNDECIDED, NOT_RUN, MISSING, STALE, BLOCKED or ISSUES. Business value is not assessed by code checks.', '']
+    rows = result.get('coverage', {}).get('rows', [])
+    for feature in features:
+        lines += [f"## {feature['id']}", '', f"- Verification: {cell(feature['verification_status'])}; "
+                  f"scope: {cell(feature.get('work_scope'))}; reviewed: {cell(feature.get('reviewed'))}"]
+        for (p, a) in REPORT_AXES:
+            decision = cells.get((feature['id'], p, a), {}).get('decision') or {}
+            if decision.get('status') == 'NOT_REQUIRED':
+                lines.append(f'- {p} {a} not required: {cell(decision.get("reason"))}')
+        for row in (r for r in rows if r['feature'] == feature['id']):
+            lines.append(f"- Outcome `{cell(row['id'])}` [{cell(row['status'])}]: {cell(row.get('outcome'))}"
+                         + (f" (check `{row['check']}`)" if row.get('check') else ''))
+        for item in feature['check_results']:
+            raw = ', '.join(f"`{r.get('path')}`" for r in item.get('raw', []) if r.get('path')) or '-'
+            lines.append(f"- Check `{cell(item['id'])}`: current {cell(item.get('current_status'))}, historical "
+                         f"{cell(item.get('historical_status'))}, reuse {cell(item.get('current_reuse'))}; "
+                         f"capture `{cell((item.get('capture') or {}).get('path'))}`; raw {raw}")
+            for reason in item.get('reasons', [])[:3]:
+                lines.append(f'  - {cell(reason)}')
+        lines.append('')
+    feedback = result.get('feedback', [])
+    if feedback:
+        lines += ['## Feedback and prevention', '']
+        lines += [f"- `{cell(f.get('id'))}` {cell(f.get('feature'))} [{cell(f.get('status'))}] "
+                  f"cause: {cell(f.get('root_cause'))}" for f in feedback] + ['']
+    actions = [a for a in result.get('next_actions', []) if a.get('scope') != 'project_remaining']
+    lines += ['## Remaining for this request', '']
+    lines += [f"- {cell(a.get('target'))} [{cell(a.get('status'))}] requires {', '.join(a.get('requires', [])) or '-'}"
+              for a in actions] or ['- None']
+    lines += ['', f'Project remainder outside this request: {len(remaining)} Feature(s)'
+              + (f" ({', '.join(remaining[:12])}{'…' if len(remaining) > 12 else ''})" if remaining else '') + '.',
+              '', f"Limit: {cell(handoff.get('limit'))}"]
+    return '\n'.join(lines) + '\n'
+
+
 def main(argv=None):
     from task_store import TaskStore
     parser = argparse.ArgumentParser(description=__doc__)
@@ -3140,6 +3213,7 @@ def main(argv=None):
     parser.add_argument('--timeout', type=float, default=300)
     parser.add_argument('--resume', action='store_true', help='Execute only never-started checks of this prepared run')
     parser.add_argument('--summary', action='store_true', help='Read-only lookup/resume/audit summary with criteria, current reuse and raw pointers')
+    parser.add_argument('--report', action='store_true', help='Read-only Markdown verification report rendered from the complete lookup/resume/audit result')
     parser.add_argument('--intent', choices=['init', 'change', 'feedback', 'ui', 'maintain', 'diagnose'], default='init')
     parser.add_argument('--request-summary', help='Ordinary task request; Harness work keeps its existing contract reference')
     parser.add_argument('--outcome-ref', action='append', default=[], help='Existing project-relative expected-outcome document')
@@ -3162,6 +3236,8 @@ def main(argv=None):
             raise ValueError('execution_options_require_matching_action')
         if args.summary and args.action not in {'lookup', 'resume', 'audit'}:
             raise ValueError('summary_requires_read_only_lookup')
+        if args.report and (args.summary or args.action not in {'lookup', 'resume', 'audit'}):
+            raise ValueError('report_requires_read_only_lookup_without_summary')
         if (args.request_summary is not None or args.outcome_ref) and args.action not in {'begin', 'start'}:
             raise ValueError('request_metadata_requires_task_start')
         if args.investigation and args.action not in {'start', 'begin', 'investigate'}:
@@ -3294,7 +3370,10 @@ def main(argv=None):
                 pass
     if args.summary and result.get('features') is not None:
         result = summarize_lookup(result, project, root)
-    print(json.dumps(result, sort_keys=not args.summary))
+    if args.report:
+        sys.stdout.write(render_report(result))
+    else:
+        print(json.dumps(result, sort_keys=not args.summary))
     if args.action in {'prepare', 'execute'} and result.get('verification'):
         return {'PREPARED': 0, 'NOT_REQUIRED': 0, 'PASS': 0, 'ISSUES': 1}.get(result['verification']['status'], 2)
     return 0 if result['status'] in {'READY_FOR_REVIEW', 'NOT_CONFIGURED'} else 2

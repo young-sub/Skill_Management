@@ -19,7 +19,7 @@ Understand the request and authorized scope. Read the project's AGENTS/index and
 | Parallel implementation / delegated resume | `swarm`: disjoint ownership, dependencies, existing task/execution handles, evidence and main-agent integration. Independent challenge stays in `multi-agent-review`. |
 | Verify | Project guide/adapter and the affected actual user flow. Select from behavior and risk; inspect raw outcomes. |
 | Investigate | Existing task can retain read-only observations without workflow setup. Unknown observations stay unknown. |
-| Show results | Connect/read existing work. No tests, repairs, services or new task. |
+| Show results | Connect/read existing work; for a person render `lookup --report` (Markdown Feature × business/architecture × FE/API/Domain view). No tests, repairs, services or new task. |
 | Maintain | `maintain-project-verification`; also `maintain-agent-harness` only for affected Harness mapping/cohort/retention. |
 | Feedback | Existing `diagnose`: actual caller/state/data flow, cause owner, focused repair and appropriate prevention. |
 | Keep this approach / make it repeatable | [Feedback and success reuse](references/feedback-and-success.md): classify the signal, improve the existing owner or discovery, and extract only the context needed for the next invocation. |

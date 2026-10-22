@@ -58,7 +58,22 @@ class PluginPackageTests(unittest.TestCase):
             self.assertEqual(observed['exit_code'], 0)
             self.assertIsNone(observed['behavior_verdict'])
             hook = json.loads((package / 'hooks/hooks.json').read_text())['hooks']
-            self.assertEqual(set(hook), {'UserPromptSubmit'})
+            self.assertEqual(set(hook), {'UserPromptSubmit', 'Stop'})
+            transcript = root / 'transcript.jsonl'
+            transcript.write_text('\n'.join(json.dumps(entry) for entry in (
+                {'type': 'user', 'message': {'content': 'fix'}},
+                {'type': 'assistant', 'message': {'content': [{'type': 'tool_use', 'name': 'Edit',
+                    'input': {'file_path': str(root / 'app.py')}}]}})), encoding='utf-8')
+            stop_command = hook['Stop'][0]['hooks'][0]['command']
+            stop_environment = {k: v for k, v in os.environ.items() if k != 'PLUGIN_ROOT'}
+            stop_environment['CLAUDE_PLUGIN_ROOT'] = str(package)
+            for active, expected in ((False, 'block'), (True, None)):
+                stopped = subprocess.run(['powershell', '-NoProfile', '-Command', stop_command],
+                    input=json.dumps({'hook_event_name': 'Stop', 'cwd': str(root), 'stop_hook_active': active,
+                                      'transcript_path': str(transcript)}),
+                    env=stop_environment, capture_output=True, text=True, timeout=30)
+                self.assertEqual(stopped.returncode, 0, stopped.stderr)
+                self.assertEqual(json.loads(stopped.stdout).get('decision'), expected)
             hook_command = hook['UserPromptSubmit'][0]['hooks'][0]['command']
             # Exercise the distributed shell command with the host-provided root.
             for root_variable in ('PLUGIN_ROOT', 'CLAUDE_PLUGIN_ROOT'):
