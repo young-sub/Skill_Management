@@ -120,3 +120,15 @@ Repairs from these observations: the `agent-workflow` description now names
 guardrails that stop recurrence. The guardrail criteria follow the project's
 existing check convention instead of forbidding a project-local check script.
 They also add the ratchet-baseline case for legacy literals.
+
+Rerun with installed 0.1.85 (fresh clone, same request, hook events captured):
+the UserPromptSubmit hook delivered the compact `TASK_NOT_SELECTED` context and the
+Stop hook allowed completion because tests ran after the final edits. The Agent again
+invoked no plugin Skill. This time it scanned all `src/**/*.css` and registered the
+new tests in the project's required `verification-assertions.json`/Harness native
+check. An independent recheck passed: 60/60 tests, a failing `#123456` probe, a
+passing token probe and a successful build. Two runs cannot attribute the deeper
+integration to the description change, and Skill discovery for this request remains
+unobserved. The product outcome met the criteria both times by following the
+project's own Harness guidance. Both clones stay under `.work/p2-real-20261022/`.
+The original `yeondoo-link` is unchanged at `d17f0c2`.
