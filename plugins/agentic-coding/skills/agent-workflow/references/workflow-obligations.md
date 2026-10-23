@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: 3cf0c748bac8ee13287bbf3dfdd06c60d648b2127de18ea1cde91a7d06d53773 -->
+<!-- Source-SHA256: 5ae52b8bfa6e82abe72fb46494270701e23a71b08c33b01cec55ea71cae81587 -->
 
 # Project workflow obligations
 
@@ -8,8 +8,22 @@ Summary Features expose bounded `outcomes`: expected behavior, requirement,
 business-rule/architecture axes, current status, selection reason and a check
 evidence reference. Omitted outcome IDs remain available for exact lookup.
 No declared outcome is reported as UNDECLARED, never inferred from test counts.
-`business_value: NOT_ASSESSED_BY_CODE_CHECKS` keeps business impact separate;
-consult the linked requirement's metric, period and product observations.
+Business value is a human decision, never inferred from checks. A project
+(`extensions.workflow.business_value`) or Feature `business_value` records `goal`,
+`status` (`MEASURED` with `metric`/`source`, `PROXY` with Feature coverage IDs in
+`proxies`, or `DEFERRED` with `reconsider`), `decided_by` and `decided_at`. Missing
+values appear as `QUESTION_REQUIRED` and in `summary.questions`/the report's
+*Questions for the user*. Ask the user those questions in the same turn (draft
+options from the requirement documents), record the answer, and re-run the lookup;
+do not leave them unstated or answer them yourself.
+
+Feature `scope` holds durable non-applicability per `perspective:area`
+(`status: NOT_REQUIRED`, `reason`, `decided_by: user|agent`). It applies when a task
+has no decision of its own and is part of the Feature basis. Applicable cells still
+need a task scope review with evidence. A REQUIRED cell whose linked evidence is only
+Agent review shows `REVIEW_ONLY`: it does not block the task, but coverage is not
+COMPLETE until an executable check is linked. A REQUIRED-scope analysis identical to
+another Feature's judgment is rejected (`copied_review_analysis`).
 
 Feature `reuse` in summary and selected prompt context exposes existing criteria/UI
 guides, shared token/component owners, that Feature's intentional exceptions and

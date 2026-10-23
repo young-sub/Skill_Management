@@ -10,7 +10,36 @@ import sys
 def development_request(prompt):
     """A discovery hint only; prompt text never selects a task or authorizes work."""
     return isinstance(prompt, str) and bool(re.search(
-        r'\b(fix|implement|refactor|debug|code|test|build)\b|구현|수정|버그|리팩터|개발|테스트', prompt, re.I))
+        r'\b(fix|implement|refactor|debug|code|test|build)\b|구현|수정|버그|리팩터|개발|테스트|고쳐|고치|오류|에러', prompt, re.I))
+
+
+# Ordered request routes: an observed Skill-discovery gap is closed here, not by longer descriptions.
+ROUTES = (
+    ('setup-project-verification', 'connect verification for a flow',
+     r'검증\s?체계|검증.{0,12}연결|연결.{0,12}검증|connect\s.{0,20}verification|set\s?up\s.{0,20}verification'),
+    ('agent-workflow', 'show what is verified: render lookup/audit --report and answer from it',
+     r'검증\s?(결과|현황|상태)|어떤\s?(테스트|검증)|무엇이\s?검증|검증(되지|이 안|안 된)|'
+     r'verification\s(status|results|coverage)|what\s(is|was|gets)\s(tested|verified)|show\s.{0,12}(results|verification)'),
+    ('diagnose', 'reported incorrect behavior: reproduce, find the cause owner, block the original and alternate paths',
+     r'버그|오류|에러|고장|안\s?돼|안\s?되|이상(해|하게|한|하다)|잘못|틀려|틀린|불편|문의|사라졌|사라져|엉뚱|'
+     r'\bbug\b|\bbroken\b|\bwrong\b|doesn.?t work|not working|regress'),
+    ('agent-workflow', 'UI standards: discover the project UI guide and shared token/component owners before editing',
+     r'통일감?|스타일\s?가이드|디자인\s?(기준|시스템)|레이아웃|간격|배치|\bUI\b|\bUX\b|design system|style guide'),
+    ('agent-workflow', 'guardrail: express the rule in the existing linter/runner and prove it rejects a synthetic violation',
+     r'가드레일|재발\s?방지|guardrail|lint\s?rule|boundary rule'),
+    ('recall', 'resume prior work: reconcile the handoff with the checkout before acting',
+     r'어디까지|이어서|이어\s?하|계속\s?하자|where (were|did) we|continue (where|the previous)|pick up where'),
+)
+
+
+def request_route(prompt):
+    if not isinstance(prompt, str):
+        return None
+    for skill, reason, pattern in ROUTES:
+        if re.search(pattern, prompt, re.I):
+            return {'skill': skill, 'plugin': 'agentic-coding', 'reason': reason,
+                    'instruction': f'Invoke the {skill} Skill before other work unless the request is a trivial edit.'}
+    return None
 
 
 def hook_output(summary):
@@ -22,7 +51,7 @@ def hook_output(summary):
 
     # Reserve room for omission metadata before adding optional detail.
     limit = 5500 - len(prefix)
-    result = {key: summary[key] for key in ('status', 'project_status', 'detail') if key in summary}
+    result = {key: summary[key] for key in ('status', 'connection', 'route', 'project_status', 'detail') if key in summary}
     result.update({key: value for key, value in summary.items()
                    if key.endswith(('_count', '_omitted')) or key == 'task_discovery_complete'})
     current = summary.get('current_task')
@@ -160,18 +189,23 @@ def context(payload):
     path = runtime.local_path(root, '.harness/project.yaml')
     project = json.loads(path.read_text(encoding='utf-8')) if path.is_file() else {}
     config = runtime.configuration(project)
+    route = request_route(payload.get('prompt'))
+    routed = lambda summary: hook_output(dict(summary, route=route) if route else summary)
     if config is None:
         selector = os.environ.get('AGENT_WORKFLOW_CONTEXT')
         records = [] if selector else runtime.task_candidates(root, project, limit=8)
         omitted = sum(c.get('status') == 'NOT_INSPECTED' for c in records)
         candidates = [c for c in records if c.get('intent') == 'diagnose']
         fallback = ('Use existing AGENTS.md, docs/index.md and project test/build commands; inspect relevant callers, types and tests before editing. '
-                    'Select the matching agent-workflow playbook only if needed. Verify affected behavior after the final edit. No Harness setup is required.')
+                    'Select the matching agent-workflow playbook only if needed. Verify affected behavior after the final edit. '
+                    'Verification is NOT CONNECTED here: delegated work leaves no Feature map, verification report or feedback record. '
+                    'For behavior changes, say so in the result and offer setup-project-verification once for the affected flow; '
+                    'small edits proceed without setup.')
         if not selector and not candidates and not omitted:
-            if not development_request(payload.get('prompt')):
+            if not development_request(payload.get('prompt')) and not route:
                 return {}
-            return hook_output({'status': 'NOT_CONFIGURED', 'guidance': fallback})
-        summary = {'status': 'NOT_CONFIGURED', 'task_candidates': [dict(c, request=request_preview(c.get('request'), 160)) for c in candidates[:8]],
+            return routed({'status': 'NOT_CONFIGURED', 'connection': 'NOT_CONNECTED', 'guidance': fallback})
+        summary = {'status': 'NOT_CONFIGURED', 'connection': 'NOT_CONNECTED', 'task_candidates': [dict(c, request=request_preview(c.get('request'), 160)) for c in candidates[:8]],
                    'task_candidate_count': len(candidates), 'task_record_count': len(records),
                    'task_candidate_omitted': omitted, 'task_discovery_complete': omitted == 0,
                    'task_discovery_detail': 'For full candidate paths run resume without task context or selector, then select exact --state/--work-id. Omitted intent and validity are unknown.'}
@@ -190,7 +224,7 @@ def context(payload):
                     'status': audit['status'], 'investigation': investigation_context(investigation)}
             except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
                 summary['current_task'] = {'status': 'BLOCKED', 'reason': str(error)}
-        return hook_output(summary)
+        return routed(summary)
     if not os.environ.get('AGENT_WORKFLOW_CONTEXT'):
         candidates = runtime.task_candidates(root, project, limit=8)
         summary = {'status': 'TASK_NOT_SELECTED', 'project_status': 'NOT_AUDITED',
@@ -199,7 +233,7 @@ def context(payload):
             'task_discovery_complete': len(candidates) <= 8,
             'detail': {'action': 'resume', 'read_only': True},
             'next_action': 'Use an exact --state/--work-id for existing work; ordinary direct work needs no task. Full project audit is explicit.'}
-        return hook_output(summary)
+        return routed(summary)
     summary = {'status': 'SELECTED_TASK', 'project_status': 'NOT_AUDITED'}
     task_ui_systems = []
     if os.environ.get('AGENT_WORKFLOW_CONTEXT'):
@@ -272,12 +306,18 @@ def context(payload):
                 summary['current_task']['investigation'] = investigation_context(current['investigation'])
         except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
             summary['current_task'] = {'status': 'BLOCKED', 'reason': str(error)}
-    return hook_output(summary)
+    return routed(summary)
+
+
+def read_payload(stream=None):
+    """Hosts send UTF-8 JSON; the Windows locale codec would garble non-ASCII prompts."""
+    raw = (stream or sys.stdin.buffer).read()
+    return json.loads(raw.decode('utf-8-sig'))
 
 
 def main():
     try:
-        result = context(json.load(sys.stdin))
+        result = context(read_payload())
     except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
         result = {'systemMessage': 'Workflow context unavailable; completion is unverified: ' + str(error)}
     print(json.dumps(result))
