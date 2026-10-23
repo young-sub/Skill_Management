@@ -540,7 +540,8 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertEqual(row.split('|')[1:8], [' api ', ' NOT_REQUIRED ', ' UNDECIDED ', ' UNDECIDED ',
                                                ' NOT_REQUIRED ', ' UNDECIDED ', ' UNDECIDED '])
         self.assertIn('0/1 current PASS | NOT_RUN', row)
-        self.assertIn('- business FE not required: No browser surface in this change', text)
+        self.assertIn('- business FE not required (task, agent): No browser surface in this change', text)
+        self.assertIn('## Questions for the user', text)
         self.assertIn('Outcome `check-scope` [NOT_RUN]: Saved price reads back as ten (check `check`)', text)
         self.assertIn('Commands executed by this report: 0', text)
         self.assertIn('Project remainder outside this request: 1 Feature(s) (cli).', text)
@@ -1191,7 +1192,8 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertEqual(outcomes[0]['evidence_ref'], 'api/check')
         self.assertEqual(outcomes[1]['status'], 'NOT_RUN')
         self.assertEqual(outcomes[2]['status'], 'MISSING')
-        self.assertEqual(summary['features'][0]['business_value'], 'NOT_ASSESSED_BY_CODE_CHECKS')
+        self.assertEqual(summary['features'][0]['business_value']['status'], 'QUESTION_REQUIRED')
+        self.assertEqual(summary['questions']['items'][0]['kind'], 'business_value')
         raw = summary['features'][0]['check_results'][0]['raw'][0]
         self.assertNotIn('observations', raw, 'Coverage must not leak the raw values omitted by summary results')
         self.assertEqual((raw['observation_count'], raw['observations_omitted']), (1, True))
@@ -1386,6 +1388,18 @@ class ProjectWorkflowTests(unittest.TestCase):
         result = runtime.inspect_project(self.root, self.project, state)
         self.assertNotIn('owner_repair_not_observed', result['feedback'][0]['remaining'])
         self.assertIn('active_prevention_link_missing', result['feedback'][0]['remaining'])
+        self.assertIn('guardrail.bypass_pointers_or_bypass_absence', result['feedback'][0]['remaining'])
+        for absence in ({'analysis': 'too short', 'references': ['src/api.py']},
+                        {'analysis': 'Only api.py reads the price constant; no other caller', 'references': ['docs/map.md']}):
+            weak = runtime.record_feedback(self.root, self.project, state, dict(
+                complete, guardrail=dict(complete['guardrail'], bypass_absence=absence)))
+            self.assertIn('guardrail.bypass_pointers_or_bypass_absence',
+                          runtime.inspect_project(self.root, self.project, weak)['feedback'][0]['remaining'])
+        proven = runtime.record_feedback(self.root, self.project, state, dict(complete, guardrail=dict(
+            complete['guardrail'], bypass_absence={'analysis': 'Only api.py reads the price constant; no other caller',
+                                                   'references': ['src/api.py']})))
+        self.assertNotIn('guardrail.bypass_pointers_or_bypass_absence',
+                         runtime.inspect_project(self.root, self.project, proven)['feedback'][0]['remaining'])
         self.project['extensions']['workflow']['state'] = '.work/current.json'
         self.write('.work/current.json', json.dumps(state))
         subsequent = runtime.begin_work(self.root, self.project)

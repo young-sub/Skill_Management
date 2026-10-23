@@ -142,6 +142,18 @@ Feature changes update map/guide/active selectors in the same functional diff/co
 
 ## Detection value and measured maintenance
 
+A PASS shows that the checks ran; it does not show that they detect defects. For
+each business rule a Feature claims to protect, measure detection with a
+controlled-fault probe in an isolated copy. Change one rule at its owner (drop a
+guard, invert a boundary, reorder a priority or ignore a state flag), run the
+Feature's registered checks, and record whether they fail. Restore the copy
+byte-for-byte after each probe. A probe that still passes is a coverage gap:
+record it on the Feature map (rule, probe, surviving checks) and add a
+discriminating regression before the Feature's matrix claims that rule. Never
+leave a probe in the product tree, and label any probe evidence as synthetic.
+Re-run the probes when the rule's owner or its checks change.
+
+
 `project_workflow.py maintain --root <project> --state .work/task.json
 --history-bundle .work/retained/bundle.json` is read-only. It consumes explicitly
 linked review/feedback bundles plus named history; it does not scan all work or

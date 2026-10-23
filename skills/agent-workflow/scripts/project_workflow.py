@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/project_workflow.py
-# Source-SHA256: 01846d38834ed5a6dcb9ae1e9d3badce3782c6e1ddc6f6a44260a70a1f821bbc
+# Source-SHA256: 646f89225009808a28012aa1a58d9e7c3979c0d9ab62e86f5d3efe898a34f8ae
 
 """Project-owned workflow obligations. Local consistency, not protected acceptance.
 
@@ -115,6 +115,38 @@ def outside_inventory(root, config, base, previous=()):
     return result
 
 
+SCOPE_KEYS = {p + ':' + a for p in ('business', 'architecture') for a in ('FE', 'BE/API', 'Domain')}
+BUSINESS_STATUSES = {'MEASURED', 'PROXY', 'DEFERRED'}
+
+
+def validate_business_value(value, coverage_ids, owner):
+    """A business outcome is a human decision; code checks may only serve as declared proxies."""
+    text = lambda key: isinstance(value.get(key), str) and value[key].strip()
+    if not isinstance(value, dict) or not text('goal') or value.get('status') not in BUSINESS_STATUSES:
+        raise ValueError(f'business_value_requires_goal_and_status:{owner}')
+    if not text('decided_by') or not text('decided_at'):
+        raise ValueError(f'business_value_requires_decider_and_date:{owner}')
+    if value['status'] == 'DEFERRED' and not text('reconsider'):
+        raise ValueError(f'deferred_business_value_requires_reconsider:{owner}')
+    if value['status'] == 'MEASURED' and not (text('metric') and text('source')):
+        raise ValueError(f'measured_business_value_requires_metric_and_source:{owner}')
+    proxies = value.get('proxies', [])
+    if value['status'] == 'PROXY' and not proxies:
+        raise ValueError(f'proxy_business_value_requires_proxies:{owner}')
+    if not isinstance(proxies, list) or any(not isinstance(p, str) or not p for p in proxies) or (
+            coverage_ids is not None and set(proxies) - set(coverage_ids)):
+        raise ValueError(f'business_value_proxies_must_name_feature_coverage:{owner}')
+
+
+def business_value(config, feature):
+    declared = feature.get('business_value') or config.get('business_value')
+    if declared:
+        return dict(deepcopy(declared), origin='feature' if feature.get('business_value') else 'project')
+    return {'status': 'QUESTION_REQUIRED', 'origin': None,
+            'question': f'What business outcome does {feature["id"]} serve, and is it measured (metric and source), '
+                        'covered by a proxy check, or deliberately deferred (who decided, and when to reconsider)?'}
+
+
 def configuration(project):
     if not isinstance(project, dict):
         raise ValueError('project_must_be_object')
@@ -164,6 +196,15 @@ def configuration(project):
             coverage_ids.append(row['id'])
         if len(coverage_ids) != len(set(coverage_ids)):
             raise ValueError('duplicate_coverage_identity')
+        scope = feature.get('scope', {})
+        if not isinstance(scope, dict) or any(
+                key not in SCOPE_KEYS or not isinstance(entry, dict) or entry.get('status') not in {'NOT_REQUIRED', 'APPLIES'}
+                or not isinstance(entry.get('reason'), str) or not entry['reason'].strip()
+                or entry.get('decided_by') not in {'user', 'agent'}
+                for key, entry in scope.items()):
+            raise ValueError(f'scope_requires_status_reason_and_decider:{feature["id"]}')
+        if 'business_value' in feature:
+            validate_business_value(feature['business_value'], coverage_ids, feature['id'])
         documents = feature.get('documentation_only', {})
         if not isinstance(documents, dict) or any(
                 not isinstance(name, str) or not name or Path(name).is_absolute()
@@ -173,6 +214,8 @@ def configuration(project):
             raise ValueError('documentation_only_requires_exact_paths_and_reasons')
     if len(ids) != len(set(ids)):
         raise ValueError('duplicate_feature_identity')
+    if 'business_value' in config:
+        validate_business_value(config['business_value'], None, 'project')
     systems = config.get('ui_systems', {})
     if not isinstance(systems, dict):
         raise ValueError('ui_systems_must_be_object')
@@ -297,10 +340,16 @@ def scope_matrix(feature, review, basis, rows, *, current_basis=None, scope_stat
         for area in ('FE', 'BE/API', 'Domain'):
             key = perspective + ':' + area
             decision = review.get('scope_reviews', {}).get(key, {})
+            origin = 'task' if decision else None
+            if not decision and key in feature.get('scope', {}):
+                # Durable project decisions are part of the Feature basis, so they need no task review binding.
+                decision, origin = deepcopy(feature['scope'][key]), 'project'
             applicability = decision.get('status', 'UNDECIDED')
             links = decision.get('coverage', [])
             reasons = []
-            if decision and (review.get('basis') != basis or current_basis is not None and current_basis != basis):
+            if origin == 'project':
+                pass
+            elif decision and (review.get('basis') != basis or current_basis is not None and current_basis != basis):
                 applicability = 'STALE'
                 reasons.append('scope_decision_basis_changed')
             elif decision and (scope_states or {}).get(key) in {'STALE', 'BLOCKED'}:
@@ -322,11 +371,19 @@ def scope_matrix(feature, review, basis, rows, *, current_basis=None, scope_stat
                 if 'NOT_REQUIRED' in statuses:
                     status = 'MISSING'
                     reasons.append('required_scope_has_excluded_evidence')
+                if status == 'PASS' and not any(row['kind'] == 'test' and row['status'] == 'PASS' for row in linked):
+                    # Agent judgment alone is visible, never presented as executed protection.
+                    status = 'REVIEW_ONLY'
+                    reasons.append('no_executable_check_linked')
+            elif applicability == 'APPLIES':
+                # Durable applicability: the touching task must supply its review and evidence.
+                status = 'APPLIES'
+                reasons.append('applies_requires_task_review_and_evidence')
             else:
                 status = applicability
             matrix.append({'feature': feature['id'], 'perspective': perspective, 'area': area,
                            'applicability': applicability, 'status': status, 'statuses': statuses,
-                           'coverage': [row['id'] for row in linked], 'decision': deepcopy(decision), 'reasons': reasons})
+                           'coverage': [row['id'] for row in linked], 'decision': deepcopy(decision), 'origin': origin, 'reasons': reasons})
     return matrix
 
 
@@ -827,6 +884,7 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
     root = root.resolve()
     config = configuration(project)
     result = {'status': 'NOT_CONFIGURED', 'mapping_status': 'NOT_CONFIGURED', 'enforcement': 'BLOCKED',
+              'connection': 'NOT_CONNECTED' if config is None else 'CONNECTED',
               'trust': 'editable local consistency; host-protected acceptance unavailable',
               'obligations': [], 'features': [], 'partitions': {}, 'unmapped': [],
               'unlinked': [], 'findings': [], 'product_findings': [], 'retired': [], 'coverage': coverage_summary([]),
@@ -1062,7 +1120,7 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
             requires.append('scope_review_or_connection')
             findings.extend(f'coverage_gap:{identity}:{name}' for name in scope_gaps)
         if in_task:
-            if any(cell['decision'] and cell['status'] not in {'PASS', 'NOT_REQUIRED'} for cell in matrix):
+            if any(cell['decision'] and cell['status'] not in {'PASS', 'REVIEW_ONLY', 'NOT_REQUIRED'} for cell in matrix):
                 pending = True
                 requires.append('scope_applicability_or_evidence')
         if pending:
@@ -1075,6 +1133,7 @@ def inspect_project(root, project, state=None, *, file_inventory=None, evidence_
                 'ui_systems': [system['id'] for system in ui_systems],
                 'prevention': feature.get('prevention', [])})
         result['features'].append({'id': identity, 'basis': basis, 'partition': feature['partition'],
+                                   'business_value': business_value(config, feature),
                                    'work_scope': work_scope, 'scope_basis': scope_basis,
                                    'verification_basis': verification_basis,
                                    'verification_status': ('NOT_REQUIRED' if not needs_behavior or not required_feature['checks'] and excluded else
@@ -1217,7 +1276,7 @@ def connect_next_actions(root, project, state, result):
                                'Review the stated outcome against sources and guide; record analysis and references in scope_reviews. Execution PASS does not supply semantic judgment.'}
             action['pending'].append(pending)
         cells = [c for c in result['coverage']['matrix'] if c['feature'] == identity and c['in_task'] and c['decision']
-                 and c['status'] not in {'PASS', 'NOT_REQUIRED'}]
+                 and c['status'] not in {'PASS', 'REVIEW_ONLY', 'NOT_REQUIRED'}]
         for cell in cells:
             action['pending'].append({'id': cell['perspective'] + ':' + cell['area'], 'kind': 'Agent_scope_decision',
                 'status': cell['status'], 'applicability': cell['applicability'], 'current_validity': cell['status'],
@@ -1878,6 +1937,9 @@ def inspect_check_retirements(root, project, feature, state, review, reviewed, *
 def maintenance_summary(root, project, state=None, history=(), *, retirements=()):
     """Inspect explicitly connected runs, not all past work or speculative pruning."""
     config = configuration(project)
+    if config is None:
+        return {'status': 'NOT_CONNECTED', 'checks': [], 'reason': 'No extensions.workflow Feature map; nothing to maintain.',
+                'check_footprint': {'active': 0, 'prior': 0, 'removed_with_proof': [], 'removed_without_proof': []}}
     state = state or {}
     commands = dict(project.get('commands', {}))
     commands.update(project.get('impact', {}).get('feature_selectors', {}))
@@ -2503,7 +2565,16 @@ def inspect_feedback(root, config, state, *, bundle_cache=None):
             required = (('failure', 'scope', 'owner_refs', 'normal_exception', 'reconsider') if structural else
                         ('failure', 'scope', 'check', 'normal_exception', 'reconsider', 'regression_pointer', 'normal_pointer'))
             remaining.extend(f'guardrail.{key}' for key in required if not guardrail.get(key))
-            link_keys = ('failure', 'normal_exception', 'scope', 'reconsider', 'bypass_pointers') + (('mechanism', 'owner_refs') if structural else ('check',))
+            if not structural and not guardrail.get('bypass_pointers'):
+                # The same failure can usually re-enter through another caller; prove it is blocked or absent.
+                absence = guardrail.get('bypass_absence')
+                analysis = absence.get('analysis') if isinstance(absence, dict) else None
+                inspected = absence.get('references') if isinstance(absence, dict) else None
+                if (not isinstance(analysis, str) or len(analysis.strip()) < 20 or not isinstance(inspected, list)
+                        or not any(isinstance(name, str) and file_hash(root, name) is not None
+                                   and any(fnmatchcase(name, p) for p in source_patterns(config, feature)) for name in inspected)):
+                    remaining.append('guardrail.bypass_pointers_or_bypass_absence')
+            link_keys =('failure', 'normal_exception', 'scope', 'reconsider', 'bypass_pointers') + (('mechanism', 'owner_refs') if structural else ('check',))
             if guardrail and ((not structural and guardrail.get('check') not in feature['checks']) or not any(
                     all(p.get(key) == guardrail.get(key) for key in link_keys) for p in feature.get('prevention', []))):
                 remaining.append('active_prevention_link_missing')
@@ -2946,6 +3017,15 @@ def _record_review(root, project, state, review, result):
         for finding in entry.get('architecture', {}).get('findings', []):
             if finding['status'] == 'fixed' and state['baseline'].get(finding['owner']) != finding['repair']['before_sha256']:
                 raise ValueError('architecture_owner_repair_baseline_mismatch')
+    def judged(entry):
+        text = ' '.join(str(entry.get('analysis') or '').split()).casefold()
+        return text if entry.get('status') not in {None, 'NOT_REQUIRED'} and len(text) >= 20 else None
+    elsewhere = {judged(entry): name for name, other in state.get('reviews', {}).items() if name != review['feature']
+                 for entry in other.get('scope_reviews', {}).values() if judged(entry)}
+    for scope_key, entry in review.get('scope_reviews', {}).items():
+        if judged(entry) in elsewhere:
+            # A different Feature's judgment pasted here was never made about this Feature.
+            raise ValueError(f'copied_review_analysis:{review["feature"]}:{scope_key}:from:{elsewhere[judged(entry)]}')
     declared = next((f for f in configuration(project)['features'] if f['id'] == review['feature']), {})
     for row in declared.get('coverage', []):
         entry = review.get('scope_reviews', {}).get(row['id'], {})
@@ -2978,7 +3058,7 @@ def evidence_status(feature, bundles):
 
 def summarize_lookup(result, project, root):
     """Present already inspected facts; discovery never audits other task bundles."""
-    summary = {key: deepcopy(result[key]) for key in ('handoff', 'status', 'mapping_status', 'read_only',
+    summary = {key: deepcopy(result[key]) for key in ('handoff', 'status', 'connection', 'mapping_status', 'read_only',
         'test_commands_executed', 'findings', 'product_findings', 'feedback', 'investigation',
         'task_context', 'action_scope_counts', 'unmapped_changes') if key in result}
     task = result.get('task', {})
@@ -3023,7 +3103,7 @@ def summarize_lookup(result, project, root):
         row['outcome_ids'] = [outcome['id'] for outcome in outcomes]
         row['outcomes_omitted'] = max(0, len(outcomes) - 8)
         row['outcome_mapping'] = 'DECLARED' if outcomes else 'UNDECLARED'
-        row['business_value'] = 'NOT_ASSESSED_BY_CODE_CHECKS'
+        row['business_value'] = deepcopy(feature.get('business_value'))
         for item in row['check_results']:
             for key in ('historical_source', 'historical_statuses', 'assessment', 'observation', 'criteria_revision'):
                 item.pop(key, None)
@@ -3104,6 +3184,7 @@ def summarize_lookup(result, project, root):
             if len(values) > limit:
                 coverage[key] = sorted(values, key=lambda v: v.get('work_scope') == 'project_remaining'
                     or not v.get('in_task', True))[:limit]
+    summary['questions'] = open_questions(result)
     summary['detail_hint'] = 'Evidence refs name features/check_results by feature/check; coverage IDs retain denominators. Raw values, semantic review bodies, feedback bindings and bundle descriptors are omitted after validation. Follow bundles/raw path/pointer or repeat exact lookup without --summary. Check PASS is not task acceptance.'
     # Large projects need a decision view, not repeated previews of the same facts.
     if len(json.dumps(summary)) > 32000:
@@ -3128,11 +3209,33 @@ def summarize_lookup(result, project, root):
                 for raw in item.get('raw', []):
                     for key in ('sha256', 'origin'):
                         raw.pop(key, None)
-    leading = ('handoff', 'task', 'status', 'action_scope_counts', 'next_actions', 'detail_command')
+    leading = ('handoff', 'task', 'status', 'connection', 'action_scope_counts', 'next_actions', 'detail_command')
     return {key: summary[key] for key in leading if key in summary} | {key: value for key, value in summary.items() if key not in leading}
 
 
 REPORT_AXES = [(p, a) for p in ('business', 'architecture') for a in ('FE', 'BE/API', 'Domain')]
+
+
+def open_questions(result, limit=12):
+    """Decisions only a person can make; the Agent asks them instead of leaving silent gaps."""
+    questions = []
+    missing = [f['id'] for f in result.get('features', [])
+               if (f.get('business_value') or {}).get('status') == 'QUESTION_REQUIRED']
+    if missing:
+        questions.append({'kind': 'business_value', 'features': missing,
+            'question': 'What business outcome do these Features serve? Give a goal plus either a metric and '
+                        'source, proxy coverage IDs, or a deliberate deferral with who decided and when to reconsider.',
+            'record': 'extensions.workflow.business_value (project) or features[].business_value'})
+    undecided = {}
+    for cell in result.get('coverage', {}).get('matrix', []):
+        if cell.get('status') == 'UNDECIDED':
+            undecided.setdefault(cell['feature'], []).append(cell['perspective'] + ':' + cell['area'])
+    for feature, cells in undecided.items():
+        questions.append({'kind': 'scope', 'feature': feature, 'cells': cells,
+            'question': f'For {feature}, which of {", ".join(cells)} apply? Durable non-applicability needs a reason; '
+                        'applicable cells need a task review with evidence.',
+            'record': f'features[{feature}].scope (NOT_REQUIRED, reason, decided_by) or a task scope review'})
+    return {'count': len(questions), 'items': questions[:limit], 'omitted': max(0, len(questions) - limit)}
 
 
 def render_report(result):
@@ -3148,6 +3251,10 @@ def render_report(result):
              f"- Task acceptance: **{cell(handoff.get('task_acceptance'))}**; project: {cell(result.get('status'))}; "
              f"checks: {cell(handoff.get('check_acceptance'))}",
              f"- Commands executed by this report: {result.get('test_commands_executed', 0)}", '']
+    if result.get('connection') == 'NOT_CONNECTED':
+        lines += ['**Verification is not connected for this project.** No Feature map, scope matrix, check binding '
+                  'or feedback record exists, so delegated work here has no verification evidence in this view. '
+                  'Connect the affected flow with `setup-project-verification`.', '']
     if not result.get('features'):
         lines += ['No Feature result is available.', ''] + [f'- {cell(f)}' for f in result.get('findings', [])]
         return '\n'.join(lines) + '\n'
@@ -3165,16 +3272,25 @@ def render_report(result):
         lines.append(f"| {cell(feature['id'])} | " + ' | '.join(
             cell(cells.get((feature['id'], p, a), {}).get('status')) for p, a in REPORT_AXES) +
             f" | {len(current)}/{len(feature.get('checks', []))} current PASS | {evidence_status(feature, bundles)} |")
-    lines += ['', 'Cells show the Agent-declared scope decision and linked evidence: PASS, NOT_REQUIRED (with reason), '
-              'UNDECIDED, NOT_RUN, MISSING, STALE, BLOCKED or ISSUES. Business value is not assessed by code checks.', '']
+    lines += ['', 'Cells show the declared scope decision and linked evidence: PASS, REVIEW_ONLY (Agent judgment without an '
+              'executable check), NOT_REQUIRED (with reason), UNDECIDED, NOT_RUN, MISSING, STALE, BLOCKED or ISSUES. '
+              'Business value comes from a human decision, never from code checks.', '']
     rows = result.get('coverage', {}).get('rows', [])
     for feature in features:
-        lines += [f"## {feature['id']}", '', f"- Verification: {cell(feature['verification_status'])}; "
+        value = feature.get('business_value') or {}
+        lines += [f"## {feature['id']}", '', f"- Business value: {cell(value.get('status'))}"
+                  + (f" ({value.get('origin')}) goal: {cell(value.get('goal'))}; decided by {cell(value.get('decided_by'))} "
+                     f"{cell(value.get('decided_at'))}" if value.get('goal') else '')
+                  + (f"; reconsider: {cell(value.get('reconsider'))}" if value.get('reconsider') else '')
+                  + (f"; proxies: {', '.join(value.get('proxies', []))}" if value.get('proxies') else '')]
+        lines += [f"- Verification: {cell(feature['verification_status'])}; "
                   f"scope: {cell(feature.get('work_scope'))}; reviewed: {cell(feature.get('reviewed'))}"]
         for (p, a) in REPORT_AXES:
             decision = cells.get((feature['id'], p, a), {}).get('decision') or {}
             if decision.get('status') == 'NOT_REQUIRED':
-                lines.append(f'- {p} {a} not required: {cell(decision.get("reason"))}')
+                origin = cells.get((feature['id'], p, a), {}).get('origin')
+                lines.append(f'- {p} {a} not required ({origin or "task"}, {cell(decision.get("decided_by", "agent"))}): '
+                             f'{cell(decision.get("reason"))}')
         for row in (r for r in rows if r['feature'] == feature['id']):
             lines.append(f"- Outcome `{cell(row['id'])}` [{cell(row['status'])}]: {cell(row.get('outcome'))}"
                          + (f" (check `{row['check']}`)" if row.get('check') else ''))
@@ -3191,6 +3307,13 @@ def render_report(result):
         lines += ['## Feedback and prevention', '']
         lines += [f"- `{cell(f.get('id'))}` {cell(f.get('feature'))} [{cell(f.get('status'))}] "
                   f"cause: {cell(f.get('root_cause'))}" for f in feedback] + ['']
+    questions = open_questions(result)
+    lines += ['## Questions for the user', '']
+    lines += [f"- [{q['kind']}] {cell(q['question'])} Record in `{q['record']}`."
+              + (f" Features: {', '.join(q['features'])}." if q.get('features') else '') for q in questions['items']] or ['- None']
+    if questions['omitted']:
+        lines.append(f"- {questions['omitted']} more question(s) omitted; see `--summary` questions.")
+    lines.append('')
     actions = [a for a in result.get('next_actions', []) if a.get('scope') != 'project_remaining']
     lines += ['## Remaining for this request', '']
     lines += [f"- {cell(a.get('target'))} [{cell(a.get('status'))}] requires {', '.join(a.get('requires', [])) or '-'}"
@@ -3372,11 +3495,16 @@ def main(argv=None):
     if args.summary and result.get('features') is not None:
         result = summarize_lookup(result, project, root)
     if args.report:
+        # Reports are saved as Markdown; the Windows console codec would make non-UTF-8 files.
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8')
         sys.stdout.write(render_report(result))
     else:
         print(json.dumps(result, sort_keys=not args.summary))
     if args.action in {'prepare', 'execute'} and result.get('verification'):
         return {'PREPARED': 0, 'NOT_REQUIRED': 0, 'PASS': 0, 'ISSUES': 1}.get(result['verification']['status'], 2)
+    if result.get('connection') == 'NOT_CONNECTED' and args.action in {'lookup', 'resume', 'audit', 'maintain'}:
+        return 3  # Distinguishes an unverifiable project from accepted or incomplete work.
     return 0 if result['status'] in {'READY_FOR_REVIEW', 'NOT_CONFIGURED'} else 2
 
 

@@ -4,12 +4,12 @@ description: Coordinate a coding task through relevant project capabilities, act
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: 72e47b1a68e87c5c667a75b1cd94993075780b5e3d40a980500c08d558283958 -->
+<!-- Source-SHA256: 806f7d2abc1706a991aa133a81869691e3ab1b672253a3b4c29899413b06bf12 -->
 
 
 # Agent Workflow
 
-Understand the request and authorized scope. Read the project's AGENTS/index and relevant verification guide, then trace the affected code/callers/tests. Select a procedure below only for a remaining need, execute, and explain the observed result. Read checkout/dirty baseline and applicable capability exceptions once; reuse that investigation across capabilities while its inputs remain current.
+When the prompt context carries a `route`, invoke that Skill first unless the request is a trivial edit; it closes observed discovery gaps. Understand the request and authorized scope. Read the project's AGENTS/index and relevant verification guide, then trace the affected code/callers/tests. Select a procedure below only for a remaining need, execute, and explain the observed result. Read checkout/dirty baseline and applicable capability exceptions once; reuse that investigation across capabilities while its inputs remain current.
 
 | Request | Bounded responsibility |
 | --- | --- |
@@ -23,7 +23,7 @@ Understand the request and authorized scope. Read the project's AGENTS/index and
 | Parallel implementation / delegated resume | `swarm`: disjoint ownership, dependencies, existing task/execution handles, evidence and main-agent integration. Independent challenge stays in `multi-agent-review`. |
 | Verify | Project guide/adapter and the affected actual user flow. Select from behavior and risk; inspect raw outcomes. |
 | Investigate | Existing task can retain read-only observations without workflow setup. Unknown observations stay unknown. |
-| Show results | Connect/read existing work; for a person render `lookup --report` (Markdown Feature × business/architecture × FE/API/Domain view). No tests, repairs, services or new task. |
+| Show results | Render `lookup --report` for a task or `audit --report` for the project (Markdown Feature × business/architecture × FE/API/Domain view) and answer from it; ask the user its *Questions for the user* in the same turn and record the answers. An unconnected project reports NOT_CONNECTED: say so and offer setup. No tests, repairs, services or new task. |
 | Maintain | `maintain-project-verification`; also `maintain-agent-harness` only for affected Harness mapping/cohort/retention. |
 | Feedback | Existing `diagnose`: actual caller/state/data flow, cause owner, focused repair and appropriate prevention. |
 | Keep this approach / make it repeatable | [Feedback and success reuse](references/feedback-and-success.md): classify the signal, improve the existing owner or discovery, and extract only the context needed for the next invocation. |

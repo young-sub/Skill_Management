@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/project-verification.md -->
-<!-- Source-SHA256: 410337ccc956780b6318e96adb5de7153b4423ee4ed8bd7d9d90656b3580f86e -->
+<!-- Source-SHA256: a69ce285124f98844e1178413077190c295781148205f1a35324290432918650 -->
 
 # Project verification responsibilities
 
@@ -145,6 +145,18 @@ Keep planned, not-run, skip and not_required distinct from success. Required zer
 Feature changes update map/guide/active selectors in the same functional diff/commit; completion review checks missing links, dead commands and removed-feature residues. Historical results are retained with their original target and criteria. Detailed runs live in the project temporary-work root; durable guides contain current methods, not copied PASS records.
 
 ## Detection value and measured maintenance
+
+A PASS shows that the checks ran; it does not show that they detect defects. For
+each business rule a Feature claims to protect, measure detection with a
+controlled-fault probe in an isolated copy. Change one rule at its owner (drop a
+guard, invert a boundary, reorder a priority or ignore a state flag), run the
+Feature's registered checks, and record whether they fail. Restore the copy
+byte-for-byte after each probe. A probe that still passes is a coverage gap:
+record it on the Feature map (rule, probe, surviving checks) and add a
+discriminating regression before the Feature's matrix claims that rule. Never
+leave a probe in the product tree, and label any probe evidence as synthetic.
+Re-run the probes when the rule's owner or its checks change.
+
 
 `project_workflow.py maintain --root <project> --state .work/task.json
 --history-bundle .work/retained/bundle.json` is read-only. It consumes explicitly

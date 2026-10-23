@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/repair-and-reuse.md -->
-<!-- Source-SHA256: 7b9ed65fd6c80bac33480a670219a01f4f1fd32ae28b2a0f4a3774b5a8effcbe -->
+<!-- Source-SHA256: 21d8334f887e8d13c2be1684fbf6f80ff94bcd9d4bf5ba980bf9a88894906ec5 -->
 
 # Repair and subsequent reuse
 
@@ -151,6 +151,12 @@ and pass in current GREEN; missing, failed or weakened bypass evidence keeps OPE
 Existing records without the field retain their previous bounded evidence, not
 an implicit claim that alternate bypasses were tested. Structural prevention uses
 its existing `prevention_review.bypass` instead.
+
+Automatic (fixed-oracle) prevention also needs the alternate path: either
+`bypass_pointers` observed failing in RED and passing in GREEN, or
+`guardrail.bypass_absence` with an analysis (at least a sentence) and the
+inspected Feature source files showing no other path exists. Without one the
+feedback stays OPEN (`guardrail.bypass_pointers_or_bypass_absence`).
 
 ## Structural or type/constraint prevention
 

@@ -178,3 +178,19 @@ The public API static check and TaskStore process regressions protect shared own
 Keep failures, retries, assistance, raw reports and screenshots under `.work/`; cleanup removes only owned temporary resources. Frozen-package verification pins the clean source commit and package hashes before/after actual consumption (`PYTHONDONTWRITEBYTECODE=1` for child processes). Do not overwrite old evidence or call prior tests current. Fixture, package CLI, real product, native discovery/hook and protected-host acceptance are separate results.
 
 [Historical testing notes](research/archive/testing-through-0.1.68.md) retain earlier version-specific regressions and benchmark manifests. Benchmark commands live in `scripts/evaluate_benchmark.py` and `scripts/run_benchmark_agent.py`; use their help and the [benchmark plan](research/agentic-harness-benchmark-plan.md) only when evaluation can change adoption. Unknown model/usage/cost stays unknown. [Hardening results](research/core-hardening-results.md) and [implementation results](research/agent-workflow-implementation-results.md) are prior evidence, not new runs.
+
+## Skill scenario release gate
+
+Before publishing a release that changes routing, hooks or Skill text, install it and run
+the fixed scenarios against real projects (paid headless sessions):
+
+```powershell
+python scripts/run_skill_scenarios.py --scenarios tests/scenarios/skill_routing.json --output .work/scenario-gate/<new-dir>
+```
+
+Each scenario clones the named project, optionally plants one labelled synthetic fault,
+runs `claude -p` with the installed plugin and records invoked plugin Skills, the hook
+`route`, Stop-guard blocks, cost and post-session probes (the fault re-applied, or an
+alternate-path fault, must make the named checks fail). Exit 1 blocks the release.
+`--dry-run` lists scenarios without cloning or model calls; `tests.distribution.test_skill_scenarios`
+checks the gate logic without model runs.

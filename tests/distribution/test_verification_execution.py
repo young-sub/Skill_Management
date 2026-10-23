@@ -754,6 +754,9 @@ class VerificationExecutionTests(unittest.TestCase):
         if bypass:
             guardrail['bypass_pointers'] = ['$.checks[0].alternate']
             feature['prevention'][0]['bypass_pointers'] = guardrail['bypass_pointers']
+        else:
+            guardrail['bypass_absence'] = {'analysis': 'domain.valid is the only quantity gate; check.py is its sole caller',
+                                           'references': ['domain.py']}
         project = {'commands': {'arithmetic-readback': [sys.executable, 'check.py', '{report_dir}/result.json']},
                    'extensions': {'workflow': {'roots': ['domain.py', 'check.py'], 'state': '.work/state.json', 'features': [feature]}}}
         if maintenance:

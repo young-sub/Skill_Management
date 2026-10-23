@@ -132,3 +132,56 @@ integration to the description change, and Skill discovery for this request rema
 unobserved. The product outcome met the criteria both times by following the
 project's own Harness guidance. Both clones stay under `.work/p2-real-20261022/`.
 The original `yeondoo-link` is unchanged at `d17f0c2`.
+
+## Open defect (recorded 2026-10-23, not yet fixed)
+
+`lookup/resume/audit --report` writes through `sys.stdout` with the console encoding.
+On Windows (cp949), redirecting it to a file produces non-UTF-8 Markdown, so Korean
+outcome text is garbled in UTF-8 viewers. The failure was observed on the real
+yeondoo-link task `9d3d9e0c…`. With `PYTHONIOENCODING=utf-8` the output is correct, and
+JSON output is unaffected because it is ASCII-escaped. Fix: emit the report as UTF-8
+(`sys.stdout.reconfigure(encoding='utf-8')` before writing). Add a test that decodes the
+subprocess bytes as UTF-8 with Korean outcome text.
+
+## Independent re-review on Labeler — 2026-10-23 (recorded, not yet fixed)
+
+Raw: `.work/review-20261023/` (scenario transcripts, mutation logs, `SYNTHETIC-DEFECTS.txt`).
+Product findings are recorded in each product's `docs/검증_공백_기록.md`.
+
+Skill timing, measured with headless Claude Code and installed 0.1.85, using
+natural prompts and no hints:
+
+| Scenario | Expected | Observed | Cost |
+| --- | --- | --- | --- |
+| S1 one-line README edit | no Skill | no Skill, explained no Feature impact | $0.28 / 45 s |
+| S4 explain PIN lock | zoom-out or direct | direct | $0.37 / 51 s |
+| S7 "where were we, continue" | recall | `recall`, read-only | $0.85 / 150 s |
+| S3 / L2 "show what is verified" | agent-workflow `--report` | no Skill, no CLI; hand-parsed raw (13 / 25 Bash) | $0.68 / $1.34 |
+| L4 align modal UI | UI guide discovery | no Skill; found `ui-ux-upgrade.md`, browser-verified | $1.39 / 421 s |
+| L1b customer complaint (planted C2) | diagnose / agent-workflow | no Skill; correct cause commit, RED→GREEN test; **bypass (settle order) unchecked** | $0.46 / 174 s |
+| L3 "connect verification" | setup-project-verification | `setup-project-verification`; 5 Features, executable ledger-boundary rule, real local payment flow, found PortOne defect | $9.65 / 1885 s |
+
+Plugin defects observed:
+
+1. The hook reads stdin with the cp949 locale, so raw UTF-8 Korean prompts lose
+   development detection and unconfigured projects get no guidance (L2 native `{}`).
+2. `--report` file output is not UTF-8 (see the open defect above).
+3. `maintain` crashes on a project without workflow configuration
+   (`'NoneType' object is not subscriptable`).
+4. An unconnected project reports `NOT_CONFIGURED` with exit 0 and "No Harness setup is
+   required". A delegated task in Labeler therefore leaves no matrix, report or
+   feedback record, and the user is not told.
+5. Matrix decisions live only in task state. Project-level "not applicable" cannot be
+   declared, so cells such as Skill_Management FE/API stay UNDECIDED forever.
+6. Copied review text is accepted: yeondoo staff-access architecture:Domain reuses
+   the consultation analysis.
+7. The Stop guard counts any non-inspection command as exercising the edit and
+   does not see Bash file writes.
+8. Business value is hard-coded `NOT_ASSESSED_BY_CODE_CHECKS` and nothing asks the
+   human. Both products had documented targets that were never linked.
+
+Verification-strength evidence: Labeler detected 7/10 mutants; the full suite
+missed frozen-lot reservation, spend order and expired grants. yeondoo-link
+detected 3/8, and its browser suite passed purchase-confirm and scene-reset
+mutants, so a PASS matrix overstated protection. A recurring date-fixed test
+breaks Labeler `npm test` for every Agent.

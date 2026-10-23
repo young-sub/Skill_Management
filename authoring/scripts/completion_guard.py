@@ -16,6 +16,27 @@ DOC_SUFFIXES = {'.md', '.markdown', '.mdx', '.txt', '.rst', '.adoc'}
 INSPECTION = re.compile(r'^\s*(?:git\s+(?:status|diff|log|show|add|commit|branch|rev-parse|restore|stash|checkout)\b'
                         r'|(?:ls|dir|cat|type|head|tail|grep|rg|find|echo|pwd|cd|wc|sed\s+-n|Get-Content|'
                         r'Get-ChildItem|Set-Location|Select-String|Write-Output)\b|$)', re.IGNORECASE)
+HEREDOC = re.compile(r"<<-?\s*(['\"]?)(\w+)\1([^\n]*)\n.*?\n\s*\2[ \t]*(?=\n|$)", re.DOTALL)
+TARGET = r"""['"]?([^\s'";&|<>]+)['"]?"""
+# Shell segments that change files: they are edits, never evidence that behavior ran.
+SHELL_WRITES = [re.compile(pattern, re.IGNORECASE) for pattern in (
+    r'^\s*(?:cat|echo|printf)\b[^>]*>>?\s*' + TARGET,
+    r'^\s*(?:sed|perl)\s+(?:-\w*i\w*|--in-place)\b.*\s' + TARGET + r'\s*$',
+    r'^\s*tee\s+(?:-a\s+)?' + TARGET,
+    r'^\s*(?:Set-Content|Add-Content|Out-File)\b.*?(?:-(?:Literal)?(?:File)?Path\s+)?' + TARGET,
+)]
+
+
+def shell_events(command):
+    """Ordered edit/exec events of one shell command; heredoc bodies are data, not commands."""
+    events = []
+    for part in re.split(r'&&|\|\||;|\||\n', HEREDOC.sub(lambda match: match.group(3), command)):
+        target = next((match.group(1) for pattern in SHELL_WRITES for match in [pattern.search(part)] if match), None)
+        if target:
+            events.append(('edit', target))
+        elif not INSPECTION.match(part):
+            events.append(('exec', part.strip()))
+    return events
 
 
 def turn_events(transcript):
@@ -44,18 +65,18 @@ def turn_events(transcript):
             if block.get('name') in EDIT_TOOLS:
                 events.append(('edit', str(arguments.get('file_path') or arguments.get('notebook_path') or '')))
             elif block.get('name') in EXEC_TOOLS:
-                events.append(('exec', str(arguments.get('command') or '')))
+                events.extend(shell_events(str(arguments.get('command') or '')))
     return events
 
 
 def exercises_behavior(command):
-    return any(not INSPECTION.match(part) for part in re.split(r'&&|\|\||;|\||\n', command))
+    return any(kind == 'exec' for kind, _ in shell_events(command))
 
 
 def unobserved_edits(events, root):
     pending = []
     for kind, value in events:
-        if kind == 'exec' and exercises_behavior(value):
+        if kind == 'exec':
             pending = []
         elif kind == 'edit' and value:
             path = Path(value)
@@ -87,7 +108,8 @@ def guard(payload):
 
 def main():
     try:
-        result = guard(json.load(sys.stdin))
+        # Hosts send UTF-8 JSON; the Windows locale codec would garble non-ASCII paths.
+        result = guard(json.loads(sys.stdin.buffer.read().decode('utf-8-sig')))
     except (OSError, ValueError, TypeError, AttributeError):
         result = {}  # A guard failure must not trap the session.
     print(json.dumps(result))

@@ -148,6 +148,12 @@ Existing records without the field retain their previous bounded evidence, not
 an implicit claim that alternate bypasses were tested. Structural prevention uses
 its existing `prevention_review.bypass` instead.
 
+Automatic (fixed-oracle) prevention also needs the alternate path: either
+`bypass_pointers` observed failing in RED and passing in GREEN, or
+`guardrail.bypass_absence` with an analysis (at least a sentence) and the
+inspected Feature source files showing no other path exists. Without one the
+feedback stays OPEN (`guardrail.bypass_pointers_or_bypass_absence`).
+
 ## Structural or type/constraint prevention
 
 Use an existing Feature `prevention` row and matching feedback `guardrail` with `mechanism: structure` or `type_constraint`, `failure`, `scope`, existing source `owner_refs`, `normal_exception` and `reconsider`. No new registered check, JSON assertion adapter or fabricated RED/GREEN pair is required. The source owner must actually change. Automatic regression prevention keeps its fixed-oracle contract above.

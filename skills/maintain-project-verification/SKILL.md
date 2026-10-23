@@ -4,7 +4,7 @@ description: Audit and repair drift in a project's Feature Map, executable verif
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/maintain-project-verification/SKILL.md -->
-<!-- Source-SHA256: fa0daa66c22b4d54e28a04a44e07a6ed48b07a2149926f36f24ab392f41dc5b9 -->
+<!-- Source-SHA256: 4420e60c84efd65cd3049d94520271f5e7070c5b4e1faf7c023db368d1e0100d -->
 
 
 # Maintain Project Verification
@@ -31,6 +31,6 @@ Consume task-relevant `coverage.gaps` and `ui_systems` from the same audit; reta
 
 Keep feature additions/changes/removals and their map/guide/active selectors in the same functional change. Confirm removed entrypoints really have no callers; remove only active connections and retain historical runs. Execute repaired commands and the affected flow without lowering requirements, assertions, skips or visual baselines. Preserve both verified work and remaining BLOCKED areas.
 
-Review redundant, implementation-coupled or costly checks by the failure each detects. Consolidate only when the remaining mechanism demonstrably rejects the same defect and permits nearby valid behavior. Without that evidence retain the checks and explain why. Counts and coverage alone do not establish value. Do not create a separate test-pruning framework.
+Measure what the checks actually catch with the controlled-fault probe in [detection value](references/project-verification.md#detection-value-and-measured-maintenance) for the rules a Feature claims; a surviving probe is a coverage gap to record and close, not a passing result. Review redundant, implementation-coupled or costly checks by the failure each detects. Consolidate only when the remaining mechanism demonstrably rejects the same defect and permits nearby valid behavior. Without that evidence retain the checks and explain why. Counts and coverage alone do not establish value. Do not create a separate test-pruning framework.
 
 Use the existing workflow CLI's read-only `maintain` action with the current request context returned by `start`/`connect`; inherit `AGENT_WORKFLOW_CONTEXT` or pass `--context`, without rebuilding task paths. Explicit `--history-bundle` paths add measured cost/native error/raw detection links; the action already consumes linked feedback/review runs. Treat `declared_overlap` as a review candidate and measured outcome variation as an investigation input. Record reasoned `check_decisions` in the same semantic review. Consolidation needs old/replacement defect detection and a current nearby normal case; authorized requirement retirement instead needs its reason-specific ownership/criteria/remaining-contract proof and no replacement for the retired rule. See the shared verification reference for fields. Keep unique or unproven detectors.

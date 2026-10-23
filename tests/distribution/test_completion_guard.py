@@ -62,6 +62,21 @@ class CompletionGuardTests(unittest.TestCase):
                               tool('Bash', command='cat src/app.py | head -5'), result()])
         self.assertEqual(decision['decision'], 'block')
 
+    def test_shell_file_writes_are_edits_not_verification(self):
+        for command in ("sed -i 's/a - b/a + b/' src/app.py",
+                        "cat > src/app.py <<'EOF'\nimport os\nprint(os.getcwd())\nEOF",
+                        "cd repo && printf 'x' > src/app.py",
+                        'Set-Content -Path src/app.py -Value x'):
+            with self.subTest(command=command):
+                decision = self.stop([prompt('fix'), tool('Bash', command='python -m unittest'), result(),
+                                      tool('Bash', command=command), result()])
+                self.assertEqual(decision.get('decision'), 'block', decision)
+                self.assertIn('src/app.py', decision['reason'])
+        self.assertEqual(self.stop([prompt('fix'), tool('Bash', command="sed -i 's/a/b/' src/app.py && npm test"),
+                                    result()]), {})
+        self.assertEqual(self.stop([prompt('fix'), self.code_edit(), result(),
+                                    tool('Bash', command='npm test > .work/test.log'), result()]), {})
+
     def test_documentation_outside_project_and_previous_turn_edits_are_ignored(self):
         self.assertEqual(self.stop([prompt('docs'), self.code_edit('docs/guide.md'), result()]), {})
         outside = tool('Write', file_path=str(Path(tempfile.gettempdir()) / 'scratch.py'), content='x')
