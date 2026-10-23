@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: 5ae52b8bfa6e82abe72fb46494270701e23a71b08c33b01cec55ea71cae81587 -->
+<!-- Source-SHA256: 09cfd424451e74c5f720bcf03df177ca4ee7e769ec224e329ea97e49369c673b -->
 
 # Project workflow obligations
 
@@ -17,8 +17,10 @@ values appear as `QUESTION_REQUIRED` and in `summary.questions`/the report's
 options from the requirement documents), record the answer, and re-run the lookup;
 do not leave them unstated or answer them yourself.
 
-Feature `scope` holds durable non-applicability per `perspective:area`
-(`status: NOT_REQUIRED`, `reason`, `decided_by: user|agent`). It applies when a task
+Feature `scope` holds durable decisions per `perspective:area`
+(`status: NOT_REQUIRED` or `APPLIES`, `reason`, `decided_by: user|agent`). Setup commits
+them, because task-state reviews stay in ignored `.work`; `APPLIES` cells need the
+touching task's review and evidence. It applies when a task
 has no decision of its own and is part of the Feature basis. Applicable cells still
 need a task scope review with evidence. A REQUIRED cell whose linked evidence is only
 Agent review shows `REVIEW_ONLY`: it does not block the task, but coverage is not
