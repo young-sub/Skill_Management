@@ -1,5 +1,7 @@
 # Agent Documentation Index
 
+- [Delegated-work verification 0.1.86/0.1.87](research/delegated-work-verification-0.1.86.md): UTF-8 hooks, NOT_CONNECTED, durable scope and human business value, mandatory bypass proof, REVIEW_ONLY, request routes and the paid scenario gate with real-project results.
+
 - [Verification guardrails 0.1.84](research/verification-guardrails-0.1.84.md): human Markdown verification report, final-edit Stop guard, executable architecture/UI guardrail criteria, legacy lookup fix and Feature Map history move.
 
 - [Delegation verification 0.1.83](research/delegation-verification-20261022.md): outcome summaries, actual Labeler storage/permission checks, bypass prevention, guide reuse and proof-backed check consolidation.
