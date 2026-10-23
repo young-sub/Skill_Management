@@ -13,8 +13,10 @@ values appear as `QUESTION_REQUIRED` and in `summary.questions`/the report's
 options from the requirement documents), record the answer, and re-run the lookup;
 do not leave them unstated or answer them yourself.
 
-Feature `scope` holds durable non-applicability per `perspective:area`
-(`status: NOT_REQUIRED`, `reason`, `decided_by: user|agent`). It applies when a task
+Feature `scope` holds durable decisions per `perspective:area`
+(`status: NOT_REQUIRED` or `APPLIES`, `reason`, `decided_by: user|agent`). Setup commits
+them, because task-state reviews stay in ignored `.work`; `APPLIES` cells need the
+touching task's review and evidence. It applies when a task
 has no decision of its own and is part of the Feature basis. Applicable cells still
 need a task scope review with evidence. A REQUIRED cell whose linked evidence is only
 Agent review shows `REVIEW_ONLY`: it does not block the task, but coverage is not
