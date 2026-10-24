@@ -7,58 +7,62 @@ import subprocess
 import sys
 
 
-# Ordered request routes: an observed Skill-discovery gap is closed here, not by longer descriptions.
-# Measured on tests/distribution/fixtures/route_heldout.json as well as the observed prompts.
+# Request routes, measured on tests/distribution/fixtures/route_*.json. In a code repository a message
+# that is not a question, a trivial edit or chit-chat is a task, so it defaults to agent-workflow.
 ROUTES = (
+    ('agent-workflow', 'show what is verified: render lookup/audit --report and answer from it',
+     r'(검증|테스트)\s?(결과|현황|상태)|어떤\s?(테스트|검증)|무엇이\s?검증|검증(되지|이 안|안 된)|테스트\s?(되어|돼)\s?있|'
+     r'검증이?\s?(끝난|됐|된)\s?(거|건)|verification\s(status|results|coverage)|test coverage|been verified|'
+     r'what\s(is|was|gets)\s(tested|verified)|not\scovered|show\s.{0,12}(results|verification)'),
     ('recall', 'resume prior work: reconcile the handoff with the checkout before acting',
      r'어디까지|이어서|이어\s?하|계속\s?하자|하던\s?작업|중단된\s.{0,12}작업|작업\s?계속|where (were|did) we|'
-     r'continue (where|the previous)|left off|pick up where'),
+     r'continue (where|the previous)|left off|pick up .{0,40}(where|from)'),
     ('setup-project-verification', 'connect verification for a flow',
-     r'검증\s?체계|검증.{0,12}연결|연결.{0,12}검증|테스트\s?환경\s?(붙|연결|구성)|(e2e|E2E)\s?테스트를?\s?(연결|붙)|'
-     r'connect\s.{0,20}verification|set\s?up\s.{0,30}(verification|automated (checks|tests))'),
-    ('agent-workflow', 'show what is verified: render lookup/audit --report and answer from it',
-     r'(검증|테스트)\s?(결과|현황|상태)|어떤\s?(테스트|검증)|무엇이\s?검증|검증(되지|이 안|안 된)|'
-     r'검증이?\s?(끝난|됐|된)\s?(거|건)|verification\s(status|results|coverage)|test coverage|'
-     r'what\s(is|was|gets)\s(tested|verified)|not\scovered|show\s.{0,12}(results|verification)'),
+     r'검증\s?체계|검증.{0,12}연결|연결.{0,12}검증|테스트\s?환경\s?(붙|연결|구성)|테스트를?\s?붙여|(e2e|E2E)\s?테스트를?\s?(연결|붙)|'
+     r'connect\s.{0,20}verification|set\s?up\s.{0,30}(verification|automated (checks?|tests?))'),
     ('agent-workflow', 'guardrail: express the rule in the existing linter/runner and prove it rejects a synthetic violation',
      r'가드레일|재발\s?방지|린트|다시\s?들어오지\s?못하게|막는\s?규칙|guardrail|\blint\b|boundary rule|CI check'),
     ('agent-workflow', 'UI standards: discover the project UI guide and shared token/component owners before editing',
-     r'통일감?|일관되게|제각각|스타일\s?가이드|디자인\s?(기준|시스템)|\bUI\b.{0,12}(정리|맞춰|통일|개선)|design system|style guide'),
-    ('diagnose', 'reported incorrect behavior: reproduce, find the cause owner, block the original and alternate paths',
-     r'버그|고장|깨져|깨짐|잘려|사라졌|사라져|엉뚱|틀려|틀린|이상(해|하게|한|하다)|신고|원인|왜\s?그런지|빈\s?(파일|화면|값)|'
-     r'안\s?(돼|되|나와|나오|열려|보여|늘어)|(는데|은데)\s?(안|못)\s|(돼|되어)\s?버(려|린)|다시는?\s?(이런|없|안)|'
-     r'(오류|에러)(가|이)\s|고객.{0,12}(문의|불만|항의|화)|제보|항의|(했|됐|인|는)데도?\s|두\s?번\s?(차감|결제|청구)|'
-     r'마이너스|음수로|하얀\s?화면|흰\s?화면|\bbug\b|\bbroken\b|\bwrong\b|\bfail(s|ing)\b|crash|complain|are seeing|'
-     r'never (arrives|loads|shows)|doesn.?t work|not working|regress', True),
-    # Default: any other request phrased as an ask goes through the delegation loop.
-    ('agent-workflow', 'delegated change: acceptance first, prove the checks catch the defect, run affected checks, result card',
-     r'주세요|줘|하자|합시다|바랍니다|부탁|싶어요|싶습니다|원해요|(해|되어)야\s?(해|합니다|돼)|\bwe need\b|\bwant\b|\bplease\b|\b(can|could|would) you\b|\bneed to\b|'
-     r'^\s*(add|implement|build|create|refactor|change|update|support|introduce|make|fix|remove|move|allow|prevent|limit)\b', True),
+     r'통일감?|일관되게|제각각|스타일\s?가이드|디자인\s?(기준|시스템)|\bUI\b.{0,12}(정리|맞춰|통일|개선)|design system|'
+     r'design tokens?|style guide'),
 )
+SYMPTOM = (r'버그|고장|깨져|깨짐|잘려|사라졌|사라져|엉뚱|틀려|틀린|이상(해|하게|한|하다)|신고|원인|왜\s?그런지|빈\s?(파일|화면|값)|'
+           r'안\s?(돼|되|나와|나오|열려|보여|늘어)|(는데|은데)\s?(안|못)\s|(돼|되어)\s?버(려|린)|다시는?\s?(이런|없|안)|'
+           r'(오류|에러)(가|이)\s|고객.{0,12}(문의|불만|항의|화)|제보|항의|(했|됐|인|는)데도?\s|두\s?번\s?(차감|결제|청구)|'
+           r'마이너스|음수로|하얀\s?화면|흰\s?화면|\bbug\b|\bbroken\b|\bwrong\b|\bfail(s|ing)\b|crash|complain|are seeing|'
+           r'never (arrives|loads|shows)|doesn.?t work|not working|regress')
+DIAGNOSE = ('diagnose', 'reported incorrect behavior: reproduce, find the cause owner, block the original and alternate paths')
+DELEGATE = ('agent-workflow', 'delegated work: acceptance first, prove the checks catch the defect, run affected checks, result card')
 
-
-# Direct work: quoted copy or label edits, renames, version bumps, questions, reviews and summaries
-# without a fix request. Explicit routes above the guarded ones still apply.
+# Direct work: quoted copy or label edits, renames, version bumps, questions, reviews, summaries and
+# recommendations without a fix request, and very short messages.
 QUOTE = '["\'‘’“”]'
 TRIVIAL_EDIT = (QUOTE + r'.+' + QUOTE + r'.{0,30}(바꿔|추가|넣어|수정)|(문구|이름|제목|오타|한\s?줄|라벨|버전)\S*\s.{0,40}' + QUOTE
-                + r'|버전을?\s.{0,15}(올려|바꿔)|\brename\b|bump the version')
-QUESTION = (r'(설명해|무슨\s?의미|뭐야|어떻게\s?(읽|보)|알려\s?줘|방법|법을?\s|차이가|리뷰|요약|번역해|추천|recommend|'
-            r'(커밋|로그|log)\S*\s?(만\s)?보여|explain|what does|how (do|does|to)|\breview\b|summari[sz]e|translate|\?\s*$)')
+                + r'|버전을?\s.{0,15}(올려|바꿔)|(함수|변수|파일)\s?이름|\brename\b|\btypo\b|bump the version')
+QUESTION = (r'설명해|무슨\s?의미|뭐야|어떻게\s?(읽|보)|알려\s?줘|방법|법을?\s|차이가|리뷰|요약|번역해|추천|recommend|'
+            r'(커밋|로그|log)\S*\s?(만\s)?보여|explain|what does|how (do|does|to)|difference between|\breview\b|summari[sz]e|translate')
 FIX_REQUEST = r'고쳐|수정해|막아|해결|\bfix\b'
 
 
 def request_route(prompt):
     if not isinstance(prompt, str):
         return None
-    direct = len(prompt.strip()) < 12 or bool(re.search(TRIVIAL_EDIT, prompt, re.I) or (
-        re.search(QUESTION, prompt, re.I) and not re.search(FIX_REQUEST, prompt, re.I)))
-    for skill, reason, pattern, *guarded in ROUTES:
-        if guarded and direct:
-            continue
+
+    def route(skill, reason):
+        return {'skill': skill, 'plugin': 'agentic-coding', 'reason': reason,
+                'instruction': f'Invoke the {skill} Skill before other work unless the request is a trivial edit.'}
+
+    for skill, reason, pattern in ROUTES:
         if re.search(pattern, prompt, re.I):
-            return {'skill': skill, 'plugin': 'agentic-coding', 'reason': reason,
-                    'instruction': f'Invoke the {skill} Skill before other work unless the request is a trivial edit.'}
-    return None
+            return route(skill, reason)
+    if len(prompt.strip()) < 12 or re.search(TRIVIAL_EDIT, prompt, re.I) or (
+            re.search(QUESTION, prompt, re.I) and not re.search(FIX_REQUEST, prompt, re.I)):
+        return None
+    if re.search(SYMPTOM, prompt, re.I):
+        return route(*DIAGNOSE)
+    if re.search(r'\?\s*$', prompt):
+        return None  # A plain question without a reported symptom stays direct.
+    return route(*DELEGATE)
 
 
 def hook_output(summary):

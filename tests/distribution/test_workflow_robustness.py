@@ -122,6 +122,10 @@ class WorkflowRobustnessTests(unittest.TestCase):
         for prompt, category in fresh['prompts']:
             with self.subTest(prompt=prompt):
                 self.assertEqual((route(prompt) or {}).get('skill'), categories[category])
+        fresh2 = json.loads((ROOT / 'tests/distribution/fixtures/route_fresh2.json').read_text(encoding='utf-8'))
+        loaded = [bool(route(prompt)) for prompt, category in fresh2['prompts'] if category != 'trivial']
+        self.assertGreaterEqual(sum(loaded), len(loaded) - 1, 'non-trivial work loads the plugin')
+        self.assertFalse(any(route(prompt) for prompt, category in fresh2['prompts'] if category == 'trivial'))
         for kind in ('unconfigured', 'configured'):
             root = self.project(kind)
             prompt = prompts['L1 customer complaint'][0]

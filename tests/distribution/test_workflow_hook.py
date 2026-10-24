@@ -47,7 +47,7 @@ class WorkflowHookTests(unittest.TestCase):
             no_git = mock.Mock(side_effect=AssertionError('unselected prompts must not run git or the runtime'))
             with mock.patch.dict(os.environ, AGENT_WORKFLOW_CONTEXT=''), \
                  mock.patch.dict(hook.__globals__, {'subprocess': mock.Mock(run=no_git)}):
-                for prompt in ('Plan the change', 'Translate hello into Korean', 'Explain how sessions refresh'):
+                for prompt in ('What does this regex match?', 'Translate hello into Korean', 'Explain how sessions refresh'):
                     self.assertEqual(hook({'hook_event_name': 'UserPromptSubmit', 'cwd': str(root), 'prompt': prompt}), {})
                 result = hook({'hook_event_name': 'UserPromptSubmit', 'cwd': str(root), 'prompt': 'show results only'})
             detail = json.loads(result['hookSpecificOutput']['additionalContext'].split('\n', 1)[1])
