@@ -1,0 +1,45 @@
+{
+  "authoring_base": "46356b2ecf339dde150c260cabe8d98515ea9270",
+  "authoring_branch": "wp-20261024-lean-delegation",
+  "platform": "Windows-10-10.0.19045-SP0",
+  "source_repositories": {
+    "labeler": {
+      "head": "6d4551548f0fad640d68b3caf6b1eb26df337569",
+      "status": "",
+      "pin": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+      "installed_modules": {
+        "vite": "8.2.2",
+        "vitest": "4.1.11",
+        "react": "19.2.8",
+        "react-dom": "19.2.8",
+        "typescript": "6.0.3",
+        "@cloudflare/vitest-plugin": "1.1.2"
+      },
+      "final_observation": {
+        "head": "6d4551548f0fad640d68b3caf6b1eb26df337569",
+        "status": ""
+      },
+      "observed_head_status_unchanged": true
+    },
+    "yeondoo-link": {
+      "head": "d17f0c2322056a4d804c911b83d6cc1b1738a083",
+      "status": "M .harness/project.yaml\n M docs/verification.md\n?? \"docs/\\352\\262\\200\\354\\246\\235_\\352\\263\\265\\353\\260\\261_\\352\\270\\260\\353\\241\\235.md\"",
+      "pin": "d17f0c2322056a4d804c911b83d6cc1b1738a083",
+      "installed_modules": {
+        "vite": "8.3.0",
+        "react": "19.3.0",
+        "react-dom": "19.3.0",
+        "typescript": "7.0.2"
+      },
+      "final_observation": {
+        "head": "d17f0c2322056a4d804c911b83d6cc1b1738a083",
+        "status": "M .harness/project.yaml\n M docs/verification.md\n?? \"docs/\\352\\262\\200\\354\\246\\235_\\352\\263\\265\\353\\260\\261_\\352\\270\\260\\353\\241\\235.md\""
+      },
+      "observed_head_status_unchanged": true
+    }
+  },
+  "no_commits_created": true,
+  "node": "v22.23.1",
+  "npm.cmd": "10.9.8",
+  "git": "git version 2.50.1.windows.1"
+}

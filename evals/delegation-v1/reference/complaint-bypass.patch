@@ -1,0 +1,13 @@
+diff --git a/src/shared/product.ts b/src/shared/product.ts
+index dd6fc7e..039c221 100644
+--- a/src/shared/product.ts
++++ b/src/shared/product.ts
+@@ -64,7 +64,7 @@ export const updateProductSchema = z.object({
+   expectedVersion: z.number().int().min(1),
+   categoryId: z.string().min(1).optional(),
+   nameKo: z.string().trim().min(1).max(100).optional(),
+-  descriptionKo: z.string().trim().min(1).max(800).optional(),
++  descriptionKo: z.string().trim().min(1).max(500).optional(),
+   templateKeyOverride: z.string().trim().min(1).optional().nullable(),
+   currencyCode: z.enum(PRODUCT_CURRENCIES).optional(),
+   offers: offersSchema.optional(),

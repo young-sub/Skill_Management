@@ -1,0 +1,42 @@
+{
+  "id": "complaint-bypass",
+  "area": "Feedback",
+  "project": "C:/Users/YS/Desktop/python/labeler",
+  "ref": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+  "links": ["node_modules"],
+  "budget_seconds": 1800,
+  "fault": {
+    "file": "src/shared/product.ts",
+    "find": "descriptionKo: z.string().trim().min(1).max(500).optional(),",
+    "replace": "descriptionKo: z.string().trim().min(1).max(800).optional(),",
+    "commit_message": "Fix product edit description limit"
+  },
+  "prompt": "상품을 새로 등록할 때는 설명이 500자를 넘으면 막히는데, 기존 상품을 수정할 때는 500자가 넘는 설명도 저장돼요. 수정할 때도 새 상품과 같은 기준으로 제한해 주세요.",
+  "regression": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts src/client/ProductForm.test.tsx",
+  "hidden": [
+    {
+      "name": "consistent-product-description-limit",
+      "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/zz-eval-complaint-bypass.test.ts",
+      "expect": "pass",
+      "files": {
+        "tests/zz-eval-complaint-bypass.test.ts": "hidden/complaint-bypass/zz-eval-complaint-bypass.test.ts"
+      }
+    }
+  ],
+  "probes": [
+    {
+      "name": "allows-overlong-new-product",
+      "file": "src/shared/product.ts",
+      "find": "descriptionKo: z.string().trim().min(1).max(500),",
+      "replace": "descriptionKo: z.string().trim().min(1).max(800),",
+      "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts src/client/ProductForm.test.tsx"
+    },
+    {
+      "name": "allows-overlong-product-edit",
+      "file": "src/shared/product.ts",
+      "find": "descriptionKo: z.string().trim().min(1).max(500).optional(),",
+      "replace": "descriptionKo: z.string().trim().min(1).max(800).optional(),",
+      "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts src/client/ProductForm.test.tsx"
+    }
+  ]
+}

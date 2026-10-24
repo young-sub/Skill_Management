@@ -1,0 +1,101 @@
+﻿
+ RUN  v4.1.11 C:/Users/YS/AppData/Local/Temp/claude/eval-authoring/labeler-rules-20261024b/labeler
+
+ ❯ tests/zz-eval-rule-all-paths.test.ts (4 tests | 4 failed) 356ms
+   × rejects product descriptions over 300 characters on create and update 47ms
+   × does not copy a legacy product whose description is over the current limit 64ms
+   × rejects overlong descriptions in the bulk product import 35ms
+   × blocks a backup restore containing an overlong product description 209ms
+System.Management.Automation.RemoteException
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+System.Management.Automation.RemoteException
+ FAIL  tests/zz-eval-rule-all-paths.test.ts > rejects product descriptions over 300 characters on create and update
+AssertionError: expected 201 to be 400 // Object.is equality
+System.Management.Automation.RemoteException
+- Expected
++ Received
+System.Management.Automation.RemoteException
+- 400
++ 201
+System.Management.Automation.RemoteException
+ ❯ tests/zz-eval-rule-all-paths.test.ts:19:33
+     17|   const long = description(301);
+     18|   const createRejected = await post("/api/products", input(`eval-creat…
+     19|   expect(createRejected.status).toBe(400);
+       |                                 ^
+     20|
+     21|   const sourceResponse = await post("/api/products", input(`eval-copy-…
+System.Management.Automation.RemoteException
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+System.Management.Automation.RemoteException
+ FAIL  tests/zz-eval-rule-all-paths.test.ts > does not copy a legacy product whose description is over the current limit
+AssertionError: expected 201 to be 400 // Object.is equality
+System.Management.Automation.RemoteException
+- Expected
++ Received
+System.Management.Automation.RemoteException
+- 400
++ 201
+System.Management.Automation.RemoteException
+ ❯ tests/zz-eval-rule-all-paths.test.ts:38:25
+     36|   await (env as Env).DB.prepare("UPDATE products SET description_ko = …
+     37|   const copied = await post(`/api/products/${source.id}/duplicate`, {}…
+     38|   expect(copied.status).toBe(400);
+       |                         ^
+     39|   expect(await (env as Env).DB.prepare("SELECT COUNT(*) AS count FROM …
+     40|     .bind(`${source.nameKo}%`).first<number>("count")).toBe(1);
+System.Management.Automation.RemoteException
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+System.Management.Automation.RemoteException
+ FAIL  tests/zz-eval-rule-all-paths.test.ts > rejects overlong descriptions in the bulk product import
+AssertionError: expected 'create' to be 'invalid' // Object.is equality
+System.Management.Automation.RemoteException
+Expected: "invalid"
+Received: "create"
+System.Management.Automation.RemoteException
+ ❯ tests/zz-eval-rule-all-paths.test.ts:52:34
+     50|   };
+     51|   const preview = ((await (await post("/api/product-import/preview", {…
+     52|   expect(preview.rows[0].status).toBe("invalid");
+       |                                  ^
+     53|   const applied = ((await (await post("/api/product-import/apply", { r…
+     54|   expect(applied).toMatchObject({ createdRows: 0, invalidRows: 1 });
+System.Management.Automation.RemoteException
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+System.Management.Automation.RemoteException
+ FAIL  tests/zz-eval-rule-all-paths.test.ts > blocks a backup restore containing an overlong product description
+AssertionError: expected { Object (mode, canApply, ...) } to match object { Object (canApply, conflicts) }
+(8 matching properties omitted from actual)
+System.Management.Automation.RemoteException
+- Expected
++ Received
+System.Management.Automation.RemoteException
+  {
+-   "canApply": false,
+-   "conflicts": [
+-     ObjectContaining {
+-       "code": "description_too_long",
+-       "domain": "products",
+-       "key": "e57841e1-4b38-46f9-8fef-8882a24ecc21",
+-     },
+-   ],
++   "canApply": true,
++   "conflicts": [],
+  }
+System.Management.Automation.RemoteException
+ ❯ tests/zz-eval-rule-all-paths.test.ts:66:46
+     64|   const restore = await post("/api/admin/restore/preview", { mode: "up…
+     65|   expect(restore.status).toBe(200);
+     66|   expect((await restore.json() as any).data).toMatchObject({
+       |                                              ^
+     67|     canApply: false,
+     68|     conflicts: [expect.objectContaining({ domain: "products", code: "d…
+System.Management.Automation.RemoteException
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+System.Management.Automation.RemoteException
+
+ Test Files  1 failed (1)
+      Tests  4 failed (4)
+   Start at  10:08:39
+   Duration  6.19s (transform 2.35s, setup 4.25s, import 38ms, tests 356ms, environment 0ms)
+

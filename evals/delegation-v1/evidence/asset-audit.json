@@ -1,0 +1,138 @@
+{
+  "runner_schema_exit": 0,
+  "dry_run_cells": 16,
+  "audits": [
+    {
+      "id": "fullstack-feature",
+      "clone": "C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-authoring\\audit-labeler",
+      "patch_apply_check": 0,
+      "probe_byte_matches": [
+        {
+          "name": "drops-memo-at-domain-write",
+          "byte_matches": 1
+        },
+        {
+          "name": "hides-saved-memo-in-account",
+          "byte_matches": 1
+        }
+      ],
+      "clean_after_reversal": true
+    },
+    {
+      "id": "rule-all-paths",
+      "clone": "C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-authoring\\audit-labeler",
+      "patch_apply_check": 0,
+      "probe_byte_matches": [
+        {
+          "name": "allows-overlong-create-description",
+          "byte_matches": 1
+        },
+        {
+          "name": "skips-restore-description-guard",
+          "byte_matches": 1
+        }
+      ],
+      "clean_after_reversal": true
+    },
+    {
+      "id": "complaint-bypass",
+      "clone": "C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-authoring\\audit-labeler",
+      "patch_apply_check": 0,
+      "probe_byte_matches": [
+        {
+          "name": "allows-overlong-new-product",
+          "byte_matches": 1
+        },
+        {
+          "name": "allows-overlong-product-edit",
+          "byte_matches": 1
+        }
+      ],
+      "clean_after_reversal": true
+    },
+    {
+      "id": "api-contract-change",
+      "clone": "C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-authoring\\audit-labeler",
+      "patch_apply_check": 0,
+      "probe_byte_matches": [
+        {
+          "name": "caps-requested-history-size",
+          "byte_matches": 1
+        },
+        {
+          "name": "rejects-fractional-history-limit",
+          "byte_matches": 1
+        }
+      ],
+      "clean_after_reversal": true
+    },
+    {
+      "id": "ui-consistency",
+      "clone": "C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-authoring\\audit-labeler",
+      "patch_apply_check": 0,
+      "probe_byte_matches": [
+        {
+          "name": "keeps-product-name-associated",
+          "byte_matches": 1
+        },
+        {
+          "name": "keeps-added-catalog-item-disabled",
+          "byte_matches": 1
+        }
+      ],
+      "clean_after_reversal": true
+    },
+    {
+      "id": "sequence-rule-preserve",
+      "clone": "C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-authoring\\audit-labeler",
+      "patch_apply_check": 0,
+      "probe_byte_matches": [
+        {
+          "name": "support-cap-off-by-one",
+          "byte_matches": 1
+        },
+        {
+          "name": "resubmit-reads-another-account",
+          "byte_matches": 1
+        }
+      ],
+      "clean_after_reversal": true
+    },
+    {
+      "id": "fe-logic-feature",
+      "clone": "C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-authoring\\audit-yeondoo-link",
+      "patch_apply_check": 0,
+      "probe_byte_matches": [
+        {
+          "name": "unclassified selection is allowed",
+          "byte_matches": 1
+        },
+        {
+          "name": "catalog out-of-stock item is allowed",
+          "byte_matches": 1
+        },
+        {
+          "name": "medicine pharmacist gate is bypassed",
+          "byte_matches": 1
+        }
+      ],
+      "clean_after_reversal": true
+    },
+    {
+      "id": "fe-bug",
+      "clone": "C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-authoring\\audit-yeondoo-link",
+      "patch_apply_check": 0,
+      "probe_byte_matches": [
+        {
+          "name": "medicine information is exposed before review",
+          "byte_matches": 1
+        },
+        {
+          "name": "purchase sibling bypasses pharmacist review",
+          "byte_matches": 1
+        }
+      ],
+      "clean_after_reversal": true
+    }
+  ]
+}

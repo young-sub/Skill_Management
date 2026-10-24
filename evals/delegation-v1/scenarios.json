@@ -1,0 +1,346 @@
+{
+  "schema_version": 1,
+  "disable_plugins": [
+    "agentic-coding@agentic-coding"
+  ],
+  "incomplete_markers": [
+    "미완료",
+    "완료하지 못",
+    "구현하지 못",
+    "끝내지 못",
+    "마치지 못",
+    "could not complete",
+    "unable to complete",
+    "did not finish",
+    "not finished"
+  ],
+  "scenarios": [
+    {
+      "id": "fullstack-feature",
+      "area": "Fullstack",
+      "project": "C:/Users/YS/Desktop/python/labeler",
+      "ref": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 1800,
+      "prompt": "내 계정의 고객 정보에 저만 볼 수 있는 작업 메모를 추가해 주세요. 기존 약국명·연락처와 함께 수정하고 저장할 수 있으면 좋겠습니다. 메모는 선택 사항이고 앞뒤 공백을 뺀 200자까지 받되, 200자를 넘으면 다른 고객 정보까지 함께 저장되지 않게 해 주세요. 빈 메모를 저장하면 지워져야 하고 다시 접속해도 저장한 내용이 보여야 합니다. 무료 회원도 쓸 수 있고 다른 회원에게는 보이면 안 됩니다. 연동용 프로필 API에서는 이 값을 workMemo로 주고받으면 됩니다.",
+      "regression": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/socialAuth.test.ts tests/accountIsolation.test.ts src/client/BillingManager.test.tsx src/client/Account.test.tsx",
+      "hidden": [
+        {
+          "name": "private-work-memo",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/zz-eval-fullstack-feature.test.ts src/client/zz-eval-fullstack-feature.test.tsx",
+          "expect": "pass",
+          "files": {
+            "tests/zz-eval-fullstack-feature.test.ts": "hidden/fullstack-feature/zz-eval-fullstack-feature.test.ts",
+            "src/client/zz-eval-fullstack-feature.test.tsx": "hidden/fullstack-feature/zz-eval-fullstack-feature.test.tsx"
+          }
+        }
+      ],
+      "probes": [
+        {
+          "name": "drops-memo-at-domain-write",
+          "file": "src/worker/accountProfiles.ts",
+          "find": "values.push(input.workMemo?.trim() || null);",
+          "replace": "values.push(null);",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/socialAuth.test.ts tests/accountIsolation.test.ts src/client/BillingManager.test.tsx src/client/Account.test.tsx src/client/AccountManager.test.tsx tests/accountProfiles.test.ts --maxWorkers=4 --testTimeout=20000 --hookTimeout=20000"
+        },
+        {
+          "name": "hides-saved-memo-in-account",
+          "file": "src/client/AccountManager.tsx",
+          "find": "<dd>{profileValue(data.workMemo)}</dd>",
+          "replace": "<dd>{profileValue(null)}</dd>",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/socialAuth.test.ts tests/accountIsolation.test.ts src/client/BillingManager.test.tsx src/client/Account.test.tsx src/client/AccountManager.test.tsx tests/accountProfiles.test.ts --maxWorkers=4 --testTimeout=20000 --hookTimeout=20000"
+        }
+      ]
+    },
+    {
+      "id": "rule-all-paths",
+      "area": "Domain",
+      "project": "C:/Users/YS/Desktop/python/labeler",
+      "ref": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 1800,
+      "prompt": "상품 설명이 너무 길면 관리하기도 어렵고 화면이 지저분해집니다. 앞으로 상품 설명은 300자까지만 저장되도록 해 주세요. 300자를 넘는 내용은 저장되지 않게 부탁합니다.",
+      "regression": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts tests/backup.test.ts tests/productCatalog.test.ts src/client/ProductForm.test.tsx src/client/ProductCatalogFinder.test.tsx",
+      "hidden": [
+        {
+          "name": "product-description-limit-all-writes",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/zz-eval-rule-all-paths.test.ts",
+          "expect": "pass",
+          "files": {
+            "tests/zz-eval-rule-all-paths.test.ts": "hidden/rule-all-paths/zz-eval-rule-all-paths.test.ts"
+          }
+        }
+      ],
+      "probes": [
+        {
+          "name": "allows-overlong-create-description",
+          "file": "src/shared/product.ts",
+          "find": "descriptionKo: z.string().trim().min(1).max(MAX_PRODUCT_DESCRIPTION_LENGTH),",
+          "replace": "descriptionKo: z.string().trim().min(1).max(500),",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts tests/backup.test.ts tests/productCatalog.test.ts src/client/ProductForm.test.tsx src/client/ProductCatalogFinder.test.tsx"
+        },
+        {
+          "name": "skips-restore-description-guard",
+          "file": "src/worker/backup.ts",
+          "find": "for (const product of backup.data.products) if (product.description_ko.length > MAX_PRODUCT_DESCRIPTION_LENGTH) conflicts.push({",
+          "replace": "for (const product of backup.data.products) if (false) conflicts.push({",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts tests/backup.test.ts tests/productCatalog.test.ts src/client/ProductForm.test.tsx src/client/ProductCatalogFinder.test.tsx"
+        }
+      ]
+    },
+    {
+      "id": "complaint-bypass",
+      "area": "Feedback",
+      "project": "C:/Users/YS/Desktop/python/labeler",
+      "ref": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 1800,
+      "fault": {
+        "file": "src/shared/product.ts",
+        "find": "descriptionKo: z.string().trim().min(1).max(500).optional(),",
+        "replace": "descriptionKo: z.string().trim().min(1).max(800).optional(),",
+        "commit_message": "Fix product edit description limit"
+      },
+      "prompt": "상품을 새로 등록할 때는 설명이 500자를 넘으면 막히는데, 기존 상품을 수정할 때는 500자가 넘는 설명도 저장돼요. 수정할 때도 새 상품과 같은 기준으로 제한해 주세요.",
+      "regression": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts src/client/ProductForm.test.tsx",
+      "hidden": [
+        {
+          "name": "consistent-product-description-limit",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/zz-eval-complaint-bypass.test.ts",
+          "expect": "pass",
+          "files": {
+            "tests/zz-eval-complaint-bypass.test.ts": "hidden/complaint-bypass/zz-eval-complaint-bypass.test.ts"
+          }
+        }
+      ],
+      "probes": [
+        {
+          "name": "allows-overlong-new-product",
+          "file": "src/shared/product.ts",
+          "find": "descriptionKo: z.string().trim().min(1).max(500),",
+          "replace": "descriptionKo: z.string().trim().min(1).max(800),",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts src/client/ProductForm.test.tsx"
+        },
+        {
+          "name": "allows-overlong-product-edit",
+          "file": "src/shared/product.ts",
+          "find": "descriptionKo: z.string().trim().min(1).max(500).optional(),",
+          "replace": "descriptionKo: z.string().trim().min(1).max(800).optional(),",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts src/client/ProductForm.test.tsx"
+        }
+      ]
+    },
+    {
+      "id": "api-contract-change",
+      "area": "BE",
+      "project": "C:/Users/YS/Desktop/python/labeler",
+      "ref": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 1800,
+      "prompt": "번역 이력 API(GET /api/translations/jobs)에 limit 값을 받을 수 있게 해 주세요. limit을 주지 않으면 기존처럼 최신순 100건을 배열로 반환하고, 지정하면 해당 건수만큼 최신 작업을 보여 주세요. 한 번에 100건을 넘게 보여주지는 말아 주세요. 값이 숫자가 아니거나 1보다 작거나 정수가 아니면 기존처럼 최근 100건을 보여 주세요. 응답 구조와 최신순 정렬은 기존과 같아야 합니다.",
+      "regression": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/credits.test.ts tests/translationCredits.test.ts tests/fieldTranslations.test.ts tests/catalogTranslationReuse.test.ts src/client/TranslationManager.test.tsx",
+      "hidden": [
+        {
+          "name": "translation-history-limit-contract",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/zz-eval-api-contract-change.test.ts",
+          "expect": "pass",
+          "files": {
+            "tests/zz-eval-api-contract-change.test.ts": "hidden/api-contract-change/tests/zz-eval-api-contract-change.test.ts"
+          }
+        }
+      ],
+      "probes": [
+        {
+          "name": "caps-requested-history-size",
+          "file": "src/worker/index.ts",
+          "find": "Math.min(requestedLimit, 100)",
+          "replace": "requestedLimit",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --changed 984e4f646e08b75a8dfc4b9c62913670960c1659 --configLoader runner --cache=false --maxWorkers=4 --testTimeout=20000 --hookTimeout=20000"
+        },
+        {
+          "name": "rejects-fractional-history-limit",
+          "file": "src/worker/index.ts",
+          "find": "Number.isInteger(requestedLimit) && requestedLimit > 0",
+          "replace": "requestedLimit > 0",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --changed 984e4f646e08b75a8dfc4b9c62913670960c1659 --configLoader runner --cache=false --maxWorkers=4 --testTimeout=20000 --hookTimeout=20000"
+        }
+      ]
+    },
+    {
+      "id": "ui-consistency",
+      "area": "UI",
+      "project": "C:/Users/YS/Desktop/python/labeler",
+      "ref": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 1800,
+      "prompt": "상품 찾기에서 상품 이름을 누르면 해당 상품의 체크박스가 선택되도록 이름을 체크박스 라벨로 연결해 주세요. 체크박스만 누르지 않고 상품 이름 영역을 눌러도 선택할 수 있으면 좋겠습니다. 이미 계정에 추가한 상품은 지금처럼 다시 선택되지 않아야 합니다.",
+      "regression": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false src/client/ProductCatalogFinder.test.tsx",
+      "hidden": [
+        {
+          "name": "product-name-selection-and-added-state",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false src/client/zz-eval-ui-consistency.test.tsx",
+          "expect": "pass",
+          "files": {
+            "src/client/zz-eval-ui-consistency.test.tsx": "hidden/ui-consistency/src/client/zz-eval-ui-consistency.test.tsx"
+          }
+        }
+      ],
+      "probes": [
+        {
+          "name": "keeps-product-name-associated",
+          "file": "src/client/ProductCatalogFinder.tsx",
+          "find": "<label className=\"catalog-product-select\" htmlFor={`catalog-product-${item.id}`}>",
+          "replace": "<label className=\"catalog-product-select\">",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --changed 984e4f646e08b75a8dfc4b9c62913670960c1659 --configLoader runner --cache=false --maxWorkers=4 --testTimeout=20000 --hookTimeout=20000"
+        },
+        {
+          "name": "keeps-added-catalog-item-disabled",
+          "file": "src/client/ProductCatalogFinder.tsx",
+          "find": "disabled={added || busy || catalog.isFetching || searchTooShort}",
+          "replace": "disabled={busy || catalog.isFetching || searchTooShort}",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --changed 984e4f646e08b75a8dfc4b9c62913670960c1659 --configLoader runner --cache=false --maxWorkers=4 --testTimeout=20000 --hookTimeout=20000"
+        }
+      ]
+    },
+    {
+      "id": "sequence-rule-preserve",
+      "area": "Sequence",
+      "project": "C:/Users/YS/Desktop/python/labeler",
+      "ref": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 2700,
+      "prompts": [
+        "일반 문의를 많이 열어 놓는 경우가 있어요. 계정마다 종료되지 않은 일반 문의는 최대 세 건만 접수하도록 해 주세요. 처리 중인 문의와 목록에서 숨긴 문의도 종료 전이면 세어야 하고, 종료된 문의는 한도에서 빼 주세요. 같은 전송의 재시도는 중복 접수하지 않고 원래 결과를 돌려줘야 합니다. 한도를 넘는 접수는 409와 support_request_limit 코드로 안내해 주세요. 환불 요청은 이 일반 문의 한도와 별개입니다.",
+        "완료된 일반 문의와 같은 내용을 다시 문의하고 싶습니다. POST /api/account-requests/:id/resubmit 에 새 requestId를 보내면 본인의 완료된 일반 문의 내용으로 새 일반 문의를 접수하도록 해 주세요. 원래 문의의 답변과 상태는 보존하고, 새 문의는 답변 없는 열린 상태로 시작해야 합니다. 같은 requestId의 재시도는 같은 새 문의를 돌려주면 됩니다. 다른 회원의 문의는 404, 아직 종료되지 않았거나 숨긴 문의와 일반 문의가 아닌 건은 409로 안내해 주세요."
+      ],
+      "regression": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/accountRequests.test.ts tests/accountRequestRefund.test.ts tests/accountIsolation.test.ts",
+      "hidden": [
+        {
+          "name": "support-cap-survives-resubmit",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/zz-eval-sequence-rule-preserve.test.ts",
+          "expect": "pass",
+          "files": {
+            "tests/zz-eval-sequence-rule-preserve.test.ts": "hidden/sequence-rule-preserve/zz-eval-sequence-rule-preserve.test.ts"
+          }
+        }
+      ],
+      "probes": [
+        {
+          "name": "support-cap-off-by-one",
+          "file": "src/worker/accountRequests.ts",
+          "find": "AND status <> 'closed') < 3",
+          "replace": "AND status <> 'closed') < 4",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --changed 984e4f646e08b75a8dfc4b9c62913670960c1659 --maxWorkers=4 --testTimeout=20000 --hookTimeout=20000"
+        },
+        {
+          "name": "resubmit-reads-another-account",
+          "file": "src/worker/accountRequests.ts",
+          "find": "  const source = await ownedRequest(c.env.DB, c.get('actor').id, id.data);",
+          "replace": "  const source = await c.env.DB.prepare(`${requestSelect} WHERE r.id = ?`).bind(id.data).first<RequestRow>();",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --changed 984e4f646e08b75a8dfc4b9c62913670960c1659 --maxWorkers=4 --testTimeout=20000 --hookTimeout=20000"
+        }
+      ]
+    },
+    {
+      "id": "fe-logic-feature",
+      "area": "FE",
+      "prompt": "구매 검토 화면에서 선택한 상품들을 장바구니에 한 번에 담는 `add-selected-to-cart` 동작을 추가해 주세요. 기존 장바구니 수량에 선택한 수량을 더하고, 상품별 수량은 99개를 넘지 않게 해 주세요. 재고가 없거나 분류가 정해지지 않은 상품은 담을 수 없고, 약사 확인이 필요한 의약품은 확인이 끝난 뒤에만 담을 수 있어야 합니다. 하나라도 담을 수 없는 상품이 있으면 일부만 추가하지 말고 장바구니를 그대로 두고 선택도 유지해 주세요.",
+      "project": "C:/Users/YS/Desktop/python/yeondoo-link",
+      "ref": "d17f0c2322056a4d804c911b83d6cc1b1738a083",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 1800,
+      "regression": "set \"NODE_OPTIONS=--require=C:/Users/YS/Desktop/python/Skill_Management/evals/delegation-v1/evidence/fe-logic-feature/vite-temp-safe-host.cjs\" && node --experimental-strip-types --test scripts/*.test.mjs",
+      "hidden": [
+        {
+          "name": "bulk cart transfer respects all selected item rules",
+          "command": "node --experimental-strip-types --test scripts/zz-eval-fe-logic-feature.test.mjs",
+          "expect": "pass",
+          "files": {
+            "scripts/zz-eval-fe-logic-feature.test.mjs": "hidden/fe-logic-feature/zz-eval-fe-logic-feature.test.mjs"
+          }
+        }
+      ],
+      "probes": [
+        {
+          "name": "unclassified selection is allowed",
+          "file": "src/session.ts",
+          "find": "product.kind !== \"unclassified\" &&",
+          "replace": "true &&",
+          "command": "set \"NODE_OPTIONS=--require=C:/Users/YS/Desktop/python/Skill_Management/evals/delegation-v1/evidence/fe-logic-feature/vite-temp-safe-host.cjs\" && node --experimental-strip-types --test scripts/*.test.mjs"
+        },
+        {
+          "name": "catalog out-of-stock item is allowed",
+          "file": "src/session.ts",
+          "find": "product.inStock !== false &&",
+          "replace": "true &&",
+          "command": "set \"NODE_OPTIONS=--require=C:/Users/YS/Desktop/python/Skill_Management/evals/delegation-v1/evidence/fe-logic-feature/vite-temp-safe-host.cjs\" && node --experimental-strip-types --test scripts/*.test.mjs"
+        },
+        {
+          "name": "medicine pharmacist gate is bypassed",
+          "file": "src/session.ts",
+          "find": "        (!(s.needsPharmacist || product.kind !== \"cosmetic\") ||",
+          "replace": "        (true ||",
+          "command": "set \"NODE_OPTIONS=--require=C:/Users/YS/Desktop/python/Skill_Management/evals/delegation-v1/evidence/fe-logic-feature/vite-temp-safe-host.cjs\" && node --experimental-strip-types --test scripts/*.test.mjs"
+        }
+      ]
+    },
+    {
+      "id": "fe-bug",
+      "area": "FE",
+      "prompt": "약사 확인이 필요한 의약품인데 상품 설명이 확인 전에 먼저 보여 당황스러워요. 약사 검토가 끝나기 전에는 의약품 설명을 보여 주지 말고, 검토가 끝나면 볼 수 있게 해 주세요. 검토 전에는 의약품 구매 요청도 계속 막혀 있어야 합니다. 화장품 설명은 지금처럼 확인 절차 없이 볼 수 있어야 해요.",
+      "project": "C:/Users/YS/Desktop/python/yeondoo-link",
+      "ref": "d17f0c2322056a4d804c911b83d6cc1b1738a083",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 1800,
+      "regression": "set \"NODE_OPTIONS=--require=C:/Users/YS/Desktop/python/Skill_Management/evals/delegation-v1/evidence/fe-bug/vite-temp-safe-host.cjs\" && node --experimental-strip-types --test scripts/*.test.mjs",
+      "fault": {
+        "file": "src/session.ts",
+        "find": "    (!(s.needsPharmacist || catalog.products[id].kind !== \"cosmetic\") ||",
+        "replace": "    (!s.needsPharmacist ||",
+        "commit_message": "test: reproduce medicine details leak before pharmacist review"
+      },
+      "hidden": [
+        {
+          "name": "medicine information and purchase remain pharmacist gated",
+          "command": "node --experimental-strip-types --test scripts/zz-eval-fe-bug.test.mjs",
+          "expect": "pass",
+          "files": {
+            "scripts/zz-eval-fe-bug.test.mjs": "hidden/fe-bug/zz-eval-fe-bug.test.mjs"
+          }
+        }
+      ],
+      "probes": [
+        {
+          "name": "medicine information is exposed before review",
+          "file": "src/session.ts",
+          "find": "    (!(s.needsPharmacist || catalog.products[id].kind !== \"cosmetic\") ||",
+          "replace": "    (!s.needsPharmacist ||",
+          "command": "set \"NODE_OPTIONS=--require=C:/Users/YS/Desktop/python/Skill_Management/evals/delegation-v1/evidence/fe-bug/vite-temp-safe-host.cjs\" && node --experimental-strip-types --test scripts/*.test.mjs"
+        },
+        {
+          "name": "purchase sibling bypasses pharmacist review",
+          "file": "src/session.ts",
+          "find": "const reviewed = ids.every(",
+          "replace": "const reviewed = true || ids.every(",
+          "command": "set \"NODE_OPTIONS=--require=C:/Users/YS/Desktop/python/Skill_Management/evals/delegation-v1/evidence/fe-bug/vite-temp-safe-host.cjs\" && node --experimental-strip-types --test scripts/*.test.mjs"
+        }
+      ]
+    }
+  ]
+}

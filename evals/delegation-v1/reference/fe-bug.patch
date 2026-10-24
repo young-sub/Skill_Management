@@ -1,0 +1,13 @@
+diff --git a/src/session.ts b/src/session.ts
+index 7ede998..22b480b 100644
+--- a/src/session.ts
++++ b/src/session.ts
+@@ -170,7 +170,7 @@ export function purchaseStatus(s: Session) {
+ export function reviewedField(s: Session, id: ProductId, field: string) {
+   return Boolean(
+     s.checks[id]?.fields.includes(field) &&
+-    (!s.needsPharmacist ||
++    (!(s.needsPharmacist || catalog.products[id].kind !== "cosmetic") ||
+       s.checks[id]?.pharmacist),
+   );
+ }

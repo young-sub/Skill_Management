@@ -1,0 +1,92 @@
+[
+  {
+    "label": "starting-hidden",
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/zz-eval-fullstack-feature.test.ts src/client/zz-eval-fullstack-feature.test.tsx",
+    "exit": 1,
+    "seconds": 9.937
+  },
+  {
+    "label": "reference-hidden",
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/zz-eval-fullstack-feature.test.ts src/client/zz-eval-fullstack-feature.test.tsx",
+    "exit": 0,
+    "seconds": 9.719
+  },
+  {
+    "label": "reference-regression",
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/socialAuth.test.ts tests/accountIsolation.test.ts src/client/BillingManager.test.tsx src/client/Account.test.tsx",
+    "exit": 0,
+    "seconds": 26.921
+  },
+  {
+    "label": "probe-1-hidden",
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/zz-eval-fullstack-feature.test.ts src/client/zz-eval-fullstack-feature.test.tsx",
+    "exit": 1,
+    "seconds": 10.079
+  },
+  {
+    "label": "probe-1-without-hidden",
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --changed 984e4f646e08b75a8dfc4b9c62913670960c1659",
+    "exit": 0,
+    "seconds": 104.468
+  },
+  {
+    "label": "probe-2-hidden",
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/zz-eval-fullstack-feature.test.ts src/client/zz-eval-fullstack-feature.test.tsx",
+    "exit": 1,
+    "seconds": 10.922
+  },
+  {
+    "label": "probe-2-without-hidden",
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --changed 984e4f646e08b75a8dfc4b9c62913670960c1659",
+    "exit": 0,
+    "seconds": 107.235
+  },
+  {
+    "label": "final-starting-hidden",
+    "exit": 1,
+    "seconds": 10.313,
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/zz-eval-fullstack-feature.test.ts src/client/zz-eval-fullstack-feature.test.tsx"
+  },
+  {
+    "label": "final-reference-hidden",
+    "exit": 0,
+    "seconds": 10.5,
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/zz-eval-fullstack-feature.test.ts src/client/zz-eval-fullstack-feature.test.tsx"
+  },
+  {
+    "label": "final-probe-1-hidden",
+    "exit": 1,
+    "seconds": 10.75,
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/zz-eval-fullstack-feature.test.ts src/client/zz-eval-fullstack-feature.test.tsx"
+  },
+  {
+    "label": "final-probe-2-hidden",
+    "exit": 1,
+    "seconds": 10.734,
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/zz-eval-fullstack-feature.test.ts src/client/zz-eval-fullstack-feature.test.tsx"
+  },
+  {
+    "label": "bounded-probe-1-without-hidden",
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --changed 984e4f646e08b75a8dfc4b9c62913670960c1659 --maxWorkers=4 --testTimeout=20000 --hookTimeout=20000",
+    "exit": 1,
+    "seconds": 233.484
+  },
+  {
+    "label": "bounded-probe-2-without-hidden",
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --changed 984e4f646e08b75a8dfc4b9c62913670960c1659 --maxWorkers=4 --testTimeout=20000 --hookTimeout=20000",
+    "exit": 0,
+    "seconds": 246.141
+  },
+  {
+    "label": "final-scoped-probe-1-without-hidden",
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/socialAuth.test.ts tests/accountIsolation.test.ts src/client/BillingManager.test.tsx src/client/Account.test.tsx src/client/AccountManager.test.tsx tests/accountProfiles.test.ts --maxWorkers=4 --testTimeout=20000 --hookTimeout=20000",
+    "exit": 0,
+    "seconds": 32.093
+  },
+  {
+    "label": "final-scoped-probe-2-without-hidden",
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/socialAuth.test.ts tests/accountIsolation.test.ts src/client/BillingManager.test.tsx src/client/Account.test.tsx src/client/AccountManager.test.tsx tests/accountProfiles.test.ts --maxWorkers=4 --testTimeout=20000 --hookTimeout=20000",
+    "exit": 0,
+    "seconds": 30.563
+  }
+]

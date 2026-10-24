@@ -1,0 +1,22 @@
+diff --git a/src/worker/index.ts b/src/worker/index.ts
+index ec1ed36..1733e7f 100644
+--- a/src/worker/index.ts
++++ b/src/worker/index.ts
+@@ -228,6 +228,8 @@ app.post("/api/translations/quotes/:id/cancel", async (context) => {
+ });
+ app.get("/api/translations/jobs", async (context) => {
+   const db = context.get("dataEnv").DB;
++  const requestedLimit = Number(context.req.query("limit"));
++  const limit = Number.isInteger(requestedLimit) && requestedLimit > 0 ? Math.min(requestedLimit, 100) : 100;
+   await recoverTranslationJobs(db);
+   const pending=await db.prepare("SELECT id FROM translation_jobs WHERE account_id=? AND status='running' AND private_key=0 AND (execution_until IS NULL OR execution_until<=?)").bind(db.accountId,Date.now()).first<{id:string}>();
+   if (pending) { try { await executeTranslationQuote(context.get("dataEnv"),pending.id,{}); } catch { /* The persisted job carries its terminal error; history must remain readable. */ } }
+@@ -241,7 +243,7 @@ app.get("/api/translations/jobs", async (context) => {
+     json_extract(j.payload_json,'$.itemVersion')=1 AND j.status IN ('partial','failed') AND NOT EXISTS
+       (SELECT 1 FROM translation_provider_runs p WHERE p.job_id=j.id AND p.state IN ('submission_unknown','deepl_unknown','deepl_started','self_pending')) AS recoverable
+     FROM translation_jobs j
+-    WHERE j.account_id = ? ORDER BY j.created_at DESC LIMIT 100`).bind(db.accountId).all();
++    WHERE j.account_id = ? ORDER BY j.created_at DESC LIMIT ?`).bind(db.accountId, limit).all();
+   return context.json({ ok: true, data: rows.results });
+ });
+ app.get("/api/translations/jobs/:id", async (context) => {

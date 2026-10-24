@@ -1,0 +1,15 @@
+diff --git a/src/client/ProductCatalogFinder.tsx b/src/client/ProductCatalogFinder.tsx
+index b857292..44b9d8e 100644
+--- a/src/client/ProductCatalogFinder.tsx
++++ b/src/client/ProductCatalogFinder.tsx
+@@ -449,8 +449,8 @@ export function ProductCatalogFinder({ categories, onClose, onApplied, onManualA
+           const checked = Boolean(selected[item.id]);
+           const added = itemAlreadyAdded(item);
+           return <tr key={item.id} className={added ? "already-added" : checked ? "selected" : ""}>
+-            <td><input type="checkbox" checked={checked} disabled={added || busy || catalog.isFetching || searchTooShort} onChange={() => toggleItem(item)} aria-label={`${item.nameKo} 선택`} /></td>
+-            <td><strong className="catalog-product-name">{item.nameKo}{added && <span className="catalog-added-badge" role="img" aria-label="이미 추가된 상품" title="이미 추가된 상품"><img src="/brand/yeondu-label-mark.svg" width="22" height="22" alt="" /></span>}</strong><small>{kindLabel(item.kind)}</small></td>
++            <td><input id={`catalog-product-${item.id}`} type="checkbox" checked={checked} disabled={added || busy || catalog.isFetching || searchTooShort} onChange={() => toggleItem(item)} aria-label={`${item.nameKo} 선택`} /></td>
++            <td><label className="catalog-product-select" htmlFor={`catalog-product-${item.id}`}><strong className="catalog-product-name">{item.nameKo}{added && <span className="catalog-added-badge" role="img" aria-label="이미 추가된 상품" title="이미 추가된 상품"><img src="/brand/yeondu-label-mark.svg" width="22" height="22" alt="" /></span>}</strong></label><small>{kindLabel(item.kind)}</small></td>
+             <td>{displayManufacturer(item)}</td>
+             <td><span>{displayPackage(item)}</span></td>
+             <td><span>{displayDescription(item)}</span></td>

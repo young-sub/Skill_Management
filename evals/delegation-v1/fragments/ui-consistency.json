@@ -1,0 +1,38 @@
+{
+  "id": "ui-consistency",
+  "area": "UI",
+  "project": "C:/Users/YS/Desktop/python/labeler",
+  "ref": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+  "links": [
+    "node_modules"
+  ],
+  "budget_seconds": 1800,
+  "prompt": "상품 찾기에서 상품 이름을 누르면 해당 상품의 체크박스가 선택되도록 이름을 체크박스 라벨로 연결해 주세요. 체크박스만 누르지 않고 상품 이름 영역을 눌러도 선택할 수 있으면 좋겠습니다. 이미 계정에 추가한 상품은 지금처럼 다시 선택되지 않아야 합니다.",
+  "regression": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false src/client/ProductCatalogFinder.test.tsx",
+  "hidden": [
+    {
+      "name": "product-name-selection-and-added-state",
+      "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false src/client/zz-eval-ui-consistency.test.tsx",
+      "expect": "pass",
+      "files": {
+        "src/client/zz-eval-ui-consistency.test.tsx": "hidden/ui-consistency/src/client/zz-eval-ui-consistency.test.tsx"
+      }
+    }
+  ],
+  "probes": [
+    {
+      "name": "keeps-product-name-associated",
+      "file": "src/client/ProductCatalogFinder.tsx",
+      "find": "<label className=\"catalog-product-select\" htmlFor={`catalog-product-${item.id}`}>",
+      "replace": "<label className=\"catalog-product-select\">",
+      "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --changed 984e4f646e08b75a8dfc4b9c62913670960c1659 --configLoader runner --cache=false --maxWorkers=4 --testTimeout=20000 --hookTimeout=20000"
+    },
+    {
+      "name": "keeps-added-catalog-item-disabled",
+      "file": "src/client/ProductCatalogFinder.tsx",
+      "find": "disabled={added || busy || catalog.isFetching || searchTooShort}",
+      "replace": "disabled={busy || catalog.isFetching || searchTooShort}",
+      "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --changed 984e4f646e08b75a8dfc4b9c62913670960c1659 --configLoader runner --cache=false --maxWorkers=4 --testTimeout=20000 --hookTimeout=20000"
+    }
+  ]
+}

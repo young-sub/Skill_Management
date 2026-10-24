@@ -1,0 +1,38 @@
+{
+  "id": "api-contract-change",
+  "area": "BE",
+  "project": "C:/Users/YS/Desktop/python/labeler",
+  "ref": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+  "links": [
+    "node_modules"
+  ],
+  "budget_seconds": 1800,
+  "prompt": "번역 이력 API(GET /api/translations/jobs)에 limit 값을 받을 수 있게 해 주세요. limit을 주지 않으면 기존처럼 최신순 100건을 배열로 반환하고, 지정하면 해당 건수만큼 최신 작업을 보여 주세요. 한 번에 100건을 넘게 보여주지는 말아 주세요. 값이 숫자가 아니거나 1보다 작거나 정수가 아니면 기존처럼 최근 100건을 보여 주세요. 응답 구조와 최신순 정렬은 기존과 같아야 합니다.",
+  "regression": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/credits.test.ts tests/translationCredits.test.ts tests/fieldTranslations.test.ts tests/catalogTranslationReuse.test.ts src/client/TranslationManager.test.tsx",
+  "hidden": [
+    {
+      "name": "translation-history-limit-contract",
+      "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/zz-eval-api-contract-change.test.ts",
+      "expect": "pass",
+      "files": {
+        "tests/zz-eval-api-contract-change.test.ts": "hidden/api-contract-change/tests/zz-eval-api-contract-change.test.ts"
+      }
+    }
+  ],
+  "probes": [
+    {
+      "name": "caps-requested-history-size",
+      "file": "src/worker/index.ts",
+      "find": "Math.min(requestedLimit, 100)",
+      "replace": "requestedLimit",
+      "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --changed 984e4f646e08b75a8dfc4b9c62913670960c1659 --configLoader runner --cache=false --maxWorkers=4 --testTimeout=20000 --hookTimeout=20000"
+    },
+    {
+      "name": "rejects-fractional-history-limit",
+      "file": "src/worker/index.ts",
+      "find": "Number.isInteger(requestedLimit) && requestedLimit > 0",
+      "replace": "requestedLimit > 0",
+      "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --changed 984e4f646e08b75a8dfc4b9c62913670960c1659 --configLoader runner --cache=false --maxWorkers=4 --testTimeout=20000 --hookTimeout=20000"
+    }
+  ]
+}

@@ -352,7 +352,10 @@ def run(scenario, condition, rep, output, command, config, timeout, source_dir):
                                   and (not result['acceptance_passed'] or not regression_ok))
     result['verified_success'] = result['acceptance_passed'] and regression_ok and not result['errors'] and not result['timed_out']
     probes = result['probes']
-    result['probe_kill_rate'] = sum(p['detected'] for p in probes) / len(probes) if probes else None
+    # A probe whose exact text is absent from the agent's own implementation is not applicable.
+    applicable = [p for p in probes if 'error' not in p]
+    result['probes_applicable'] = len(applicable)
+    result['probe_kill_rate'] = sum(p['detected'] for p in applicable) / len(applicable) if applicable else None
     result['wall_seconds'] = time.monotonic() - started
     (work / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
     return result
@@ -373,6 +376,7 @@ def aggregate(results):
         conditions[name] = {'runs': n, 'verified_success': {'k': k, 'n': n, 'rate': k / n},
                             'false_completion_rate': sum(r['false_completion'] for r in rows) / n,
                             'mean_probe_kill_rate': statistics.mean(rates) if rates else None,
+                            'probes_applicable': sum(r.get('probes_applicable', 0) for r in rows),
                             'admitted_incomplete': sum(r['admitted_incomplete'] for r in rows),
                             'total_tokens': tokens,
                             'median_tokens': {key: median(r['usage'][key] for r in rows) for key in TOKEN_KEYS},

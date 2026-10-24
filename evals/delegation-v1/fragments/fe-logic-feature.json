@@ -1,0 +1,45 @@
+{
+  "id": "fe-logic-feature",
+  "area": "FE",
+  "prompt": "구매 검토 화면에서 선택한 상품들을 장바구니에 한 번에 담는 `add-selected-to-cart` 동작을 추가해 주세요. 기존 장바구니 수량에 선택한 수량을 더하고, 상품별 수량은 99개를 넘지 않게 해 주세요. 재고가 없거나 분류가 정해지지 않은 상품은 담을 수 없고, 약사 확인이 필요한 의약품은 확인이 끝난 뒤에만 담을 수 있어야 합니다. 하나라도 담을 수 없는 상품이 있으면 일부만 추가하지 말고 장바구니를 그대로 두고 선택도 유지해 주세요.",
+  "project": "C:/Users/YS/Desktop/python/yeondoo-link",
+  "ref": "d17f0c2322056a4d804c911b83d6cc1b1738a083",
+  "links": [
+    "node_modules"
+  ],
+  "budget_seconds": 1800,
+  "regression": "set \"NODE_OPTIONS=--require=C:/Users/YS/Desktop/python/Skill_Management/evals/delegation-v1/evidence/fe-logic-feature/vite-temp-safe-host.cjs\" && node --experimental-strip-types --test scripts/*.test.mjs",
+  "hidden": [
+    {
+      "name": "bulk cart transfer respects all selected item rules",
+      "command": "node --experimental-strip-types --test scripts/zz-eval-fe-logic-feature.test.mjs",
+      "expect": "pass",
+      "files": {
+        "scripts/zz-eval-fe-logic-feature.test.mjs": "hidden/fe-logic-feature/zz-eval-fe-logic-feature.test.mjs"
+      }
+    }
+  ],
+  "probes": [
+    {
+      "name": "unclassified selection is allowed",
+      "file": "src/session.ts",
+      "find": "product.kind !== \"unclassified\" &&",
+      "replace": "true &&",
+      "command": "set \"NODE_OPTIONS=--require=C:/Users/YS/Desktop/python/Skill_Management/evals/delegation-v1/evidence/fe-logic-feature/vite-temp-safe-host.cjs\" && node --experimental-strip-types --test scripts/*.test.mjs"
+    },
+    {
+      "name": "catalog out-of-stock item is allowed",
+      "file": "src/session.ts",
+      "find": "product.inStock !== false &&",
+      "replace": "true &&",
+      "command": "set \"NODE_OPTIONS=--require=C:/Users/YS/Desktop/python/Skill_Management/evals/delegation-v1/evidence/fe-logic-feature/vite-temp-safe-host.cjs\" && node --experimental-strip-types --test scripts/*.test.mjs"
+    },
+    {
+      "name": "medicine pharmacist gate is bypassed",
+      "file": "src/session.ts",
+      "find": "        (!(s.needsPharmacist || product.kind !== \"cosmetic\") ||",
+      "replace": "        (true ||",
+      "command": "set \"NODE_OPTIONS=--require=C:/Users/YS/Desktop/python/Skill_Management/evals/delegation-v1/evidence/fe-logic-feature/vite-temp-safe-host.cjs\" && node --experimental-strip-types --test scripts/*.test.mjs"
+    }
+  ]
+}

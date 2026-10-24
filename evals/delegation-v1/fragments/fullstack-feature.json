@@ -1,0 +1,39 @@
+{
+  "id": "fullstack-feature",
+  "area": "Fullstack",
+  "project": "C:/Users/YS/Desktop/python/labeler",
+  "ref": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+  "links": [
+    "node_modules"
+  ],
+  "budget_seconds": 1800,
+  "prompt": "내 계정의 고객 정보에 저만 볼 수 있는 작업 메모를 추가해 주세요. 기존 약국명·연락처와 함께 수정하고 저장할 수 있으면 좋겠습니다. 메모는 선택 사항이고 앞뒤 공백을 뺀 200자까지 받되, 200자를 넘으면 다른 고객 정보까지 함께 저장되지 않게 해 주세요. 빈 메모를 저장하면 지워져야 하고 다시 접속해도 저장한 내용이 보여야 합니다. 무료 회원도 쓸 수 있고 다른 회원에게는 보이면 안 됩니다. 연동용 프로필 API에서는 이 값을 workMemo로 주고받으면 됩니다.",
+  "regression": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/socialAuth.test.ts tests/accountIsolation.test.ts src/client/BillingManager.test.tsx src/client/Account.test.tsx",
+  "hidden": [
+    {
+      "name": "private-work-memo",
+      "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/zz-eval-fullstack-feature.test.ts src/client/zz-eval-fullstack-feature.test.tsx",
+      "expect": "pass",
+      "files": {
+        "tests/zz-eval-fullstack-feature.test.ts": "hidden/fullstack-feature/zz-eval-fullstack-feature.test.ts",
+        "src/client/zz-eval-fullstack-feature.test.tsx": "hidden/fullstack-feature/zz-eval-fullstack-feature.test.tsx"
+      }
+    }
+  ],
+  "probes": [
+    {
+      "name": "drops-memo-at-domain-write",
+      "file": "src/worker/accountProfiles.ts",
+      "find": "values.push(input.workMemo?.trim() || null);",
+      "replace": "values.push(null);",
+      "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/socialAuth.test.ts tests/accountIsolation.test.ts src/client/BillingManager.test.tsx src/client/Account.test.tsx src/client/AccountManager.test.tsx tests/accountProfiles.test.ts --maxWorkers=4 --testTimeout=20000 --hookTimeout=20000"
+    },
+    {
+      "name": "hides-saved-memo-in-account",
+      "file": "src/client/AccountManager.tsx",
+      "find": "<dd>{profileValue(data.workMemo)}</dd>",
+      "replace": "<dd>{profileValue(null)}</dd>",
+      "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/socialAuth.test.ts tests/accountIsolation.test.ts src/client/BillingManager.test.tsx src/client/Account.test.tsx src/client/AccountManager.test.tsx tests/accountProfiles.test.ts --maxWorkers=4 --testTimeout=20000 --hookTimeout=20000"
+    }
+  ]
+}

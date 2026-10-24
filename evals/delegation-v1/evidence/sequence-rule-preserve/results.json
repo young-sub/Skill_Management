@@ -1,0 +1,80 @@
+[
+  {
+    "label": "starting-hidden",
+    "exit": 1,
+    "seconds": 9.578,
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/zz-eval-sequence-rule-preserve.test.ts"
+  },
+  {
+    "label": "reference-hidden",
+    "exit": 0,
+    "seconds": 9.641,
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/zz-eval-sequence-rule-preserve.test.ts"
+  },
+  {
+    "label": "reference-regression",
+    "exit": 0,
+    "seconds": 13.906,
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/accountRequests.test.ts tests/accountRequestRefund.test.ts tests/accountIsolation.test.ts"
+  },
+  {
+    "label": "probe-1-hidden",
+    "exit": 1,
+    "seconds": 10.141,
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/zz-eval-sequence-rule-preserve.test.ts"
+  },
+  {
+    "label": "probe-1-without-hidden",
+    "exit": 1,
+    "seconds": 114.406,
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --changed 984e4f646e08b75a8dfc4b9c62913670960c1659"
+  },
+  {
+    "label": "probe-2-hidden",
+    "exit": 1,
+    "seconds": 10.875,
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/zz-eval-sequence-rule-preserve.test.ts"
+  },
+  {
+    "label": "probe-2-without-hidden",
+    "exit": 1,
+    "seconds": 123.641,
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --changed 984e4f646e08b75a8dfc4b9c62913670960c1659"
+  },
+  {
+    "label": "final-starting-hidden",
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/zz-eval-sequence-rule-preserve.test.ts",
+    "exit": 1,
+    "seconds": 11.89
+  },
+  {
+    "label": "final-reference-hidden",
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/zz-eval-sequence-rule-preserve.test.ts",
+    "exit": 0,
+    "seconds": 15.219
+  },
+  {
+    "label": "final-probe-1-hidden",
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/zz-eval-sequence-rule-preserve.test.ts",
+    "exit": 1,
+    "seconds": 11.687
+  },
+  {
+    "label": "final-probe-2-hidden",
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/zz-eval-sequence-rule-preserve.test.ts",
+    "exit": 1,
+    "seconds": 13.11
+  },
+  {
+    "label": "bounded-probe-1-without-hidden",
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --changed 984e4f646e08b75a8dfc4b9c62913670960c1659 --maxWorkers=4 --testTimeout=20000 --hookTimeout=20000",
+    "exit": 0,
+    "seconds": 216.015
+  },
+  {
+    "label": "bounded-probe-2-without-hidden",
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --changed 984e4f646e08b75a8dfc4b9c62913670960c1659 --maxWorkers=4 --testTimeout=20000 --hookTimeout=20000",
+    "exit": 0,
+    "seconds": 234.266
+  }
+]

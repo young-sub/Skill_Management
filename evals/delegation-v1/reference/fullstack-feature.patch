@@ -1,0 +1,138 @@
+diff --git a/migrations/0057_work_memo.sql b/migrations/0057_work_memo.sql
+new file mode 100644
+index 0000000..acd5ba9
+--- /dev/null
++++ b/migrations/0057_work_memo.sql
+@@ -0,0 +1 @@
++ALTER TABLE account_profiles ADD COLUMN work_memo TEXT CHECK (work_memo IS NULL OR length(work_memo) <= 200);
+diff --git a/src/client/AccountManager.tsx b/src/client/AccountManager.tsx
+index f218b11..6abf771 100644
+--- a/src/client/AccountManager.tsx
++++ b/src/client/AccountManager.tsx
+@@ -31,13 +31,14 @@ export function AccountManager({ refundOrderId }: { refundOrderId?: string }) {
+   const [profileEditing, setProfileEditing] = useState(false);
+   const [organization, setOrganization] = useState('');
+   const [contact, setContact] = useState('');
++  const [workMemo, setWorkMemo] = useState('');
+   const copyCustomerNumber = () => {
+     const value = profile.data?.customerNumber;
+     if (!value || typeof navigator === 'undefined' || !navigator.clipboard) return;
+     void navigator.clipboard.writeText(value).then(() => setNotice('고객번호를 복사했습니다.'), () => setNotice('고객번호를 복사하지 못했습니다. 화면에서 직접 선택해 주세요.'));
+   };
+   const profileSave = useMutation({
+-    mutationFn: () => api<Partial<Profile>>('/api/auth/profile', { method: 'PATCH', body: JSON.stringify({ organization: organization.trim() || null, contact: contact.trim() || null }) }),
++    mutationFn: () => api<Partial<Profile>>('/api/auth/profile', { method: 'PATCH', body: JSON.stringify({ organization: organization.trim() || null, contact: contact.trim() || null, workMemo: workMemo.trim() || null }) }),
+     onSuccess: () => { setProfileEditing(false); setNotice('고객 프로필을 저장했습니다.'); void client.invalidateQueries({ queryKey: ['me'] }); },
+   });
+ 
+@@ -48,7 +49,7 @@ export function AccountManager({ refundOrderId }: { refundOrderId?: string }) {
+     <div id="account-panel-profile" hidden={section !== 'profile'}>
+       {notice && <p className="notice" role="status">{notice}</p>}
+       {profileSave.isError && <p role="alert">{profileSave.error.message}</p>}
+-      <ProfilePanel data={profile.data} loading={profile.isPending} error={profile.isError ? profile.error.message : undefined} editing={profileEditing} organization={organization} contact={contact} onStartEdit={() => { setOrganization(profile.data?.organization ?? ''); setContact(profile.data?.contact ?? ''); setProfileEditing(true); }} onCancel={() => setProfileEditing(false)} onOrganization={setOrganization} onContact={setContact} onSave={() => profileSave.mutate()} saving={profileSave.isPending} onCopy={copyCustomerNumber} />
++      <ProfilePanel data={profile.data} loading={profile.isPending} error={profile.isError ? profile.error.message : undefined} editing={profileEditing} organization={organization} contact={contact} workMemo={workMemo} onWorkMemo={setWorkMemo} onStartEdit={() => { setOrganization(profile.data?.organization ?? ''); setContact(profile.data?.contact ?? ''); setWorkMemo(profile.data?.workMemo ?? ''); setProfileEditing(true); }} onCancel={() => setProfileEditing(false)} onOrganization={setOrganization} onContact={setContact} onSave={() => profileSave.mutate()} saving={profileSave.isPending} onCopy={copyCustomerNumber} />
+     </div>
+     {section === 'requests' && orders.isError && <p role="alert">주문 내역을 불러오지 못했습니다. <button className="text-button" onClick={() => void orders.refetch()}>다시 확인</button></p>}
+     <AccountRequests orders={orders.data} initialOrderId={refundOrderId} activeSection={section === 'profile' ? undefined : section} onSectionChange={selectSection} />
+@@ -65,18 +66,21 @@ type Profile = {
+   emailVerified?: boolean | null;
+   organization?: string | null;
+   contact?: string | null;
++  workMemo?: string | null;
+   lastLoginAt?: string | null;
+   profileUpdatedAt?: string | null;
+ };
+ const formatDateTime = (value: number | string | null | undefined) => value ? new Date(value).toLocaleString('ko-KR') : '기록 없음';
+ const profileValue = (value: string | null | undefined) => value?.trim() || '입력하지 않음';
+-function ProfilePanel({ data, loading, error, editing, organization, contact, onStartEdit, onCancel, onOrganization, onContact, onSave, saving, onCopy }: {
++function ProfilePanel({ data, loading, error, editing, organization, contact, workMemo, onWorkMemo, onStartEdit, onCancel, onOrganization, onContact, onSave, saving, onCopy }: {
+   data?: Profile;
+   loading: boolean;
+   error?: string;
+   editing: boolean;
+   organization: string;
+   contact: string;
++  workMemo: string;
++  onWorkMemo: (value: string) => void;
+   onStartEdit: () => void;
+   onCancel: () => void;
+   onOrganization: (value: string) => void;
+@@ -95,12 +99,14 @@ function ProfilePanel({ data, loading, error, editing, organization, contact, on
+       <div><dt>이메일</dt><dd>{profileValue(data.email)}</dd></div>
+       <div><dt>약국명 또는 소속</dt><dd>{profileValue(data.organization)}</dd></div>
+       <div><dt>연락처</dt><dd>{profileValue(data.contact)}</dd></div>
++      <div><dt>작업 메모</dt><dd>{profileValue(data.workMemo)}</dd></div>
+       <div><dt>가입일</dt><dd>{formatDateTime(data.createdAt)}</dd></div>
+       <div><dt>최근 로그인</dt><dd>{formatDateTime(data.lastLoginAt)}</dd></div>
+     </dl></>}
+     {data && editing && <form onSubmit={event => { event.preventDefault(); onSave(); }}>
+       <label>약국명 또는 소속 (선택)<input maxLength={200} disabled={saving} value={organization} onChange={event => onOrganization(event.target.value)} /></label>
+       <label>연락처 (선택)<input maxLength={100} disabled={saving} value={contact} onChange={event => onContact(event.target.value)} /></label>
++      <label>작업 메모 (선택, 200자)<textarea maxLength={200} disabled={saving} value={workMemo} onChange={event => onWorkMemo(event.target.value)} /></label>
+       <div className='billing-profile-actions'><button type='button' className='secondary-button' disabled={saving} onClick={onCancel}>취소</button><button className='primary-button' disabled={saving}>고객 정보 저장</button></div>
+     </form>}
+   </section>;
+diff --git a/src/shared/account.ts b/src/shared/account.ts
+index 3c0bc79..265741f 100644
+--- a/src/shared/account.ts
++++ b/src/shared/account.ts
+@@ -4,6 +4,7 @@ export type AccountProfile = {
+   emailVerified: boolean | null;
+   organization: string | null;
+   contact: string | null;
++  workMemo?: string | null;
+   lastLoginAt: string | null;
+   profileUpdatedAt: string | null;
+ };
+diff --git a/src/worker/accountProfiles.ts b/src/worker/accountProfiles.ts
+index bfb2843..4219945 100644
+--- a/src/worker/accountProfiles.ts
++++ b/src/worker/accountProfiles.ts
+@@ -11,10 +11,11 @@ type ProviderProfileUpdate = {
+ type CustomerProfileUpdate = {
+   organization?: string | null;
+   contact?: string | null;
++  workMemo?: string | null;
+ };
+ 
+ const profileSelect = `SELECT account_id AS accountId, customer_code AS customerNumber,
+-  email, email_verified AS emailVerified, organization, contact,
++  email, email_verified AS emailVerified, organization, contact, work_memo AS workMemo,
+   last_login_at AS lastLoginAt, profile_updated_at AS profileUpdatedAt
+   FROM account_profiles WHERE account_id = ?`;
+ 
+@@ -25,6 +26,7 @@ function mapProfile(row: Record<string, unknown>): AccountProfile {
+     emailVerified: row.emailVerified === null || row.emailVerified === undefined ? null : Boolean(row.emailVerified),
+     organization: typeof row.organization === "string" ? row.organization : null,
+     contact: typeof row.contact === "string" ? row.contact : null,
++    workMemo: typeof row.workMemo === "string" ? row.workMemo : null,
+     lastLoginAt: typeof row.lastLoginAt === "string" ? row.lastLoginAt : null,
+     profileUpdatedAt: typeof row.profileUpdatedAt === "string" ? row.profileUpdatedAt : null,
+   };
+@@ -86,6 +88,11 @@ export async function updateCustomerProfile(db: ProfileDb, accountId: string, in
+     sets.push("contact = ?");
+     values.push(input.contact?.trim() || null);
+   }
++  if (input.workMemo !== undefined) {
++    if (input.workMemo !== null && (typeof input.workMemo !== "string" || input.workMemo.trim().length > 200)) throw new Error("invalid_profile");
++    sets.push("work_memo = ?");
++    values.push(input.workMemo?.trim() || null);
++  }
+   if (!sets.length) throw new Error("profile_empty");
+   sets.push("profile_updated_at = ?");
+   values.push(new Date().toISOString(), accountId);
+diff --git a/src/worker/socialAuth.ts b/src/worker/socialAuth.ts
+index 52a118e..1a31e93 100644
+--- a/src/worker/socialAuth.ts
++++ b/src/worker/socialAuth.ts
+@@ -356,8 +356,9 @@ socialAuth.patch("/profile", async (c) => {
+   const input = z.object({
+     organization: z.string().trim().max(200).nullable().optional(),
+     contact: z.string().trim().max(100).nullable().optional(),
++    workMemo: z.string().trim().max(200).nullable().optional(),
+   }).strict().safeParse(await c.req.json().catch(() => null));
+-  if (!input.success || (input.data.organization === undefined && input.data.contact === undefined)) {
++  if (!input.success || (input.data.organization === undefined && input.data.contact === undefined && input.data.workMemo === undefined)) {
+     return profileError("invalid_profile", "Enter an organization or contact value.", 400);
+   }
+   const profile = await updateCustomerProfile(c.env.DB, account.id, input.data);

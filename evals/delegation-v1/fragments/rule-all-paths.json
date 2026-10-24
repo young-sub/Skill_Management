@@ -1,0 +1,36 @@
+{
+  "id": "rule-all-paths",
+  "area": "Domain",
+  "project": "C:/Users/YS/Desktop/python/labeler",
+  "ref": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+  "links": ["node_modules"],
+  "budget_seconds": 1800,
+  "prompt": "상품 설명이 너무 길면 관리하기도 어렵고 화면이 지저분해집니다. 앞으로 상품 설명은 300자까지만 저장되도록 해 주세요. 300자를 넘는 내용은 저장되지 않게 부탁합니다.",
+  "regression": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts tests/backup.test.ts tests/productCatalog.test.ts src/client/ProductForm.test.tsx src/client/ProductCatalogFinder.test.tsx",
+  "hidden": [
+    {
+      "name": "product-description-limit-all-writes",
+      "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/zz-eval-rule-all-paths.test.ts",
+      "expect": "pass",
+      "files": {
+        "tests/zz-eval-rule-all-paths.test.ts": "hidden/rule-all-paths/zz-eval-rule-all-paths.test.ts"
+      }
+    }
+  ],
+  "probes": [
+    {
+      "name": "allows-overlong-create-description",
+      "file": "src/shared/product.ts",
+      "find": "descriptionKo: z.string().trim().min(1).max(MAX_PRODUCT_DESCRIPTION_LENGTH),",
+      "replace": "descriptionKo: z.string().trim().min(1).max(500),",
+      "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts tests/backup.test.ts tests/productCatalog.test.ts src/client/ProductForm.test.tsx src/client/ProductCatalogFinder.test.tsx"
+    },
+    {
+      "name": "skips-restore-description-guard",
+      "file": "src/worker/backup.ts",
+      "find": "for (const product of backup.data.products) if (product.description_ko.length > MAX_PRODUCT_DESCRIPTION_LENGTH) conflicts.push({",
+      "replace": "for (const product of backup.data.products) if (false) conflicts.push({",
+      "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts tests/backup.test.ts tests/productCatalog.test.ts src/client/ProductForm.test.tsx src/client/ProductCatalogFinder.test.tsx"
+    }
+  ]
+}
