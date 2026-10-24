@@ -86,3 +86,23 @@ re-checks shadowed by middleware. Architecture is ISSUES with an open finding: t
 formula is duplicated in four places. It reported two product decisions. Cost was
 $9.54 over 2173 s; the shared contract file is 468 lines for two Features. This
 connection remains in the scenario clone and was not applied to the original.
+
+## Labeler outcome on current develop
+
+The connection was cherry-picked onto `wp-20261005-local-changes`, but that branch was
+based on a stale develop. Probing current develop (`146d256`) with the same 11 controlled
+faults showed that its own tests already caught 4, so the stale branch was not merged.
+Instead, six regression tests went to develop as `58cfa70`, raising detection to 9/11:
+
+- expired quote
+- personal-key credit total
+- deactivated product slot
+- expired grant
+- settle order
+- frozen lot
+
+The frozen-lot rule is also enforced by a DB trigger, so that test is a behaviour check and
+not a detection of the code-line fault. The re-quote rounding fault is unobservable
+through execution and has no test. The six tests still pass after `1ca2003` changed
+`translationQuotes.ts` (21/21 in the three files). Main receives them through the normal
+develop→main release. Probe logs are in `.work/labeler-merge/`.
