@@ -44,6 +44,19 @@ Codex가 `plugin add`를 지원하지 않으면 등록 후 데스크톱 앱의 P
 
 업데이트는 호스트의 marketplace 새로고침과 플러그인 업데이트 기능을 사용합니다. 설치 캐시는 직접 수정하지 않습니다. 로컬 캐시 수정이 있다면 먼저 보존합니다. 저장소의 `update_plugin.py`는 별도 로컬 marketplace 전용이며 Git 원격 marketplace를 교체하는 도구가 아닙니다.
 
+### 선택 설치 — 외부 플러그인
+
+같은 marketplace에 외부 저장소의 플러그인 두 개를 선택 항목으로 등록했습니다. `agentic-coding`과 별개로 필요한 것만 설치합니다. 항목은 커밋을 고정하지 않고 각 저장소의 기본 브랜치를 따르므로, 원작자가 업데이트해도 아래 명령은 그대로입니다. 내용은 원작자가 관리하며 이 저장소에서 검토하거나 수정하지 않습니다.
+
+| 플러그인 | 원본 | Claude Code | Codex |
+|---|---|---|---|
+| `diagram-design` | [cathrynlavery/diagram-design](https://github.com/cathrynlavery/diagram-design) (MIT) | `claude plugin install diagram-design@agentic-coding` | `codex plugin add diagram-design@agentic-coding` |
+| `humanize-korean` | [epoko77-ai/im-not-ai](https://github.com/epoko77-ai/im-not-ai) (MIT) | `claude plugin install humanize-korean@agentic-coding` | 원본 저장소의 `install.sh --codex-only` |
+
+im-not-ai의 Codex용 폴더는 저장소 루트의 스크립트와 심볼릭 링크에 의존하므로 marketplace 항목으로 설치하면 동작하지 않습니다. 그래서 Codex에는 등록하지 않았습니다.
+
+최신 버전 받기: Claude Code는 `claude plugin marketplace update agentic-coding` 후 `claude plugin update <이름>@agentic-coding`을 실행하거나, `/plugin` → Marketplaces에서 이 marketplace의 auto-update를 켭니다(외부 marketplace는 기본값이 꺼짐). 두 플러그인은 자체 `plugin.json`에 `version`을 적어 두므로, 원작자가 버전 번호를 올린 커밋부터 업데이트로 인식됩니다. Codex는 `codex plugin marketplace upgrade`로 marketplace를 새로 받습니다.
+
 설치 형식: [OpenAI marketplace 안내](https://developers.openai.com/plugins/build/plugins), [Claude Code marketplace 안내](https://code.claude.com/docs/en/plugin-marketplaces).
 
 ## 전역 지침 선택 설치 — 저장소 clone 필요

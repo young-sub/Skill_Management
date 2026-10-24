@@ -15,14 +15,13 @@ class PluginMarketplaceTests(unittest.TestCase):
         codex = json.loads((ROOT / '.agents/plugins/marketplace.json').read_text())
         claude = json.loads((ROOT / '.claude-plugin/marketplace.json').read_text())
         self.assertEqual(codex['name'], claude['name'])
-        self.assertEqual(len(codex['plugins']), 1)
-        self.assertEqual(len(claude['plugins']), 1)
-        self.assertEqual(codex['plugins'][0]['source']['source'], 'local')
-        self.assertEqual(codex['plugins'][0]['source']['path'], claude['plugins'][0]['source'])
-        package = ROOT / claude['plugins'][0]['source']
+        codex_own, claude_own = codex['plugins'][0], claude['plugins'][0]
+        self.assertEqual(codex_own['source']['source'], 'local')
+        self.assertEqual(codex_own['source']['path'], claude_own['source'])
+        package = ROOT / claude_own['source']
         manifest = json.loads((package / 'plugin.json').read_text())
-        self.assertEqual(manifest['name'], codex['plugins'][0]['name'])
-        self.assertEqual(manifest['name'], claude['plugins'][0]['name'])
+        self.assertEqual(manifest['name'], codex_own['name'])
+        self.assertEqual(manifest['name'], claude_own['name'])
         inventory = json.loads((package / 'package-files.json').read_text())['files']
         actual = {p.relative_to(package).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
                   for p in package.rglob('*') if p.is_file()}
@@ -45,3 +44,24 @@ class PluginMarketplaceTests(unittest.TestCase):
                     (package / name).read_bytes().replace(b'\r\n', b'\n'),
                     name,
                 )
+
+    def test_optional_upstream_entries_track_latest(self):
+        # Opt-in upstream plugins: separate installs, never pinned, so upstream releases need no catalog edit.
+        codex = json.loads((ROOT / '.agents/plugins/marketplace.json').read_text())
+        claude = json.loads((ROOT / '.claude-plugin/marketplace.json').read_text())
+        expected = {
+            'claude': {'diagram-design': ('github', 'cathrynlavery/diagram-design'),
+                       'humanize-korean': ('github', 'epoko77-ai/im-not-ai')},
+            # im-not-ai's codex/ folder resolves scripts and references outside itself, so it is not a Codex plugin.
+            'codex': {'diagram-design': ('url', 'https://github.com/cathrynlavery/diagram-design.git')},
+        }
+        for host, catalog in (('claude', claude), ('codex', codex)):
+            optional = {entry['name']: entry['source'] for entry in catalog['plugins'][1:]}
+            self.assertEqual(set(optional), set(expected[host]), host)
+            for name, source in optional.items():
+                kind, location = expected[host][name]
+                self.assertEqual(source['source'], kind, name)
+                self.assertEqual(source.get('repo', source.get('url')), location, name)
+                self.assertNotIn('ref', source, name)
+                self.assertNotIn('sha', source, name)
+            self.assertNotIn('dependencies', catalog['plugins'][0], host)

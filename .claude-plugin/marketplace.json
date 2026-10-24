@@ -7,6 +7,22 @@
     {
       "name": "agentic-coding",
       "source": "./plugins/agentic-coding"
+    },
+    {
+      "name": "diagram-design",
+      "source": {
+        "source": "github",
+        "repo": "cathrynlavery/diagram-design"
+      },
+      "description": "Optional, upstream-maintained: editorial HTML/SVG diagrams. Tracks the upstream default branch."
+    },
+    {
+      "name": "humanize-korean",
+      "source": {
+        "source": "github",
+        "repo": "epoko77-ai/im-not-ai"
+      },
+      "description": "Optional, upstream-maintained (im-not-ai): Korean prose humanizer. Tracks the upstream default branch."
     }
   ]
 }
