@@ -1,0 +1,25 @@
+diff --git a/src/session.ts b/src/session.ts
+index 22b480b..d121c7c 100644
+--- a/src/session.ts
++++ b/src/session.ts
+@@ -52,6 +52,7 @@ export type Action =
+   | { type: "candidate" | "select"; id: ProductId }
+   | { type: "quantity"; id: ProductId; quantity: number }
+   | { type: "cart-quantity"; id: ProductId; quantity: number }
++  | { type: "compare-cart-item"; id: ProductId }
+   | { type: "check"; id: ProductId; check: ProductCheck }
+   | { type: "tester" | "health"; value: string }
+   | { type: "tester-available"; value: boolean }
+@@ -270,6 +271,12 @@ export function transition(s: Session, action: Action): Session {
+         needsPharmacist: s.needsPharmacist || healthRequest,
+       };
+     }
++    case "compare-cart-item": {
++      const quantity = s.cart[action.id];
++      if (!productExists(action.id) || !Number.isInteger(quantity) || quantity! <= 0)
++        return s;
++      return transition(s, { type: "candidate", id: action.id });
++    }
+     case "candidate": {
+       if (!productExists(action.id)) return s;
+       const exists = s.candidates.includes(action.id);

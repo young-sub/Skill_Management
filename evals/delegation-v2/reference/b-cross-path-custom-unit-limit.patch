@@ -1,0 +1,26 @@
+diff --git a/src/shared/product.ts b/src/shared/product.ts
+index 38118fe..039c221 100644
+--- a/src/shared/product.ts
++++ b/src/shared/product.ts
+@@ -26,7 +26,7 @@ const unitCode = z.enum(Object.keys(UNIT_LABELS) as [keyof typeof UNIT_LABELS, .
+ export const offerSchema = z.object({
+   quantity: z.number().int().min(1).max(999),
+   unitCode,
+-  unitCustomKo: z.string().trim().min(1).max(40).optional(),
++  unitCustomKo: z.string().trim().min(1).max(20).optional(),
+   priceKrw: z.number().min(0).max(99_999_999).refine((value) => Math.abs(value * 100 - Math.round(value * 100)) < 0.000001, "가격은 소수점 둘째 자리까지 입력해 주세요."),
+ }).superRefine((offer, context) => {
+   if (offer.unitCode === "custom" && !offer.unitCustomKo) {
+diff --git a/src/worker/productImport.ts b/src/worker/productImport.ts
+index 4f7a6d8..ffe60a4 100644
+--- a/src/worker/productImport.ts
++++ b/src/worker/productImport.ts
+@@ -139,7 +139,7 @@ async function validateRows(db: AccountDatabase, raw: unknown, limit: number) {
+       messages.push("단품가격은 숫자만 입력해 주세요.");
+     }
+     if (!unitCode) messages.push("코드표에 있는 단위를 선택해 주세요.");
+-    const customUnit = typeof row.unitCustomKo === "string" ? normalizeText(row.unitCustomKo) : "";
++    const customUnit = typeof row.unitCustomKo === "string" ? row.unitCustomKo.trim() : "";
+     if (unitCode === "custom" && (!customUnit || customUnit.length > 20)) messages.push("직접입력단위를 적어 주세요.");
+     const rawBundles = Array.isArray(row.bundles) ? row.bundles : (
+       row.bundleQuantity === undefined && row.bundlePriceKrw === undefined ? [] : [{ quantity: row.bundleQuantity, priceKrw: row.bundlePriceKrw }]

@@ -1,0 +1,12 @@
+{
+  "labeler": {
+    "head": "6d4551548f0fad640d68b3caf6b1eb26df337569",
+    "status": "",
+    "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "yeondoo-link": {
+    "head": "d17f0c2322056a4d804c911b83d6cc1b1738a083",
+    "status": "M .harness/project.yaml\n M docs/verification.md\n?? \"docs/\\352\\262\\200\\354\\246\\235_\\352\\263\\265\\353\\260\\261_\\352\\270\\260\\353\\241\\235.md\"",
+    "tracked_diff_sha256": "618c08346f9a0ab64fcbe341304a182723390d897d4f481a061fc2f86a09c95c"
+  }
+}

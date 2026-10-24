@@ -1,0 +1,154 @@
+{
+  "runs": [
+    {
+      "scenario": "a-offer-quantity-all-paths",
+      "condition": "off",
+      "rep": 1
+    },
+    {
+      "scenario": "a-offer-quantity-all-paths",
+      "condition": "plugin",
+      "rep": 1
+    },
+    {
+      "scenario": "a-product-source-stale-all-paths",
+      "condition": "off",
+      "rep": 1
+    },
+    {
+      "scenario": "a-product-source-stale-all-paths",
+      "condition": "plugin",
+      "rep": 1
+    },
+    {
+      "scenario": "a-product-name-whitespace-complaint",
+      "condition": "off",
+      "rep": 1
+    },
+    {
+      "scenario": "a-product-name-whitespace-complaint",
+      "condition": "plugin",
+      "rep": 1
+    },
+    {
+      "scenario": "a-import-offer-sequence",
+      "condition": "off",
+      "rep": 1
+    },
+    {
+      "scenario": "a-import-offer-sequence",
+      "condition": "plugin",
+      "rep": 1
+    },
+    {
+      "scenario": "a-update-offer-list-complaint",
+      "condition": "off",
+      "rep": 1
+    },
+    {
+      "scenario": "a-update-offer-list-complaint",
+      "condition": "plugin",
+      "rep": 1
+    },
+    {
+      "scenario": "b-sequence-category-branch-copy",
+      "condition": "off",
+      "rep": 1
+    },
+    {
+      "scenario": "b-sequence-category-branch-copy",
+      "condition": "plugin",
+      "rep": 1
+    },
+    {
+      "scenario": "b-entitlement-design-save-api",
+      "condition": "off",
+      "rep": 1
+    },
+    {
+      "scenario": "b-entitlement-design-save-api",
+      "condition": "plugin",
+      "rep": 1
+    },
+    {
+      "scenario": "b-contract-catalog-default-page",
+      "condition": "off",
+      "rep": 1
+    },
+    {
+      "scenario": "b-contract-catalog-default-page",
+      "condition": "plugin",
+      "rep": 1
+    },
+    {
+      "scenario": "b-cross-path-custom-unit-limit",
+      "condition": "off",
+      "rep": 1
+    },
+    {
+      "scenario": "b-cross-path-custom-unit-limit",
+      "condition": "plugin",
+      "rep": 1
+    },
+    {
+      "scenario": "cart-item-to-compare",
+      "condition": "off",
+      "rep": 1
+    },
+    {
+      "scenario": "cart-item-to-compare",
+      "condition": "plugin",
+      "rep": 1
+    },
+    {
+      "scenario": "medicine-catalog-classification-bypass",
+      "condition": "off",
+      "rep": 1
+    },
+    {
+      "scenario": "medicine-catalog-classification-bypass",
+      "condition": "plugin",
+      "rep": 1
+    },
+    {
+      "scenario": "rule-all-paths",
+      "condition": "off",
+      "rep": 1
+    },
+    {
+      "scenario": "rule-all-paths",
+      "condition": "plugin",
+      "rep": 1
+    }
+  ],
+  "argv": {
+    "off": [
+      "claude",
+      "-p",
+      "상품 가격 옵션은 고객과 운영자가 새 상품을 저장하거나 기존 상품을 수정·복사하거나, 고객·운영자·카탈로그의 일괄 가져오기 또는 백업 복원을 할 때 모두 같은 규칙을 따라야 합니다. 상품마다 가격 옵션은 1개에서 10개까지 허용하고, 각 수량은 정수 1~999이며 한 상품 안에서 중복될 수 없고 모든 옵션은 같은 판매 단위를 사용해야 합니다. 999와 10개는 허용하고 1000, 중복 수량, 단위가 섞인 옵션, 11개 옵션은 자르거나 일부만 저장하지 말고 거절해 주세요. 직접 저장이 거절되면 HTTP 400 validation_failed를 반환하고 상품·옵션·버전을 그대로 둡니다. 고객 일괄 가져오기는 잘못된 행을 invalid로 세고 그 상품을 바꾸지 않으며, 다른 유효한 행은 계속 저장합니다. 운영자 미리보기는 잘못된 행이 있으면 conflict로 표시하고 invalidRows에 포함하며, 그 작업의 적용은 거절해야 합니다. 카탈로그 가져오기도 잘못된 옵션을 저장하지 않습니다. 백업 복원 미리보기는 적용 불가로 표시하고, 적용은 HTTP 409 backup_conflict로 거절하며 데이터를 바꾸지 않습니다. 정상 복사와 모든 정상 저장 후에는 입력한 옵션 전체가 같은 순서와 가격으로 남아야 합니다.",
+      "--permission-mode",
+      "bypassPermissions",
+      "--output-format",
+      "stream-json",
+      "--verbose",
+      "--include-hook-events",
+      "--settings",
+      "{\"enabledPlugins\": {\"agentic-coding@agentic-coding\": false}}"
+    ],
+    "plugin": [
+      "claude",
+      "-p",
+      "상품 가격 옵션은 고객과 운영자가 새 상품을 저장하거나 기존 상품을 수정·복사하거나, 고객·운영자·카탈로그의 일괄 가져오기 또는 백업 복원을 할 때 모두 같은 규칙을 따라야 합니다. 상품마다 가격 옵션은 1개에서 10개까지 허용하고, 각 수량은 정수 1~999이며 한 상품 안에서 중복될 수 없고 모든 옵션은 같은 판매 단위를 사용해야 합니다. 999와 10개는 허용하고 1000, 중복 수량, 단위가 섞인 옵션, 11개 옵션은 자르거나 일부만 저장하지 말고 거절해 주세요. 직접 저장이 거절되면 HTTP 400 validation_failed를 반환하고 상품·옵션·버전을 그대로 둡니다. 고객 일괄 가져오기는 잘못된 행을 invalid로 세고 그 상품을 바꾸지 않으며, 다른 유효한 행은 계속 저장합니다. 운영자 미리보기는 잘못된 행이 있으면 conflict로 표시하고 invalidRows에 포함하며, 그 작업의 적용은 거절해야 합니다. 카탈로그 가져오기도 잘못된 옵션을 저장하지 않습니다. 백업 복원 미리보기는 적용 불가로 표시하고, 적용은 HTTP 409 backup_conflict로 거절하며 데이터를 바꾸지 않습니다. 정상 복사와 모든 정상 저장 후에는 입력한 옵션 전체가 같은 순서와 가격으로 남아야 합니다.",
+      "--permission-mode",
+      "bypassPermissions",
+      "--output-format",
+      "stream-json",
+      "--verbose",
+      "--include-hook-events",
+      "--settings",
+      "{\"enabledPlugins\": {\"agentic-coding@agentic-coding\": false}}",
+      "--plugin-dir",
+      "C:\\Users\\YS\\Desktop\\python\\Skill_Management\\plugins\\agentic-coding"
+    ]
+  }
+}

@@ -1,0 +1,143 @@
+{
+  "schema_version": 1,
+  "incomplete_markers": [
+    "미완료",
+    "완료하지 못",
+    "구현하지 못",
+    "끝내지 못",
+    "마치지 못",
+    "could not complete",
+    "unable to complete",
+    "did not finish",
+    "not finished"
+  ],
+  "scenarios": [
+    {
+      "id": "cart-item-to-compare",
+      "area": "FE",
+      "project": "C:/Users/YS/Desktop/python/yeondoo-link",
+      "ref": "d17f0c2322056a4d804c911b83d6cc1b1738a083",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 1800,
+      "prompt": "The public customer action `compare-cart-item` adds a cart product to comparison from that item's cart row. Provide that action on every cart row. The comparison list holds at most five products: adding a fifth succeeds, and trying to add a sixth leaves all current session content unchanged. Repeating the action for a product already in comparison also leaves all current session content unchanged; the product must not be removed or duplicated. Only a known product with a positive quantity in the cart may be added. If the product is unknown, absent from the cart, or has quantity zero, leave all current session content unchanged. On success, append the new product after the existing comparison products without changing their order. Keep the cart and its quantities, and keep every existing comparison product's selection, quantity, pharmacist confirmation, and review information. The new product starts unselected, with any old selection quantity and review or confirmation information for that product cleared. After a successful addition, clear the selected tester and reset purchase-request and purchase-completed status. All other session information remains unchanged on success. For every rejected request, preserve all current content, including tester selection and purchase status.",
+      "regression": "node --experimental-strip-types --test scripts/session.test.mjs scripts/cart.test.mjs",
+      "hidden": [
+        {
+          "name": "cart-item-to-comparison-behavior",
+          "command": "node --experimental-strip-types --test scripts/zz-eval-cart-item-to-compare.test.mjs",
+          "expect": "pass",
+          "files": {
+            "scripts/zz-eval-cart-item-to-compare.test.mjs": "hidden/y-cart-item-to-compare/zz-eval-cart-item-to-compare.test.mjs"
+          }
+        }
+      ],
+      "probes": [
+        {
+          "name": "duplicate-add-toggles-existing-comparison-item",
+          "file": "src/session.ts",
+          "find": "s.candidates.includes(action.id) ||\r\n        s.candidates.length >= MAX_CANDIDATES",
+          "replace": "false || s.candidates.length >= MAX_CANDIDATES",
+          "command": "node --experimental-strip-types --test scripts/session.test.mjs scripts/cart.test.mjs"
+        },
+        {
+          "name": "sixth-item-is-accepted",
+          "file": "src/session.ts",
+          "find": "s.candidates.length >= MAX_CANDIDATES\r\n      )",
+          "replace": "s.candidates.length >= MAX_CANDIDATES + 1\r\n      )",
+          "command": "node --experimental-strip-types --test scripts/session.test.mjs scripts/cart.test.mjs"
+        },
+        {
+          "name": "new-item-keeps-stale-review",
+          "file": "src/session.ts",
+          "find": "      delete checks[action.id];\r\n      return {\r\n        ...clearPurchase(s),\r\n        candidates: [...s.candidates, action.id],",
+          "replace": "      return {\r\n        ...clearPurchase(s),\r\n        candidates: [...s.candidates, action.id],",
+          "command": "node --experimental-strip-types --test scripts/session.test.mjs scripts/cart.test.mjs"
+        }
+      ]
+    },
+    {
+      "id": "medicine-catalog-classification-bypass",
+      "area": "FE",
+      "project": "C:/Users/YS/Desktop/python/yeondoo-link",
+      "ref": "d17f0c2322056a4d804c911b83d6cc1b1738a083",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 1800,
+      "prompt": "Tylenol 500 is a medicine, and every other product marked as a medicine must receive the same safeguards. Keep a medicine product overview hidden until a pharmacist confirms it, and do not accept a purchase request for a medicine until that confirmation is recorded. After confirmation, accept the request only when the price is known, the item is in stock, its package is confirmed, and no other store review is pending. A cosmetic may show its overview and may have a purchase request accepted without pharmacist confirmation when its price, stock, and package requirements are satisfied. If a cosmetic independently needs pharmacist review, wait for that review too. Apply these rules both when a customer views a product overview and when they submit a purchase request; ordinary cosmetics must not be blocked by the medicine safeguard.",
+      "regression": "node --experimental-strip-types --test scripts/session.test.mjs scripts/cart.test.mjs",
+      "fault": {
+        "file": "data/catalog.seed.json",
+        "find": "\"tylenol500\": {\r\n      \"kind\": \"medicine\",",
+        "replace": "\"tylenol500\": {\r\n      \"kind\": \"cosmetic\",",
+        "commit_message": "eval: misclassify Tylenol 500 as cosmetic"
+      },
+      "hidden": [
+        {
+          "name": "medicine-classification-overview-and-purchase-gates",
+          "command": "node --experimental-strip-types --test scripts/zz-eval-medicine-classification.test.mjs",
+          "expect": "pass",
+          "files": {
+            "scripts/zz-eval-medicine-classification.test.mjs": "hidden/y-medicine-catalog-classification-bypass/zz-eval-medicine-classification.test.mjs"
+          }
+        }
+      ],
+      "probes": [
+        {
+          "name": "hides-approved-and-cosmetic-overviews",
+          "file": "src/session.ts",
+          "find": "s.checks[id]?.fields.includes(field) &&",
+          "replace": "false && s.checks[id]?.fields.includes(field) &&",
+          "command": "node --experimental-strip-types --test scripts/session.test.mjs scripts/cart.test.mjs"
+        },
+        {
+          "name": "medicine-purchase-bypasses-pharmacist-gate",
+          "file": "src/session.ts",
+          "find": "const reviewed = ids.every(",
+          "replace": "const reviewed = true || ids.every(",
+          "command": "node --experimental-strip-types --test scripts/session.test.mjs scripts/cart.test.mjs"
+        }
+      ]
+    },
+    {
+      "id": "rule-all-paths",
+      "area": "Domain",
+      "project": "C:/Users/YS/Desktop/python/labeler",
+      "ref": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 1800,
+      "prompt": "상품 설명이 너무 길면 관리하기도 어렵고 화면이 지저분해집니다. 앞으로 상품 설명은 300자까지만 저장되도록 해 주세요. 300자를 넘는 내용은 저장되지 않게 부탁합니다.",
+      "regression": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts tests/backup.test.ts tests/productCatalog.test.ts src/client/ProductForm.test.tsx src/client/ProductCatalogFinder.test.tsx",
+      "hidden": [
+        {
+          "name": "product-description-limit-all-writes",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/zz-eval-rule-all-paths.test.ts",
+          "expect": "pass",
+          "files": {
+            "tests/zz-eval-rule-all-paths.test.ts": "hidden/rule-all-paths/zz-eval-rule-all-paths.test.ts"
+          }
+        }
+      ],
+      "probes": [
+        {
+          "name": "allows-overlong-create-description",
+          "file": "src/shared/product.ts",
+          "find": "descriptionKo: z.string().trim().min(1).max(MAX_PRODUCT_DESCRIPTION_LENGTH),",
+          "replace": "descriptionKo: z.string().trim().min(1).max(500),",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts tests/backup.test.ts tests/productCatalog.test.ts src/client/ProductForm.test.tsx src/client/ProductCatalogFinder.test.tsx"
+        },
+        {
+          "name": "skips-restore-description-guard",
+          "file": "src/worker/backup.ts",
+          "find": "for (const product of backup.data.products) if (product.description_ko.length > MAX_PRODUCT_DESCRIPTION_LENGTH) conflicts.push({",
+          "replace": "for (const product of backup.data.products) if (false) conflicts.push({",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts tests/backup.test.ts tests/productCatalog.test.ts src/client/ProductForm.test.tsx src/client/ProductCatalogFinder.test.tsx"
+        }
+      ]
+    }
+  ]
+}

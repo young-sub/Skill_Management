@@ -1,0 +1,200 @@
+{
+  "schema_version": 1,
+  "disable_plugins": [
+    "agentic-coding@agentic-coding"
+  ],
+  "incomplete_markers": [
+    "미완료",
+    "완료하지 못",
+    "구현하지 못",
+    "끝내지 못",
+    "마치지 못",
+    "could not complete",
+    "unable to complete",
+    "did not finish",
+    "not finished"
+  ],
+  "scenarios": [
+    {
+      "id": "b-sequence-category-branch-copy",
+      "area": "Sequence",
+      "project": "C:/Users/YS/Desktop/python/labeler",
+      "ref": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 2700,
+      "prompts": [
+        "분류 트리는 언제나 최대 3단계까지만 있어야 합니다. 새 분류 추가와 기존 분류 이동 모두 최종 트리가 3단계를 넘으면 HTTP 400 `category_hierarchy_invalid`로 거절하고 어떤 분류도 바뀌지 않아야 합니다. 세 단계 안에 들어오는 추가와 이동은 정상 저장되어야 합니다.",
+        "이제 선택한 분류의 `가지 복제` (`duplicate`) 동작을 제공해 주세요. 복제 요청에는 새 부모 `parentId`와 복사본 첫 분류의 새 이름 `nameKo`를 지정합니다. 복제 요청에는 새 부모(최상위는 null)와 복사본 첫 분류의 새 이름을 지정하고, 응답에는 새로 만들어진 가지 전체를 깊이 우선 순서로 돌려주세요. 선택한 분류와 모든 하위 분류를 새 ID로 만들고, 첫 분류는 입력한 이름을 사용하며 나머지 이름, 아이콘, 활성 상태, 형제 순서는 원본과 같아야 합니다. 복제된 첫 분류는 새 부모의 마지막 자식으로 들어갑니다. 상품, 안내 문구, 기본 서식 연결, 저장된 출력 목록, 출력 기록은 복사하지 않아야 합니다. 원본 가지와 대상 부모의 기존 자식 및 순서는 그대로 두어야 합니다. 복제 후 최종 깊이가 3을 넘으면 HTTP 400 `category_hierarchy_invalid`로 거절하고 새 분류를 하나도 만들지 않아야 합니다."
+      ],
+      "regression": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/categorySigns.test.ts tests/categoryBackup.test.ts",
+      "hidden": [
+        {
+          "name": "category-branch-copy-is-atomic-and-depth-bounded",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/zz-eval-b-sequence.test.ts",
+          "expect": "pass",
+          "files": {
+            "tests/zz-eval-b-sequence.test.ts": "hidden/b-sequence/zz-eval-b-sequence.test.ts"
+          }
+        }
+      ],
+      "probes": [
+        {
+          "name": "branch-copy-allows-a-fourth-level",
+          "file": "src/worker/categories.ts",
+          "find": "const branchHeight = Math.max(...branch.map((category) => category.depth - current.depth + 1));\r\n  if ((parent?.depth ?? 0) + branchHeight > 3) throw new Error(\"category_hierarchy_invalid\");",
+          "replace": "const branchHeight = Math.max(...branch.map((category) => category.depth - current.depth + 1));\r\n  if ((parent?.depth ?? 0) + branchHeight > 4) throw new Error(\"category_hierarchy_invalid\");",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/categorySigns.test.ts tests/categoryBackup.test.ts"
+        },
+        {
+          "name": "branch-copy-drops-descendants",
+          "file": "src/worker/categories.ts",
+          "find": "const branch: (typeof all)[number][] = [];\r\n  const visit = (category: (typeof all)[number]) => {\r\n    branch.push(category);\r\n    for (const child of byParent.get(category.id) ?? []) visit(child);\r\n  };\r\n  visit(current);",
+          "replace": "const branch: (typeof all)[number][] = [current as CategoryRow];",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/categorySigns.test.ts tests/categoryBackup.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "b-entitlement-design-save-api",
+      "area": "Domain",
+      "project": "C:/Users/YS/Desktop/python/labeler",
+      "ref": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 1800,
+      "prompt": "저장 디자인을 새로 저장하거나 기존 버전에서 이어 저장할 때는 유효한 유료 이용권이 있는 고객만 가능하게 해주세요. 아직 시작하지 않았거나 만료·취소·정지된 이용권이면 저장을 HTTP 403 `paid_required`로 거절하고 기존 디자인과 버전 수를 그대로 두어야 합니다. 유효한 이용권이 있는 고객은 저장할 수 있고, 개발자와 운영자는 이용권 없이도 저장할 수 있습니다. 이용권이 끝난 뒤에도 저장된 디자인과 버전 목록은 계속 볼 수 있어야 합니다. 화면에서 저장하든 외부 연동으로 저장하든 같은 제한이 적용되어야 합니다.",
+      "regression": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/designs.test.ts tests/template.test.ts",
+      "hidden": [
+        {
+          "name": "design-save-requires-active-period-at-api-boundary",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/zz-eval-b-entitlement.test.ts",
+          "expect": "pass",
+          "files": {
+            "tests/zz-eval-b-entitlement.test.ts": "hidden/b-entitlement/zz-eval-b-entitlement.test.ts"
+          }
+        }
+      ],
+      "fault": {
+        "file": "src/worker/templates.ts",
+        "find": "  await requirePaid(db);\r\n",
+        "replace": "",
+        "commit_message": "test: reproduce direct unpaid design save"
+      },
+      "probes": [
+        {
+          "name": "design-save-skips-paid-check",
+          "file": "src/worker/templates.ts",
+          "find": "  await requirePaid(db);",
+          "replace": "  // entitlement check removed",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/designs.test.ts tests/template.test.ts"
+        },
+        {
+          "name": "revoked-period-still-grants-access",
+          "file": "src/worker/entitlements.ts",
+          "find": "p.revoked_at IS NULL AND p.suspended_at IS NULL",
+          "replace": "p.suspended_at IS NULL",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/designs.test.ts tests/template.test.ts"
+        },
+        {
+          "name": "operators-lose-the-exemption",
+          "file": "src/worker/entitlements.ts",
+          "find": "a.role IN ('developer', 'operator')",
+          "replace": "a.role = 'developer'",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/designs.test.ts tests/template.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "b-contract-catalog-default-page",
+      "area": "BE",
+      "project": "C:/Users/YS/Desktop/python/labeler",
+      "ref": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 1800,
+      "prompt": "공용 제품 카탈로그에서 검색어나 분류 종류가 있든 없든 페이지 크기를 지정하지 않으면 최신 수정 순서(수정 시각 내림차순, 같은 시각이면 ID 내림차순)로 40개를 보여주세요. 응답의 상품 목록, 전체 건수, 현재 페이지 개수와 다음 페이지 표시는 지금 형태를 유지해야 합니다. 페이지 크기를 직접 지정하면 1부터 50까지 그대로 적용하고, 0이나 50 초과 또는 정수가 아닌 값은 자르거나 기본값으로 바꾸지 말고 HTTP 400 `validation_failed`로 거절해야 합니다. 다음 페이지는 중복이나 누락 없이 이어져야 합니다. 계정의 내 상품 목록은 별도 동작이며, 크기 미지정 시 기존처럼 100개를 유지해야 합니다.",
+      "regression": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/catalogSearch.test.ts src/client/ProductCatalogFinder.test.tsx",
+      "hidden": [
+        {
+          "name": "catalog-default-limit-and-existing-api-contract",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/zz-eval-b-contract.test.ts",
+          "expect": "pass",
+          "files": {
+            "tests/zz-eval-b-contract.test.ts": "hidden/b-contract/zz-eval-b-contract.test.ts"
+          }
+        }
+      ],
+      "probes": [
+        {
+          "name": "default-remains-twenty",
+          "file": "src/shared/productCatalog.ts",
+          "find": "limit: z.coerce.number().int().min(1).max(50).optional().default(40),",
+          "replace": "limit: z.coerce.number().int().min(1).max(50).optional().default(20),",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/catalogSearch.test.ts src/client/ProductCatalogFinder.test.tsx"
+        },
+        {
+          "name": "explicit-fifty-limit-is-capped-at-forty-nine",
+          "file": "src/shared/productCatalog.ts",
+          "find": "limit: z.coerce.number().int().min(1).max(50).optional().default(40),",
+          "replace": "limit: z.coerce.number().int().min(1).max(49).optional().default(40),",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/catalogSearch.test.ts src/client/ProductCatalogFinder.test.tsx"
+        }
+      ]
+    },
+    {
+      "id": "b-cross-path-custom-unit-limit",
+      "area": "Feedback",
+      "project": "C:/Users/YS/Desktop/python/labeler",
+      "ref": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 1800,
+      "prompt": "상품의 직접 입력 판매 단위 이름은 상품을 새로 저장하거나 수정하거나 일괄 가져올 때 모두 앞뒤 공백만 제거한 뒤 1~20자로 제한해 주세요. 글자 수를 셀 때 이름 안쪽의 공백은 각각 한 글자로 세어야 합니다. 정확히 20자는 허용해야 합니다. 직접 저장에서는 빈 값이나 21자 이상을 자르거나 받아들이지 말고 HTTP 400 `validation_failed`로 거절해야 합니다. 단위 이름이 비어 있으면 저장할 수 없습니다. 거절된 수정은 기존 상품과 버전을 그대로 두고, 일괄 가져오기는 미리보기에서 해당 행을 `invalid`로 표시하며 적용해도 그 행을 저장하지 않고 `invalidRows`에 포함해야 합니다. 나머지 유효한 상품과 단위는 계속 저장되어야 합니다.",
+      "regression": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts src/client/ProductForm.test.tsx",
+      "hidden": [
+        {
+          "name": "custom-unit-limit-is-shared-by-create-edit-and-import",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/zz-eval-b-cross-path.test.ts",
+          "expect": "pass",
+          "files": {
+            "tests/zz-eval-b-cross-path.test.ts": "hidden/b-cross-path/zz-eval-b-cross-path.test.ts"
+          }
+        }
+      ],
+      "fault": {
+        "file": "src/shared/product.ts",
+        "find": "unitCustomKo: z.string().trim().min(1).max(20).optional(),",
+        "replace": "unitCustomKo: z.string().trim().min(1).max(40).optional(),",
+        "commit_message": "test: reproduce long custom unit accepted by product save"
+      },
+      "probes": [
+        {
+          "name": "twenty-character-unit-is-rejected",
+          "file": "src/shared/product.ts",
+          "find": "unitCustomKo: z.string().trim().min(1).max(20).optional(),",
+          "replace": "unitCustomKo: z.string().trim().min(1).max(19).optional(),",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts src/client/ProductForm.test.tsx"
+        },
+        {
+          "name": "twenty-one-character-unit-is-accepted",
+          "file": "src/shared/product.ts",
+          "find": "unitCustomKo: z.string().trim().min(1).max(20).optional(),",
+          "replace": "unitCustomKo: z.string().trim().min(1).max(21).optional(),",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts src/client/ProductForm.test.tsx"
+        },
+        {
+          "name": "import-collapses-inner-spaces-before-counting",
+          "file": "src/worker/productImport.ts",
+          "find": "const customUnit = typeof row.unitCustomKo === \"string\" ? row.unitCustomKo.trim() : \"\";",
+          "replace": "const customUnit = typeof row.unitCustomKo === \"string\" ? normalizeText(row.unitCustomKo) : \"\";",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts src/client/ProductForm.test.tsx"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+diff --git a/src/shared/product.ts b/src/shared/product.ts
+index 039c221..2f97a80 100644
+--- a/src/shared/product.ts
++++ b/src/shared/product.ts
+@@ -44,7 +44,7 @@ const productFields = {
+   templateKeyOverride: z.string().trim().min(1).optional().nullable(),
+   currencyCode: z.enum(PRODUCT_CURRENCIES).default("KRW"),
+ };
+-const offersSchema = z.array(offerSchema).min(1).max(MAX_PRODUCT_OFFERS).superRefine((offers, context) => {
++export const offersSchema = z.array(offerSchema).min(1).max(MAX_PRODUCT_OFFERS).superRefine((offers, context) => {
+   const quantities = new Set<number>();
+   const unit = offers[0] && offers[0].unitCode + "\0" + (offers[0].unitCustomKo ?? "");
+   offers.forEach((offer, index) => {
+diff --git a/src/worker/backup.ts b/src/worker/backup.ts
+index ac01f05..bb6d9d5 100644
+--- a/src/worker/backup.ts
++++ b/src/worker/backup.ts
+@@ -10,6 +10,7 @@ import { fieldSourceHash } from "../shared/fieldTranslation";
+ import { commonPrintInputSchema, commonSnapshotSchema } from "../shared/commonPrinting";
+ import { remapCommonSet, remapCommonSnapshot } from "./commonPrintBackup";
+ import { favoriteKey, type DesignFavorite } from "../shared/designFavorite";
++import { offersSchema } from "../shared/product";
+ 
+ export type BackupEnv = { DB: AccountDatabase; MEDIA?: R2Bucket; APP_VERSION?: string; bypassPaid?: boolean };
+ 
+@@ -530,6 +531,21 @@ async function restorePlan(env: BackupEnv, raw: unknown) {
+   }, new Map<string, Record<string, unknown>[]>());
+   const currentOffersByProduct = offersByProduct(currentOffers.results);
+   const backupOffersByProduct = offersByProduct(backup.data.product_offers);
++  for (const product of backup.data.products) {
++    const offers = backupOffersByProduct.get(product.id) ?? [];
++    if (!offers.length && backup.data.product_offers.some((offer) =>
++      currentOffersById.get(String(offer.id))?.product_id === product.id && offer.product_id !== product.id)) continue;
++    const parsedOffers = offersSchema.safeParse(offers.map((offer) => ({
++      quantity: offer.quantity,
++      unitCode: offer.unit_code,
++      unitCustomKo: offer.unit_custom_ko ?? undefined,
++      priceKrw: offer.price_krw,
++    })));
++    if (!parsedOffers.success) conflicts.push({
++      domain: "product_offers", code: "invalid_offers", key: product.id,
++      message: "Backup product offers are invalid.",
++    });
++  }
+   const changedCategories = backup.data.categories.filter((row) => {
+     const current = categoriesById.get(row.id);
+     return !current || !same(without(current, ["created_at", "updated_at"]), without(row, ["created_at", "updated_at"]));

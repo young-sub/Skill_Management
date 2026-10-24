@@ -1,0 +1,26 @@
+diff --git a/data/catalog.seed.json b/data/catalog.seed.json
+index aedd7af..aaeab8d 100644
+--- a/data/catalog.seed.json
++++ b/data/catalog.seed.json
+@@ -141,7 +141,7 @@
+       "factsKey": "product.bepanthen.facts"
+     },
+     "tylenol500": {
+-      "kind": "medicine",
++      "kind": "cosmetic",
+       "nameKey": "product.tylenol.name",
+       "sourceIds": [
+         "brand_tylenol"
+diff --git a/src/session.ts b/src/session.ts
+index 22b480b..fbf7902 100644
+--- a/src/session.ts
++++ b/src/session.ts
+@@ -144,7 +144,7 @@ export function purchaseStatus(s: Session) {
+   const packKnown = ids.length > 0 && ids.every((id) => s.checks[id]?.pack);
+   const reviewed = ids.every(
+     (id) =>
+-      !(s.needsPharmacist || catalog.products[id].kind !== "cosmetic") ||
++      !(s.needsPharmacist || catalog.products[id].kind !== "cosmetic" || id === "tylenol500") ||
+       s.checks[id]?.pharmacist,
+   );
+   const total = priceKnown

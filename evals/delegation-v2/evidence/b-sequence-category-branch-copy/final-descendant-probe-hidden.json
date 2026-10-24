@@ -1,0 +1,6 @@
+{
+  "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/zz-eval-b-sequence.test.ts",
+  "exit": 1,
+  "wall_seconds": 9.328,
+  "log": "evidence/b-sequence-category-branch-copy/final-descendant-probe-hidden.log"
+}

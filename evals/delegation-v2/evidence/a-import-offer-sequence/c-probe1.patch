@@ -1,0 +1,119 @@
+diff --git a/src/worker/productImport.ts b/src/worker/productImport.ts
+index 4f7a6d8..ddbd3cb 100644
+--- a/src/worker/productImport.ts
++++ b/src/worker/productImport.ts
+@@ -1,5 +1,5 @@
+ import { owner, type AccountDatabase } from "./accountData";
+-import { UNIT_LABELS, createProductSchema, normalizeText, type ProductInput } from "../shared/product";
++import { UNIT_LABELS, createProductSchema, normalizeText, type ProductInput, type ProductUpdate } from "../shared/product";
+ import { findProducts, prepareProductInsert, prepareProductUpdate } from "./products";
+ 
+ type ImportRow = {
+@@ -22,6 +22,7 @@ type DeleteStatus = "deletable" | "conflict" | "deleted" | "missing" | "invalid"
+ type DeleteResult = { rowNumber: number; status: DeleteStatus; messages: string[]; expectedVersion?: number };
+ 
+ const validPrice = (value: unknown) => typeof value === "number" && Number.isFinite(value) && Math.abs(value * 100 - Math.round(value * 100)) < 0.000001;
++const blankImportCell = (value: unknown) => value === undefined || value === null || value === "";
+ 
+ const unitByLabel = new Map<string, keyof typeof UNIT_LABELS>(
+   Object.entries(UNIT_LABELS).map(([code, label]) => [label, code as keyof typeof UNIT_LABELS]),
+@@ -116,6 +117,7 @@ async function validateRows(db: AccountDatabase, raw: unknown, limit: number) {
+   const results: RowResult[] = [];
+   const inputs = new Map<number, ProductInput>();
+   const productIdsByRow = new Map<number, string>();
++  const preserveOffersByRow = new Set<number>();
+ 
+   for (const [index, row] of rows.entries()) {
+     const messages: string[] = [];
+@@ -131,19 +133,26 @@ async function validateRows(db: AccountDatabase, raw: unknown, limit: number) {
+     if (!category || (!category.is_active && !retainingInactiveCategory)) messages.push("현재 사용하는 분류명을 입력해 주세요.");
+     if (!nameKo || nameKo.length > 100) messages.push("상품명은 1~100자로 입력해 주세요.");
+     if (!descriptionKo || descriptionKo.length > 500) messages.push("설명은 1~500자로 입력해 주세요.");
++    const rawBundles = Array.isArray(row.bundles) ? row.bundles : (
++      row.bundleQuantity === undefined && row.bundlePriceKrw === undefined ? [] : [{ quantity: row.bundleQuantity, priceKrw: row.bundlePriceKrw }]
++    );
++    const bundleCellsBlank = rawBundles.every((rawBundle) => {
++      if (!rawBundle || typeof rawBundle !== "object") return false;
++      const bundle = rawBundle as { quantity?: unknown; priceKrw?: unknown };
++      return blankImportCell(bundle.quantity) && blankImportCell(bundle.priceKrw);
++    });
++    const offerSectionBlank = [row.singleQuantity, row.priceKrw, row.unitLabel, row.unitCustomKo].every(blankImportCell) && bundleCellsBlank;
++    const preserveExistingOffers = Boolean(existingById && !existingById.deleted_at && offerSectionBlank);
+     const singleQuantity = row.singleQuantity === undefined ? 1 : row.singleQuantity;
+-    if (typeof singleQuantity !== "number" || !Number.isInteger(singleQuantity) || singleQuantity < 1 || singleQuantity > 999) {
++    if (!preserveExistingOffers && (typeof singleQuantity !== "number" || !Number.isInteger(singleQuantity) || singleQuantity < 1 || singleQuantity > 999)) {
+       messages.push("단품 수량은 1~999의 숫자로 입력해 주세요.");
+     }
+-    if (typeof row.priceKrw !== "number" || !validPrice(row.priceKrw) || row.priceKrw < 0 || row.priceKrw > 99_999_999) {
++    if (!preserveExistingOffers && (typeof row.priceKrw !== "number" || !validPrice(row.priceKrw) || row.priceKrw < 0 || row.priceKrw > 99_999_999)) {
+       messages.push("단품가격은 숫자만 입력해 주세요.");
+     }
+-    if (!unitCode) messages.push("코드표에 있는 단위를 선택해 주세요.");
++    if (!preserveExistingOffers && !unitCode) messages.push("코드표에 있는 단위를 선택해 주세요.");
+     const customUnit = typeof row.unitCustomKo === "string" ? normalizeText(row.unitCustomKo) : "";
+-    if (unitCode === "custom" && (!customUnit || customUnit.length > 20)) messages.push("직접입력단위를 적어 주세요.");
+-    const rawBundles = Array.isArray(row.bundles) ? row.bundles : (
+-      row.bundleQuantity === undefined && row.bundlePriceKrw === undefined ? [] : [{ quantity: row.bundleQuantity, priceKrw: row.bundlePriceKrw }]
+-    );
++    if (!preserveExistingOffers && unitCode === "custom" && (!customUnit || customUnit.length > 20)) messages.push("직접입력단위를 적어 주세요.");
+     if (rawBundles.length > 9) messages.push("묶음 가격은 최대 9개까지 입력해 주세요.");
+     const parsedBundles: Array<{ quantity: number; priceKrw: number }> = [];
+     for (const rawBundle of rawBundles) {
+@@ -163,17 +172,23 @@ async function validateRows(db: AccountDatabase, raw: unknown, limit: number) {
+     }
+ 
+     let status: ImportStatus = "invalid";
+-    if (!messages.length && category && unitCode) {
+-      const candidateOffers: ProductInput["offers"] = [
+-        { quantity: singleQuantity as number, unitCode, unitCustomKo: customUnit || undefined, priceKrw: row.priceKrw as number },
+-        ...parsedBundles.map((bundle) => ({ ...bundle, unitCode, unitCustomKo: customUnit || undefined })),
+-      ];
++    if (!messages.length && category && (unitCode || preserveExistingOffers)) {
++      const candidateOffers: ProductInput["offers"] = preserveExistingOffers
++        ? (offers.get(existingById!.id) ?? []).map((offer) => ({
++          quantity: offer.quantity, unitCode: offer.unit_code, unitCustomKo: offer.unit_custom_ko ?? undefined,
++          priceKrw: (offer.price_minor ?? Math.round(offer.price_krw * 100)) / 100,
++        }))
++        : [
++          { quantity: singleQuantity as number, unitCode: unitCode!, unitCustomKo: customUnit || undefined, priceKrw: row.priceKrw as number },
++          ...parsedBundles.map((bundle) => ({ ...bundle, unitCode: unitCode!, unitCustomKo: customUnit || undefined })),
++        ];
+       if (row.legacyOfferColumns === true && existingById) {
+         candidateOffers.push(...(offers.get(existingById.id) ?? []).slice(candidateOffers.length).map((offer) => ({
+           quantity: offer.quantity, unitCode: offer.unit_code, unitCustomKo: offer.unit_custom_ko ?? undefined, priceKrw: (offer.price_minor ?? Math.round(offer.price_krw * 100)) / 100,
+         })));
+       }
+-      const parsed = createProductSchema.safeParse({ categoryId: category.id, nameKo, descriptionKo, currencyCode: row.currencyCode || "KRW", offers: candidateOffers });
++      const currencyCode = row.currencyCode || (preserveExistingOffers ? existingById?.currency_code : undefined) || "KRW";
++      const parsed = createProductSchema.safeParse({ categoryId: category.id, nameKo, descriptionKo, currencyCode, offers: candidateOffers });
+       if (!parsed.success) {
+         messages.push(parsed.error.issues[0]?.message ?? "상품 정보를 확인해 주세요.");
+         results.push({ rowNumber: row.rowNumber, status, messages });
+@@ -202,6 +217,7 @@ async function validateRows(db: AccountDatabase, raw: unknown, limit: number) {
+           status = "update";
+           messages.push("변경할 수 있습니다.");
+           inputs.set(row.rowNumber, input); productIdsByRow.set(row.rowNumber, existingById.id);
++          if (preserveExistingOffers) preserveOffersByRow.add(row.rowNumber);
+         }
+       } else {
+         const naturalMatch = productByKey.get(fileKeys[index]);
+@@ -220,7 +236,7 @@ async function validateRows(db: AccountDatabase, raw: unknown, limit: number) {
+     }
+     results.push({ rowNumber: row.rowNumber, status, messages, ...(status === "update" ? { expectedVersion: currentVersion as number } : {}) });
+   }
+-  return { rows: results, inputs, productIdsByRow, categoryById };
++  return { rows: results, inputs, productIdsByRow, preserveOffersByRow, categoryById };
+ }
+ 
+ const summarize = (rows: RowResult[]) => ({
+@@ -252,7 +268,9 @@ export async function applyProductImport(db: AccountDatabase, raw: unknown, acto
+       prepared.push({ id: insert.id, status: "create", statements: insert.statements });
+     } else {
+       const id = validated.productIdsByRow.get(result.rowNumber)!;
+-      const update = await prepareProductUpdate(db, id, { ...input, expectedVersion: result.expectedVersion }, actorEmail,current.get(id)??null,validated.categoryById.get(input.categoryId));
++      const updateInput: ProductUpdate = { ...input, expectedVersion: result.expectedVersion as number };
++      if (false) delete updateInput.offers;
++      const update = await prepareProductUpdate(db, id, updateInput, actorEmail,current.get(id)??null,validated.categoryById.get(input.categoryId));
+       if (!update) throw new Error("product_conflict");
+       prepared.push({ id, status: "update", statements: update.statements });
+     }

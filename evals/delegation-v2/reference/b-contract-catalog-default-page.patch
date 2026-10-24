@@ -1,0 +1,13 @@
+diff --git a/src/shared/productCatalog.ts b/src/shared/productCatalog.ts
+index ed2795a..51584c4 100644
+--- a/src/shared/productCatalog.ts
++++ b/src/shared/productCatalog.ts
+@@ -107,7 +107,7 @@ export const catalogSearchSchema = z.object({
+   search: z.string().trim().max(100).transform(normalizeText).optional().default(""),
+   cursor: z.string().trim().max(1000).optional(),
+   page: z.coerce.number().int().min(1).max(10000).optional().default(1),
+-  limit: z.coerce.number().int().min(1).max(50).optional().default(20),
++  limit: z.coerce.number().int().min(1).max(50).optional().default(40),
+ }).strict();
+ export type CatalogSearch = z.infer<typeof catalogSearchSchema>;
+ 

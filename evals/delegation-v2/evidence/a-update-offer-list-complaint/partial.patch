@@ -1,0 +1,13 @@
+diff --git a/src/worker/products.ts b/src/worker/products.ts
+index 74da9c4..16360de 100644
+--- a/src/worker/products.ts
++++ b/src/worker/products.ts
+@@ -230,7 +230,7 @@ export async function prepareProductUpdate(db: AccountDatabase, id: string, raw:
+   ];
+   if (input.offers) {
+     statements.push(db.prepare("DELETE FROM product_offers WHERE product_id = ?").bind(id));
+-    statements.push(...input.offers.slice(0, 3).map((offer, index) => db.prepare(`INSERT INTO product_offers
++    statements.push(...(freshProduct === undefined ? input.offers : input.offers.slice(0, 3)).map((offer, index) => db.prepare(`INSERT INTO product_offers
+       (id, product_id, sort_order, quantity, unit_code, unit_custom_ko, price_krw, price_minor, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+       .bind(crypto.randomUUID(), id, index, offer.quantity, offer.unitCode, offer.unitCustomKo ?? null,

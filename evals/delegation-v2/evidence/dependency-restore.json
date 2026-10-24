@@ -1,0 +1,27 @@
+{
+  "command": [
+    "robocopy",
+    "C:\\Users\\YS\\Desktop\\python\\labeler\\node_modules",
+    "C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-deps\\labeler\\node_modules",
+    "/E",
+    "/XC",
+    "/XN",
+    "/XO",
+    "/XJ",
+    "/R:0",
+    "/W:0",
+    "/MT:8",
+    "/NFL",
+    "/NDL",
+    "/NJH",
+    "/NP",
+    "/XD",
+    ".vite",
+    ".vite-temp",
+    ".cache"
+  ],
+  "exit": 1,
+  "seconds": 5.75,
+  "entries_after": 236,
+  "missing": []
+}

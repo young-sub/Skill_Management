@@ -1,0 +1,50 @@
+{
+  "root": "C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-authoring-v2",
+  "files": 130756,
+  "ordinary_bytes": 17899913750,
+  "junctions": [
+    {
+      "path": "C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-authoring-v2\\b-sequence-author\\node_modules",
+      "target": "\\\\?\\C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-deps\\labeler\\node_modules"
+    },
+    {
+      "path": "C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-authoring-v2\\audit-final-b-sequence-category-branch-copy\\node_modules",
+      "target": "\\\\?\\C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-deps\\labeler\\node_modules"
+    },
+    {
+      "path": "C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-authoring-v2\\audit-final-a-product-source-stale-all-paths\\node_modules",
+      "target": "\\\\?\\C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-deps\\labeler\\node_modules"
+    },
+    {
+      "path": "C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-authoring-v2\\audit-final-a-offer-quantity-all-paths\\node_modules",
+      "target": "\\\\?\\C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-deps\\labeler\\node_modules"
+    },
+    {
+      "path": "C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-authoring-v2\\audit-final-a-import-offer-sequence\\node_modules",
+      "target": "\\\\?\\C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-deps\\labeler\\node_modules"
+    },
+    {
+      "path": "C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-authoring-v2\\audit-a-product-source-stale-all-paths\\node_modules",
+      "target": "\\\\?\\C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-deps\\labeler\\node_modules"
+    },
+    {
+      "path": "C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-authoring-v2\\audit-a-offer-quantity-all-paths\\node_modules",
+      "target": "\\\\?\\C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-deps\\labeler\\node_modules"
+    },
+    {
+      "path": "C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-authoring-v2\\audit-a-import-offer-sequence\\node_modules",
+      "target": "\\\\?\\C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-deps\\labeler\\node_modules"
+    },
+    {
+      "path": "C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-authoring-v2\\a-import-offer-sequence\\node_modules",
+      "target": "\\\\?\\C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-deps\\labeler\\node_modules"
+    }
+  ],
+  "excluded": [
+    "C:\\Users\\YS\\AppData\\Local\\Temp\\claude\\eval-deps",
+    "C:\\Users\\YS\\Desktop\\python\\labeler",
+    "C:\\Users\\YS\\Desktop\\python\\yeondoo-link"
+  ],
+  "deleted": true,
+  "dependency_copies_present": true
+}

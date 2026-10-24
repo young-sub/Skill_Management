@@ -1,0 +1,153 @@
+[
+  {
+    "id": "a-offer-quantity-all-paths",
+    "head": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+    "reused_audit_clone": true,
+    "reference_applied": true,
+    "typecheck": {
+      "exit": 0,
+      "seconds": 6.047,
+      "command": "node node_modules/typescript/bin/tsc -p tsconfig.worker.json --noEmit --incremental false --pretty false"
+    },
+    "probes_exact_once": [
+      "accepts-quantity-one-thousand",
+      "restore-skips-offer-validation",
+      "allows-mixed-units-in-one-product"
+    ],
+    "seconds": 6.094
+  },
+  {
+    "id": "a-product-source-stale-all-paths",
+    "head": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+    "reused_audit_clone": true,
+    "reference_applied": true,
+    "typecheck": {
+      "exit": 0,
+      "seconds": 6.172,
+      "command": "node node_modules/typescript/bin/tsc -p tsconfig.worker.json --noEmit --incremental false --pretty false"
+    },
+    "probes_exact_once": [
+      "direct-product-edit-keeps-the-old-source-hash",
+      "restore-keeps-the-old-source-hash"
+    ],
+    "seconds": 6.203
+  },
+  {
+    "id": "a-product-name-whitespace-complaint",
+    "head": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+    "reused_audit_clone": true,
+    "reference_applied": true,
+    "probes_exact_once": [
+      "removes-internal-word-separators",
+      "leaves-tabs-and-line-breaks-uncompressed"
+    ],
+    "seconds": 0.062
+  },
+  {
+    "id": "a-import-offer-sequence",
+    "head": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+    "reused_audit_clone": true,
+    "reference_applied": true,
+    "typecheck": {
+      "exit": 0,
+      "seconds": 6.141,
+      "command": "node node_modules/typescript/bin/tsc -p tsconfig.worker.json --noEmit --incremental false --pretty false"
+    },
+    "probes_exact_once": [
+      "blank-import-update-replaces-options-with-defaults",
+      "direct-edit-requires-an-offer-list"
+    ],
+    "seconds": 6.188
+  },
+  {
+    "id": "a-update-offer-list-complaint",
+    "head": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+    "reused_audit_clone": true,
+    "reference_applied": true,
+    "probes_exact_once": [
+      "standalone-save-drops-fourth-tier",
+      "cached-batch-save-drops-fourth-tier"
+    ],
+    "seconds": 0.062
+  },
+  {
+    "id": "b-sequence-category-branch-copy",
+    "head": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+    "reused_audit_clone": true,
+    "reference_applied": true,
+    "probes_exact_once": [
+      "branch-copy-allows-a-fourth-level",
+      "branch-copy-drops-descendants"
+    ],
+    "seconds": 0.063
+  },
+  {
+    "id": "b-entitlement-design-save-api",
+    "head": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+    "reused_audit_clone": true,
+    "reference_applied": true,
+    "probes_exact_once": [
+      "design-save-skips-paid-check",
+      "revoked-period-still-grants-access",
+      "operators-lose-the-exemption"
+    ],
+    "seconds": 0.031
+  },
+  {
+    "id": "b-contract-catalog-default-page",
+    "first_clone_exit": 128,
+    "head": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+    "reference_applied": true,
+    "probes_exact_once": [
+      "default-remains-twenty",
+      "explicit-fifty-limit-is-capped-at-forty-nine"
+    ],
+    "seconds": 8.047
+  },
+  {
+    "id": "b-cross-path-custom-unit-limit",
+    "first_clone_exit": 128,
+    "head": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+    "reference_applied": true,
+    "probes_exact_once": [
+      "twenty-character-unit-is-rejected",
+      "twenty-one-character-unit-is-accepted",
+      "import-collapses-inner-spaces-before-counting"
+    ],
+    "seconds": 9.125
+  },
+  {
+    "id": "cart-item-to-compare",
+    "first_clone_exit": 128,
+    "head": "d17f0c2322056a4d804c911b83d6cc1b1738a083",
+    "reference_applied": true,
+    "probes_exact_once": [
+      "duplicate-add-toggles-existing-comparison-item",
+      "sixth-item-is-accepted",
+      "new-item-keeps-stale-review"
+    ],
+    "seconds": 9.969
+  },
+  {
+    "id": "medicine-catalog-classification-bypass",
+    "first_clone_exit": 128,
+    "head": "d17f0c2322056a4d804c911b83d6cc1b1738a083",
+    "reference_applied": true,
+    "probes_exact_once": [
+      "hides-approved-and-cosmetic-overviews",
+      "medicine-purchase-bypasses-pharmacist-gate"
+    ],
+    "seconds": 8.797
+  },
+  {
+    "id": "rule-all-paths",
+    "first_clone_exit": 128,
+    "head": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+    "reference_applied": true,
+    "probes_exact_once": [
+      "allows-overlong-create-description",
+      "skips-restore-description-guard"
+    ],
+    "seconds": 8.843
+  }
+]

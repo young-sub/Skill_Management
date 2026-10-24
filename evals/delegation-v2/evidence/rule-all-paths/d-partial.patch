@@ -1,0 +1,13 @@
+diff --git a/src/shared/product.ts b/src/shared/product.ts
+index 039c221..c1b15be 100644
+--- a/src/shared/product.ts
++++ b/src/shared/product.ts
+@@ -40,7 +40,7 @@ export const offerSchema = z.object({
+ const productFields = {
+   categoryId: z.string().min(1),
+   nameKo: z.string().trim().min(1).max(100),
+-  descriptionKo: z.string().trim().min(1).max(500),
++  descriptionKo: z.string().trim().min(1).max(300),
+   templateKeyOverride: z.string().trim().min(1).optional().nullable(),
+   currencyCode: z.enum(PRODUCT_CURRENCIES).default("KRW"),
+ };

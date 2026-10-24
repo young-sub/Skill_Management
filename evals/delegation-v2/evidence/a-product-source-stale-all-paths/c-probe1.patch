@@ -1,0 +1,13 @@
+﻿diff --git a/src/worker/products.ts b/src/worker/products.ts
+index 7e51ced..c50d565 100644
+--- a/src/worker/products.ts
++++ b/src/worker/products.ts
+@@ -223,7 +223,7 @@ export async function prepareProductUpdate(db: AccountDatabase, id: string, raw:
+     db.prepare(`UPDATE products SET category_id = ?, name_ko = ?, name_ko_normalized = ?, description_ko = ?,
+       translation_source_hash = ?, template_key_override = ?, currency_code = ?, version = version + 1, is_active = ?, updated_by = ?, updated_at = ?
+       WHERE ${owner(db)} AND id = ? AND version = ?`)
+-      .bind(categoryId, nameKo, nameKo.toLocaleLowerCase("ko"), descriptionKo, hash,
++      .bind(categoryId, nameKo, nameKo.toLocaleLowerCase("ko"), descriptionKo, current.sourceHash,
+         input.templateKeyOverride === undefined ? current.templateKeyOverride : input.templateKeyOverride,
+         input.currencyCode ?? current.currencyCode, input.isActive === undefined ? (current.isActive ? 1 : 0) : (input.isActive ? 1 : 0),
+         actorEmail, timestamp, id, input.expectedVersion),

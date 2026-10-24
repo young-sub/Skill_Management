@@ -1,0 +1,32 @@
+﻿diff --git a/src/worker/backup.ts b/src/worker/backup.ts
+index ac01f05..97ba6c1 100644
+--- a/src/worker/backup.ts
++++ b/src/worker/backup.ts
+@@ -7,6 +7,7 @@ import { templateConfigSchema } from "../shared/template";
+ import { printQueueSchema } from "../shared/printing";
+ import { categoryDesignSchema, categoryQueueSchema, categorySnapshotSchema } from "../shared/categorySign";
+ import { fieldSourceHash } from "../shared/fieldTranslation";
++import { sourceHash } from "../shared/product";
+ import { commonPrintInputSchema, commonSnapshotSchema } from "../shared/commonPrinting";
+ import { remapCommonSet, remapCommonSnapshot } from "./commonPrintBackup";
+ import { favoriteKey, type DesignFavorite } from "../shared/designFavorite";
+@@ -530,6 +531,19 @@ async function restorePlan(env: BackupEnv, raw: unknown) {
+   }, new Map<string, Record<string, unknown>[]>());
+   const currentOffersByProduct = offersByProduct(currentOffers.results);
+   const backupOffersByProduct = offersByProduct(backup.data.product_offers);
++  const backupCategoryNames = new Map(backup.data.categories.map((category) => [category.id, category.name_ko]));
++  for (const product of backup.data.products) {
++    const current = productsById.get(product.id);
++    const categoryNameKo = backupCategoryNames.get(product.category_id);
++    if (!categoryNameKo) continue;
++    const previousCategory = current ? categoriesById.get(String(current.category_id)) : undefined;
++    if (!current || current.name_ko !== product.name_ko) {
++      product.translation_source_hash = await sourceHash({
++        nameKo: product.name_ko, descriptionKo: product.description_ko,
++        categoryId: product.category_id, categoryNameKo,
++      });
++    }
++  }
+   const changedCategories = backup.data.categories.filter((row) => {
+     const current = categoriesById.get(row.id);
+     return !current || !same(without(current, ["created_at", "updated_at"]), without(row, ["created_at", "updated_at"]));

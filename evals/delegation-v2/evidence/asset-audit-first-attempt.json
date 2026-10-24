@@ -1,0 +1,13 @@
+{
+  "completed": [
+    "a-offer-quantity-all-paths",
+    "a-product-source-stale-all-paths",
+    "a-product-name-whitespace-complaint",
+    "a-import-offer-sequence"
+  ],
+  "failure": "Root fault multiline context used LF but fresh Windows checkout uses CRLF; zero exact matches. Corrected fault find/replace line endings without changing canonical source logic.",
+  "counts": {
+    "LF_match": 0,
+    "CRLF_match": 1
+  }
+}

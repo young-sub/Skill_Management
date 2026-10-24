@@ -1,0 +1,13 @@
+diff --git a/src/shared/product.ts b/src/shared/product.ts
+index 039c221..55ddca9 100644
+--- a/src/shared/product.ts
++++ b/src/shared/product.ts
+@@ -74,7 +74,7 @@ export const updateProductSchema = z.object({
+ export type ProductInput = z.infer<typeof createProductSchema>;
+ export type ProductUpdate = z.infer<typeof updateProductSchema>;
+ 
+-export const normalizeText = (value: string): string => value.normalize("NFKC").trim().replace(/\s+/g, " ");
++export const normalizeText = (value: string): string => value.normalize("NFKC").trim().replace(/ +/g, " ");
+ 
+ export const sourceHash = async (source: {
+   nameKo: string;

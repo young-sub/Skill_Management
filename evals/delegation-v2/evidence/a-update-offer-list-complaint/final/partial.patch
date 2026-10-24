@@ -1,0 +1,14 @@
+diff --git a/src/worker/products.ts b/src/worker/products.ts
+index ca3d49d..fda33ad 100644
+--- a/src/worker/products.ts
++++ b/src/worker/products.ts
+@@ -200,8 +200,7 @@ export async function prepareProductInsert(db: AccountDatabase, input: ProductIn
+ }
+ 
+ export async function updateProduct(db: AccountDatabase, id: string, raw: unknown, actorEmail: string) {
+-  const input = updateProductSchema.parse(raw);
+-  const prepared = await prepareProductUpdate(db, id, { ...input, offers: input.offers?.slice(0, 3) }, actorEmail);
++  const prepared = await prepareProductUpdate(db, id, raw, actorEmail);
+   if (!prepared) return null;
+   await db.batch(prepared.statements);
+   return findProduct(db, id);

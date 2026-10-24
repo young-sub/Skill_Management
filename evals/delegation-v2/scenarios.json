@@ -1,0 +1,539 @@
+{
+  "schema_version": 1,
+  "disable_plugins": [
+    "agentic-coding@agentic-coding"
+  ],
+  "incomplete_markers": [
+    "미완료",
+    "완료하지 못",
+    "구현하지 못",
+    "끝내지 못",
+    "마치지 못",
+    "could not complete",
+    "unable to complete",
+    "did not finish",
+    "not finished"
+  ],
+  "scenarios": [
+    {
+      "id": "a-offer-quantity-all-paths",
+      "area": "Domain",
+      "project": "C:/Users/YS/Desktop/python/labeler",
+      "ref": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 1800,
+      "prompt": "상품 가격 옵션은 고객과 운영자가 새 상품을 저장하거나 기존 상품을 수정·복사하거나, 고객·운영자·카탈로그의 일괄 가져오기 또는 백업 복원을 할 때 모두 같은 규칙을 따라야 합니다. 상품마다 가격 옵션은 1개에서 10개까지 허용하고, 각 수량은 정수 1~999이며 한 상품 안에서 중복될 수 없고 모든 옵션은 같은 판매 단위를 사용해야 합니다. 999와 10개는 허용하고 1000, 중복 수량, 단위가 섞인 옵션, 11개 옵션은 자르거나 일부만 저장하지 말고 거절해 주세요. 직접 저장이 거절되면 HTTP 400 validation_failed를 반환하고 상품·옵션·버전을 그대로 둡니다. 고객 일괄 가져오기는 잘못된 행을 invalid로 세고 그 상품을 바꾸지 않으며, 다른 유효한 행은 계속 저장합니다. 운영자 미리보기는 잘못된 행이 있으면 conflict로 표시하고 invalidRows에 포함하며, 그 작업의 적용은 거절해야 합니다. 카탈로그 가져오기도 잘못된 옵션을 저장하지 않습니다. 백업 복원 미리보기는 적용 불가로 표시하고, 적용은 HTTP 409 backup_conflict로 거절하며 데이터를 바꾸지 않습니다. 정상 복사와 모든 정상 저장 후에는 입력한 옵션 전체가 같은 순서와 가격으로 남아야 합니다.",
+      "regression": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts tests/backup.test.ts tests/productCatalog.test.ts src/client/ProductForm.test.tsx",
+      "hidden": [
+        {
+          "name": "offer quantity and cardinality rules cover customer operator catalog and restore saves",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/zz-eval-a-offer-quantity-all-paths.test.ts",
+          "expect": "pass",
+          "files": {
+            "tests/zz-eval-a-offer-quantity-all-paths.test.ts": "hidden/a-offer-quantity-all-paths/zz-eval-a-offer-quantity-all-paths.test.ts"
+          }
+        }
+      ],
+      "probes": [
+        {
+          "name": "accepts-quantity-one-thousand",
+          "file": "src/shared/product.ts",
+          "find": "quantity: z.number().int().min(1).max(999),",
+          "replace": "quantity: z.number().int().min(1).max(1000),",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts tests/backup.test.ts tests/productCatalog.test.ts src/client/ProductForm.test.tsx"
+        },
+        {
+          "name": "restore-skips-offer-validation",
+          "file": "src/worker/backup.ts",
+          "find": "if (!parsedOffers.success) conflicts.push({",
+          "replace": "if (false) conflicts.push({",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts tests/backup.test.ts tests/productCatalog.test.ts src/client/ProductForm.test.tsx"
+        },
+        {
+          "name": "allows-mixed-units-in-one-product",
+          "file": "src/shared/product.ts",
+          "find": "if (offer.unitCode + \"\\0\" + (offer.unitCustomKo ?? \"\") !== unit) context.addIssue({",
+          "replace": "if (false) context.addIssue({",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts tests/backup.test.ts tests/productCatalog.test.ts src/client/ProductForm.test.tsx"
+        }
+      ]
+    },
+    {
+      "id": "a-product-source-stale-all-paths",
+      "area": "Domain",
+      "project": "C:/Users/YS/Desktop/python/labeler",
+      "ref": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 1800,
+      "prompt": "상품 이름이나 설명이 바뀌면 승인된 번역 문구는 삭제하거나 새 문구로 덮지 말고 기존 내용 그대로 계속 보여 주되, 번역 상태를 원문 변경으로 표시하고 번역 항목을 오래된 상태(stale: true)로 표시해 주세요. 이 규칙은 상품 직접 수정, 스프레드시트 일괄 수정, 백업 복원에 모두 적용되어야 합니다. 이름이나 설명이 바뀌지 않고 가격 옵션만 바뀌면 승인된 번역은 계속 번역 완료이며 오래된 상태가 아니어야 합니다.",
+      "regression": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts tests/backup.test.ts",
+      "hidden": [
+        {
+          "name": "approved-translations-remain-visible-and-stale-after-source-edits-imports-and-restore",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/zz-eval-a-source-stale.test.ts",
+          "expect": "pass",
+          "files": {
+            "tests/zz-eval-a-source-stale.test.ts": "hidden/a-product-source-stale-all-paths/zz-eval-a-source-stale.test.ts"
+          }
+        }
+      ],
+      "probes": [
+        {
+          "name": "direct-product-edit-keeps-the-old-source-hash",
+          "file": "src/worker/products.ts",
+          "find": "descriptionKo, hash,\r\n        input.templateKeyOverride === undefined ? current.templateKeyOverride",
+          "replace": "descriptionKo, current.sourceHash,\r\n        input.templateKeyOverride === undefined ? current.templateKeyOverride",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts tests/backup.test.ts"
+        },
+        {
+          "name": "restore-keeps-the-old-source-hash",
+          "file": "src/worker/backup.ts",
+          "find": "product.translation_source_hash = await sourceHash({\r\n      nameKo: product.name_ko, descriptionKo: product.description_ko,\r\n      categoryId: product.category_id, categoryNameKo,\r\n    });",
+          "replace": "product.translation_source_hash = product.translation_source_hash;",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts tests/backup.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "a-product-name-whitespace-complaint",
+      "area": "Feedback",
+      "project": "C:/Users/YS/Desktop/python/labeler",
+      "ref": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 1800,
+      "prompt": "상품을 등록하거나 수정하거나 스프레드시트로 가져올 때 상품명 앞뒤의 공백은 제거하고, 이름 안에 연속된 공백·탭·줄바꿈은 단어 사이의 보통 공백 하나로 바꿔 주세요. 단어 사이의 구분은 그대로 남아야 합니다. 정리한 이름이 비어 있으면 직접 저장은 HTTP 400 validation_failed로 거절하고 기존 상품과 버전은 바뀌지 않아야 합니다. 일괄 가져오기는 그 행을 invalid로 표시하고 해당 상품은 바꾸지 않으며, 다른 유효한 행은 저장해야 합니다.",
+      "regression": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts src/client/ProductForm.test.tsx",
+      "fault": {
+        "file": "src/shared/product.ts",
+        "find": "export const normalizeText = (value: string): string => value.normalize(\"NFKC\").trim().replace(/\\s+/g, \" \");",
+        "replace": "export const normalizeText = (value: string): string => value.normalize(\"NFKC\").trim().replace(/\\s+/g, \"\");",
+        "commit_message": "test: reproduce product names losing inner separators"
+      },
+      "hidden": [
+        {
+          "name": "product-name-whitespace-is-consistent-on-create-edit-and-import",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/zz-eval-a-name-whitespace.test.ts",
+          "expect": "pass",
+          "files": {
+            "tests/zz-eval-a-name-whitespace.test.ts": "hidden/a-product-name-whitespace-complaint/zz-eval-a-name-whitespace.test.ts"
+          }
+        }
+      ],
+      "probes": [
+        {
+          "name": "removes-internal-word-separators",
+          "file": "src/shared/product.ts",
+          "find": "export const normalizeText = (value: string): string => value.normalize(\"NFKC\").trim().replace(/\\s+/g, \" \");",
+          "replace": "export const normalizeText = (value: string): string => value.normalize(\"NFKC\").trim().replace(/\\s+/g, \"\");",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts src/client/ProductForm.test.tsx"
+        },
+        {
+          "name": "leaves-tabs-and-line-breaks-uncompressed",
+          "file": "src/shared/product.ts",
+          "find": "export const normalizeText = (value: string): string => value.normalize(\"NFKC\").trim().replace(/\\s+/g, \" \");",
+          "replace": "export const normalizeText = (value: string): string => value.normalize(\"NFKC\").trim().replace(/ +/g, \" \");",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts src/client/ProductForm.test.tsx"
+        }
+      ]
+    },
+    {
+      "id": "a-import-offer-sequence",
+      "area": "Sequence",
+      "project": "C:/Users/YS/Desktop/python/labeler",
+      "ref": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 2700,
+      "prompts": [
+        "기존 상품을 수정할 때 가격 옵션을 보내지 않으면 기존 옵션 전체를 옵션 ID와 순서까지 그대로 보존해 주세요. 가격 옵션 목록을 보내면 입력한 순서의 전체 목록으로 교체해야 합니다. 상품 버전이 오래된 수정 요청은 HTTP 409 product_conflict로 거절하고 상품·옵션·버전을 바꾸지 않아야 합니다.",
+        "이제 스프레드시트 수정도 같은 규칙을 따르게 해 주세요. 기존 상품의 가격 옵션 칸이 모두 비어 있으면 다른 상품 정보는 수정하되 현재 옵션 전체를 ID와 순서까지 그대로 유지해야 합니다. 가격 옵션 데이터를 입력한 행은 입력 순서의 전체 목록으로 교체합니다. 묶음 옵션에서 수량이나 가격 한쪽만 입력되면 그 행을 invalid로 표시하고 해당 상품·옵션·버전을 그대로 둡니다. 같은 스프레드시트의 다른 유효한 행은 계속 저장해야 합니다."
+      ],
+      "regression": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts src/client/ProductForm.test.tsx",
+      "hidden": [
+        {
+          "name": "direct-and-workbook-edits-preserve-or-replace-offer-lists-atomically",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/zz-eval-a-import-offer-sequence.test.ts",
+          "expect": "pass",
+          "files": {
+            "tests/zz-eval-a-import-offer-sequence.test.ts": "hidden/a-import-offer-sequence/zz-eval-a-import-offer-sequence.test.ts"
+          }
+        }
+      ],
+      "probes": [
+        {
+          "name": "blank-import-update-replaces-options-with-defaults",
+          "file": "src/worker/productImport.ts",
+          "find": "if (validated.preserveOffersByRow.has(result.rowNumber)) delete updateInput.offers;",
+          "replace": "if (true) delete updateInput.offers;",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts src/client/ProductForm.test.tsx"
+        },
+        {
+          "name": "direct-edit-requires-an-offer-list",
+          "file": "src/shared/product.ts",
+          "find": "offers: offersSchema.optional(),",
+          "replace": "offers: offersSchema,",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts src/client/ProductForm.test.tsx"
+        }
+      ]
+    },
+    {
+      "id": "a-update-offer-list-complaint",
+      "area": "Feedback",
+      "project": "C:/Users/YS/Desktop/python/labeler",
+      "ref": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 1800,
+      "prompt": "상품 가격 옵션을 네 개 이상 넣어 수정하면 네 번째부터 사라진다는 문의가 있습니다. 직접 수정과 일괄 가져오기를 포함해 상품 옵션을 수정하는 모든 저장에서 입력한 옵션을 전부 입력 순서대로 보존해 주세요. 정확히 10개까지 허용하고 11개는 HTTP 400 `validation_failed`로 거절해야 합니다. 같은 수량이 두 번 나온 옵션도 같은 오류로 거절하며, 거절 시 상품과 옵션 및 버전은 바뀌지 않아야 합니다. 한 개나 세 개만 넣은 수정도 정상 저장되어야 합니다. 옵션을 보내지 않은 설명 수정은 기존 옵션을 그대로 유지합니다. 오래된 버전으로 수정하면 HTTP 409 `product_conflict`로 거절하고 모든 데이터를 유지해야 합니다. 저장 후 다시 열어도 같은 옵션과 순서가 보여야 합니다.",
+      "regression": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts src/client/ProductForm.test.tsx",
+      "fault": {
+        "file": "src/worker/products.ts",
+        "find": "export async function updateProduct(db: AccountDatabase, id: string, raw: unknown, actorEmail: string) {\r\n  const prepared = await prepareProductUpdate(db, id, raw, actorEmail);\r\n  if (!prepared) return null;\r\n  await db.batch(prepared.statements);\r\n  return findProduct(db, id);\r\n}\r\n\r\nexport async function prepareProductUpdate(db: AccountDatabase, id: string, raw: unknown, actorEmail: string, freshProduct?:Product|null, freshCategory?: { name_ko: string; is_active: number }) {\r\n  const input = updateProductSchema.parse(raw);\r\n  const current = freshProduct===undefined?await findProduct(db, id):freshProduct;\r\n  if (!current) return null;\r\n  if (input.templateKeyOverride !== undefined) await assertTemplateOwnership(db, input.templateKeyOverride);\r\n  if (current.version !== input.expectedVersion) throw new Error(\"product_conflict\");\r\n  const categoryId = input.categoryId ?? current.categoryId;\r\n  const category = freshCategory ? (freshCategory.is_active || categoryId === current.categoryId ? freshCategory.name_ko : null) : await categoryName(db, categoryId, categoryId === current.categoryId);\r\n  if (!category) throw new Error(\"category_not_found\");\r\n  const nameKo = normalizeText(input.nameKo ?? current.nameKo);\r\n  const descriptionKo = normalizeText(input.descriptionKo ?? current.descriptionKo);\r\n  const timestamp = now();\r\n  const hash = await sourceHash({ nameKo, descriptionKo, categoryId, categoryNameKo: category });\r\n  const statements: D1PreparedStatement[] = [\r\n    db.prepare(`UPDATE products SET category_id = ?, name_ko = ?, name_ko_normalized = ?, description_ko = ?,\r\n      translation_source_hash = ?, template_key_override = ?, currency_code = ?, version = version + 1, is_active = ?, updated_by = ?, updated_at = ?\r\n      WHERE ${owner(db)} AND id = ? AND version = ?`)\r\n      .bind(categoryId, nameKo, nameKo.toLocaleLowerCase(\"ko\"), descriptionKo, hash,\r\n        input.templateKeyOverride === undefined ? current.templateKeyOverride : input.templateKeyOverride,\r\n        input.currencyCode ?? current.currencyCode, input.isActive === undefined ? (current.isActive ? 1 : 0) : (input.isActive ? 1 : 0),\r\n        actorEmail, timestamp, id, input.expectedVersion),\r\n  ];\r\n  if (input.offers) {\r\n    statements.push(db.prepare(\"DELETE FROM product_offers WHERE product_id = ?\").bind(id));\r\n    statements.push(...input.offers.map((offer, index) => db.prepare(`INSERT INTO product_offers\r\n      (id, product_id, sort_order, quantity, unit_code, unit_custom_ko, price_krw, price_minor, created_at, updated_at)\r\n      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)\r\n      .bind(crypto.randomUUID(), id, index, offer.quantity, offer.unitCode, offer.unitCustomKo ?? null,\r\n        offer.priceKrw, Math.round(offer.priceKrw * 100), timestamp, timestamp)));\r\n  }\r\n  return { id, statements };\r\n}\r\n\r\n",
+        "replace": "export async function updateProduct(db: AccountDatabase, id: string, raw: unknown, actorEmail: string) {\r\n  const input = updateProductSchema.parse(raw);\r\n  const prepared = await prepareProductUpdate(db, id, { ...input, offers: input.offers?.slice(0, 3) }, actorEmail);\r\n  if (!prepared) return null;\r\n  await db.batch(prepared.statements);\r\n  return findProduct(db, id);\r\n}\r\n\r\nexport async function prepareProductUpdate(db: AccountDatabase, id: string, raw: unknown, actorEmail: string, freshProduct?:Product|null, freshCategory?: { name_ko: string; is_active: number }) {\r\n  const input = updateProductSchema.parse(raw);\r\n  const current = freshProduct===undefined?await findProduct(db, id):freshProduct;\r\n  if (!current) return null;\r\n  if (input.templateKeyOverride !== undefined) await assertTemplateOwnership(db, input.templateKeyOverride);\r\n  if (current.version !== input.expectedVersion) throw new Error(\"product_conflict\");\r\n  const categoryId = input.categoryId ?? current.categoryId;\r\n  const category = freshCategory ? (freshCategory.is_active || categoryId === current.categoryId ? freshCategory.name_ko : null) : await categoryName(db, categoryId, categoryId === current.categoryId);\r\n  if (!category) throw new Error(\"category_not_found\");\r\n  const nameKo = normalizeText(input.nameKo ?? current.nameKo);\r\n  const descriptionKo = normalizeText(input.descriptionKo ?? current.descriptionKo);\r\n  const timestamp = now();\r\n  const hash = await sourceHash({ nameKo, descriptionKo, categoryId, categoryNameKo: category });\r\n  const statements: D1PreparedStatement[] = [\r\n    db.prepare(`UPDATE products SET category_id = ?, name_ko = ?, name_ko_normalized = ?, description_ko = ?,\r\n      translation_source_hash = ?, template_key_override = ?, currency_code = ?, version = version + 1, is_active = ?, updated_by = ?, updated_at = ?\r\n      WHERE ${owner(db)} AND id = ? AND version = ?`)\r\n      .bind(categoryId, nameKo, nameKo.toLocaleLowerCase(\"ko\"), descriptionKo, hash,\r\n        input.templateKeyOverride === undefined ? current.templateKeyOverride : input.templateKeyOverride,\r\n        input.currencyCode ?? current.currencyCode, input.isActive === undefined ? (current.isActive ? 1 : 0) : (input.isActive ? 1 : 0),\r\n        actorEmail, timestamp, id, input.expectedVersion),\r\n  ];\r\n  if (input.offers) {\r\n    statements.push(db.prepare(\"DELETE FROM product_offers WHERE product_id = ?\").bind(id));\r\n    statements.push(...(freshProduct ? input.offers.slice(0, 3) : input.offers).map((offer, index) => db.prepare(`INSERT INTO product_offers\r\n      (id, product_id, sort_order, quantity, unit_code, unit_custom_ko, price_krw, price_minor, created_at, updated_at)\r\n      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)\r\n      .bind(crypto.randomUUID(), id, index, offer.quantity, offer.unitCode, offer.unitCustomKo ?? null,\r\n        offer.priceKrw, Math.round(offer.priceKrw * 100), timestamp, timestamp)));\r\n  }\r\n  return { id, statements };\r\n}\r\n\r\n",
+        "commit_message": "test: reproduce fourth saved offer disappearing"
+      },
+      "probes": [
+        {
+          "name": "standalone-save-drops-fourth-tier",
+          "file": "src/worker/products.ts",
+          "find": "  const prepared = await prepareProductUpdate(db, id, raw, actorEmail);",
+          "replace": "  const input = updateProductSchema.parse(raw);\n  const prepared = await prepareProductUpdate(db, id, { ...input, offers: input.offers?.slice(0, 3) }, actorEmail);",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts src/client/ProductForm.test.tsx"
+        },
+        {
+          "name": "cached-batch-save-drops-fourth-tier",
+          "file": "src/worker/products.ts",
+          "find": "statements.push(...input.offers.map((offer, index) => db.prepare",
+          "replace": "statements.push(...(freshProduct ? input.offers.slice(0, 3) : input.offers).map((offer, index) => db.prepare",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts src/client/ProductForm.test.tsx"
+        }
+      ],
+      "hidden": [
+        {
+          "name": "all-offer-tiers-persist-on-direct-and-batch-edits",
+          "expect": "pass",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/zz-eval-offer-list-complaint.test.ts",
+          "files": {
+            "tests/zz-eval-offer-list-complaint.test.ts": "hidden/a-update-offer-list-complaint/zz-eval-offer-list-complaint.test.ts"
+          }
+        }
+      ]
+    },
+    {
+      "id": "b-sequence-category-branch-copy",
+      "area": "Sequence",
+      "project": "C:/Users/YS/Desktop/python/labeler",
+      "ref": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 2700,
+      "prompts": [
+        "분류 트리는 언제나 최대 3단계까지만 있어야 합니다. 새 분류 추가와 기존 분류 이동 모두 최종 트리가 3단계를 넘으면 HTTP 400 `category_hierarchy_invalid`로 거절하고 어떤 분류도 바뀌지 않아야 합니다. 세 단계 안에 들어오는 추가와 이동은 정상 저장되어야 합니다.",
+        "이제 선택한 분류의 `가지 복제` (`duplicate`) 동작을 제공해 주세요. 복제 요청에는 새 부모 `parentId`와 복사본 첫 분류의 새 이름 `nameKo`를 지정합니다. 복제 요청에는 새 부모(최상위는 null)와 복사본 첫 분류의 새 이름을 지정하고, 응답에는 새로 만들어진 가지 전체를 깊이 우선 순서로 돌려주세요. 선택한 분류와 모든 하위 분류를 새 ID로 만들고, 첫 분류는 입력한 이름을 사용하며 나머지 이름, 아이콘, 활성 상태, 형제 순서는 원본과 같아야 합니다. 복제된 첫 분류는 새 부모의 마지막 자식으로 들어갑니다. 상품, 안내 문구, 기본 서식 연결, 저장된 출력 목록, 출력 기록은 복사하지 않아야 합니다. 원본 가지와 대상 부모의 기존 자식 및 순서는 그대로 두어야 합니다. 복제 후 최종 깊이가 3을 넘으면 HTTP 400 `category_hierarchy_invalid`로 거절하고 새 분류를 하나도 만들지 않아야 합니다."
+      ],
+      "regression": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/categorySigns.test.ts tests/categoryBackup.test.ts",
+      "hidden": [
+        {
+          "name": "category-branch-copy-is-atomic-and-depth-bounded",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/zz-eval-b-sequence.test.ts",
+          "expect": "pass",
+          "files": {
+            "tests/zz-eval-b-sequence.test.ts": "hidden/b-sequence/zz-eval-b-sequence.test.ts"
+          }
+        }
+      ],
+      "probes": [
+        {
+          "name": "branch-copy-allows-a-fourth-level",
+          "file": "src/worker/categories.ts",
+          "find": "const branchHeight = Math.max(...branch.map((category) => category.depth - current.depth + 1));\r\n  if ((parent?.depth ?? 0) + branchHeight > 3) throw new Error(\"category_hierarchy_invalid\");",
+          "replace": "const branchHeight = Math.max(...branch.map((category) => category.depth - current.depth + 1));\r\n  if ((parent?.depth ?? 0) + branchHeight > 4) throw new Error(\"category_hierarchy_invalid\");",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/categorySigns.test.ts tests/categoryBackup.test.ts"
+        },
+        {
+          "name": "branch-copy-drops-descendants",
+          "file": "src/worker/categories.ts",
+          "find": "const branch: (typeof all)[number][] = [];\r\n  const visit = (category: (typeof all)[number]) => {\r\n    branch.push(category);\r\n    for (const child of byParent.get(category.id) ?? []) visit(child);\r\n  };\r\n  visit(current);",
+          "replace": "const branch: (typeof all)[number][] = [current as CategoryRow];",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/categorySigns.test.ts tests/categoryBackup.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "b-entitlement-design-save-api",
+      "area": "Domain",
+      "project": "C:/Users/YS/Desktop/python/labeler",
+      "ref": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 1800,
+      "prompt": "저장 디자인을 새로 저장하거나 기존 버전에서 이어 저장할 때는 유효한 유료 이용권이 있는 고객만 가능하게 해주세요. 아직 시작하지 않았거나 만료·취소·정지된 이용권이면 저장을 HTTP 403 `paid_required`로 거절하고 기존 디자인과 버전 수를 그대로 두어야 합니다. 유효한 이용권이 있는 고객은 저장할 수 있고, 개발자와 운영자는 이용권 없이도 저장할 수 있습니다. 이용권이 끝난 뒤에도 저장된 디자인과 버전 목록은 계속 볼 수 있어야 합니다. 화면에서 저장하든 외부 연동으로 저장하든 같은 제한이 적용되어야 합니다.",
+      "regression": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/designs.test.ts tests/template.test.ts",
+      "hidden": [
+        {
+          "name": "design-save-requires-active-period-at-api-boundary",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/zz-eval-b-entitlement.test.ts",
+          "expect": "pass",
+          "files": {
+            "tests/zz-eval-b-entitlement.test.ts": "hidden/b-entitlement/zz-eval-b-entitlement.test.ts"
+          }
+        }
+      ],
+      "fault": {
+        "file": "src/worker/templates.ts",
+        "find": "  await requirePaid(db);\r\n",
+        "replace": "",
+        "commit_message": "test: reproduce direct unpaid design save"
+      },
+      "probes": [
+        {
+          "name": "design-save-skips-paid-check",
+          "file": "src/worker/templates.ts",
+          "find": "  await requirePaid(db);",
+          "replace": "  // entitlement check removed",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/designs.test.ts tests/template.test.ts"
+        },
+        {
+          "name": "revoked-period-still-grants-access",
+          "file": "src/worker/entitlements.ts",
+          "find": "p.revoked_at IS NULL AND p.suspended_at IS NULL",
+          "replace": "p.suspended_at IS NULL",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/designs.test.ts tests/template.test.ts"
+        },
+        {
+          "name": "operators-lose-the-exemption",
+          "file": "src/worker/entitlements.ts",
+          "find": "a.role IN ('developer', 'operator')",
+          "replace": "a.role = 'developer'",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/designs.test.ts tests/template.test.ts"
+        }
+      ]
+    },
+    {
+      "id": "b-contract-catalog-default-page",
+      "area": "BE",
+      "project": "C:/Users/YS/Desktop/python/labeler",
+      "ref": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 1800,
+      "prompt": "공용 제품 카탈로그에서 검색어나 분류 종류가 있든 없든 페이지 크기를 지정하지 않으면 최신 수정 순서(수정 시각 내림차순, 같은 시각이면 ID 내림차순)로 40개를 보여주세요. 응답의 상품 목록, 전체 건수, 현재 페이지 개수와 다음 페이지 표시는 지금 형태를 유지해야 합니다. 페이지 크기를 직접 지정하면 1부터 50까지 그대로 적용하고, 0이나 50 초과 또는 정수가 아닌 값은 자르거나 기본값으로 바꾸지 말고 HTTP 400 `validation_failed`로 거절해야 합니다. 다음 페이지는 중복이나 누락 없이 이어져야 합니다. 계정의 내 상품 목록은 별도 동작이며, 크기 미지정 시 기존처럼 100개를 유지해야 합니다.",
+      "regression": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/catalogSearch.test.ts src/client/ProductCatalogFinder.test.tsx",
+      "hidden": [
+        {
+          "name": "catalog-default-limit-and-existing-api-contract",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/zz-eval-b-contract.test.ts",
+          "expect": "pass",
+          "files": {
+            "tests/zz-eval-b-contract.test.ts": "hidden/b-contract/zz-eval-b-contract.test.ts"
+          }
+        }
+      ],
+      "probes": [
+        {
+          "name": "default-remains-twenty",
+          "file": "src/shared/productCatalog.ts",
+          "find": "limit: z.coerce.number().int().min(1).max(50).optional().default(40),",
+          "replace": "limit: z.coerce.number().int().min(1).max(50).optional().default(20),",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/catalogSearch.test.ts src/client/ProductCatalogFinder.test.tsx"
+        },
+        {
+          "name": "explicit-fifty-limit-is-capped-at-forty-nine",
+          "file": "src/shared/productCatalog.ts",
+          "find": "limit: z.coerce.number().int().min(1).max(50).optional().default(40),",
+          "replace": "limit: z.coerce.number().int().min(1).max(49).optional().default(40),",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/catalogSearch.test.ts src/client/ProductCatalogFinder.test.tsx"
+        }
+      ]
+    },
+    {
+      "id": "b-cross-path-custom-unit-limit",
+      "area": "Feedback",
+      "project": "C:/Users/YS/Desktop/python/labeler",
+      "ref": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 1800,
+      "prompt": "상품의 직접 입력 판매 단위 이름은 상품을 새로 저장하거나 수정하거나 일괄 가져올 때 모두 앞뒤 공백만 제거한 뒤 1~20자로 제한해 주세요. 글자 수를 셀 때 이름 안쪽의 공백은 각각 한 글자로 세어야 합니다. 정확히 20자는 허용해야 합니다. 직접 저장에서는 빈 값이나 21자 이상을 자르거나 받아들이지 말고 HTTP 400 `validation_failed`로 거절해야 합니다. 단위 이름이 비어 있으면 저장할 수 없습니다. 거절된 수정은 기존 상품과 버전을 그대로 두고, 일괄 가져오기는 미리보기에서 해당 행을 `invalid`로 표시하며 적용해도 그 행을 저장하지 않고 `invalidRows`에 포함해야 합니다. 나머지 유효한 상품과 단위는 계속 저장되어야 합니다.",
+      "regression": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts src/client/ProductForm.test.tsx",
+      "hidden": [
+        {
+          "name": "custom-unit-limit-is-shared-by-create-edit-and-import",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/zz-eval-b-cross-path.test.ts",
+          "expect": "pass",
+          "files": {
+            "tests/zz-eval-b-cross-path.test.ts": "hidden/b-cross-path/zz-eval-b-cross-path.test.ts"
+          }
+        }
+      ],
+      "fault": {
+        "file": "src/shared/product.ts",
+        "find": "unitCustomKo: z.string().trim().min(1).max(20).optional(),",
+        "replace": "unitCustomKo: z.string().trim().min(1).max(40).optional(),",
+        "commit_message": "test: reproduce long custom unit accepted by product save"
+      },
+      "probes": [
+        {
+          "name": "twenty-character-unit-is-rejected",
+          "file": "src/shared/product.ts",
+          "find": "unitCustomKo: z.string().trim().min(1).max(20).optional(),",
+          "replace": "unitCustomKo: z.string().trim().min(1).max(19).optional(),",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts src/client/ProductForm.test.tsx"
+        },
+        {
+          "name": "twenty-one-character-unit-is-accepted",
+          "file": "src/shared/product.ts",
+          "find": "unitCustomKo: z.string().trim().min(1).max(20).optional(),",
+          "replace": "unitCustomKo: z.string().trim().min(1).max(21).optional(),",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts src/client/ProductForm.test.tsx"
+        },
+        {
+          "name": "import-collapses-inner-spaces-before-counting",
+          "file": "src/worker/productImport.ts",
+          "find": "const customUnit = typeof row.unitCustomKo === \"string\" ? row.unitCustomKo.trim() : \"\";",
+          "replace": "const customUnit = typeof row.unitCustomKo === \"string\" ? normalizeText(row.unitCustomKo) : \"\";",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts src/client/ProductForm.test.tsx"
+        }
+      ]
+    },
+    {
+      "id": "cart-item-to-compare",
+      "area": "FE",
+      "project": "C:/Users/YS/Desktop/python/yeondoo-link",
+      "ref": "d17f0c2322056a4d804c911b83d6cc1b1738a083",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 1800,
+      "prompt": "The public customer action `compare-cart-item` adds a cart product to comparison from that item's cart row. Provide that action on every cart row. The comparison list holds at most five products: adding a fifth succeeds, and trying to add a sixth leaves all current session content unchanged. Repeating the action for a product already in comparison also leaves all current session content unchanged; the product must not be removed or duplicated. Only a known product with a positive quantity in the cart may be added. If the product is unknown, absent from the cart, or has quantity zero, leave all current session content unchanged. On success, append the new product after the existing comparison products without changing their order. Keep the cart and its quantities, and keep every existing comparison product's selection, quantity, pharmacist confirmation, and review information. The new product starts unselected, with any old selection quantity and review or confirmation information for that product cleared. After a successful addition, clear the selected tester and reset purchase-request and purchase-completed status. All other session information remains unchanged on success. For every rejected request, preserve all current content, including tester selection and purchase status.",
+      "regression": "node --experimental-strip-types --test scripts/session.test.mjs scripts/cart.test.mjs",
+      "hidden": [
+        {
+          "name": "cart-item-to-comparison-behavior",
+          "command": "node --experimental-strip-types --test scripts/zz-eval-cart-item-to-compare.test.mjs",
+          "expect": "pass",
+          "files": {
+            "scripts/zz-eval-cart-item-to-compare.test.mjs": "hidden/y-cart-item-to-compare/zz-eval-cart-item-to-compare.test.mjs"
+          }
+        }
+      ],
+      "probes": [
+        {
+          "name": "duplicate-add-toggles-existing-comparison-item",
+          "file": "src/session.ts",
+          "find": "s.candidates.includes(action.id) ||\r\n        s.candidates.length >= MAX_CANDIDATES",
+          "replace": "false || s.candidates.length >= MAX_CANDIDATES",
+          "command": "node --experimental-strip-types --test scripts/session.test.mjs scripts/cart.test.mjs"
+        },
+        {
+          "name": "sixth-item-is-accepted",
+          "file": "src/session.ts",
+          "find": "s.candidates.length >= MAX_CANDIDATES\r\n      )",
+          "replace": "s.candidates.length >= MAX_CANDIDATES + 1\r\n      )",
+          "command": "node --experimental-strip-types --test scripts/session.test.mjs scripts/cart.test.mjs"
+        },
+        {
+          "name": "new-item-keeps-stale-review",
+          "file": "src/session.ts",
+          "find": "      delete checks[action.id];\r\n      return {\r\n        ...clearPurchase(s),\r\n        candidates: [...s.candidates, action.id],",
+          "replace": "      return {\r\n        ...clearPurchase(s),\r\n        candidates: [...s.candidates, action.id],",
+          "command": "node --experimental-strip-types --test scripts/session.test.mjs scripts/cart.test.mjs"
+        }
+      ]
+    },
+    {
+      "id": "medicine-catalog-classification-bypass",
+      "area": "FE",
+      "project": "C:/Users/YS/Desktop/python/yeondoo-link",
+      "ref": "d17f0c2322056a4d804c911b83d6cc1b1738a083",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 1800,
+      "prompt": "Tylenol 500 is a medicine, and every other product marked as a medicine must receive the same safeguards. Keep a medicine product overview hidden until a pharmacist confirms it, and do not accept a purchase request for a medicine until that confirmation is recorded. After confirmation, accept the request only when the price is known, the item is in stock, its package is confirmed, and no other store review is pending. A cosmetic may show its overview and may have a purchase request accepted without pharmacist confirmation when its price, stock, and package requirements are satisfied. If a cosmetic independently needs pharmacist review, wait for that review too. Apply these rules both when a customer views a product overview and when they submit a purchase request; ordinary cosmetics must not be blocked by the medicine safeguard.",
+      "regression": "node --experimental-strip-types --test scripts/session.test.mjs scripts/cart.test.mjs",
+      "fault": {
+        "file": "data/catalog.seed.json",
+        "find": "\"tylenol500\": {\r\n      \"kind\": \"medicine\",",
+        "replace": "\"tylenol500\": {\r\n      \"kind\": \"cosmetic\",",
+        "commit_message": "eval: misclassify Tylenol 500 as cosmetic"
+      },
+      "hidden": [
+        {
+          "name": "medicine-classification-overview-and-purchase-gates",
+          "command": "node --experimental-strip-types --test scripts/zz-eval-medicine-classification.test.mjs",
+          "expect": "pass",
+          "files": {
+            "scripts/zz-eval-medicine-classification.test.mjs": "hidden/y-medicine-catalog-classification-bypass/zz-eval-medicine-classification.test.mjs"
+          }
+        }
+      ],
+      "probes": [
+        {
+          "name": "hides-approved-and-cosmetic-overviews",
+          "file": "src/session.ts",
+          "find": "s.checks[id]?.fields.includes(field) &&",
+          "replace": "false && s.checks[id]?.fields.includes(field) &&",
+          "command": "node --experimental-strip-types --test scripts/session.test.mjs scripts/cart.test.mjs"
+        },
+        {
+          "name": "medicine-purchase-bypasses-pharmacist-gate",
+          "file": "src/session.ts",
+          "find": "const reviewed = ids.every(",
+          "replace": "const reviewed = true || ids.every(",
+          "command": "node --experimental-strip-types --test scripts/session.test.mjs scripts/cart.test.mjs"
+        }
+      ]
+    },
+    {
+      "id": "rule-all-paths",
+      "area": "Domain",
+      "project": "C:/Users/YS/Desktop/python/labeler",
+      "ref": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 1800,
+      "prompt": "상품 설명이 너무 길면 관리하기도 어렵고 화면이 지저분해집니다. 앞으로 상품 설명은 300자까지만 저장되도록 해 주세요. 300자를 넘는 내용은 저장되지 않게 부탁합니다.",
+      "regression": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts tests/backup.test.ts tests/productCatalog.test.ts src/client/ProductForm.test.tsx src/client/ProductCatalogFinder.test.tsx",
+      "hidden": [
+        {
+          "name": "product-description-limit-all-writes",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false tests/zz-eval-rule-all-paths.test.ts",
+          "expect": "pass",
+          "files": {
+            "tests/zz-eval-rule-all-paths.test.ts": "hidden/rule-all-paths/zz-eval-rule-all-paths.test.ts"
+          }
+        }
+      ],
+      "probes": [
+        {
+          "name": "allows-overlong-create-description",
+          "file": "src/shared/product.ts",
+          "find": "descriptionKo: z.string().trim().min(1).max(MAX_PRODUCT_DESCRIPTION_LENGTH),",
+          "replace": "descriptionKo: z.string().trim().min(1).max(500),",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts tests/backup.test.ts tests/productCatalog.test.ts src/client/ProductForm.test.tsx src/client/ProductCatalogFinder.test.tsx"
+        },
+        {
+          "name": "skips-restore-description-guard",
+          "file": "src/worker/backup.ts",
+          "find": "for (const product of backup.data.products) if (product.description_ko.length > MAX_PRODUCT_DESCRIPTION_LENGTH) conflicts.push({",
+          "replace": "for (const product of backup.data.products) if (false) conflicts.push({",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts tests/backup.test.ts tests/productCatalog.test.ts src/client/ProductForm.test.tsx src/client/ProductCatalogFinder.test.tsx"
+        }
+      ]
+    }
+  ]
+}

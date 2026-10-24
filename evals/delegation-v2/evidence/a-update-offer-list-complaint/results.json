@@ -1,0 +1,282 @@
+[
+  {
+    "stage": "a-start-hidden",
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/zz-eval-offer-list-complaint.test.ts",
+    "attempts": [
+      {
+        "exit": 1,
+        "seconds": 9.312,
+        "log": "evidence/a-update-offer-list-complaint/a-start-hidden.log",
+        "assertions": [
+          {
+            "line": 16,
+            "text": " FAIL  tests/zz-eval-offer-list-complaint.test.ts > direct edits keep every submitted tier in order, including the exact ten-tier boundary"
+          },
+          {
+            "line": 17,
+            "text": "AssertionError: expected [ { quantity: 10, …(2) }, …(2) ] to deeply equal [ { quantity: 10, …(2) }, …(3) ]"
+          },
+          {
+            "line": 45,
+            "text": " FAIL  tests/zz-eval-offer-list-complaint.test.ts > spreadsheet updates also keep all five tiers in submitted order after a fresh read"
+          },
+          {
+            "line": 46,
+            "text": "AssertionError: expected [ { quantity: 10, …(2) }, …(2) ] to deeply equal [ { quantity: 10, …(2) }, …(4) ]"
+          }
+        ]
+      },
+      {
+        "exit": 1,
+        "seconds": 10.172,
+        "log": "evidence/a-update-offer-list-complaint/a-start-hidden-retry.log",
+        "assertions": [
+          {
+            "line": 16,
+            "text": " FAIL  tests/zz-eval-offer-list-complaint.test.ts > direct edits keep every submitted tier in order, including the exact ten-tier boundary"
+          },
+          {
+            "line": 17,
+            "text": "AssertionError: expected [ { quantity: 10, …(2) }, …(2) ] to deeply equal [ { quantity: 10, …(2) }, …(3) ]"
+          },
+          {
+            "line": 45,
+            "text": " FAIL  tests/zz-eval-offer-list-complaint.test.ts > spreadsheet updates also keep all five tiers in submitted order after a fresh read"
+          },
+          {
+            "line": 46,
+            "text": "AssertionError: expected [ { quantity: 10, …(2) }, …(2) ] to deeply equal [ { quantity: 10, …(2) }, …(4) ]"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "stage": "a-start-regression",
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts src/client/ProductForm.test.tsx",
+    "attempts": [
+      {
+        "exit": 1,
+        "seconds": 29.407,
+        "log": "evidence/a-update-offer-list-complaint/a-start-regression.log",
+        "assertions": [
+          {
+            "line": 15,
+            "text": " FAIL  tests/product.test.ts > shared product management > uses one unit for a single quantity and up to nine unique bundle rows on create and update"
+          },
+          {
+            "line": 16,
+            "text": "AssertionError: expected [ { …(5) }, { …(5) }, { …(5) } ] to match object [ { quantity: 10, …(2) }, …(3) ]"
+          }
+        ]
+      },
+      {
+        "exit": 1,
+        "seconds": 30.546,
+        "log": "evidence/a-update-offer-list-complaint/a-start-regression-retry.log",
+        "assertions": [
+          {
+            "line": 15,
+            "text": " FAIL  tests/product.test.ts > shared product management > uses one unit for a single quantity and up to nine unique bundle rows on create and update"
+          },
+          {
+            "line": 16,
+            "text": "AssertionError: expected [ { …(5) }, { …(5) }, { …(5) } ] to match object [ { quantity: 10, …(2) }, …(3) ]"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "stage": "b-reference-regression",
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts src/client/ProductForm.test.tsx",
+    "attempts": [
+      {
+        "exit": 0,
+        "seconds": 32.61,
+        "log": "evidence/a-update-offer-list-complaint/b-reference-regression.log",
+        "assertions": []
+      }
+    ]
+  },
+  {
+    "stage": "b-reference-hidden",
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/zz-eval-offer-list-complaint.test.ts",
+    "attempts": [
+      {
+        "exit": 0,
+        "seconds": 11.859,
+        "log": "evidence/a-update-offer-list-complaint/b-reference-hidden.log",
+        "assertions": []
+      }
+    ]
+  },
+  {
+    "stage": "c-probe1-hidden",
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/zz-eval-offer-list-complaint.test.ts",
+    "attempts": [
+      {
+        "exit": 1,
+        "seconds": 11.922,
+        "log": "evidence/a-update-offer-list-complaint/c-probe1-hidden.log",
+        "assertions": [
+          {
+            "line": 16,
+            "text": " FAIL  tests/zz-eval-offer-list-complaint.test.ts > direct edits keep every submitted tier in order, including the exact ten-tier boundary"
+          },
+          {
+            "line": 17,
+            "text": "AssertionError: expected [ { quantity: 10, …(2) }, …(2) ] to deeply equal [ { quantity: 10, …(2) }, …(3) ]"
+          },
+          {
+            "line": 45,
+            "text": " FAIL  tests/zz-eval-offer-list-complaint.test.ts > spreadsheet updates also keep all five tiers in submitted order after a fresh read"
+          },
+          {
+            "line": 46,
+            "text": "AssertionError: expected [ { quantity: 10, …(2) }, …(2) ] to deeply equal [ { quantity: 10, …(2) }, …(4) ]"
+          }
+        ]
+      },
+      {
+        "exit": 1,
+        "seconds": 9.734,
+        "log": "evidence/a-update-offer-list-complaint/c-probe1-hidden-retry.log",
+        "assertions": [
+          {
+            "line": 16,
+            "text": " FAIL  tests/zz-eval-offer-list-complaint.test.ts > direct edits keep every submitted tier in order, including the exact ten-tier boundary"
+          },
+          {
+            "line": 17,
+            "text": "AssertionError: expected [ { quantity: 10, …(2) }, …(2) ] to deeply equal [ { quantity: 10, …(2) }, …(3) ]"
+          },
+          {
+            "line": 45,
+            "text": " FAIL  tests/zz-eval-offer-list-complaint.test.ts > spreadsheet updates also keep all five tiers in submitted order after a fresh read"
+          },
+          {
+            "line": 46,
+            "text": "AssertionError: expected [ { quantity: 10, …(2) }, …(2) ] to deeply equal [ { quantity: 10, …(2) }, …(4) ]"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "stage": "c-probe2-hidden",
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/zz-eval-offer-list-complaint.test.ts",
+    "attempts": [
+      {
+        "exit": 1,
+        "seconds": 11.219,
+        "log": "evidence/a-update-offer-list-complaint/c-probe2-hidden.log",
+        "assertions": [
+          {
+            "line": 17,
+            "text": " FAIL  tests/zz-eval-offer-list-complaint.test.ts > direct edits keep every submitted tier in order, including the exact ten-tier boundary"
+          },
+          {
+            "line": 18,
+            "text": "AssertionError: expected [ { quantity: 20, …(2) }, …(3) ] to deeply equal [ { quantity: 10, …(2) }, …(3) ]"
+          },
+          {
+            "line": 64,
+            "text": " FAIL  tests/zz-eval-offer-list-complaint.test.ts > spreadsheet updates also keep all five tiers in submitted order after a fresh read"
+          },
+          {
+            "line": 65,
+            "text": "AssertionError: expected [ { quantity: 40, …(2) }, …(4) ] to deeply equal [ { quantity: 10, …(2) }, …(4) ]"
+          },
+          {
+            "line": 116,
+            "text": " FAIL  tests/zz-eval-offer-list-complaint.test.ts > one/three-tier edits still work and invalid or stale edits change no data or version"
+          },
+          {
+            "line": 117,
+            "text": "AssertionError: expected [ { quantity: 2, …(2) }, …(2) ] to deeply equal [ { quantity: 3, …(2) }, …(2) ]"
+          }
+        ]
+      },
+      {
+        "exit": 1,
+        "seconds": 11.609,
+        "log": "evidence/a-update-offer-list-complaint/c-probe2-hidden-retry.log",
+        "assertions": [
+          {
+            "line": 17,
+            "text": " FAIL  tests/zz-eval-offer-list-complaint.test.ts > direct edits keep every submitted tier in order, including the exact ten-tier boundary"
+          },
+          {
+            "line": 18,
+            "text": "AssertionError: expected [ { quantity: 20, …(2) }, …(3) ] to deeply equal [ { quantity: 10, …(2) }, …(3) ]"
+          },
+          {
+            "line": 64,
+            "text": " FAIL  tests/zz-eval-offer-list-complaint.test.ts > spreadsheet updates also keep all five tiers in submitted order after a fresh read"
+          },
+          {
+            "line": 65,
+            "text": "AssertionError: expected [ { quantity: 40, …(2) }, …(4) ] to deeply equal [ { quantity: 10, …(2) }, …(4) ]"
+          },
+          {
+            "line": 116,
+            "text": " FAIL  tests/zz-eval-offer-list-complaint.test.ts > one/three-tier edits still work and invalid or stale edits change no data or version"
+          },
+          {
+            "line": 117,
+            "text": "AssertionError: expected [ { quantity: 2, …(2) }, …(2) ] to deeply equal [ { quantity: 3, …(2) }, …(2) ]"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "stage": "d-partial-regression",
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts src/client/ProductForm.test.tsx",
+    "attempts": [
+      {
+        "exit": 0,
+        "seconds": 26.828,
+        "log": "evidence/a-update-offer-list-complaint/d-partial-regression.log",
+        "assertions": []
+      }
+    ]
+  },
+  {
+    "stage": "d-partial-hidden",
+    "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/zz-eval-offer-list-complaint.test.ts",
+    "attempts": [
+      {
+        "exit": 1,
+        "seconds": 10.016,
+        "log": "evidence/a-update-offer-list-complaint/d-partial-hidden.log",
+        "assertions": [
+          {
+            "line": 15,
+            "text": " FAIL  tests/zz-eval-offer-list-complaint.test.ts > spreadsheet updates also keep all five tiers in submitted order after a fresh read"
+          },
+          {
+            "line": 16,
+            "text": "AssertionError: expected [ { quantity: 10, …(2) }, …(2) ] to deeply equal [ { quantity: 10, …(2) }, …(4) ]"
+          }
+        ]
+      },
+      {
+        "exit": 1,
+        "seconds": 9.266,
+        "log": "evidence/a-update-offer-list-complaint/d-partial-hidden-retry.log",
+        "assertions": [
+          {
+            "line": 15,
+            "text": " FAIL  tests/zz-eval-offer-list-complaint.test.ts > spreadsheet updates also keep all five tiers in submitted order after a fresh read"
+          },
+          {
+            "line": 16,
+            "text": "AssertionError: expected [ { quantity: 10, …(2) }, …(2) ] to deeply equal [ { quantity: 10, …(2) }, …(4) ]"
+          }
+        ]
+      }
+    ]
+  }
+]

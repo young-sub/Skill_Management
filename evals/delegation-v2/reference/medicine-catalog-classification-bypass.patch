@@ -1,0 +1,13 @@
+diff --git a/data/catalog.seed.json b/data/catalog.seed.json
+index aaeab8d..aedd7af 100644
+--- a/data/catalog.seed.json
++++ b/data/catalog.seed.json
+@@ -141,7 +141,7 @@
+       "factsKey": "product.bepanthen.facts"
+     },
+     "tylenol500": {
+-      "kind": "cosmetic",
++      "kind": "medicine",
+       "nameKey": "product.tylenol.name",
+       "sourceIds": [
+         "brand_tylenol"

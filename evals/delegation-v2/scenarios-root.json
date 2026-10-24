@@ -1,0 +1,48 @@
+{
+  "scenarios": [
+    {
+      "id": "a-update-offer-list-complaint",
+      "area": "Feedback",
+      "project": "C:/Users/YS/Desktop/python/labeler",
+      "ref": "984e4f646e08b75a8dfc4b9c62913670960c1659",
+      "links": [
+        "node_modules"
+      ],
+      "budget_seconds": 1800,
+      "prompt": "상품 가격 옵션을 네 개 이상 넣어 수정하면 네 번째부터 사라진다는 문의가 있습니다. 직접 수정과 일괄 가져오기를 포함해 상품 옵션을 수정하는 모든 저장에서 입력한 옵션을 전부 입력 순서대로 보존해 주세요. 정확히 10개까지 허용하고 11개는 HTTP 400 `validation_failed`로 거절해야 합니다. 같은 수량이 두 번 나온 옵션도 같은 오류로 거절하며, 거절 시 상품과 옵션 및 버전은 바뀌지 않아야 합니다. 한 개나 세 개만 넣은 수정도 정상 저장되어야 합니다. 옵션을 보내지 않은 설명 수정은 기존 옵션을 그대로 유지합니다. 오래된 버전으로 수정하면 HTTP 409 `product_conflict`로 거절하고 모든 데이터를 유지해야 합니다. 저장 후 다시 열어도 같은 옵션과 순서가 보여야 합니다.",
+      "regression": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts src/client/ProductForm.test.tsx",
+      "fault": {
+        "file": "src/worker/products.ts",
+        "find": "export async function updateProduct(db: AccountDatabase, id: string, raw: unknown, actorEmail: string) {\r\n  const prepared = await prepareProductUpdate(db, id, raw, actorEmail);\r\n  if (!prepared) return null;\r\n  await db.batch(prepared.statements);\r\n  return findProduct(db, id);\r\n}\r\n\r\nexport async function prepareProductUpdate(db: AccountDatabase, id: string, raw: unknown, actorEmail: string, freshProduct?:Product|null, freshCategory?: { name_ko: string; is_active: number }) {\r\n  const input = updateProductSchema.parse(raw);\r\n  const current = freshProduct===undefined?await findProduct(db, id):freshProduct;\r\n  if (!current) return null;\r\n  if (input.templateKeyOverride !== undefined) await assertTemplateOwnership(db, input.templateKeyOverride);\r\n  if (current.version !== input.expectedVersion) throw new Error(\"product_conflict\");\r\n  const categoryId = input.categoryId ?? current.categoryId;\r\n  const category = freshCategory ? (freshCategory.is_active || categoryId === current.categoryId ? freshCategory.name_ko : null) : await categoryName(db, categoryId, categoryId === current.categoryId);\r\n  if (!category) throw new Error(\"category_not_found\");\r\n  const nameKo = normalizeText(input.nameKo ?? current.nameKo);\r\n  const descriptionKo = normalizeText(input.descriptionKo ?? current.descriptionKo);\r\n  const timestamp = now();\r\n  const hash = await sourceHash({ nameKo, descriptionKo, categoryId, categoryNameKo: category });\r\n  const statements: D1PreparedStatement[] = [\r\n    db.prepare(`UPDATE products SET category_id = ?, name_ko = ?, name_ko_normalized = ?, description_ko = ?,\r\n      translation_source_hash = ?, template_key_override = ?, currency_code = ?, version = version + 1, is_active = ?, updated_by = ?, updated_at = ?\r\n      WHERE ${owner(db)} AND id = ? AND version = ?`)\r\n      .bind(categoryId, nameKo, nameKo.toLocaleLowerCase(\"ko\"), descriptionKo, hash,\r\n        input.templateKeyOverride === undefined ? current.templateKeyOverride : input.templateKeyOverride,\r\n        input.currencyCode ?? current.currencyCode, input.isActive === undefined ? (current.isActive ? 1 : 0) : (input.isActive ? 1 : 0),\r\n        actorEmail, timestamp, id, input.expectedVersion),\r\n  ];\r\n  if (input.offers) {\r\n    statements.push(db.prepare(\"DELETE FROM product_offers WHERE product_id = ?\").bind(id));\r\n    statements.push(...input.offers.map((offer, index) => db.prepare(`INSERT INTO product_offers\r\n      (id, product_id, sort_order, quantity, unit_code, unit_custom_ko, price_krw, price_minor, created_at, updated_at)\r\n      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)\r\n      .bind(crypto.randomUUID(), id, index, offer.quantity, offer.unitCode, offer.unitCustomKo ?? null,\r\n        offer.priceKrw, Math.round(offer.priceKrw * 100), timestamp, timestamp)));\r\n  }\r\n  return { id, statements };\r\n}\r\n\r\n",
+        "replace": "export async function updateProduct(db: AccountDatabase, id: string, raw: unknown, actorEmail: string) {\r\n  const input = updateProductSchema.parse(raw);\r\n  const prepared = await prepareProductUpdate(db, id, { ...input, offers: input.offers?.slice(0, 3) }, actorEmail);\r\n  if (!prepared) return null;\r\n  await db.batch(prepared.statements);\r\n  return findProduct(db, id);\r\n}\r\n\r\nexport async function prepareProductUpdate(db: AccountDatabase, id: string, raw: unknown, actorEmail: string, freshProduct?:Product|null, freshCategory?: { name_ko: string; is_active: number }) {\r\n  const input = updateProductSchema.parse(raw);\r\n  const current = freshProduct===undefined?await findProduct(db, id):freshProduct;\r\n  if (!current) return null;\r\n  if (input.templateKeyOverride !== undefined) await assertTemplateOwnership(db, input.templateKeyOverride);\r\n  if (current.version !== input.expectedVersion) throw new Error(\"product_conflict\");\r\n  const categoryId = input.categoryId ?? current.categoryId;\r\n  const category = freshCategory ? (freshCategory.is_active || categoryId === current.categoryId ? freshCategory.name_ko : null) : await categoryName(db, categoryId, categoryId === current.categoryId);\r\n  if (!category) throw new Error(\"category_not_found\");\r\n  const nameKo = normalizeText(input.nameKo ?? current.nameKo);\r\n  const descriptionKo = normalizeText(input.descriptionKo ?? current.descriptionKo);\r\n  const timestamp = now();\r\n  const hash = await sourceHash({ nameKo, descriptionKo, categoryId, categoryNameKo: category });\r\n  const statements: D1PreparedStatement[] = [\r\n    db.prepare(`UPDATE products SET category_id = ?, name_ko = ?, name_ko_normalized = ?, description_ko = ?,\r\n      translation_source_hash = ?, template_key_override = ?, currency_code = ?, version = version + 1, is_active = ?, updated_by = ?, updated_at = ?\r\n      WHERE ${owner(db)} AND id = ? AND version = ?`)\r\n      .bind(categoryId, nameKo, nameKo.toLocaleLowerCase(\"ko\"), descriptionKo, hash,\r\n        input.templateKeyOverride === undefined ? current.templateKeyOverride : input.templateKeyOverride,\r\n        input.currencyCode ?? current.currencyCode, input.isActive === undefined ? (current.isActive ? 1 : 0) : (input.isActive ? 1 : 0),\r\n        actorEmail, timestamp, id, input.expectedVersion),\r\n  ];\r\n  if (input.offers) {\r\n    statements.push(db.prepare(\"DELETE FROM product_offers WHERE product_id = ?\").bind(id));\r\n    statements.push(...(freshProduct ? input.offers.slice(0, 3) : input.offers).map((offer, index) => db.prepare(`INSERT INTO product_offers\r\n      (id, product_id, sort_order, quantity, unit_code, unit_custom_ko, price_krw, price_minor, created_at, updated_at)\r\n      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)\r\n      .bind(crypto.randomUUID(), id, index, offer.quantity, offer.unitCode, offer.unitCustomKo ?? null,\r\n        offer.priceKrw, Math.round(offer.priceKrw * 100), timestamp, timestamp)));\r\n  }\r\n  return { id, statements };\r\n}\r\n\r\n",
+        "commit_message": "test: reproduce fourth saved offer disappearing"
+      },
+      "probes": [
+        {
+          "name": "standalone-save-drops-fourth-tier",
+          "file": "src/worker/products.ts",
+          "find": "  const prepared = await prepareProductUpdate(db, id, raw, actorEmail);",
+          "replace": "  const input = updateProductSchema.parse(raw);\n  const prepared = await prepareProductUpdate(db, id, { ...input, offers: input.offers?.slice(0, 3) }, actorEmail);",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts src/client/ProductForm.test.tsx"
+        },
+        {
+          "name": "cached-batch-save-drops-fourth-tier",
+          "file": "src/worker/products.ts",
+          "find": "statements.push(...input.offers.map((offer, index) => db.prepare",
+          "replace": "statements.push(...(freshProduct ? input.offers.slice(0, 3) : input.offers).map((offer, index) => db.prepare",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/product.test.ts tests/productImportPerformance.test.ts src/client/ProductForm.test.tsx"
+        }
+      ],
+      "hidden": [
+        {
+          "name": "all-offer-tiers-persist-on-direct-and-batch-edits",
+          "expect": "pass",
+          "command": "set \"WRANGLER_LOG_PATH=.work\\eval-wrangler.log\"&& npx vitest run --configLoader runner --cache=false --maxWorkers=2 tests/zz-eval-offer-list-complaint.test.ts",
+          "files": {
+            "tests/zz-eval-offer-list-complaint.test.ts": "hidden/a-update-offer-list-complaint/zz-eval-offer-list-complaint.test.ts"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "command": [
+    "python",
+    "-B",
+    "scripts/run_delegation_eval.py",
+    "--scenarios",
+    "evals/delegation-v2/scenarios.json",
+    "--output",
+    "C:/Users/YS/AppData/Local/Temp/claude/delegation-v2-dry-unused",
+    "--condition",
+    "off=off",
+    "--condition",
+    "plugin=plugin:plugins/agentic-coding",
+    "--reps",
+    "1",
+    "--jobs",
+    "1",
+    "--timeout",
+    "300",
+    "--dry-run"
+  ],
+  "exit": 0,
+  "matrix_cells": 24,
+  "sessions_executed": 0
+}

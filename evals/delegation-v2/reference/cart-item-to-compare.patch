@@ -1,0 +1,87 @@
+diff --git a/src/App.tsx b/src/App.tsx
+index 66ea821..990ff59 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -823,6 +823,20 @@ export default function App() {
+       </button>
+     );
+   };
++  const cartCompareText = (id: ProductId): Words =>
++    state.candidates.includes(id)
++      ? {
++          ko: "비교 중",
++          en: "In comparison",
++          ja: "比較中",
++          "zh-Hans": "正在比较",
++        }
++      : {
++          ko: "비교에 추가",
++          en: "Add to comparison",
++          ja: "比較に追加",
++          "zh-Hans": "加入对比",
++        };
+   const cartPanel = (
+     <section className="cart-panel" aria-label={ui.cart[state.locale]}>
+       <div className="cart-panel-title">
+@@ -860,6 +874,20 @@ export default function App() {
+                 )}
+                 <div className="cart-item-actions">
+                   {cartControls(id)}
++                  <button
++                    className="text-button"
++                    aria-label={`${cartCompareText(id)[state.locale]} · ${message(catalog.products[id].nameKey)[state.locale]}`}
++                    aria-pressed={state.candidates.includes(id)}
++                    disabled={
++                      state.candidates.includes(id) ||
++                      state.candidates.length >= MAX_CANDIDATES
++                    }
++                    onClick={() =>
++                      dispatch({ type: "compare-cart-item", id })
++                    }
++                  >
++                    <Text text={cartCompareText(id)} locale={state.locale} />
++                  </button>
+                   <button
+                     className="icon-button"
+                     aria-label={`${ui.remove[state.locale]} · ${message(catalog.products[id].nameKey)[state.locale]}`}
+diff --git a/src/session.ts b/src/session.ts
+index 22b480b..1fd3b2c 100644
+--- a/src/session.ts
++++ b/src/session.ts
+@@ -52,6 +52,7 @@ export type Action =
+   | { type: "candidate" | "select"; id: ProductId }
+   | { type: "quantity"; id: ProductId; quantity: number }
+   | { type: "cart-quantity"; id: ProductId; quantity: number }
++  | { type: "compare-cart-item"; id: ProductId }
+   | { type: "check"; id: ProductId; check: ProductCheck }
+   | { type: "tester" | "health"; value: string }
+   | { type: "tester-available"; value: boolean }
+@@ -288,6 +289,28 @@ export function transition(s: Session, action: Action): Session {
+         tester: null,
+       };
+     }
++    case "compare-cart-item": {
++      const quantity = s.cart[action.id];
++      if (
++        !productExists(action.id) ||
++        !Number.isInteger(quantity) ||
++        quantity! <= 0 ||
++        s.candidates.includes(action.id) ||
++        s.candidates.length >= MAX_CANDIDATES
++      )
++        return s;
++      const quantities = { ...s.quantities };
++      const checks = { ...s.checks };
++      delete quantities[action.id];
++      delete checks[action.id];
++      return {
++        ...clearPurchase(s),
++        candidates: [...s.candidates, action.id],
++        quantities,
++        checks,
++        tester: null,
++      };
++    }
+     case "select": {
+       if (!s.candidates.includes(action.id)) return s;
+       const quantities = { ...s.quantities };

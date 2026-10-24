@@ -1,0 +1,15 @@
+diff --git a/src/worker/backup.ts b/src/worker/backup.ts
+index ac01f05..45e502a 100644
+--- a/src/worker/backup.ts
++++ b/src/worker/backup.ts
+@@ -530,6 +530,10 @@ async function restorePlan(env: BackupEnv, raw: unknown) {
+   }, new Map<string, Record<string, unknown>[]>());
+   const currentOffersByProduct = offersByProduct(currentOffers.results);
+   const backupOffersByProduct = offersByProduct(backup.data.product_offers);
++  for (const offer of backup.data.product_offers) if (offer.quantity < 1 || offer.quantity > 999) conflicts.push({
++    domain: "product_offers", code: "invalid_quantity", key: offer.id,
++    message: "Backup offer quantity must be between 1 and 999.",
++  });
+   const changedCategories = backup.data.categories.filter((row) => {
+     const current = categoriesById.get(row.id);
+     return !current || !same(without(current, ["created_at", "updated_at"]), without(row, ["created_at", "updated_at"]));

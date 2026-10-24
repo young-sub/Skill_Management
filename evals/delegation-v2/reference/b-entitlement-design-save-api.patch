@@ -1,0 +1,12 @@
+diff --git a/src/worker/templates.ts b/src/worker/templates.ts
+index 8621b45..aa5ced8 100644
+--- a/src/worker/templates.ts
++++ b/src/worker/templates.ts
+@@ -153,6 +153,7 @@ export async function listCommonDesigns(db: AccountDatabase, options: { limit?:
+ }
+ 
+ export async function saveDesign(db:AccountDatabase,raw:unknown,actor:string,reservedId?:string,aiGuard?:{generationId:string;candidateId:string;configJSON:string;inputHash:string}) {
++  await requirePaid(db);
+   if(reservedId){z.string().uuid().parse(reservedId);const existing=await findTemplate(db,reservedId,true);if(existing)return existing;}
+   const input=z.object({name:z.string().trim().min(1).max(80),config:designConfigSchema,baseId:z.string().uuid().optional(),expectedVersion:z.number().int().positive().optional()}).strict()
+     .refine(i=>Boolean(i.baseId)===Boolean(i.expectedVersion)).parse(raw);
