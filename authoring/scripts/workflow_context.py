@@ -30,24 +30,27 @@ ROUTES = (
      r'(오류|에러)(가|이)\s|고객.{0,12}(문의|불만|항의|화)|제보|항의|(했|됐|인|는)데도?\s|두\s?번\s?(차감|결제|청구)|'
      r'마이너스|음수로|하얀\s?화면|흰\s?화면|\bbug\b|\bbroken\b|\bwrong\b|\bfail(s|ing)\b|crash|complain|are seeing|'
      r'never (arrives|loads|shows)|doesn.?t work|not working|regress', True),
+    # Default: any other request phrased as an ask goes through the delegation loop.
     ('agent-workflow', 'delegated change: acceptance first, prove the checks catch the defect, run affected checks, result card',
-     r'(추가|구현|변경|수정|리팩터링?|개선|연동|적용|정리)\s?(해|하고|하자)|만들어|바꿔|넣어|되게\s?해|'
-     r'(화면|상단|하단|대시보드|페이지|목록|메뉴)\S*\s.{0,15}보여\s?줘|'
-     r'^\s*(please\s+)?(add|implement|build|create|refactor|change|update|support|introduce|make)\b', True),
+     r'주세요|줘|하자|합시다|바랍니다|부탁|싶어요|싶습니다|원해요|(해|되어)야\s?(해|합니다|돼)|\bwe need\b|\bwant\b|\bplease\b|\b(can|could|would) you\b|\bneed to\b|'
+     r'^\s*(add|implement|build|create|refactor|change|update|support|introduce|make|fix|remove|move|allow|prevent|limit)\b', True),
 )
 
 
-# A quoted copy, label or version edit, or a question without a fix request, stays direct.
-QUOTE = '["\'\u2018\u2019\u201c\u201d]'
-TRIVIAL_EDIT = (QUOTE + r'.+' + QUOTE + r'.{0,30}(바꿔|추가|넣어|수정)|(문구|이름|제목|오타|한\s?줄|라벨|버전)\S*\s.{0,40}' + QUOTE)
-QUESTION = r'(설명해|무슨\s?의미|뭐야|어떻게\s?(읽|보)|explain|what does|how (do|does|to))'
+# Direct work: quoted copy or label edits, renames, version bumps, questions, reviews and summaries
+# without a fix request. Explicit routes above the guarded ones still apply.
+QUOTE = '["\'‘’“”]'
+TRIVIAL_EDIT = (QUOTE + r'.+' + QUOTE + r'.{0,30}(바꿔|추가|넣어|수정)|(문구|이름|제목|오타|한\s?줄|라벨|버전)\S*\s.{0,40}' + QUOTE
+                + r'|버전을?\s.{0,15}(올려|바꿔)|\brename\b|bump the version')
+QUESTION = (r'(설명해|무슨\s?의미|뭐야|어떻게\s?(읽|보)|알려\s?줘|방법|법을?\s|차이가|리뷰|요약|번역해|추천|recommend|'
+            r'(커밋|로그|log)\S*\s?(만\s)?보여|explain|what does|how (do|does|to)|\breview\b|summari[sz]e|translate|\?\s*$)')
 FIX_REQUEST = r'고쳐|수정해|막아|해결|\bfix\b'
 
 
 def request_route(prompt):
     if not isinstance(prompt, str):
         return None
-    direct = bool(re.search(TRIVIAL_EDIT, prompt) or (
+    direct = len(prompt.strip()) < 12 or bool(re.search(TRIVIAL_EDIT, prompt, re.I) or (
         re.search(QUESTION, prompt, re.I) and not re.search(FIX_REQUEST, prompt, re.I)))
     for skill, reason, pattern, *guarded in ROUTES:
         if guarded and direct:
