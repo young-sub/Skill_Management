@@ -4,7 +4,7 @@ description: Investigate reported incorrect behavior (user or customer complaint
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/diagnose/SKILL.md -->
-<!-- Source-SHA256: eeebd4370a67fed11e18441f026eb14842415ec266bebb013a2eb6a6b84f51ce -->
+<!-- Source-SHA256: 8855f776043cece02ef8123e3d5b52ce3a56c6f9116007b83353e963f247bdb0 -->
 
 
 # Diagnose
@@ -39,7 +39,7 @@ current availability. Lookup never diagnoses, repairs or clears a manual disable
 2. Trace the failing behavior through its callers and state owner. Form a falsifiable hypothesis; instrument only what distinguishes likely causes. Separate code failure, missing evidence, and environment failure.
 3. If a retry produces the same evidence, change the hypothesis or check instead of repeating it. After two failed fixes on one premise, write the premise down and test it directly. Revert edits made for a hypothesis the evidence refuted; a guard is a fix only when that state can legitimately occur. Honor loaded manual-disable records. Escalate scope only when the observed cause crosses the current boundary.
 4. For an authorized fix, add the smallest regression proof when it prevents recurrence, observe RED when that evidence is useful, fix the shared root cause, and observe GREEN. Reuse existing evidence when it already proves the behavior; do not add a test solely to document a one-off diagnosis. A diagnosis-only request ends with evidence and the proposed fix. No contract creation is required for a small repair.
-5. Enumerate alternate paths that can reproduce the same failure class (other callers, settlement/refund/retry/import paths, sibling queries that repeat the same rule). Prove each is blocked by the new regression, or record why none exists with the inspected owner files (`guardrail.bypass_absence`). A guardrail that only covers the reported path is not prevention. Register the original fault and each alternate path as probes in `.harness/probes.json` and run `python <this Skill's directory>/scripts/probe_check.py probes --root <project>`; every probe must be killed. `probe_check.py prove` shows the regression fails without the fix.
+5. Enumerate alternate paths that can reproduce the same failure class (other callers, settlement/refund/retry/import paths, sibling queries that repeat the same rule). Prove each is blocked by the new regression, or record why none exists with the inspected owner files (`guardrail.bypass_absence`). A guardrail that only covers the reported path is not prevention. Register the original fault and each alternate path as probes in `.harness/probes.json` and run `python <this Skill's directory>/scripts/probe_check.py probes --root <project>`; every probe must be killed. The step-1 reproduction shows the regression fails without the fix; use `probe_check.py prove --skip-current` only for a regression written after the fix.
 6. In a connected project, record the complaint, cause, repair, guardrail and bypass evidence in the existing feedback record so the next task inherits it. In an unconnected project, say that no feedback record can be kept and offer `setup-project-verification` once.
 7. Recheck affected public behavior and relevant sibling callers. Expand verification only for newly affected logic or an explicit request; unrelated baseline debt is not a completion gate.
 

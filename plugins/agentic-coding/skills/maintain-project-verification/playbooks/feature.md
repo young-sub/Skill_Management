@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/playbooks/feature.md -->
-<!-- Source-SHA256: dae6f7046708165b3c5e6b5aad17f71e1430b40d74ae67c92fc9f65f1373745d -->
+<!-- Source-SHA256: 9823602f79c70e134aa3954b13f4d5ab35d232694f47079cfc071f42052714ef -->
 
 # Feature
 
@@ -14,8 +14,9 @@ stays direct; this is a decision aid, not a required plan, task or contract.
 2. Implement the smallest complete change, including affected inputs, outputs,
    tests, config and docs. Use existing tools and validation at trust boundaries.
    Every entry point that creates or changes the same data obeys the same rule.
-3. Prove the new checks fail without the change (`probe_check.py prove`), then run
-   them with the existing checks that exercise the changed modules. For changed
+3. If the new checks were not seen failing before the change, prove they fail without
+   it (`probe_check.py prove --skip-current`). After the final edit, run them once with
+   the existing checks that exercise the changed modules. For changed
    layer connections follow input through API, Domain, storage and fresh read;
    rejected writes must preserve data.
 
