@@ -180,6 +180,23 @@ class ProbeCheckTests(unittest.TestCase):
         self.invoke('probes')
         self.assertEqual((outside / 'pkg' / 'index.js').read_text(encoding='utf-8'), 'keep')
 
+    def test_link_accepts_a_dependency_directory_that_is_itself_a_link(self):
+        outside = Path(self.temporary.name) / 'shared-deps'
+        outside.mkdir()
+        (outside / 'marker.txt').write_text('dependency', encoding='utf-8')
+        if os.name == 'nt':
+            subprocess.run(['cmd', '/c', 'mklink', '/J', str(self.root / 'node_modules'), str(outside)],
+                           check=True, capture_output=True)
+        else:
+            (self.root / 'node_modules').symlink_to(outside, target_is_directory=True)
+        command = [sys.executable, '-c',
+                   'from pathlib import Path; import sys; '
+                   'sys.exit(1 if Path("node_modules/marker.txt").read_text() == "dependency" else 0)']
+        self.registry_write([self.probe(command=command)])
+        self.invoke('probes', '--link', 'node_modules', '--output', str(self.output))
+        self.assertTrue(self.results()[0]['detected'])
+        self.assertEqual((outside / 'marker.txt').read_text(encoding='utf-8'), 'dependency')
+
     def test_link_dependency_and_shell_command(self):
         self.write('node_modules/marker.txt', 'dependency')
         command = [sys.executable, '-c',

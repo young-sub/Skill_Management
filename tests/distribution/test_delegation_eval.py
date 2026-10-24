@@ -225,6 +225,19 @@ class DelegationEvalTests(unittest.TestCase):
         self.assertEqual((deps / 'marker').read_text(), 'evaluation copy')
         self.assertEqual((self.project / 'dependencies/marker').read_text(), 'user')
 
+    def test_judging_retries_a_failed_check_once(self):
+        flaky = ("from pathlib import Path; p = Path('attempt'); n = int(p.read_text()) if p.exists() else 0; "
+                 "p.write_text(str(n + 1)); raise SystemExit(1 if n == 0 else 0)")
+        self.scenario['regression'] = shell_python(flaky)
+        self.assertEqual(self.cli()[0], 0)
+        result = self.result()
+        self.assertTrue(result['verified_success'])
+        self.assertEqual(result['regression']['first_attempt']['exit'], 1)
+        self.scenario['regression'] = shell_python('raise SystemExit(3)')
+        self.output = self.base / 'output-2'
+        self.assertEqual(self.cli()[0], 1)
+        self.assertFalse(self.result()['verified_success'])
+
     def test_crash_and_timeout_still_record_and_continue(self):
         self.scenario['prompt'] = json.dumps({'crash': True})
         timeout = copy.deepcopy(self.scenario)

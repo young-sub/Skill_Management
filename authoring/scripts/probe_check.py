@@ -25,7 +25,7 @@ def git(root, *args, data=None):
     return result.stdout
 
 
-def relative_file(root, name):
+def relative_file(root, name, resolve=True):
     if not isinstance(name, str) or not name.strip():
         raise ValueError(f'Expected a repository-relative path: {name!r}')
     name = name.replace('\\', '/')
@@ -33,7 +33,8 @@ def relative_file(root, name):
             or '..' in Path(name).parts or name.split('/')[0].lower() == '.git'):
         raise ValueError(f'Expected a repository-relative path: {name!r}')
     path = root / name
-    if not path.resolve().is_relative_to(root.resolve()):
+    # A linked dependency directory may legitimately point outside; only its name must stay inside.
+    if resolve and not path.resolve().is_relative_to(root.resolve()):
         raise ValueError(f'Path escapes repository: {name!r}')
     return path
 
@@ -72,7 +73,7 @@ def load_probes(root, registry):
 
 def add_links(root, copy, names, created):
     for name in names:
-        source, target = relative_file(root, name), relative_file(copy, name)
+        source, target = relative_file(root, name, False), relative_file(copy, name, False)
         if not source.is_dir():
             continue
         if target.exists() or target.is_symlink():
@@ -248,7 +249,7 @@ def main(argv=None):
         if not math.isfinite(args.timeout) or args.timeout <= 0:
             raise ValueError('--timeout must be positive and finite')
         for name in args.link:
-            relative_file(root, name)
+            relative_file(root, name, False)
         if args.mode == 'probes':
             registry = args.registry if args.registry.is_absolute() else root / args.registry
             selected = load_probes(root, registry)

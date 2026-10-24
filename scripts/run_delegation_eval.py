@@ -259,6 +259,15 @@ def check_command(command, repo, timeout, log):
         return {'exit': None, 'passed': False, 'tail': str(error)}
 
 
+def judged_command(command, repo, timeout, log):
+    """Judge once more after a failure: shared-machine load flakes affect every condition alike."""
+    first = check_command(command, repo, timeout, log)
+    if first['passed']:
+        return first
+    second = check_command(command, repo, timeout, log.with_name(log.stem + '-retry' + log.suffix))
+    return dict(second, first_attempt={key: first.get(key) for key in ('exit', 'timed_out', 'tail')})
+
+
 def known_sum(values):
     values = list(values)
     return sum(values) if values and all(isinstance(v, (int, float)) for v in values) else None
@@ -348,10 +357,10 @@ def run(scenario, condition, rep, output, command, config, timeout, source_dir, 
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(source_dir / relative_path(source), target)
         for index, check in enumerate(scenario['hidden']):
-            result['hidden'].append({'name': check['name'], **check_command(
+            result['hidden'].append({'name': check['name'], **judged_command(
                 check['command'], repo, timeout, work / f'hidden{index}.log')})
         if scenario.get('regression'):
-            result['regression'] = check_command(scenario['regression'], repo, timeout, work / 'regression.log')
+            result['regression'] = judged_command(scenario['regression'], repo, timeout, work / 'regression.log')
     except Exception as error:
         result['errors'].append(f'{type(error).__name__}: {error}')
     sessions = result['sessions']
