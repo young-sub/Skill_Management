@@ -169,6 +169,17 @@ class ProbeCheckTests(unittest.TestCase):
         self.registry_write([self.probe(command=['nonexistent-probe-check-command'])])
         self.invoke('probes', expected=2)
 
+    def test_links_created_by_the_command_never_delete_their_targets(self):
+        outside = Path(self.temporary.name) / 'outside-deps'
+        (outside / 'pkg').mkdir(parents=True)
+        (outside / 'pkg' / 'index.js').write_text('keep', encoding='utf-8')
+        maker = ('import os, subprocess, sys; target = sys.argv[1]; '
+                 "subprocess.run(['cmd', '/c', 'mklink', '/J', 'deps', target], check=True, capture_output=True) "
+                 "if os.name == 'nt' else os.symlink(target, 'deps', target_is_directory=True); sys.exit(1)")
+        self.registry_write([self.probe(command=[sys.executable, '-c', maker, str(outside)])])
+        self.invoke('probes')
+        self.assertEqual((outside / 'pkg' / 'index.js').read_text(encoding='utf-8'), 'keep')
+
     def test_link_dependency_and_shell_command(self):
         self.write('node_modules/marker.txt', 'dependency')
         command = [sys.executable, '-c',

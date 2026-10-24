@@ -4,7 +4,7 @@ description: Deliver delegated coding work across FE, API/backend and business l
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: 1021bfd33da5a40ee652c8654561aaa47a71f3ec0a3070db0efc57a6b4be7091 -->
+<!-- Source-SHA256: c736a34153fc7d748e95b52aedf3087024edc1356e8a32e15bdc98f0561b51f6 -->
 
 
 # Agent Workflow
@@ -26,12 +26,15 @@ the request is a trivial edit.
    fail for the intended reason; if reproduction is infeasible, say why.
 3. **Fix at the owner, on every path.** List every place that writes or enforces
    the same rule (callers, other endpoints, triggers, imports, background jobs) and
-   cover each with a check or a stated reason. A guard is a fix only when that state
+   cover each with a check. When the request states the rule for all saves or all
+   users, apply it on every such path; exempting one (for example restore or import)
+   is the user's decision, so ask instead of deciding it. A guard is a fix only when that state
    can legitimately occur. Revert changes made for a hypothesis the evidence refuted;
    after two failures on one premise, test the premise before the next fix.
 4. **Prove the checks catch the defect.** Run
    `python <this Skill's directory>/scripts/probe_check.py prove --root <project> --base HEAD --tests <new or changed tests> --command "<test command>"`:
-   the tests must fail without the source change. For a
+   the tests must fail without the source change. Pass ignored dependency directories
+   with `--link node_modules` instead of creating links in the copy yourself. For a
    business, architecture or UI rule worth protecting, add a probe to
    `.harness/probes.json` and run `probe_check.py probes`. A surviving probe means the
    rule is not protected yet.
