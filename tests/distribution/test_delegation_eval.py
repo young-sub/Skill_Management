@@ -151,6 +151,11 @@ class DelegationEvalTests(unittest.TestCase):
         self.assertEqual((repo / 'value.txt').read_text(), 'good')
         self.assertTrue((repo / 'hidden.py').is_file())
 
+    def test_regression_runs_before_hidden_files_exist(self):
+        self.scenario['regression'] = shell_python("from pathlib import Path; assert not Path('hidden.py').exists()")
+        self.assertEqual(self.cli()[0], 0)
+        self.assertTrue(self.result()['regression']['passed'])
+
     def test_false_completion_and_admitted_incomplete(self):
         self.scenario['prompt'] = json.dumps({'edit': 'bad', 'answer': 'All done'})
         admitted = copy.deepcopy(self.scenario)

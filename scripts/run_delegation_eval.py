@@ -350,6 +350,9 @@ def run(scenario, condition, rep, output, command, config, timeout, source_dir, 
             except Exception as error:
                 record['error'] = str(error)
             result['probes'].append(record)
+        # The existing suite runs before hidden files exist, so a glob never counts them twice.
+        if scenario.get('regression'):
+            result['regression'] = judged_command(scenario['regression'], repo, timeout, work / 'regression.log')
         # Install all hidden files together: no session or probe can read them beforehand.
         for check in scenario['hidden']:
             for dest, source in check['files'].items():
@@ -359,8 +362,6 @@ def run(scenario, condition, rep, output, command, config, timeout, source_dir, 
         for index, check in enumerate(scenario['hidden']):
             result['hidden'].append({'name': check['name'], **judged_command(
                 check['command'], repo, timeout, work / f'hidden{index}.log')})
-        if scenario.get('regression'):
-            result['regression'] = judged_command(scenario['regression'], repo, timeout, work / 'regression.log')
     except Exception as error:
         result['errors'].append(f'{type(error).__name__}: {error}')
     sessions = result['sessions']
