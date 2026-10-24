@@ -88,6 +88,29 @@ def add_links(root, copy, names, created):
         created.append(target)
 
 
+def is_link(path):
+    if os.path.islink(path) or (hasattr(os.path, 'isjunction') and os.path.isjunction(path)):
+        return True
+    try:  # Junctions and other reparse points on Pythons without isjunction.
+        return bool(os.lstat(path).st_file_attributes & 0x400)
+    except (AttributeError, OSError):
+        return False
+
+
+def unlink_all_links(copy):
+    """Detach every link in the copy, whoever created it, so deletion never reaches its target."""
+    for directory, names, files in os.walk(copy, topdown=True, followlinks=False):
+        for name in list(names) + files:
+            path = os.path.join(directory, name)
+            if is_link(path):
+                if os.path.isdir(path) and os.name == 'nt':
+                    os.rmdir(path)
+                else:
+                    os.unlink(path)
+                if name in names:
+                    names.remove(name)
+
+
 @contextmanager
 def worktree(root, ref, current=False, links=()):
     with tempfile.TemporaryDirectory(prefix='probe-check-') as temporary:
@@ -109,15 +132,10 @@ def worktree(root, ref, current=False, links=()):
             yield copy
         finally:
             try:
-                # Git's force removal can traverse Windows junctions into the source.
-                for target in reversed(created):
-                    if not os.path.lexists(target):
-                        continue
-                    if os.name == 'nt':
-                        os.rmdir(target)
-                    else:
-                        target.unlink()
+                # Git's force removal and rmtree can traverse Windows junctions into their targets,
+                # including links a checked command created itself.
                 if copy.exists():
+                    unlink_all_links(copy)
                     git(root, 'worktree', 'remove', '--force', str(copy))
             finally:
                 git(root, 'worktree', 'prune')
