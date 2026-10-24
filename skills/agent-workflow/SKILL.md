@@ -4,7 +4,7 @@ description: Deliver delegated coding work across FE, API/backend and business l
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: c736a34153fc7d748e95b52aedf3087024edc1356e8a32e15bdc98f0561b51f6 -->
+<!-- Source-SHA256: b09c20e4314ee3a39cbc7a32b0eacca8faab34798a7d993ba79baef83bc07ca2 -->
 
 
 # Agent Workflow
@@ -31,17 +31,19 @@ the request is a trivial edit.
    is the user's decision, so ask instead of deciding it. A guard is a fix only when that state
    can legitimately occur. Revert changes made for a hypothesis the evidence refuted;
    after two failures on one premise, test the premise before the next fix.
-4. **Prove the checks catch the defect.** Run
-   `python <this Skill's directory>/scripts/probe_check.py prove --root <project> --base HEAD --tests <new or changed tests> --command "<test command>"`:
+4. **Prove the checks catch the defect.** A failure observed in step 2 for the intended
+   reason is the proof. Only for tests written after the change, run
+   `python <this Skill's directory>/scripts/probe_check.py prove --root <project> --base HEAD --tests <new or changed tests> --command "<test command>" --skip-current`:
    the tests must fail without the source change. Pass ignored dependency directories
    with `--link node_modules` instead of creating links in the copy yourself. For a
    business, architecture or UI rule worth protecting, add a probe to
    `.harness/probes.json` and run `probe_check.py probes`. A surviving probe means the
    rule is not protected yet.
-5. **Run affected existing checks after the final edit.** Run the Feature's registered
-   checks and the existing tests that exercise the changed modules on every touched
-   layer. New tests alone are not completion. When UI behavior changed, open it in a
-   real browser and look.
+5. **Run affected existing checks once, after the final edit.** In one batch, run the
+   new tests with the Feature's registered checks and the existing tests that exercise
+   the changed modules on every touched layer; rerun only what a later edit affects.
+   New tests alone are not completion. Open a browser only for a visual or interaction
+   change that no automated UI test covers.
 6. **Report the result card.**
 
 Settle questions that running code can answer (behavior, performance, layout) by

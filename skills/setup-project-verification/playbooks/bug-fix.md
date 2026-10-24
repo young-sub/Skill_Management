@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/playbooks/bug-fix.md -->
-<!-- Source-SHA256: 004ebfcad1e461be795793be0a1bb0af02f89199d0e9c160debd48a368aa3b88 -->
+<!-- Source-SHA256: 031c67b807c6a852a7b2d46255ec5dafe50fc997b1aaed8d02894cad4b587539 -->
 
 # Bug fix
 
@@ -17,8 +17,8 @@ is a feature decision. Small repairs do not require workflow state or a contract
    A guard is a fix only when that state can legitimately occur; revert edits made
    for a hypothesis the evidence refuted.
 3. Confirm the original failure is prevented, nearby valid use still works, and
-   affected callers/regressions pass. `probe_check.py prove` shows the regression
-   fails without the fix; for a business rule, register the original fault and each
+   affected callers/regressions pass in one run after the final edit. The reproduction
+   in step 1 shows the regression fails without the fix; for a business rule, register the original fault and each
    alternate path as probes so a later reintroduction is caught. Keep the original
    failure evidence.
 

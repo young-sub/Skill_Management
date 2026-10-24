@@ -13,8 +13,8 @@ is a feature decision. Small repairs do not require workflow state or a contract
    A guard is a fix only when that state can legitimately occur; revert edits made
    for a hypothesis the evidence refuted.
 3. Confirm the original failure is prevented, nearby valid use still works, and
-   affected callers/regressions pass. `probe_check.py prove` shows the regression
-   fails without the fix; for a business rule, register the original fault and each
+   affected callers/regressions pass in one run after the final edit. The reproduction
+   in step 1 shows the regression fails without the fix; for a business rule, register the original fault and each
    alternate path as probes so a later reintroduction is caught. Keep the original
    failure evidence.
 
