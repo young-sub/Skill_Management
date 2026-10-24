@@ -107,7 +107,7 @@ class PluginPackageTests(unittest.TestCase):
                 environment = {k: v for k, v in os.environ.items()
                                if k not in ('PLUGIN_ROOT', 'CLAUDE_PLUGIN_ROOT', 'AGENT_WORKFLOW_CONTEXT')}
                 environment[root_variable] = str(package)
-                for prompt, expected in [('Fix the probe output', 'NOT_CONFIGURED'),
+                for prompt, expected in [('The probe output is broken, fix it', 'diagnose'),
                                          ('Translate hello into Korean', None)]:
                     delivered = subprocess.run(['powershell', '-NoProfile', '-Command', hook_command],
                         input=json.dumps({'hook_event_name': 'UserPromptSubmit', 'cwd': str(consumer),
@@ -117,8 +117,7 @@ class PluginPackageTests(unittest.TestCase):
                     output = json.loads(delivered.stdout)
                     if expected:
                         context = output['hookSpecificOutput']['additionalContext']
-                        self.assertEqual(json.loads(context.split('\n', 1)[1])['status'], expected)
-                        self.assertIn('AGENTS.md', context)
+                        self.assertEqual(json.loads(context.split('\n', 1)[1])['route']['skill'], expected)
                     else:
                         self.assertEqual(output, {})
             self.assertEqual(before_hook, {str(p): p.read_bytes() for p in consumer.rglob('*') if p.is_file()})

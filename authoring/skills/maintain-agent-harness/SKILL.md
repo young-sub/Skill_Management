@@ -1,6 +1,7 @@
 ---
 name: maintain-agent-harness
 description: Audit Harness mapping, distributed resources, and retained work integrity when maintenance or drift diagnosis is requested. Defaults to reporting; repairs and cleanup follow the user's scope.
+disable-model-invocation: true
 ---
 
 # Maintain Agent Harness

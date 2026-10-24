@@ -111,6 +111,17 @@ class WorkflowRobustnessTests(unittest.TestCase):
         for name, (prompt, expected) in prompts.items():
             with self.subTest(name=name):
                 self.assertEqual((route(prompt) or {}).get('skill'), expected)
+        heldout = json.loads((ROOT / 'tests/distribution/fixtures/route_heldout.json').read_text(encoding='utf-8'))
+        for prompt, expected in heldout['prompts']:
+            with self.subTest(prompt=prompt):
+                self.assertEqual((route(prompt) or {}).get('skill'), expected)
+        categories = {'bug': 'diagnose', 'change': 'agent-workflow', 'trivial': None, 'results': 'agent-workflow',
+                      'connect': 'setup-project-verification', 'ui': 'agent-workflow',
+                      'guardrail': 'agent-workflow', 'resume': 'recall'}
+        fresh = json.loads((ROOT / 'tests/distribution/fixtures/route_fresh.json').read_text(encoding='utf-8'))
+        for prompt, category in fresh['prompts']:
+            with self.subTest(prompt=prompt):
+                self.assertEqual((route(prompt) or {}).get('skill'), categories[category])
         for kind in ('unconfigured', 'configured'):
             root = self.project(kind)
             prompt = prompts['L1 customer complaint'][0]
@@ -133,8 +144,7 @@ class WorkflowRobustnessTests(unittest.TestCase):
             with self.subTest(prompt=prompt):
                 if expected:
                     context = json.loads(output['hookSpecificOutput']['additionalContext'].split('\n', 1)[1])
-                    self.assertEqual(context['connection'], 'NOT_CONNECTED')
-                    self.assertIn('setup-project-verification', context['guidance'])
+                    self.assertEqual(context['route']['skill'], 'diagnose')
                 else:
                     self.assertEqual(output, {})
         korean = Path(self.temp.name) / '한글 프로젝트'

@@ -1,6 +1,7 @@
 ---
 name: zoom-out
 description: Explain how current code works and fits the user flow, or why a design decision was made from recorded history and constraints. Use for broader context, call/ownership explanations and historical rationale; distinguish facts, inference and unknowns.
+disable-model-invocation: true
 ---
 
 # Zoom Out

@@ -1,6 +1,7 @@
 ---
 name: explore-idea
 description: Clarify a problem, user value, constraints, and the smallest useful experiment through read-only exploration. Use before the user has chosen an implementation direction, not as a gate for already clear, authorized work.
+disable-model-invocation: true
 ---
 
 # Explore Idea

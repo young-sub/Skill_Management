@@ -1,10 +1,11 @@
 ---
 name: execute-codex-goal
 description: Execute an existing authorized Harness Item contract, verify affected behavior, and commit complete functional units. Does not require a contract or Harness setup for ordinary development outside this workflow.
+disable-model-invocation: true
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/execute-codex-goal/SKILL.md -->
-<!-- Source-SHA256: 908c76032e511b33ab84be31132d0c24549061c24cd010609c91c0bef0aec442 -->
+<!-- Source-SHA256: cf4119c4ac0124302d924469d6bcf26e7e06da29b263668b3bae7618c67c124a -->
 
 
 # Execute Codex Goal

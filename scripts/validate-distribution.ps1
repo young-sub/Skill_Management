@@ -62,7 +62,7 @@ foreach ($skillDirectory in Get-ChildItem -LiteralPath $skillsRoot -Directory) {
         )
     }
 
-    $allowedFields = @('name', 'description', 'license', 'metadata')
+    $allowedFields = @('name', 'description', 'license', 'metadata', 'disable-model-invocation')
     $requiredFields = @('name', 'description')
     $parentField = ''
     foreach ($line in $frontmatter) {

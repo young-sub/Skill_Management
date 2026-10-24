@@ -1,10 +1,11 @@
 ---
 name: swarm
 description: Split an implementation across parallel agents, or resume delegated work by reconciling assignment ownership, execution evidence and integration. Use for independent coding tasks and interrupted parallel handoffs even when no new agents are needed; independent challenge belongs to multi-agent-review, and small coupled edits stay sequential.
+disable-model-invocation: true
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/swarm/SKILL.md -->
-<!-- Source-SHA256: adeb0e6d3fad0689cd93bbd6d59956f8e8c89db00f0281f5c564d4353734d9d6 -->
+<!-- Source-SHA256: c414ad230bca5bf41cc5dd5aec20749e0d7f34e9163dffdae0c1df55163bd554 -->
 
 
 # Swarm
@@ -33,7 +34,15 @@ For each bounded assignment, give the worker:
 - Prerequisites and which assignments must finish before this one can start.
 - Completion and failure criteria, relevant checks and required raw evidence.
 - Who reviews the change, who integrates it, and the return artifact: diff/commit,
-  files changed, commands/results, unresolved issues and execution handles.
+  files changed, commands/results, deviations from the brief, every provable issue
+  found (not only the first), unresolved issues and execution handles.
+- A timebox: on expiry return partial results and stop. Acceptance checks and
+  fixtures are read-only for the worker; it may not edit the oracle to pass.
+
+A mechanical edit a script can apply in one pass is scripted, checked on one unit
+against a hand-made edit, then run; it is not split across agents by hand. A revision
+round goes to a fresh worker with one brief merging the original instructions, every
+later instruction and the previous report, so no instruction silently drops.
 
 Keep this in the existing task/handoff or conversation for short work. The main
 agent owns the dependency list and integration; worker completion is provisional.

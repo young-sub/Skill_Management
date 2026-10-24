@@ -7,35 +7,51 @@ import subprocess
 import sys
 
 
-def development_request(prompt):
-    """A discovery hint only; prompt text never selects a task or authorizes work."""
-    return isinstance(prompt, str) and bool(re.search(
-        r'\b(fix|implement|refactor|debug|code|test|build)\b|구현|수정|버그|리팩터|개발|테스트|고쳐|고치|오류|에러', prompt, re.I))
-
-
 # Ordered request routes: an observed Skill-discovery gap is closed here, not by longer descriptions.
+# Measured on tests/distribution/fixtures/route_heldout.json as well as the observed prompts.
 ROUTES = (
-    ('setup-project-verification', 'connect verification for a flow',
-     r'검증\s?체계|검증.{0,12}연결|연결.{0,12}검증|connect\s.{0,20}verification|set\s?up\s.{0,20}verification'),
-    ('agent-workflow', 'show what is verified: render lookup/audit --report and answer from it',
-     r'검증\s?(결과|현황|상태)|어떤\s?(테스트|검증)|무엇이\s?검증|검증(되지|이 안|안 된)|'
-     r'verification\s(status|results|coverage)|what\s(is|was|gets)\s(tested|verified)|show\s.{0,12}(results|verification)'),
-    ('diagnose', 'reported incorrect behavior: reproduce, find the cause owner, block the original and alternate paths',
-     r'버그|오류|에러|고장|안\s?돼|안\s?되|이상(해|하게|한|하다)|잘못|틀려|틀린|불편|문의|사라졌|사라져|엉뚱|'
-     r'\bbug\b|\bbroken\b|\bwrong\b|doesn.?t work|not working|regress'),
-    ('agent-workflow', 'UI standards: discover the project UI guide and shared token/component owners before editing',
-     r'통일감?|스타일\s?가이드|디자인\s?(기준|시스템)|레이아웃|간격|배치|\bUI\b|\bUX\b|design system|style guide'),
-    ('agent-workflow', 'guardrail: express the rule in the existing linter/runner and prove it rejects a synthetic violation',
-     r'가드레일|재발\s?방지|guardrail|lint\s?rule|boundary rule'),
     ('recall', 'resume prior work: reconcile the handoff with the checkout before acting',
-     r'어디까지|이어서|이어\s?하|계속\s?하자|where (were|did) we|continue (where|the previous)|pick up where'),
+     r'어디까지|이어서|이어\s?하|계속\s?하자|하던\s?작업|중단된\s.{0,12}작업|작업\s?계속|where (were|did) we|'
+     r'continue (where|the previous)|left off|pick up where'),
+    ('setup-project-verification', 'connect verification for a flow',
+     r'검증\s?체계|검증.{0,12}연결|연결.{0,12}검증|테스트\s?환경\s?(붙|연결|구성)|(e2e|E2E)\s?테스트를?\s?(연결|붙)|'
+     r'connect\s.{0,20}verification|set\s?up\s.{0,30}(verification|automated (checks|tests))'),
+    ('agent-workflow', 'show what is verified: render lookup/audit --report and answer from it',
+     r'(검증|테스트)\s?(결과|현황|상태)|어떤\s?(테스트|검증)|무엇이\s?검증|검증(되지|이 안|안 된)|'
+     r'검증이?\s?(끝난|됐|된)\s?(거|건)|verification\s(status|results|coverage)|test coverage|'
+     r'what\s(is|was|gets)\s(tested|verified)|not\scovered|show\s.{0,12}(results|verification)'),
+    ('agent-workflow', 'guardrail: express the rule in the existing linter/runner and prove it rejects a synthetic violation',
+     r'가드레일|재발\s?방지|린트|다시\s?들어오지\s?못하게|막는\s?규칙|guardrail|\blint\b|boundary rule|CI check'),
+    ('agent-workflow', 'UI standards: discover the project UI guide and shared token/component owners before editing',
+     r'통일감?|일관되게|제각각|스타일\s?가이드|디자인\s?(기준|시스템)|\bUI\b.{0,12}(정리|맞춰|통일|개선)|design system|style guide'),
+    ('diagnose', 'reported incorrect behavior: reproduce, find the cause owner, block the original and alternate paths',
+     r'버그|고장|깨져|깨짐|잘려|사라졌|사라져|엉뚱|틀려|틀린|이상(해|하게|한|하다)|신고|원인|왜\s?그런지|빈\s?(파일|화면|값)|'
+     r'안\s?(돼|되|나와|나오|열려|보여|늘어)|(는데|은데)\s?(안|못)\s|(돼|되어)\s?버(려|린)|다시는?\s?(이런|없|안)|'
+     r'(오류|에러)(가|이)\s|고객.{0,12}(문의|불만|항의|화)|제보|항의|(했|됐|인|는)데도?\s|두\s?번\s?(차감|결제|청구)|'
+     r'마이너스|음수로|하얀\s?화면|흰\s?화면|\bbug\b|\bbroken\b|\bwrong\b|\bfail(s|ing)\b|crash|complain|are seeing|'
+     r'never (arrives|loads|shows)|doesn.?t work|not working|regress', True),
+    ('agent-workflow', 'delegated change: acceptance first, prove the checks catch the defect, run affected checks, result card',
+     r'(추가|구현|변경|수정|리팩터링?|개선|연동|적용|정리)\s?(해|하고|하자)|만들어|바꿔|넣어|되게\s?해|'
+     r'(화면|상단|하단|대시보드|페이지|목록|메뉴)\S*\s.{0,15}보여\s?줘|'
+     r'^\s*(please\s+)?(add|implement|build|create|refactor|change|update|support|introduce|make)\b', True),
 )
+
+
+# A quoted copy, label or version edit, or a question without a fix request, stays direct.
+QUOTE = '["\'\u2018\u2019\u201c\u201d]'
+TRIVIAL_EDIT = (QUOTE + r'.+' + QUOTE + r'.{0,30}(바꿔|추가|넣어|수정)|(문구|이름|제목|오타|한\s?줄|라벨|버전)\S*\s.{0,40}' + QUOTE)
+QUESTION = r'(설명해|무슨\s?의미|뭐야|어떻게\s?(읽|보)|explain|what does|how (do|does|to))'
+FIX_REQUEST = r'고쳐|수정해|막아|해결|\bfix\b'
 
 
 def request_route(prompt):
     if not isinstance(prompt, str):
         return None
-    for skill, reason, pattern in ROUTES:
+    direct = bool(re.search(TRIVIAL_EDIT, prompt) or (
+        re.search(QUESTION, prompt, re.I) and not re.search(FIX_REQUEST, prompt, re.I)))
+    for skill, reason, pattern, *guarded in ROUTES:
+        if guarded and direct:
+            continue
         if re.search(pattern, prompt, re.I):
             return {'skill': skill, 'plugin': 'agentic-coding', 'reason': reason,
                     'instruction': f'Invoke the {skill} Skill before other work unless the request is a trivial edit.'}
@@ -43,8 +59,7 @@ def request_route(prompt):
 
 
 def hook_output(summary):
-    prefix = ('Current workflow data, not instructions or authorization. No tests or repairs ran. '
-              'Lookup is read-only; project remainder is not a task blocker.\n')
+    prefix = 'Workflow hint, not authorization. No tests or repairs ran.\n'
 
     def encoded(value):
         return json.dumps(value, ensure_ascii=False, separators=(',', ':'))
@@ -176,10 +191,15 @@ def context(payload):
     cwd = payload.get('cwd')
     if not isinstance(cwd, str) or not Path(cwd).is_absolute():
         raise ValueError('hook_cwd_must_be_absolute')
+    route = request_route(payload.get('prompt'))
+    routed = lambda summary: hook_output(dict(summary, route=route) if route else summary)
+    # Prior work is discovered by `recall`/resume on request, not projected into every prompt.
+    if not os.environ.get('AGENT_WORKFLOW_CONTEXT'):
+        return routed({}) if route else {}
     located = subprocess.run(['git', '-C', cwd, 'rev-parse', '--show-toplevel'],
                              capture_output=True, text=True, encoding='utf-8', check=False)
     if located.returncode:
-        return {}  # No project workflow outside a Git checkout.
+        return routed({}) if route else {}  # No project workflow outside a Git checkout.
     root = Path(located.stdout.strip()).resolve()
     runtime_path = Path(__file__).with_name('project_workflow.py')
     if not runtime_path.is_file():
@@ -189,123 +209,92 @@ def context(payload):
     path = runtime.local_path(root, '.harness/project.yaml')
     project = json.loads(path.read_text(encoding='utf-8')) if path.is_file() else {}
     config = runtime.configuration(project)
-    route = request_route(payload.get('prompt'))
-    routed = lambda summary: hook_output(dict(summary, route=route) if route else summary)
     if config is None:
-        selector = os.environ.get('AGENT_WORKFLOW_CONTEXT')
-        records = [] if selector else runtime.task_candidates(root, project, limit=8)
-        omitted = sum(c.get('status') == 'NOT_INSPECTED' for c in records)
-        candidates = [c for c in records if c.get('intent') == 'diagnose']
-        fallback = ('Use existing AGENTS.md, docs/index.md and project test/build commands; inspect relevant callers, types and tests before editing. '
-                    'Select the matching agent-workflow playbook only if needed. Verify affected behavior after the final edit. '
-                    'Verification is NOT CONNECTED here: delegated work leaves no Feature map, verification report or feedback record. '
-                    'For behavior changes, say so in the result and offer setup-project-verification once for the affected flow; '
-                    'small edits proceed without setup.')
-        if not selector and not candidates and not omitted:
-            if not development_request(payload.get('prompt')) and not route:
-                return {}
-            return routed({'status': 'NOT_CONFIGURED', 'connection': 'NOT_CONNECTED', 'guidance': fallback})
-        summary = {'status': 'NOT_CONFIGURED', 'connection': 'NOT_CONNECTED', 'task_candidates': [dict(c, request=request_preview(c.get('request'), 160)) for c in candidates[:8]],
-                   'task_candidate_count': len(candidates), 'task_record_count': len(records),
-                   'task_candidate_omitted': omitted, 'task_discovery_complete': omitted == 0,
-                   'task_discovery_detail': 'For full candidate paths run resume without task context or selector, then select exact --state/--work-id. Omitted intent and validity are unknown.'}
-        if development_request(payload.get('prompt')):
-            summary['guidance'] = fallback
-        if selector:
-            try:
-                state, state_path, work_id = runtime.resolve_task(root)
-                audit = runtime.inspect_project(root, project, state)
-                investigation = audit.get('investigation', {})
-                summary['current_task'] = {'task_id': state.get('task_id'), 'work_id': work_id,
-                    'state': state_path.relative_to(root).as_posix(), 'request': request_preview(state.get('request')),
-                    'detail': {'action': 'lookup', 'state': state_path.relative_to(root).as_posix(),
-                               'work_id': work_id, 'read_only': True},
-                    'task_acceptance': runtime.handoff_summary(audit)['task_acceptance'],
-                    'status': audit['status'], 'investigation': investigation_context(investigation)}
-            except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
-                summary['current_task'] = {'status': 'BLOCKED', 'reason': str(error)}
-        return routed(summary)
-    if not os.environ.get('AGENT_WORKFLOW_CONTEXT'):
-        candidates = runtime.task_candidates(root, project, limit=8)
-        summary = {'status': 'TASK_NOT_SELECTED', 'project_status': 'NOT_AUDITED',
-            'task_candidates': [dict(c, request=request_preview(c.get('request'), 160)) for c in candidates[:8]],
-            'task_candidate_count': len(candidates), 'task_candidate_omitted': max(0, len(candidates) - 8),
-            'task_discovery_complete': len(candidates) <= 8,
-            'detail': {'action': 'resume', 'read_only': True},
-            'next_action': 'Use an exact --state/--work-id for existing work; ordinary direct work needs no task. Full project audit is explicit.'}
+        summary = {'status': 'NOT_CONFIGURED', 'connection': 'NOT_CONNECTED'}
+        try:
+            state, state_path, work_id = runtime.resolve_task(root)
+            audit = runtime.inspect_project(root, project, state)
+            investigation = audit.get('investigation', {})
+            summary['current_task'] = {'task_id': state.get('task_id'), 'work_id': work_id,
+                'state': state_path.relative_to(root).as_posix(), 'request': request_preview(state.get('request')),
+                'detail': {'action': 'lookup', 'state': state_path.relative_to(root).as_posix(),
+                           'work_id': work_id, 'read_only': True},
+                'task_acceptance': runtime.handoff_summary(audit)['task_acceptance'],
+                'status': audit['status'], 'investigation': investigation_context(investigation)}
+        except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
+            summary['current_task'] = {'status': 'BLOCKED', 'reason': str(error)}
         return routed(summary)
     summary = {'status': 'SELECTED_TASK', 'project_status': 'NOT_AUDITED'}
     task_ui_systems = []
-    if os.environ.get('AGENT_WORKFLOW_CONTEXT'):
-        try:
-            state, state_path, work_id = runtime.resolve_task(root)
-            current = runtime.inspect_project(root, project, state, observe_local_changes=True)
-            verification = None
-            if state.get('execution_plan'):
-                try:
-                    verification = runtime.connected_verification(root, project, state, state_path, work_id, 'lookup',
-                        workflow_bases={f['id']: f['basis'] for f in current['features']})
-                except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
-                    verification = {'status': 'BLOCKED', 'remaining': [str(error)]}
-            handoff = runtime.handoff_summary(current, verification)
-            blockers = (verification or {}).get('remaining', []) or (verification or {}).get('unknown_launches', [])
-            summary['current_task'] = {'work_id': work_id, 'state': state_path.relative_to(root).as_posix(),
-                'task_id': state.get('task_id'), 'intent': state['intent'], 'targets': state['targets'],
-                'request': request_preview(state.get('request')),
-                'status': current['status'], 'status_scope': 'project_obligations',
-                'project_status': current['status'], 'task_acceptance': handoff['task_acceptance'],
-                'check_acceptance': handoff['check_acceptance'],
-                'unmapped_changes': current.get('unmapped_changes', [])[:6],
-                'unmapped_change_count': len(current.get('unmapped_changes', [])),
-                'verification_blocker_count': len(blockers),
-                'verification_blockers': [reason[:160] for reason in blockers[:3]],
-                'verification_blockers_omitted': max(0, len(blockers) - 3),
-                'obligations': current['obligations'][:3],
-                'scope': scope_context(current)}
-            active_features = {c['feature'] for c in current['coverage']['matrix'] if c.get('in_task', True)}
-            selected_ids = list(dict.fromkeys([*state.get('targets', []),
-                *(f['id'] for f in config['features'] if f['id'] in active_features)]))
-            feature_by_id = {f['id']: f for f in config['features']}
-            selected = [feature_by_id[identity] for identity in selected_ids if identity in feature_by_id]
-            summary['current_task']['features'] = [{key: f[key] for key in ('id', 'sources', 'map', 'criteria', 'checks')}
-                                                   | {'ui': f.get('ui', []), 'reuse': runtime.reuse_references(f, current)}
-                                                   for f in selected[:3]]
-            selected_ids = {f['id'] for f in selected}
-            all_ui_systems = current.get('ui_systems', [])
-            target_ids = set(state.get('targets', []))
-            task_ui_systems = [entry for entry in all_ui_systems
-                               if target_ids.intersection(entry.get('consumers', []))]
-            target_system_ids = {entry['id'] for entry in task_ui_systems}
-            task_ui_systems.extend(entry for entry in all_ui_systems
-                if entry['id'] not in target_system_ids and selected_ids.intersection(entry.get('consumers', [])))
-            summary['current_task']['ui_system_count'] = len(task_ui_systems)
-            summary['current_task']['ui_system_omitted'] = max(0, len(task_ui_systems) - 4)
-            summary['current_task']['ui_systems'] = ui_system_preview(task_ui_systems[:4])
-            feature_results = {f['id']: f for f in current['features']}
-            for feature in summary['current_task']['features']:
-                observed = feature_results[feature['id']]
-                feature['verification_status'] = observed['verification_status']
-                feature['check_result_count'] = len(observed['check_results'])
-                feature['check_results'] = [{key: row[key] for key in
-                    ('id', 'historical_status', 'current_status', 'current_reuse')}
-                    for row in observed['check_results'][:3]]
-            summary['current_task']['feature_count'] = len(selected)
-            actions = [a for a in current['next_actions'] if a['scope'] != 'project_remaining']
-            summary['current_task']['action_scope_counts'] = current['action_scope_counts']
-            summary['current_task']['next_action_count'] = len(actions)
-            summary['current_task']['next_actions'] = [{key: a[key] for key in
-                ('target', 'requires', 'scope', 'references', 'advisory') if key in a} | {
-                    'pending_count': len(a.get('pending', [])),
-                    'pending': [{key: p[key] for key in ('id', 'kind', 'status', 'check') if key in p}
-                                for p in a.get('pending', [])[:3]]} for a in actions[:3]]
-            summary['current_task']['detail'] = {'action': 'lookup', 'state': state_path.relative_to(root).as_posix(),
-                                                'work_id': work_id, 'read_only': True}
-            if summary['current_task']['ui_system_omitted']:
-                summary['current_task']['ui_system_detail'] = summary['current_task']['detail']
-            if current.get('investigation'):
-                summary['current_task']['investigation'] = investigation_context(current['investigation'])
-        except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
-            summary['current_task'] = {'status': 'BLOCKED', 'reason': str(error)}
+    try:
+        state, state_path, work_id = runtime.resolve_task(root)
+        current = runtime.inspect_project(root, project, state, observe_local_changes=True)
+        verification = None
+        if state.get('execution_plan'):
+            try:
+                verification = runtime.connected_verification(root, project, state, state_path, work_id, 'lookup',
+                    workflow_bases={f['id']: f['basis'] for f in current['features']})
+            except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
+                verification = {'status': 'BLOCKED', 'remaining': [str(error)]}
+        handoff = runtime.handoff_summary(current, verification)
+        blockers = (verification or {}).get('remaining', []) or (verification or {}).get('unknown_launches', [])
+        summary['current_task'] = {'work_id': work_id, 'state': state_path.relative_to(root).as_posix(),
+            'task_id': state.get('task_id'), 'intent': state['intent'], 'targets': state['targets'],
+            'request': request_preview(state.get('request')),
+            'status': current['status'], 'status_scope': 'project_obligations',
+            'project_status': current['status'], 'task_acceptance': handoff['task_acceptance'],
+            'check_acceptance': handoff['check_acceptance'],
+            'unmapped_changes': current.get('unmapped_changes', [])[:6],
+            'unmapped_change_count': len(current.get('unmapped_changes', [])),
+            'verification_blocker_count': len(blockers),
+            'verification_blockers': [reason[:160] for reason in blockers[:3]],
+            'verification_blockers_omitted': max(0, len(blockers) - 3),
+            'obligations': current['obligations'][:3],
+            'scope': scope_context(current)}
+        active_features = {c['feature'] for c in current['coverage']['matrix'] if c.get('in_task', True)}
+        selected_ids = list(dict.fromkeys([*state.get('targets', []),
+            *(f['id'] for f in config['features'] if f['id'] in active_features)]))
+        feature_by_id = {f['id']: f for f in config['features']}
+        selected = [feature_by_id[identity] for identity in selected_ids if identity in feature_by_id]
+        summary['current_task']['features'] = [{key: f[key] for key in ('id', 'sources', 'map', 'criteria', 'checks')}
+                                               | {'ui': f.get('ui', []), 'reuse': runtime.reuse_references(f, current)}
+                                               for f in selected[:3]]
+        selected_ids = {f['id'] for f in selected}
+        all_ui_systems = current.get('ui_systems', [])
+        target_ids = set(state.get('targets', []))
+        task_ui_systems = [entry for entry in all_ui_systems
+                           if target_ids.intersection(entry.get('consumers', []))]
+        target_system_ids = {entry['id'] for entry in task_ui_systems}
+        task_ui_systems.extend(entry for entry in all_ui_systems
+            if entry['id'] not in target_system_ids and selected_ids.intersection(entry.get('consumers', [])))
+        summary['current_task']['ui_system_count'] = len(task_ui_systems)
+        summary['current_task']['ui_system_omitted'] = max(0, len(task_ui_systems) - 4)
+        summary['current_task']['ui_systems'] = ui_system_preview(task_ui_systems[:4])
+        feature_results = {f['id']: f for f in current['features']}
+        for feature in summary['current_task']['features']:
+            observed = feature_results[feature['id']]
+            feature['verification_status'] = observed['verification_status']
+            feature['check_result_count'] = len(observed['check_results'])
+            feature['check_results'] = [{key: row[key] for key in
+                ('id', 'historical_status', 'current_status', 'current_reuse')}
+                for row in observed['check_results'][:3]]
+        summary['current_task']['feature_count'] = len(selected)
+        actions = [a for a in current['next_actions'] if a['scope'] != 'project_remaining']
+        summary['current_task']['action_scope_counts'] = current['action_scope_counts']
+        summary['current_task']['next_action_count'] = len(actions)
+        summary['current_task']['next_actions'] = [{key: a[key] for key in
+            ('target', 'requires', 'scope', 'references', 'advisory') if key in a} | {
+                'pending_count': len(a.get('pending', [])),
+                'pending': [{key: p[key] for key in ('id', 'kind', 'status', 'check') if key in p}
+                            for p in a.get('pending', [])[:3]]} for a in actions[:3]]
+        summary['current_task']['detail'] = {'action': 'lookup', 'state': state_path.relative_to(root).as_posix(),
+                                            'work_id': work_id, 'read_only': True}
+        if summary['current_task']['ui_system_omitted']:
+            summary['current_task']['ui_system_detail'] = summary['current_task']['detail']
+        if current.get('investigation'):
+            summary['current_task']['investigation'] = investigation_context(current['investigation'])
+    except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
+        summary['current_task'] = {'status': 'BLOCKED', 'reason': str(error)}
     return routed(summary)
 
 

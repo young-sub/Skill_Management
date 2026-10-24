@@ -6,6 +6,7 @@ These documents preserve unique decisions, scope and evidence from earlier work.
 - [Foundation/Labeler prompt](agent-coding-next-session.md): completed pilot scope.
 - [agent-coding-next-session](agent-coding-next-session-through-0.1.68.md): retained scope, rationale and references through 0.1.68.
 - [agent-coding-requirements-review](agent-coding-requirements-review-through-0.1.68.md): retained scope, rationale and references through 0.1.68.
+- [agent-coding-system-direction through 0.1.87](agent-coding-system-direction-through-0.1.87.md): six outcomes, V1–V6 list and readiness limits before the 0.1.88 lean redesign.
 - [agent-coding-system-direction](agent-coding-system-direction-through-0.1.68.md): retained scope, rationale and references through 0.1.68.
 - [agent-workflow-completion-design](agent-workflow-completion-design-through-0.1.68.md): retained scope, rationale and references through 0.1.68.
 - [agent-workflow-next-session](agent-workflow-next-session-through-0.1.68.md): retained scope, rationale and references through 0.1.68.

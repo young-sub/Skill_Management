@@ -1,10 +1,11 @@
 ---
 name: architect
 description: Resolve software design choices for changes spanning callers, types, state or data ownership and module boundaries. Use for architecture decisions, complex refactoring or change-impact analysis; ordinary small edits stay direct. Work contracts belong to design-goal.
+disable-model-invocation: true
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/architect/SKILL.md -->
-<!-- Source-SHA256: 31b88ba0a7d688c38e61a9b74f713bb148cfa1b596d341a2e9919aee7f03e5db -->
+<!-- Source-SHA256: f8820286240c95e76ca75c532644fa1e9b5454a070461717f4199db636862ac9 -->
 
 
 # Architect

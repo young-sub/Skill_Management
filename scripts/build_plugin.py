@@ -42,6 +42,7 @@ def build(output):
     selected = {name: name for name in names if name and
                 Path(name).parts[1] in catalog['public_skills']}
     selected['scripts/run_check.py'] = 'authoring/scripts/run_check.py'
+    selected['scripts/probe_check.py'] = 'authoring/scripts/probe_check.py'
     selected['scripts/update_plugin.py'] = 'scripts/update_plugin.py'
     selected['scripts/unittest_evidence.py'] = 'authoring/scripts/unittest_evidence.py'
     selected['hooks/hooks.json'] = 'distribution/hooks.json'

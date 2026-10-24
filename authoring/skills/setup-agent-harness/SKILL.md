@@ -1,6 +1,7 @@
 ---
 name: setup-agent-harness
 description: Set up or repair repository Harness configuration when explicitly requested. Map existing ownership and commands before making the smallest useful configuration change.
+disable-model-invocation: true
 ---
 
 # Setup Agent Harness

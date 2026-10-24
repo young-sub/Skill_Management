@@ -1,6 +1,7 @@
 ---
 name: hwp-form-fill
 description: 참고 자료를 읽고 기존 한글 양식(HWPX/HWP)의 표·병합 셀·누름틀·본문을 채워 별도 HWPX로 작성하고 검증한다. 한글 양식 채우기, HWPX/HWP 문서 작성, 주간보고서·공문·신청서·점검표·계획서·보고서 양식 작성, 본문 플레이스홀더 채움, 선택적 HWPX→HWP 변환 및 결과 검증에 사용한다.
+disable-model-invocation: true
 ---
 
 # HWP form fill

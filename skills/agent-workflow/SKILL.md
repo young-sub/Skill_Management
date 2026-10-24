@@ -1,67 +1,122 @@
 ---
 name: agent-workflow
-description: Coordinate a coding task through relevant project capabilities, actual verification, and results. Use for feature additions, bug fixes, behavior-preserving refactoring, work recall/resume, complex design and change impact, connecting verification, viewing results, guardrails that stop a mistake or style/architecture drift from recurring (lint, boundary or regression checks), human corrections, reusing successful decisions or extracting a repeatable procedure from a satisfactory turn or artifact, and reusing UI standards. Select only needed procedures; ordinary small edits stay direct.
+description: Deliver delegated coding work across FE, API/backend and business logic with acceptance checks derived from the request, proof that new tests catch the defect, affected existing checks and a result card. Also shows what is verified, reuses UI standards, builds guardrails and opens explicit-only capabilities. Trivial edits stay direct.
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: 806f7d2abc1706a991aa133a81869691e3ab1b672253a3b4c29899413b06bf12 -->
+<!-- Source-SHA256: 1021bfd33da5a40ee652c8654561aaa47a71f3ec0a3070db0efc57a6b4be7091 -->
 
 
 # Agent Workflow
 
-When the prompt context carries a `route`, invoke that Skill first unless the request is a trivial edit; it closes observed discovery gaps. Understand the request and authorized scope. Read the project's AGENTS/index and relevant verification guide, then trace the affected code/callers/tests. Select a procedure below only for a remaining need, execute, and explain the observed result. Read checkout/dirty baseline and applicable capability exceptions once; reuse that investigation across capabilities while its inputs remain current.
+Deliver the outcome inside the authorized scope, prove it, and report it so the
+user can delegate more. Trivial edits (copy, typo, one config value) need none of
+this. When the prompt context carries a `route`, invoke that Skill first unless
+the request is a trivial edit.
 
-| Request | Bounded responsibility |
+## Delivery loop
+
+1. **Scope.** Read the project's AGENTS/index and the Feature Map rules, owners and
+   checks for the touched area. Trace callers and state/data owners through
+   FE → API → Domain → storage; use [change impact](references/change-impact.md)
+   when ownership or contracts are shared.
+2. **Acceptance first.** Before changing behavior, write or name the checks that
+   decide success. Derive expected values from the request and the documented rule,
+   never from running the new code. Run them on the current code and confirm they
+   fail for the intended reason; if reproduction is infeasible, say why.
+3. **Fix at the owner, on every path.** List every place that writes or enforces
+   the same rule (callers, other endpoints, triggers, imports, background jobs) and
+   cover each with a check or a stated reason. A guard is a fix only when that state
+   can legitimately occur. Revert changes made for a hypothesis the evidence refuted;
+   after two failures on one premise, test the premise before the next fix.
+4. **Prove the checks catch the defect.** Run
+   `python <this Skill's directory>/scripts/probe_check.py prove --root <project> --base HEAD --tests <new or changed tests> --command "<test command>"`:
+   the tests must fail without the source change. For a
+   business, architecture or UI rule worth protecting, add a probe to
+   `.harness/probes.json` and run `probe_check.py probes`. A surviving probe means the
+   rule is not protected yet.
+5. **Run affected existing checks after the final edit.** Run the Feature's registered
+   checks and the existing tests that exercise the changed modules on every touched
+   layer. New tests alone are not completion. When UI behavior changed, open it in a
+   real browser and look.
+6. **Report the result card.**
+
+Settle questions that running code can answer (behavior, performance, layout) by
+experiment. Ask the user only for decisions they own: business value, scope,
+irreversible or outward-facing actions.
+
+Playbooks add task-specific cases: [feature](playbooks/feature.md),
+[bug fix](playbooks/bug-fix.md), [refactoring](playbooks/refactoring.md).
+
+## Result card
+
+End delegated work with at most about 15 lines:
+
+```
+Request → changed behavior: <one line>
+Affected: <Feature / rule IDs> | business: <FE/API/Domain> | architecture: <boundary or owner>
+Checks after the final edit: <check> ✓/✗ (command, raw location)
+Proof: <tests fail without the change ✓ | probe <id> killed ✓ | not run: reason>
+Paths covered: <writers/enforcers checked, or the uncovered one>
+Unverified: <what was not observed and why>
+User decisions: <decision, recommendation, what happens without an answer> or none
+```
+
+Keep observed results, inference and unverified claims separate. Fixture, product,
+package and native-host evidence are different evidence.
+
+## Capabilities
+
+Auto-invocable Skills (Skill tool): `diagnose` for incorrect behavior or a complaint,
+`recall` to resume prior work, `setup-project-verification` to connect verification
+for a flow, `fixing-accessibility` for interaction and accessibility.
+
+Explicit-only capabilities stay out of the context until needed. When one of these
+needs arises, read `SKILL.md` in the named sibling Skill directory (same parent as this
+Skill's directory) and follow it. If that directory is absent, continue here.
+
+| Need | Sibling Skill |
 | --- | --- |
-| Initial verification connection | `setup-project-verification`: map the agreed scope and connect existing commands. Whole-map PARTIAL does not block independent scoped work. |
-| Add/change behavior | [Feature playbook](playbooks/feature.md): completion and meaningful failure cases. |
-| Fix incorrect behavior | [Bug-fix playbook](playbooks/bug-fix.md): feasible reproduction, cause-owner repair and nearby valid use. |
-| Preserve behavior while restructuring | [Refactoring playbook](playbooks/refactoring.md): equivalent baseline, callers, errors and side effects. |
-| Explain how / why | `zoom-out`: current flow/ownership or recorded design reasons; source, execution, inference and unknowns stay distinct. |
-| Remember / continue prior work | `recall`: recover the handoff and reconcile current state first; only an actual resume request proceeds to authorized execution. |
-| Design / complex change | `architect` resolves technical ownership and interface choices; [change impact](references/change-impact.md) traces callers, types, state/data and module boundaries. `design-goal` manages work contracts only when needed. |
-| Parallel implementation / delegated resume | `swarm`: disjoint ownership, dependencies, existing task/execution handles, evidence and main-agent integration. Independent challenge stays in `multi-agent-review`. |
-| Verify | Project guide/adapter and the affected actual user flow. Select from behavior and risk; inspect raw outcomes. |
-| Investigate | Existing task can retain read-only observations without workflow setup. Unknown observations stay unknown. |
-| Show results | Render `lookup --report` for a task or `audit --report` for the project (Markdown Feature × business/architecture × FE/API/Domain view) and answer from it; ask the user its *Questions for the user* in the same turn and record the answers. An unconnected project reports NOT_CONNECTED: say so and offer setup. No tests, repairs, services or new task. |
-| Maintain | `maintain-project-verification`; also `maintain-agent-harness` only for affected Harness mapping/cohort/retention. |
-| Feedback | Existing `diagnose`: actual caller/state/data flow, cause owner, focused repair and appropriate prevention. |
-| Keep this approach / make it repeatable | [Feedback and success reuse](references/feedback-and-success.md): classify the signal, improve the existing owner or discovery, and extract only the context needed for the next invocation. |
-| UI standards / visual comparison | Discover Feature UI references and registered UI systems, then follow [UI discovery and comparison](references/repair-and-reuse.md#ui-discovery-and-comparison). Select `impeccable` for design, `fixing-accessibility` for interaction/accessibility and `vercel-react-best-practices` only for React/Next.js impact. |
+| Design choice across modules, interfaces or data ownership | `architect` |
+| Parallel implementation over disjoint files, or resuming delegated work | `swarm` |
+| Adversarial review of a plan or implementation | `multi-agent-review` |
+| Prune, merge or repair checks, Feature Map or guide drift | `maintain-project-verification` |
+| Visual design quality, redesign or critique | `impeccable` |
+| React/Next.js performance | `vercel-react-best-practices` |
+| A runnable experiment before production code | `prototype` |
+| Explain how or why code works | `zoom-out` |
+| Unclear problem or value | `explore-idea` |
+| Work contract lifecycle | `design-goal`, `execute-codex-goal`, `close-goal` |
+| Harness configuration | `setup-agent-harness`, `maintain-agent-harness` |
 
-For implementation with shared ownership or contract impact, use [change impact](references/change-impact.md) before choosing the design and affected regressions; keep local edits direct.
+Use `swarm` only when the user asked for parallel work or the split is clearly
+independent; say that you are doing so.
 
-For missing task or impact criteria, consult the applicable section of [project verification](references/project-verification.md); setup/maintenance use the same criteria. For feedback/UI use the relevant section of [repair and reuse](references/repair-and-reuse.md). Links are discovery paths, not a recursive reading checklist: reuse already-read criteria instead of reopening Skill bodies and their shared references. Missing optional capabilities use existing project commands; never count missing checks as passed or turn the task into a tooling installation.
+## Show what is verified
 
-For human direction corrections, successful decisions or an explicit request to reuse a turn/artifact, read [feedback and success reuse](references/feedback-and-success.md). A first clear correction is enough; no repeated mistake is required. Praise alone does not request a persistent rule.
+Render `lookup --report` for a task or `audit --report` for the project with the
+bundled [CLI](scripts/project_workflow.py) and answer from it. Add the
+`probe_check.py probes` matrix when probes exist: it shows how many synthetic
+defects each Feature's checks detect per business/architecture/UI × layer. An
+unconnected project reports NOT_CONNECTED: say so and offer setup. Ask the report's
+*Questions for the user* in the same turn and record the answers. Do not run tests,
+repairs or services for a results request.
 
-## Select only needed mechanics
+## Feedback, UI standards and guardrails
 
-Small edits use existing project tools directly: no task, setup, contract or copied
-stage checklist. For persistent or selected workflow work, use the bundled
-[CLI](scripts/project_workflow.py) and [workflow obligations](references/workflow-obligations.md)
-for exact task selection, start/connect and explicit execution/resume. Never guess
-among active tasks. Completed checkpoints are reused; unknown launches are not replayed.
+- Human correction or a turn worth repeating: [feedback and success reuse](references/feedback-and-success.md).
+  A first clear correction is enough; praise alone is not a rule request.
+- UI standards: the project guide and its tokens/components own values. Follow
+  [UI discovery and comparison](references/repair-and-reuse.md#ui-discovery-and-comparison);
+  a drift guardrail is a lint or visual check plus a probe that it rejects.
+- Guardrail: express the rule in the project's existing linter, type system or test
+  runner. Prove it rejects a synthetic violation (probe) and still allows nearby valid
+  code. A written rule without enforcement is not a guardrail.
 
-For existing results and native evidence, follow [result lookup and execution](references/result-viewer.md).
-It owns handoff/currentness, omitted detail, preparation/execution, capture and
-Windows UTF-8 transport. Lookup runs zero product commands and writes no state.
-Start with summary/status and exact evidence pointers; search a large report for
-the relevant failed observation before reading its section. Expand when omitted
-context affects the decision; retain applicable accessibility, UI and connected-flow criteria.
-Historical PASS/current STALE and missing evidence are not current acceptance.
-For direct checks captured with `run_check.py`, use its read-only `--lookup` after
-the final edit; source currentness and the command's behavior outcome are separate.
-Reuse project runners/parsers; missing binding does not justify inventing native JSON.
+## Persistent workflow state
 
-For connected feedback and guide repair, use [repair and reuse](references/repair-and-reuse.md).
-Classify the cause, repair its owner and observe prevention; a small direct repair
-can keep evidence in its existing report. A rule or RESOLVED label is not proof.
-Execute affected guides and verify reuse when discovery is uncertain; retain hints,
-failures, retries, skill non-use and non-execution.
-
-Report requested behavior, affected Feature, selected checks/reasons, actual
-observations/raw, current validity and remaining actions. Keep fixture, package,
-product, catalog discovery and native-host evidence separate. An unrelated project
-gap is not a common blocker. Installed resources, global settings, providers and
-publishing require their own authority.
+Only for an existing task or an explicit request: use the bundled CLI with
+[workflow obligations](references/workflow-obligations.md) and
+[result lookup](references/result-viewer.md). Never guess among active tasks; lookup
+writes nothing and runs no product command. Installed resources, global settings,
+providers and publishing need their own authority.

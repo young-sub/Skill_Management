@@ -1,6 +1,7 @@
 ---
 name: finance-research
 description: "Finance and investment research workflows: concise thesis-first analysis, company/sector research, valuation framing, risks, and event-driven watchpoints."
+disable-model-invocation: true
 ---
 
 # Finance research

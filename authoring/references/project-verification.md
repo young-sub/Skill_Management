@@ -143,15 +143,27 @@ Feature changes update map/guide/active selectors in the same functional diff/co
 ## Detection value and measured maintenance
 
 A PASS shows that the checks ran; it does not show that they detect defects. For
-each business rule a Feature claims to protect, measure detection with a
-controlled-fault probe in an isolated copy. Change one rule at its owner (drop a
-guard, invert a boundary, reorder a priority or ignore a state flag), run the
-Feature's registered checks, and record whether they fail. Restore the copy
-byte-for-byte after each probe. A probe that still passes is a coverage gap:
-record it on the Feature map (rule, probe, surviving checks) and add a
-discriminating regression before the Feature's matrix claims that rule. Never
-leave a probe in the product tree, and label any probe evidence as synthetic.
-Re-run the probes when the rule's owner or its checks change.
+each business rule, architecture boundary or UI standard a Feature claims to
+protect, keep a controlled fault in the project's committed probe registry
+(`.harness/probes.json`):
+
+```json
+{"schema_version": 1, "probes": [{"id": "free-tier-R1-copy", "feature": "free-tier-limits",
+  "rule": "R1", "perspective": "business", "layer": "Domain", "file": "src/worker/products.ts",
+  "find": "assertProductCap(db, account)", "replace": "true",
+  "command": "npx vitest run tests/cap.test.ts", "origin": "feedback 2026-10-23"}]}
+```
+
+Change one rule at its owner (drop a guard, invert a boundary, reorder a priority,
+ignore a state flag, hard-code a token value, add a forbidden import). The bundled
+`probe_check.py probes --root <project>` applies each probe in an isolated worktree,
+runs its command, restores the bytes and prints a Feature × perspective × layer
+matrix of killed/total. `perspective` is `business`, `architecture` or `ui`. A
+probe that still passes is a coverage gap: add a discriminating regression before
+the Feature's matrix claims that rule. `probe_check.py prove --base <ref> --tests
+<files> --command <cmd>` shows new tests fail without the source change. Never leave
+a probe in the product tree; probe results are synthetic-fault evidence, not proof
+of correctness. Re-run the probes when the rule's owner or its checks change.
 
 
 `project_workflow.py maintain --root <project> --state .work/task.json

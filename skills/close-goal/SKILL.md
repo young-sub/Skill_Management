@@ -1,10 +1,11 @@
 ---
 name: close-goal
 description: Finish an existing Harness contract by reconciling actual Item evidence, cumulative impact, durable docs, and retained work state. Use after implementation, not as a mandatory ceremony for ordinary small edits.
+disable-model-invocation: true
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/close-goal/SKILL.md -->
-<!-- Source-SHA256: 0742382003cefdab04baa28f691c6956dccd49b40377bd901a2f092e5700ab0a -->
+<!-- Source-SHA256: c40195078f404dfca4dec227e9d4753cfe0d8079aa643590c38634308630638f -->
 
 
 # Close Goal

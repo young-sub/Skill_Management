@@ -1,5 +1,7 @@
 # Agent Documentation Index
 
+- [Lean delegation 0.1.88](research/lean-delegation-0.1.88.md): explicit-only Skills, silent prompt hook, measured routes, acceptance/proof/path/result-card levers, probe registry and the OFF/ON delegation evaluation.
+
 - [Delegated-work verification 0.1.86/0.1.87](research/delegated-work-verification-0.1.86.md): UTF-8 hooks, NOT_CONNECTED, durable scope and human business value, mandatory bypass proof, REVIEW_ONLY, request routes and the paid scenario gate with real-project results.
 
 - [Verification guardrails 0.1.84](research/verification-guardrails-0.1.84.md): human Markdown verification report, final-edit Stop guard, executable architecture/UI guardrail criteria, legacy lookup fix and Feature Map history move.

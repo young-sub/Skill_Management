@@ -9,6 +9,19 @@ reuse extend `agent-workflow` and `diagnose`, with a mapped shared reference and
 procedure template. No separate `reflect` or authoring Skill is distributed;
 independent new procedures use an available host authoring tool only when needed.
 
+Invocation policy (0.1.88): only `agent-workflow`, `diagnose`, `recall`,
+`setup-project-verification` and `fixing-accessibility` are model-invocable. The
+other 17 declare `disable-model-invocation: true` (Claude Code) and
+`policy.allow_implicit_invocation: false` in `agents/openai.yaml` (Codex), so their
+descriptions stay out of the session context. Users invoke them directly, and
+`agent-workflow` names each one in its capability table and reads the sibling
+directory's `SKILL.md` when the need arises. That reference is a soft dependency by
+name, not a path link: when the sibling is not installed, `agent-workflow` continues
+alone, so each Skill remains independently installable.
+`probe_check.py` ships beside the capture tool in `agent-workflow`,
+`setup-project-verification`, `maintain-project-verification` and `diagnose`, and at
+the plugin root.
+
 The six Skills that bundle the verification viewer also bundle its capture tool
 and evidence reader. They execute without a plugin installation, a project copy of
 the capture script, or `--run-check`. The override remains available for explicit
