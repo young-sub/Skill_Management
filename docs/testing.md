@@ -194,3 +194,23 @@ runs `claude -p` with the installed plugin and records invoked plugin Skills, th
 alternate-path fault, must make the named checks fail). Exit 1 blocks the release.
 `--dry-run` lists scenarios without cloning or model calls; `tests.distribution.test_skill_scenarios`
 checks the gate logic without model runs.
+
+## Delegation effect evaluation
+
+A release that claims better delegated outcomes must beat plugin OFF on the held-out
+suite in `evals/delegation-v1/` (paid headless sessions; prompts and hidden files are
+frozen before the first paid run):
+
+```powershell
+python scripts/run_delegation_eval.py --scenarios evals/delegation-v1/scenarios.json --output .work/delegation-eval/<new-dir> `
+  --condition off=off --condition lean=plugin:<built package> --reps 3 --jobs 2
+```
+
+Every condition disables the installed `agentic-coding` plugin through `--settings`;
+`plugin:<dir>` loads one package with `--plugin-dir`, so no global configuration
+changes. Hidden acceptance tests are copied in only after the sessions and probes.
+The report gives verified success, false completion (claimed done while hidden or
+regression checks fail; crashes and timeouts excluded), probe kill rate of the tests
+the agent left behind, tokens, cost and wall time per condition. Adoption criteria and
+results live in the version's research record. `tests.distribution.test_delegation_eval`
+checks the runner with a fake executable.
