@@ -287,7 +287,17 @@ def link_directory(link, source):
         link.symlink_to(source, target_is_directory=True)
 
 
-def run(scenario, condition, rep, output, command, config, timeout, source_dir, deps_root=None, prune=False):
+def copy_tree(source, target):
+    if os.name == 'nt':  # robocopy is far faster for node_modules; exit codes below 8 mean success.
+        code = subprocess.run(['robocopy', str(source), str(target), '/E', '/MT:16', '/NFL', '/NDL', '/NJH', '/NJS', '/NP'],
+                              capture_output=True).returncode
+        require(code < 8, f'dependency copy failed: robocopy exit {code}')
+    else:
+        shutil.copytree(source, target, symlinks=True)
+
+
+def run(scenario, condition, rep, output, command, config, timeout, source_dir, deps_root=None, prune=False,
+        copy_deps=False):
     started = time.monotonic()
     work = output / scenario['id'] / condition['name'] / f'rep{rep}'
     work.mkdir(parents=True)
@@ -312,6 +322,10 @@ def run(scenario, condition, rep, output, command, config, timeout, source_dir, 
                     link.unlink()
             require(not link.exists(), f'link destination exists: {name}')
             require(source.is_dir(), f'link source missing: {source}')
+            if copy_deps:  # Each run gets its own copy: one agent's install cannot break a concurrent run.
+                private = work / 'deps' / name
+                copy_tree(source, private)
+                source = private
             link_directory(link, source)
         if scenario.get('fault'):
             fault = scenario['fault']
@@ -391,6 +405,7 @@ def run(scenario, condition, rep, output, command, config, timeout, source_dir, 
     if prune:
         try:
             remove_tree(repo)
+            remove_tree(work / 'deps')
         except OSError as error:
             result['errors'].append(f'prune failed: {error}')
     return result
@@ -479,6 +494,7 @@ def main(argv=None):
     parser.add_argument('--dry-run', action='store_true')
     parser.add_argument('--deps-root', type=Path, help='Directory holding <project-name>/<link> copies for clones')
     parser.add_argument('--prune-clones', action='store_true', help='Delete each clone after judging (links detached first)')
+    parser.add_argument('--copy-deps', action='store_true', help='Give every run a private copy of each linked directory')
     args = parser.parse_args(argv)
     if hasattr(sys.stdout, 'reconfigure'):
         sys.stdout.reconfigure(encoding='utf-8')
@@ -502,7 +518,7 @@ def main(argv=None):
     with ThreadPoolExecutor(max_workers=args.jobs) as pool:
         futures = [pool.submit(run, s, c, rep, args.output.resolve(), command, config, args.timeout,
                                args.scenarios.resolve().parent, args.deps_root and args.deps_root.resolve(),
-                               args.prune_clones) for s, c, rep in matrix]
+                               args.prune_clones, args.copy_deps) for s, c, rep in matrix]
         results = [future.result() for future in futures]
     report = aggregate(results)
     rendered = markdown(report)

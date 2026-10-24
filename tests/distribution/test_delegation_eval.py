@@ -230,6 +230,18 @@ class DelegationEvalTests(unittest.TestCase):
         self.assertEqual((deps / 'marker').read_text(), 'evaluation copy')
         self.assertEqual((self.project / 'dependencies/marker').read_text(), 'user')
 
+    def test_copy_deps_gives_each_run_a_private_dependency_copy(self):
+        (self.project / 'dependencies').mkdir()
+        deps = self.base / 'deps' / self.project.name / 'dependencies'
+        deps.mkdir(parents=True)
+        (deps / 'marker').write_text('shared')
+        self.scenario['links'] = ['dependencies']
+        self.scenario['regression'] = shell_python(
+            "from pathlib import Path; Path('dependencies/marker').write_text('changed by agent')")
+        self.assertEqual(self.cli('--deps-root', str(self.base / 'deps'), '--copy-deps', '--prune-clones')[0], 0)
+        self.assertEqual((deps / 'marker').read_text(), 'shared')
+        self.assertFalse((self.output / 'held-out/off/rep1/deps').exists())
+
     def test_judging_retries_a_failed_check_once(self):
         flaky = ("from pathlib import Path; p = Path('attempt'); n = int(p.read_text()) if p.exists() else 0; "
                  "p.write_text(str(n + 1)); raise SystemExit(1 if n == 0 else 0)")
