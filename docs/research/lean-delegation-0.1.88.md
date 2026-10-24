@@ -49,6 +49,23 @@ Git 저장소이지만 Harness 설정이 없는 빈 프로젝트다.
 주입하지 않는다. 명시 호출 연결 확인: 병렬 구현 요청에 모델이 `agent-workflow`를 호출한 뒤 capability 표에 따라
 `skills/swarm/SKILL.md`를 직접 읽었다(Skill 이름을 프롬프트에 준 도움 받은 1회).
 
+## 평가 중 발견한 사고와 수리
+
+두 번째 유료 평가(8회, $11.24) 중 0.1.88 agent가 `probe_check.py prove`의 임시 worktree 안에 직접 `node_modules`
+junction을 만들었다. 정리 단계의 `git worktree remove --force`가 그 junction을 따라가 원본 Labeler의
+`node_modules`에서 `.bin`과 패키지 약 20개를 지웠다. 평가를 즉시 중단했고, lockfile 변경 없이 `npm install`로
+빠진 패키지만 복구한 뒤 별도 clone에서 Labeler 테스트 통과를 확인했다. 원본 소스와 Git 상태는 변하지 않았다.
+
+- `probe_check.py`는 이제 사본 안의 모든 symlink·junction을 만든 주체와 관계없이 먼저 끊은 뒤 사본을 지운다.
+  수정 전 코드에서 외부 파일이 지워지는 회귀 테스트로 재현했다.
+- `agent-workflow`는 링크를 직접 만들지 말고 `--link node_modules`를 쓰라고 안내한다.
+- 평가 runner는 `--deps-root`로 평가 전용 의존성 사본에 연결하고, `--prune-clones`로 채점 후 링크를 끊고
+  clone을 지운다. agent의 `npm install`이 사용자 프로젝트를 바꾸지 않는다.
+- 같은 실행에서 `rule-all-paths`의 0.1.88 agent는 복원 경로를 찾았지만 스스로 예외로 두고 공개했다. 요청이
+  모든 저장에 규칙을 말할 때 경로 예외는 사용자가 정할 일이라는 문장을 L4에 추가했다.
+
+중단된 두 평가(13회, 약 $19)는 판정에 쓰지 않는다. 각 결과 파일은 보존한다.
+
 ## 평가
 
 평가 결과는 측정 후 이 절에 기록한다. 기준을 넘기 전에는 위임 결과 개선을 주장하지 않는다.

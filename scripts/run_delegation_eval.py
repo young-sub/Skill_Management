@@ -24,6 +24,10 @@ _spec = importlib.util.spec_from_file_location('skill_scenarios', Path(__file__)
 _gate = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_gate)
 clone, replace_once = _gate.clone, _gate.replace_once
+_probe_spec = importlib.util.spec_from_file_location(
+    'probe_check', Path(__file__).resolve().parents[1] / 'authoring/scripts/probe_check.py')
+_probe = importlib.util.module_from_spec(_probe_spec)
+_probe_spec.loader.exec_module(_probe)
 TOKEN_KEYS = ('input_tokens', 'output_tokens', 'cache_read_input_tokens', 'cache_creation_input_tokens')
 DEFAULT_MARKERS = ['미완료', '완료하지 못', 'could not complete', 'unable to complete']
 
@@ -260,7 +264,21 @@ def known_sum(values):
     return sum(values) if values and all(isinstance(v, (int, float)) for v in values) else None
 
 
-def run(scenario, condition, rep, output, command, config, timeout, source_dir):
+def remove_tree(path):
+    """Delete a clone without following links into shared dependency directories."""
+    if path.exists():
+        _probe.unlink_all_links(path)
+        shutil.rmtree(path, onerror=lambda f, p, e: (os.chmod(p, 0o700), f(p)))
+
+
+def link_directory(link, source):
+    if os.name == 'nt':
+        subprocess.run(['cmd', '/c', 'mklink', '/J', str(link), str(source)], check=True, capture_output=True)
+    else:
+        link.symlink_to(source, target_is_directory=True)
+
+
+def run(scenario, condition, rep, output, command, config, timeout, source_dir, deps_root=None, prune=False):
     started = time.monotonic()
     work = output / scenario['id'] / condition['name'] / f'rep{rep}'
     work.mkdir(parents=True)
@@ -274,16 +292,18 @@ def run(scenario, condition, rep, output, command, config, timeout, source_dir):
         clone(Path(scenario['project']), repo)
         if scenario.get('ref'):
             subprocess.run(['git', 'checkout', '--detach', scenario['ref']], cwd=repo, check=True, capture_output=True)
-        for name in scenario.get('links', []):
+        for name in scenario.get('links', []) or (['node_modules'] if (repo / 'node_modules').exists() else []):
             link = repo / name
-            source = Path(scenario['project']) / name
-            if name == 'node_modules' and link.is_dir():
-                continue
+            # Shared dependencies come from an evaluation copy so an agent's install never touches the user's project.
+            source = (deps_root / Path(scenario['project']).name / name) if deps_root else Path(scenario['project']) / name
+            if _probe.is_link(link):
+                if os.name == 'nt':
+                    os.rmdir(link)
+                else:
+                    link.unlink()
             require(not link.exists(), f'link destination exists: {name}')
-            if os.name == 'nt':
-                subprocess.run(['cmd', '/c', 'mklink', '/J', str(link), str(source)], check=True, capture_output=True)
-            else:
-                link.symlink_to(source, target_is_directory=True)
+            require(source.is_dir(), f'link source missing: {source}')
+            link_directory(link, source)
         if scenario.get('fault'):
             fault = scenario['fault']
             replace_once(destination(repo, fault['file']), fault['find'], fault['replace'])
@@ -358,6 +378,11 @@ def run(scenario, condition, rep, output, command, config, timeout, source_dir):
     result['probe_kill_rate'] = sum(p['detected'] for p in applicable) / len(applicable) if applicable else None
     result['wall_seconds'] = time.monotonic() - started
     (work / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
+    if prune:
+        try:
+            remove_tree(repo)
+        except OSError as error:
+            result['errors'].append(f'prune failed: {error}')
     return result
 
 
@@ -442,6 +467,8 @@ def main(argv=None):
     parser.add_argument('--claude', default='claude')
     parser.add_argument('--timeout', type=float, default=2400)
     parser.add_argument('--dry-run', action='store_true')
+    parser.add_argument('--deps-root', type=Path, help='Directory holding <project-name>/<link> copies for clones')
+    parser.add_argument('--prune-clones', action='store_true', help='Delete each clone after judging (links detached first)')
     args = parser.parse_args(argv)
     if hasattr(sys.stdout, 'reconfigure'):
         sys.stdout.reconfigure(encoding='utf-8')
@@ -464,7 +491,8 @@ def main(argv=None):
     args.output.mkdir(parents=True, exist_ok=False)
     with ThreadPoolExecutor(max_workers=args.jobs) as pool:
         futures = [pool.submit(run, s, c, rep, args.output.resolve(), command, config, args.timeout,
-                               args.scenarios.resolve().parent) for s, c, rep in matrix]
+                               args.scenarios.resolve().parent, args.deps_root and args.deps_root.resolve(),
+                               args.prune_clones) for s, c, rep in matrix]
         results = [future.result() for future in futures]
     report = aggregate(results)
     rendered = markdown(report)

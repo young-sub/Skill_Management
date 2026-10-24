@@ -208,6 +208,23 @@ class DelegationEvalTests(unittest.TestCase):
         self.assertEqual(commit.stdout.strip(), 'planted')
         self.assertEqual((self.project / 'value.txt').read_text(), 'good')
 
+    def test_deps_root_links_and_pruning_never_touch_shared_directories(self):
+        (self.project / 'dependencies').mkdir()
+        (self.project / 'dependencies/marker').write_text('user')
+        deps = self.base / 'deps' / self.project.name / 'dependencies'
+        deps.mkdir(parents=True)
+        (deps / 'marker').write_text('evaluation copy')
+        self.scenario['links'] = ['dependencies']
+        reader = ("from pathlib import Path; "
+                  "assert Path('dependencies/marker').read_text() == 'evaluation copy'")
+        self.scenario['regression'] = shell_python(reader)
+        self.assertEqual(self.cli('--deps-root', str(self.base / 'deps'), '--prune-clones')[0], 0)
+        self.assertTrue(self.result()['verified_success'])
+        self.assertFalse((self.output / 'held-out/off/rep1/repo').exists())
+        self.assertTrue((self.output / 'held-out/off/rep1/result.json').is_file())
+        self.assertEqual((deps / 'marker').read_text(), 'evaluation copy')
+        self.assertEqual((self.project / 'dependencies/marker').read_text(), 'user')
+
     def test_crash_and_timeout_still_record_and_continue(self):
         self.scenario['prompt'] = json.dumps({'crash': True})
         timeout = copy.deepcopy(self.scenario)
