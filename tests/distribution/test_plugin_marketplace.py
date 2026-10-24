@@ -52,8 +52,10 @@ class PluginMarketplaceTests(unittest.TestCase):
         expected = {
             'claude': {'diagram-design': ('github', 'cathrynlavery/diagram-design'),
                        'humanize-korean': ('github', 'epoko77-ai/im-not-ai')},
-            # im-not-ai's codex/ folder resolves scripts and references outside itself, so it is not a Codex plugin.
-            'codex': {'diagram-design': ('url', 'https://github.com/cathrynlavery/diagram-design.git')},
+            # im-not-ai's codex/ folder resolves scripts and references outside itself, so Codex
+            # installs a local launcher that keeps a full upstream checkout (test_humanize_korean_codex).
+            'codex': {'diagram-design': ('url', 'https://github.com/cathrynlavery/diagram-design.git'),
+                      'humanize-korean': ('local', './plugins/humanize-korean-codex')},
         }
         for host, catalog in (('claude', claude), ('codex', codex)):
             optional = {entry['name']: entry['source'] for entry in catalog['plugins'][1:]}
@@ -61,7 +63,7 @@ class PluginMarketplaceTests(unittest.TestCase):
             for name, source in optional.items():
                 kind, location = expected[host][name]
                 self.assertEqual(source['source'], kind, name)
-                self.assertEqual(source.get('repo', source.get('url')), location, name)
+                self.assertEqual(source.get('repo', source.get('url', source.get('path'))), location, name)
                 self.assertNotIn('ref', source, name)
                 self.assertNotIn('sha', source, name)
             self.assertNotIn('dependencies', catalog['plugins'][0], host)

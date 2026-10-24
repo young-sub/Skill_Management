@@ -42,6 +42,23 @@ build provenance remains tied to the source commit.
 No credentials, project state, or installed host configuration belongs in this tree.
 Model scenario/benchmark acceptance is separate from distribution acceptance.
 
+### Optional upstream entries
+
+After `agentic-coding`, both catalogs list opt-in upstream plugins without a `ref`
+or `sha`, so upstream releases need no catalog edit; they are never dependencies of
+`agentic-coding`. Claude Code fetches `diagram-design` and `humanize-korean` from
+GitHub. Codex fetches `diagram-design` by URL and installs `humanize-korean` from
+`plugins/humanize-korean-codex`, a hand-maintained launcher outside the builder and
+the public catalog: im-not-ai's `codex/` folder runs root `scripts/` and a symlinked
+`references`, so a subdirectory or whole-repository entry installs broken or
+Claude-only skills. On use, its `sync_upstream.py` keeps a shallow checkout and a
+symlink-free copy under `CODEX_HOME/vendor/im-not-ai/`, refreshed after 24 hours or
+on `--refresh`, keeps the previous copy when a fetch fails or the upstream layout
+changes, and refuses a `repo/` that is not that checkout.
+`tests/distribution/test_plugin_marketplace.py` fixes the entries and
+`tests/distribution/test_humanize_korean_codex.py` exercises the launcher against a
+local upstream with Git symlinks disabled. User steps: [README](../README.md#선택-설치--외부-플러그인).
+
 ## Build
 
 ```powershell

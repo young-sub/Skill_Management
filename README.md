@@ -51,11 +51,21 @@ Codex가 `plugin add`를 지원하지 않으면 등록 후 데스크톱 앱의 P
 | 플러그인 | 원본 | Claude Code | Codex |
 |---|---|---|---|
 | `diagram-design` | [cathrynlavery/diagram-design](https://github.com/cathrynlavery/diagram-design) (MIT) | `claude plugin install diagram-design@agentic-coding` | `codex plugin add diagram-design@agentic-coding` |
-| `humanize-korean` | [epoko77-ai/im-not-ai](https://github.com/epoko77-ai/im-not-ai) (MIT) | `claude plugin install humanize-korean@agentic-coding` | 원본 저장소의 `install.sh --codex-only` |
+| `humanize-korean` | [epoko77-ai/im-not-ai](https://github.com/epoko77-ai/im-not-ai) (MIT) | `claude plugin install humanize-korean@agentic-coding` | `codex plugin add humanize-korean@agentic-coding` |
 
-im-not-ai의 Codex용 폴더는 저장소 루트의 스크립트와 심볼릭 링크에 의존하므로 marketplace 항목으로 설치하면 동작하지 않습니다. 그래서 Codex에는 등록하지 않았습니다.
+최신 버전 받기: Claude Code는 `claude plugin marketplace update agentic-coding` 후 `claude plugin update <이름>@agentic-coding`을 실행하거나, `/plugin` → Marketplaces에서 이 marketplace의 auto-update를 켭니다(외부 marketplace는 기본값이 꺼짐). 두 플러그인은 자체 `plugin.json`에 `version`을 적어 두므로, 원작자가 버전 번호를 올린 커밋부터 업데이트로 인식됩니다. Codex의 `diagram-design`은 `codex plugin marketplace upgrade agentic-coding` 후 `codex plugin add diagram-design@agentic-coding`을 다시 실행합니다.
 
-최신 버전 받기: Claude Code는 `claude plugin marketplace update agentic-coding` 후 `claude plugin update <이름>@agentic-coding`을 실행하거나, `/plugin` → Marketplaces에서 이 marketplace의 auto-update를 켭니다(외부 marketplace는 기본값이 꺼짐). 두 플러그인은 자체 `plugin.json`에 `version`을 적어 두므로, 원작자가 버전 번호를 올린 커밋부터 업데이트로 인식됩니다. Codex는 `codex plugin marketplace upgrade`로 marketplace를 새로 받습니다.
+#### Codex의 `humanize-korean`
+
+im-not-ai의 Codex용 폴더는 저장소 루트의 스크립트와 심볼릭 링크에 의존하므로, 원본을 marketplace 항목으로 직접 받으면 동작하지 않습니다. Codex에는 이 저장소의 `plugins/humanize-korean-codex` 실행기를 설치합니다. 실행기에는 윤문 규칙이 없고, 스킬을 사용할 때 `scripts/sync_upstream.py`가 원본을 받아 둔 사본으로 원본 Codex 스킬을 그대로 실행합니다.
+
+- 처음 사용할 때 원본 저장소를 `CODEX_HOME`(없으면 `~/.codex`)의 `vendor/im-not-ai/`에 받고, 심볼릭 링크를 실제 폴더로 바꾼 사본을 만듭니다. Git, Python, github.com 접속이 필요합니다.
+- 받은 지 24시간이 지났거나 최신으로 받아 달라고 요청하면(`--refresh`) 원본의 기본 브랜치를 다시 받습니다. 실행기 설치 명령은 바꾸지 않습니다.
+- Codex 샌드박스가 네트워크를 막으면 받기 단계에서 권한 승인을 요청합니다. 거부하거나 오프라인이면 이미 받은 사본으로 계속 실행하고, 사본이 없으면 원인을 알리고 멈춥니다.
+- 받은 원본이 Codex 스킬 구성을 잃으면 새 사본을 쓰지 않고 이전 사본을 유지합니다. `vendor/im-not-ai/repo`가 원본 저장소의 checkout이 아니면 건드리지 않고 멈춥니다.
+- 원본 코드는 이 저장소에서 검토하지 않은 상태로 실행됩니다.
+
+실행기 자체는 이 저장소가 바뀔 때만 `codex plugin marketplace upgrade agentic-coding` 후 `codex plugin add humanize-korean@agentic-coding`으로 다시 설치합니다. `codex plugin remove humanize-korean@agentic-coding`은 받아 둔 원본을 지우지 않으므로 `vendor/im-not-ai/` 폴더를 직접 삭제합니다.
 
 설치 형식: [OpenAI marketplace 안내](https://developers.openai.com/plugins/build/plugins), [Claude Code marketplace 안내](https://code.claude.com/docs/en/plugin-marketplaces).
 

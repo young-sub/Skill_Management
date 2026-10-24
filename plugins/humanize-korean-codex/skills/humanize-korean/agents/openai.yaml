@@ -1,0 +1,4 @@
+interface:
+  display_name: "Humanize Korean"
+  short_description: "im-not-ai Codex 스킬을 받아 최신으로 유지하며 한글 AI 문체를 윤문합니다"
+  default_prompt: "Use $humanize-korean to preserve this Korean text's meaning and register while removing AI writing patterns."
