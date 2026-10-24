@@ -4,7 +4,7 @@ description: Map the requested project scope and connect verification using exis
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/setup-project-verification/SKILL.md -->
-<!-- Source-SHA256: 0ab9709636e05120cee60ee2a093e770445baff5737f6cea734d00968fe4da83 -->
+<!-- Source-SHA256: 949c37accc0bc7679d689a1c8cbe1b1b84e089f2e28c903d7e3ead67c33408c8 -->
 
 
 # Setup Project Verification
@@ -26,6 +26,8 @@ Read [shared verification responsibilities](references/project-verification.md).
 5. Leave the shortest repeatable execution and read-only bundle lookup commands, including new-output/resume and owned-process cleanup boundaries. Verify the connection actually produces reusable evidence and lookup does not rerun checks. Reuse existing AGENTS/index/guide as the project verify-product and ui-system entrypoints. Add a local Skill only for demonstrated repeated branching that those paths cannot express. Do not force Harness installation.
 
 A connection is complete only when it is committed in the product repository (or the user explicitly declines that commit): an isolated copy, fixture or plugin-side adapter is evidence, not a connection. Keep the registered contract lean: point assertions at observations the project's runner already produces, one entry per Feature outcome, instead of restating every count. Record every cell decision durably in Feature `scope` (`APPLIES` or `NOT_REQUIRED`, reason, `decided_by`) and commit it: task-state reviews live in ignored `.work` and do not reach the next checkout, and ask the user for `business_value` (goal plus metric/source, proxy coverage IDs, or a deliberate deferral with who decided and when to reconsider) instead of leaving it unstated.
+
+For every business rule, architecture boundary or UI standard a Feature claims, register a controlled fault at its owner in `.harness/probes.json` and run `python <this Skill's directory>/scripts/probe_check.py probes --root <project>` as described in [detection value](references/project-verification.md#detection-value-and-measured-maintenance). A surviving probe is a gap: add a discriminating regression before the Feature claims that rule. Commit the registry with the connection.
 
 Use the same failing criterion after a repair and a nearby valid case; equivalent baseline GREEN is appropriate for preserved behavior. Preserve raw failures. If execution is unavailable, record the missing observation, cause, fallback and resume condition, and continue independent connections. Finish only the named verified scope; metadata and generated files do not establish the first actual flow.
 

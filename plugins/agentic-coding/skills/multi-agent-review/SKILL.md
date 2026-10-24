@@ -1,6 +1,7 @@
 ---
 name: multi-agent-review
 description: Challenge a decision, design assumption, plan or implementation with concrete counterexamples, failure conditions and evidence. Use for adversarial design review or multi-agent review; a main-only review needs no delegation, and real agents follow the user's request and permissions.
+disable-model-invocation: true
 ---
 
 # Multi-Agent Review

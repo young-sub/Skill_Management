@@ -1,10 +1,11 @@
 ---
 name: maintain-project-verification
 description: Audit and repair drift in a project's Feature Map, executable verification guides, UI standards and useful regression coverage. Use for development-system maintenance, missing feature checks, stale commands or recurring verification gaps. Combine with existing Harness maintenance when both responsibilities are affected; audit-only requests remain read-only.
+disable-model-invocation: true
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/maintain-project-verification/SKILL.md -->
-<!-- Source-SHA256: 4420e60c84efd65cd3049d94520271f5e7070c5b4e1faf7c023db368d1e0100d -->
+<!-- Source-SHA256: 2a3b6ae7bfe5f55cebe546e5411779ef8213f97bc4cd163765b67869b5595dd8 -->
 
 
 # Maintain Project Verification
@@ -31,6 +32,6 @@ Consume task-relevant `coverage.gaps` and `ui_systems` from the same audit; reta
 
 Keep feature additions/changes/removals and their map/guide/active selectors in the same functional change. Confirm removed entrypoints really have no callers; remove only active connections and retain historical runs. Execute repaired commands and the affected flow without lowering requirements, assertions, skips or visual baselines. Preserve both verified work and remaining BLOCKED areas.
 
-Measure what the checks actually catch with the controlled-fault probe in [detection value](references/project-verification.md#detection-value-and-measured-maintenance) for the rules a Feature claims; a surviving probe is a coverage gap to record and close, not a passing result. Review redundant, implementation-coupled or costly checks by the failure each detects. Consolidate only when the remaining mechanism demonstrably rejects the same defect and permits nearby valid behavior. Without that evidence retain the checks and explain why. Counts and coverage alone do not establish value. Do not create a separate test-pruning framework.
+Measure what the checks actually catch by running the project's probe registry with `python <this Skill's directory>/scripts/probe_check.py probes --root <project>` as described in [detection value](references/project-verification.md#detection-value-and-measured-maintenance); add probes for claimed rules that have none. A surviving probe is a coverage gap to record and close, not a passing result. A check that kills no probe another cheaper check does not also kill is a consolidation or removal candidate; a probe no check kills is a gap. Review redundant, implementation-coupled or costly checks by the failure each detects. Consolidate only when the remaining mechanism demonstrably rejects the same defect and permits nearby valid behavior. Without that evidence retain the checks and explain why. Counts and coverage alone do not establish value. Do not create a separate test-pruning framework.
 
 Use the existing workflow CLI's read-only `maintain` action with the current request context returned by `start`/`connect`; inherit `AGENT_WORKFLOW_CONTEXT` or pass `--context`, without rebuilding task paths. Explicit `--history-bundle` paths add measured cost/native error/raw detection links; the action already consumes linked feedback/review runs. Treat `declared_overlap` as a review candidate and measured outcome variation as an investigation input. Record reasoned `check_decisions` in the same semantic review. Consolidation needs old/replacement defect detection and a current nearby normal case; authorized requirement retirement instead needs its reason-specific ownership/criteria/remaining-contract proof and no replacement for the retired rule. See the shared verification reference for fields. Keep unique or unproven detectors.

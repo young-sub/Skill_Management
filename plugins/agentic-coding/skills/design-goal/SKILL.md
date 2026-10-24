@@ -1,10 +1,11 @@
 ---
 name: design-goal
 description: Create or revise a Harness Item contract when explicitly requested or persistent coordination is needed across review boundaries or material risk. Explore unresolved product decisions before creating a contract; use direct development for small, clear changes.
+disable-model-invocation: true
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/design-goal/SKILL.md -->
-<!-- Source-SHA256: e986e24620a3f9ccfcfb87cd919cda58f7d0b91c4df3a9a16bf2904c14889c34 -->
+<!-- Source-SHA256: 282761b664c09e088005e1c0cac975e94b3f9139bf7131189be7fc87b8ab4aee -->
 
 
 # Design Goal

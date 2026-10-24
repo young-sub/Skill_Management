@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/playbooks/bug-fix.md -->
-<!-- Source-SHA256: 2e9efcf800bd023868e724bb43601066ec57e7c48415cf2e0edfca17cc4da293 -->
+<!-- Source-SHA256: 004ebfcad1e461be795793be0a1bb0af02f89199d0e9c160debd48a368aa3b88 -->
 
 # Bug fix
 
@@ -14,8 +14,13 @@ is a feature decision. Small repairs do not require workflow state or a contract
    that owner once, preserving boundary errors and valid use. Use `diagnose` for
    unresolved causes and [repair and reuse](../references/repair-and-reuse.md) for
    feedback/prevention; do not duplicate its procedure.
+   A guard is a fix only when that state can legitimately occur; revert edits made
+   for a hypothesis the evidence refuted.
 3. Confirm the original failure is prevented, nearby valid use still works, and
-   affected callers/regressions pass. Keep the original failure evidence.
+   affected callers/regressions pass. `probe_check.py prove` shows the regression
+   fails without the fix; for a business rule, register the original fault and each
+   alternate path as probes so a later reintroduction is caught. Keep the original
+   failure evidence.
 
 Completion needs cause/owner plus observed repair and relevant regression, not
 RESOLVED alone. Use [project verification](../references/project-verification.md)

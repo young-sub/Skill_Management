@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/core_harness.py
-# Source-SHA256: 25052c29d0d27de3bdce2db68353d76ed6dcce53ab128711e0eb3b33d1c82c69
+# Source-SHA256: 13d70f3c5b72018028edea57b55ad1c25e58db05f099e2eaeb44572dad8e672e
 
 #!/usr/bin/env python3
 """Deterministic Core-First Agent Harness contracts and compatibility checks."""
@@ -3320,6 +3320,7 @@ def _cohort_manifest_files(resource_manifest: dict[str, Any]) -> dict[str, str]:
 COHORT_MANIFEST_RESOURCE = "maintain-agent-harness/resources/public-resource-manifest.json"
 REQUIRED_COHORT_RESOURCES = frozenset({
     "close-goal/SKILL.md",
+    "close-goal/agents/openai.yaml",
     "close-goal/references/documentation-policy.md",
     "close-goal/references/testing-policy.md",
     "close-goal/schemas/contract.schema.json",
@@ -3331,14 +3332,17 @@ REQUIRED_COHORT_RESOURCES = frozenset({
     "close-goal/scripts/unittest_evidence.py",
     "close-goal/scripts/verification_results.py",
     "design-goal/SKILL.md",
+    "design-goal/agents/openai.yaml",
     "design-goal/schemas/contract.schema.json",
     "design-goal/scripts/core_harness.py",
     "diagnose/SKILL.md",
     "diagnose/references/feedback-and-success.md",
     "diagnose/references/goal-execution-policy.md",
     "diagnose/references/repair-and-reuse.md",
+    "diagnose/scripts/probe_check.py",
     "diagnose/templates/reusable-procedure.md",
     "execute-codex-goal/SKILL.md",
+    "execute-codex-goal/agents/openai.yaml",
     "execute-codex-goal/references/goal-execution-policy.md",
     "execute-codex-goal/references/testing-policy.md",
     "execute-codex-goal/schemas/contract.schema.json",
@@ -3350,6 +3354,7 @@ REQUIRED_COHORT_RESOURCES = frozenset({
     "execute-codex-goal/scripts/unittest_evidence.py",
     "execute-codex-goal/scripts/verification_results.py",
     "maintain-agent-harness/SKILL.md",
+    "maintain-agent-harness/agents/openai.yaml",
     "maintain-agent-harness/references/testing-policy.md",
     "maintain-agent-harness/schemas/project.schema.json",
     "maintain-agent-harness/schemas/work.schema.json",
@@ -3360,6 +3365,7 @@ REQUIRED_COHORT_RESOURCES = frozenset({
     "maintain-agent-harness/scripts/unittest_evidence.py",
     "maintain-agent-harness/scripts/verification_results.py",
     "setup-agent-harness/SKILL.md",
+    "setup-agent-harness/agents/openai.yaml",
     "setup-agent-harness/references/documentation-policy.md",
     "setup-agent-harness/schemas/project.schema.json",
     "setup-agent-harness/scripts/core_harness.py",

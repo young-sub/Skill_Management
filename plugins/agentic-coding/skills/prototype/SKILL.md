@@ -1,6 +1,7 @@
 ---
 name: prototype
 description: Build a runnable experiment to answer a concrete design, state, data-model, or UI question before production implementation. Match the requested artifact and number of options; reuse the existing stack.
+disable-model-invocation: true
 ---
 
 # Prototype
