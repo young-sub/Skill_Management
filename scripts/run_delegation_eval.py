@@ -287,6 +287,22 @@ def link_directory(link, source):
         link.symlink_to(source, target_is_directory=True)
 
 
+def kill_owned(work):
+    """Stop servers an agent left running from this run's directory; they skew later runs and lock files."""
+    marker = str(work.resolve())
+    if os.name == 'nt':
+        query = ("Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and "
+                 "$_.CommandLine.IndexOf($env:EVAL_WORK, [StringComparison]::OrdinalIgnoreCase) -ge 0 } | "
+                 "ForEach-Object { $_.ProcessId }")
+        found = subprocess.run(['powershell', '-NoProfile', '-Command', query], capture_output=True, text=True,
+                               env=dict(os.environ, EVAL_WORK=marker))
+        for pid in found.stdout.split():
+            if pid.isdigit() and int(pid) != os.getpid():
+                subprocess.run(['taskkill', '/PID', pid, '/T', '/F'], capture_output=True)
+    else:
+        subprocess.run(['pkill', '-f', marker], capture_output=True)
+
+
 def copy_tree(source, target):
     if os.name == 'nt':  # robocopy is far faster for node_modules; exit codes below 8 mean success.
         code = subprocess.run(['robocopy', str(source), str(target), '/E', '/MT:16', '/NFL', '/NDL', '/NJH', '/NJS', '/NP'],
@@ -350,6 +366,7 @@ def run(scenario, condition, rep, output, command, config, timeout, source_dir, 
             if status['exit'] != 0 or status['timed_out'] or not facts['result_received'] or facts['is_error']:
                 result['errors'].append(f'session {index}: timeout' if status['timed_out'] else f'session {index}: failed or missing result')
                 break
+        kill_owned(work)
         for index, probe in enumerate(scenario.get('probes', [])):
             record = {'name': probe['name'], 'detected': False}
             try:
@@ -402,6 +419,7 @@ def run(scenario, condition, rep, output, command, config, timeout, source_dir, 
     result['probe_kill_rate'] = sum(p['detected'] for p in applicable) / len(applicable) if applicable else None
     result['wall_seconds'] = time.monotonic() - started
     (work / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
+    kill_owned(work)
     if prune:
         try:
             remove_tree(repo)

@@ -255,6 +255,21 @@ class DelegationEvalTests(unittest.TestCase):
         self.assertEqual(self.cli()[0], 1)
         self.assertFalse(self.result()['verified_success'])
 
+    def test_servers_left_by_the_agent_are_stopped(self):
+        spawner = ("import os, subprocess, sys; flags = 0x00000008 if os.name == 'nt' else 0; "
+                   "p = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(120)', os.getcwd()], "
+                   "creationflags=flags, start_new_session=os.name != 'nt'); open('server.pid', 'w').write(str(p.pid))")
+        self.scenario['regression'] = shell_python(spawner)
+        self.scenario['hidden'][0]['command'] = shell_python(
+            "import os; from pathlib import Path; exec(open('hidden.py', encoding='utf-8').read())")
+        self.assertEqual(self.cli()[0], 0)
+        pid = int((self.output / 'held-out/off/rep1/repo/server.pid').read_text())
+        if os.name == 'nt':
+            alive = str(pid) in subprocess.run(['tasklist', '/FI', f'PID eq {pid}'], capture_output=True, text=True).stdout
+        else:
+            alive = subprocess.run(['kill', '-0', str(pid)], capture_output=True).returncode == 0
+        self.assertFalse(alive)
+
     def test_crash_and_timeout_still_record_and_continue(self):
         self.scenario['prompt'] = json.dumps({'crash': True})
         timeout = copy.deepcopy(self.scenario)
