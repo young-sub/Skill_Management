@@ -181,6 +181,7 @@ class ProbeCheckTests(unittest.TestCase):
         self.assertEqual((outside / 'pkg' / 'index.js').read_text(encoding='utf-8'), 'keep')
 
     def test_link_accepts_a_dependency_directory_that_is_itself_a_link(self):
+        self.write('.gitignore', '__pycache__/\n')
         outside = Path(self.temporary.name) / 'shared-deps'
         outside.mkdir()
         (outside / 'marker.txt').write_text('dependency', encoding='utf-8')

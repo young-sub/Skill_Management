@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/probe_check.py
-# Source-SHA256: d731268f0b3bf3f7bd2be5a9a7ec2ccebbc3eda88dc9bbe6d92c7ac5e91f4690
+# Source-SHA256: 391d437cf315d8bee7800bc8c622ab8d6d3d48c225b4f50ec4f614e56d40dd8a
 
 """Exercise checks against synthetic faults in disposable Git worktrees.
 
@@ -118,6 +118,7 @@ def unlink_all_links(copy):
 
 @contextmanager
 def worktree(root, ref, current=False, links=()):
+    linked_paths = [relative_file(root, name, False).relative_to(root) for name in links]
     with tempfile.TemporaryDirectory(prefix='probe-check-') as temporary:
         copy = Path(temporary) / 'repo'
         created = []
@@ -130,6 +131,8 @@ def worktree(root, ref, current=False, links=()):
                 for raw in git(root, 'ls-files', '--others', '--exclude-standard', '-z').split(b'\0'):
                     if raw:
                         name = os.fsdecode(raw)
+                        if any(Path(name).is_relative_to(link) for link in linked_paths):
+                            continue  # Explicit dependencies are attached by add_links, never copied.
                         source, target = relative_file(root, name), relative_file(copy, name)
                         target.parent.mkdir(parents=True, exist_ok=True)
                         shutil.copy2(source, target)
