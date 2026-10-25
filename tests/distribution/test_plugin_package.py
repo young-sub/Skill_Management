@@ -34,7 +34,7 @@ class PluginPackageTests(unittest.TestCase):
             for runtime in ('python3', 'python', 'broken-python3', 'missing'):
                 bin_dir = root / runtime
                 bin_dir.mkdir()
-                shutil.copyfile(SH, bin_dir / ('sh.exe' if os.name == 'nt' else 'sh'))
+                shutil.copy2(SH, bin_dir / ('sh.exe' if os.name == 'nt' else 'sh'))
                 if os.name == 'nt':
                     for dll in Path(SH).parent.glob('msys-*.dll'):
                         shutil.copyfile(dll, bin_dir / dll.name)
