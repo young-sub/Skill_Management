@@ -220,6 +220,16 @@ publication remain separate authorized actions.
 
 ## Read-only request handoff
 
+Version 0.1.90 launches both hooks through `hooks/run-hook.sh` on POSIX shells:
+it probes `python3`, then `python`, for Python 3 before executing the hook once.
+No interpreter yields exit 127 with a diagnostic; a hook failure keeps its exit
+code without retrying. Plugin roots containing spaces and either host root
+variable are supported. Windows Codex uses the existing `python` command via
+the documented [`commandWindows` override](https://learn.chatgpt.com/docs/hooks).
+Windows hosts that do not honor that override need a POSIX shell (such as Git
+Bash) and a working Python 3 on PATH. Package-command tests exercise these paths;
+actual macOS message submission and response completion remain native-host checks.
+
 The package includes `hooks/hooks.json` and `hooks/workflow_context.py`, with an
 explicit compatibility-manifest hook path. `UserPromptSubmit` resolves the Git
 project from the supplied working directory. An explicit `AGENT_WORKFLOW_CONTEXT`

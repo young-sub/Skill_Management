@@ -3,6 +3,7 @@ import json
 import hashlib
 import os
 import re
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -11,9 +12,66 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[2]
+SH = shutil.which('sh')
 
 
 class PluginPackageTests(unittest.TestCase):
+    @unittest.skipUnless(SH, 'POSIX shell required for hook commands')
+    def test_hook_commands_with_only_one_python_name(self):
+        hooks = json.loads((ROOT / 'distribution/hooks.json').read_text())['hooks']
+        with tempfile.TemporaryDirectory(prefix='hook runtime ') as temporary:
+            root = Path(temporary)
+            package = root / 'plugin with spaces'
+            (package / 'hooks').mkdir(parents=True)
+            for name in ('workflow_context.py', 'completion_guard.py'):
+                shutil.copyfile(ROOT / 'authoring/scripts' / name, package / 'hooks' / name)
+            launcher = ROOT / 'distribution/run-hook.sh'
+            if launcher.exists():
+                shutil.copyfile(launcher, package / 'hooks/run-hook.sh')
+            transcript = root / 'turn.jsonl'
+            transcript.write_text(json.dumps({'type': 'assistant', 'message': {'content': [
+                {'type': 'tool_use', 'name': 'Edit', 'input': {'file_path': str(root / 'app.py')}}]}}))
+            for runtime in ('python3', 'python', 'broken-python3', 'missing'):
+                bin_dir = root / runtime
+                bin_dir.mkdir()
+                shutil.copyfile(SH, bin_dir / ('sh.exe' if os.name == 'nt' else 'sh'))
+                if os.name == 'nt':
+                    for dll in Path(SH).parent.glob('msys-*.dll'):
+                        shutil.copyfile(dll, bin_dir / dll.name)
+                if runtime != 'missing':
+                    shim = bin_dir / ('python' if runtime == 'broken-python3' else runtime)
+                    shim.write_text('#!/bin/sh\nexec "' + Path(sys.executable).as_posix() + '" "$@"\n', newline='')
+                    shim.chmod(0o755)
+                    if runtime == 'broken-python3':
+                        broken = bin_dir / 'python3'
+                        broken.write_text('#!/bin/sh\nexit 1\n', newline='')
+                        broken.chmod(0o755)
+                for variable in ('PLUGIN_ROOT', 'CLAUDE_PLUGIN_ROOT'):
+                    env = {k: v for k, v in os.environ.items()
+                           if k not in ('PLUGIN_ROOT', 'CLAUDE_PLUGIN_ROOT', 'AGENT_WORKFLOW_CONTEXT')}
+                    env.update(PATH=str(bin_dir), **{variable: str(package)})
+                    for event, entries in hooks.items():
+                        with self.subTest(runtime=runtime, variable=variable, event=event):
+                            result = subprocess.run([SH, '-c', entries[0]['hooks'][0]['command']],
+                                env=env, input=json.dumps({'hook_event_name': event, 'cwd': str(root),
+                                    'prompt': 'The output is broken, fix it', 'transcript_path': str(transcript)}),
+                                capture_output=True, text=True, timeout=30)
+                            if runtime == 'missing':
+                                self.assertEqual(result.returncode, 127)
+                                self.assertIn('Python 3', result.stderr)
+                            else:
+                                self.assertEqual(result.returncode, 0, result.stderr)
+                                output = json.loads(result.stdout)
+                                if event == 'Stop':
+                                    self.assertEqual(output['decision'], 'block')
+                                else:
+                                    self.assertIn('diagnose', output['hookSpecificOutput']['additionalContext'])
+                    if runtime != 'missing':
+                        (package / 'hooks/failure.py').write_text('raise SystemExit(23)\n')
+                        failed = subprocess.run([SH, str(package / 'hooks/run-hook.sh'), 'failure.py'],
+                            env=env, capture_output=True, timeout=30)
+                        self.assertEqual(failed.returncode, 23, 'Keep the hook failure, never retry it')
+
     def test_package_runs_without_checkout_and_refuses_overwrite(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -64,7 +122,7 @@ class PluginPackageTests(unittest.TestCase):
                 {'type': 'user', 'message': {'content': 'fix'}},
                 {'type': 'assistant', 'message': {'content': [{'type': 'tool_use', 'name': 'Edit',
                     'input': {'file_path': str(root / 'app.py')}}]}})), encoding='utf-8')
-            stop_command = hook['Stop'][0]['hooks'][0]['command']
+            stop_command = hook['Stop'][0]['hooks'][0]['commandWindows']
             stop_environment = {k: v for k, v in os.environ.items() if k != 'PLUGIN_ROOT'}
             stop_environment['CLAUDE_PLUGIN_ROOT'] = str(package)
             for active, expected in ((False, 'block'), (True, None)):
@@ -74,7 +132,7 @@ class PluginPackageTests(unittest.TestCase):
                     env=stop_environment, capture_output=True, text=True, timeout=30)
                 self.assertEqual(stopped.returncode, 0, stopped.stderr)
                 self.assertEqual(json.loads(stopped.stdout).get('decision'), expected)
-            hook_command = hook['UserPromptSubmit'][0]['hooks'][0]['command']
+            hook_command = hook['UserPromptSubmit'][0]['hooks'][0]['commandWindows']
             # Exercise the distributed shell command with the host-provided root.
             for root_variable in ('PLUGIN_ROOT', 'CLAUDE_PLUGIN_ROOT'):
                 environment = {k: v for k, v in os.environ.items()
