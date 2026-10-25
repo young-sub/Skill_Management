@@ -109,101 +109,126 @@ junction을 만들었다. 정리 단계의 `git worktree remove --force`가 그 
 
 유료 실행 합계는 약 $125다(중단·무효 실행 약 $30 포함). 설치본·전역 설정은 바꾸지 않았다.
 
-## 0.1.89와 평가 세트 v2 (중단)
+## 0.1.89와 평가 세트 v2
 
-0.1.88 transcript 분석에서 추가 비용은 증명 명령(실행당 0.08회)이 아니라 부분 테스트 실행(+1.9회)과 브라우저
-확인(+0.9회)에서 나왔다. 0.1.89는 구현 전 실패 확인을 증명으로 인정하고, 증명은 나중에 쓴 테스트에만
-`--skip-current`로 돌리며, 새 테스트와 영향받는 기존 검사를 최종 편집 뒤 한 번에 실행하고, 브라우저는 자동 UI
-테스트가 덮지 못하는 변경에만 연다. L4(모든 경로)는 그대로다. 패키지는 `2800da2`에서 빌드했다.
+0.1.88 transcript 분석에서 추가 비용은 증명 명령(실행당 0.08회)이 아니라 부분 테스트 실행(+1.9회)과 브라우저 확인(+0.9회)에서 나왔다. 0.1.89는 구현 전 실패 확인을 증명으로 인정하고, 증명은 나중에 쓴 테스트에만 `--skip-current`로 돌리며, 새 테스트와 영향받는 기존 검사를 최종 편집 뒤 한 번에 실행하고, 브라우저는 자동 UI 테스트가 덮지 못하는 변경에만 연다. L4(모든 경로)는 그대로다.
 
-`evals/delegation-v2/`는 OFF가 놓치기 쉬운 유형으로 미리 고른 새 과제 11개와 v1 `rule-all-paths` 앵커로
-구성했고(Codex 작성), 12개 모두 시작 실패·참조 통과·회귀 통과를 독립 재검증했다. 여러 과제가 적용 경로를
-프롬프트에 직접 나열하므로 경로 발견보다 구현의 빠짐없음을 잰다.
+`evals/delegation-v2/`는 OFF가 놓치기 쉬운 유형으로 실행 전에 고른 새 과제 11개와 v1 `rule-all-paths` 앵커로 구성했다(Codex 작성). 12개 모두 시작 실패·참조 통과·회귀 통과를 독립 재검증했다. 여러 프롬프트가 적용 경로를 직접 나열하므로 경로 발견보다 구현의 빠짐없음을 잰다. 결과를 본 뒤 과제·프롬프트·hidden·probe·판정 기준은 변경하지 않았다.
 
-앞선 OFF와 0.1.89 각 24회 평가는 사용자 요청으로 첫 실행들이 끝나기 전에 중단했다. 당시 완료된 실행이 없어
-0.1.89의 효과는 **측정되지 않았다**. 아래 새 실행은 같은 조건을 사용한다([testing](../testing.md#delegation-effect-evaluation)):
-`--condition off=off --condition lean=plugin:<0.1.89 package> --reps 2 --deps-root <eval-deps> --copy-deps --prune-clones`.
+### 실행 조건과 경로 오류 복구
 
-### 2026-10-24~25 실행 상태: 인프라 오류로 중단
+초기 평가 기준은 `main@b347eec`이며, 이번 재개 시작은 `wp-20261024-v2-0189-evaluation@cdd0deec6d0f6c5a03a2047bd723262080efb2f5`(깨끗한 working tree)다. 별도 깨끗한 checkout의 `2800da212b3f791097ef604888c210961cbbaebe`에서 `scripts/build_plugin.py`로 0.1.89를 빌드했다. 고정 패키지 `package-files.json`의 SHA256은 `868239003b6266c4f8e6ef8e6be302a3e211d281d1367f43fc087533adf9cb1f`다. 재개 전 303개 파일 해시가 모두 일치했다. 평가 대상 패키지는 실행기 수정과 분리했다.
 
-기준은 `main@b347eec`, 결과 branch는 `wp-20261024-v2-0189-evaluation`이다. 별도 깨끗한 checkout의 `2800da212b3f791097ef604888c210961cbbaebe`에서 `scripts/build_plugin.py`로 0.1.89를 빌드했다. `package-files.json`의 SHA256은 `868239003b6266c4f8e6ef8e6be302a3e211d281d1367f43fc087533adf9cb1f`다. 실제 실행은 Claude Code `2.1.310`, `claude-opus-5-5`이며 완료 셀의 init에서 OFF의 agentic-coding 미로드, ON의 고정 0.1.89 로드를 확인했다. 다른 설치 플러그인은 양 조건에 동일하게 남는다.
+실행 조건은 `--condition off=off --condition lean=plugin:<고정 0.1.89 package> --reps 2 --jobs 2 --deps-root <eval-deps> --copy-deps --prune-clones`다. 사용자가 $90 상한을 해제하고 모든 남은 셀의 시도를 지시했다. 원본 working tree를 복사하지 않는 고정 ref clone, 독립 의존성 사본, 과제별 세션 시간 제한, 고정 probe·회귀·hidden 판정을 유지했다. 최초 셀의 예산 제한은 발동하지 않았고 이후 제거했다. 실제 모델·CLI는 init 기록의 `claude-opus-5-5` / `2.1.310`다. OFF의 agentic-coding 미로드와 lean의 고정 0.1.89 로드를 확인했다. 다른 설치 플러그인은 양 조건에 동일하게 남는다. reasoning effort는 명시 고정하지 않았다.
 
-최초 5셀 뒤 앞선 4셀 평균으로 전체 비용을 $115.49로 전망해 중단했으나, 사용자가 재개 및 $90 상한 해제를 명시 지시했다. 기존 결과를 재사용하고 나머지를 순서대로 실행했다. 두 조건 모두 원본 working tree를 복사하지 않는 고정 ref clone, 독립 의존성 사본, 동시 2셀, 과제별 세션 시간 제한, 고정 probe·회귀·hidden 판정을 유지했다. 최초 셀의 예산 제한은 발동하지 않았고 재개부터 제거했다.
+이전 중단 원인은 실행기가 읽기 쉬운 결과 경로 아래에 clone까지 만든 설계였다. 의약품 과제의 126자 추적 파일 경로가 합계 276자가 되어 Git checkout이 `Filename too long`으로 실패했다. 같은 셀의 무료 clone 시도 2회가 제외됐고, 유효 20셀과 누적 $35.6892176을 보존했다. `core.longpaths=true` 우회는 이번 재개에 사용하지 않았다.
 
-현재 중단은 의약품 분류 OFF의 clone checkout 실패가 같은 셀의 1회 재시도에서도 반복됐기 때문이다. Windows Git의 최장 경로가 276자였고 `Filename too long`으로 종료했다. 두 실패 모두 Claude 세션 시작 전이라 비용은 없으며 행동 판정에서 제외했다. 이미 진행 중이던 장바구니 ON을 마친 뒤 최초 지시인 “인프라 오류가 반복되면 중단·보고”를 지켰다. 미완료 28셀의 결과를 추정하거나 실패로 넣지 않는다.
+실행기 근본 수정 `e6b34ef7badf26c12b63dbe33cb8c7fe62097576`는 clone과 의존성 사본을 `.work/e/<8자 셀 해시>/r`, `d/<의존성>`로 분리한다. 결과 경로에는 `workspace.json` 매핑을 남긴다. clone 전에 고정 ref의 `git ls-tree`와 의존성 최장 상대 경로를 계산하고, 기본 상한 240자(파일 259·디렉터리 248자 이내)를 적용한다. 초과 시 `%SystemDrive%/e/<hash>`로 전환하고 그래도 불가능하면 유료 세션 없이 `path_budget_exceeded`로 제외하고 다음 셀로 간다. clone·checkout은 `core.longpaths=false`를 명시한다. 정리는 소유한 짧은 루트 내부만 허용하고 junction을 `cmd /c rmdir`로 끊은 뒤 개별 unlink/rmdir하며 재귀 삭제하지 않는다.
 
-해결책은 전역 설정 변경 없이 새 clone에만 `git clone ... -c core.longpaths=true`를 적용하는 것이다. 별도 무료 대조 시험에서 285자 경로, 고정 커밋의 1,736개 파일 존재, 최장 파일의 Git blob 바이트 일치, 전역 Git 설정 보존 및 비재귀 정리를 확인했다. `.work/delegation-eval/v2-0189-20261025-longpath-control/control.json`에 증거가 있다. 후속 28셀 실행은 준비됐으며, 반복 오류 중단 조건 이후의 사용자 재개 지시를 기다린다.
+무료 실제 대조 시험은 의약품 과제의 고정 ref에서 1,736개 추적 파일 존재, 최장 파일 blob 바이트 일치, Node 읽기, 실제 의존성 복사, 설정·원본 프로젝트 상태 전후 동일 및 정리 후 잔여물 없음을 확인했다. 최장 파일 절대 경로는 189자였다. 호스트의 `LongPathsEnabled`는 요청의 예상값 0과 달리 현재 1이었으며 변경하지 않았다. 경로는 기본 제한 아래이며 Git 긴 경로 지원은 명시적으로 껐다. 증거는 `.work/delegation-eval/v2-0189-20261025-shortpath-control/`에 있다.
 
-실행 전 SHA256 302개 중 43개가 불일치했다. 41개는 CRLF→LF로 일치하고, 나머지는 과거 authoring 증거 `evidence/a-offer-quantity-all-paths/c-reference-product.ts`, `d-reference-backup.ts`로 Git blob도 manifest와 다르다. 이를 보고한 뒤 사용자가 실행을 지시했다. 과제·프롬프트·hidden 파일은 수정하지 않았으며, 전체 세트의 byte-exact freeze 검증 통과로 주장하지 않는다.
+기존 유효 20셀은 긴 작업 경로, 새 시도 28셀은 짧은 작업 경로에서 실행됐다. 경로 전략은 각 구간의 OFF·lean에 똑같이 적용했다. `--resume-from`으로 기존 유효 결과와 모든 비용을 유지하고 이미 유료 실행된 셀은 재실행하지 않았다. 셀 예외가 전체 행렬을 중단하지 않으며 상태를 원자적으로 저장한다.
 
-기존 5셀을 재사용하고 사용자의 명시 지시로 $90 상한을 해제해 나머지를 실행했다. 누적 시도 22회, 행동 판정 포함 20/48셀, 인프라 제외 시도 2회다. 알려진 세션 비용 합계 $35.6892, 비용 미상 시도 0회. 중단 사유: `infrastructure failure repeated in same cell`(의약품 분류 OFF의 clone 경로 길이 오류).
+### 누적 결과
 
-| 조건 | 검증된 성공 | 거짓 완료 | probe 검출/적용 | 회당 비용 USD | 회당 토큰 | 성공당 토큰 | 회당 시간 초 |
+서로 다른 셀 48/48개를 시도했다. 누적 시도 50회, 유효 48/48셀, 제외 시도 2회다. 총 기록 비용은 $84.6308, 비용 미상 시도 0회다. 제외 시도도 비용 합계에 남기고 행동 판정은 유효 셀만 사용한다. 미완료·제외 결과를 추정하지 않았다.
+
+새 28셀을 모두 마쳐 `pending=0`이다. 실행기 종료 코드 1은 검증 실패 셀이 있다는 뜻이며, 인프라 오류나 행렬 실행 중단이 아니다.
+
+| 조건/과제 | 검증된 성공 | 거짓 완료 | probe 검출/적용 | 회당 비용 USD | 회당 토큰 | 성공당 토큰 | 회당 시간 초 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| off | 10/10 | 0/10 | 13/17 | 1.7892 | 2,731,589 | 2,731,589 | 683.2 |
-| lean | 10/10 | 0/10 | 14/17 | 1.7797 | 2,854,656 | 2,854,656 | 613.6 |
+| off | 22/24 | 2/24 | 29/38 | 1.7229 | 2,514,273 | 2,742,843 | 593.1 |
+| lean | 21/24 | 3/24 | 32/40 | 1.8034 | 2,920,126 | 3,337,287 | 587.5 |
 
-토큰은 input/output/cache read/cache creation의 합계다. 시간은 clone·의존성 복사·세션·채점을 포함한 정리 전 wall_seconds 평균이다. 제외된 시도는 행동 지표에서 빼고 비용에는 남긴다. 적용 문자열이 없는 probe는 probe 분모에서만 제외한다.
-
-| 과제 / 조건 | 검증된 성공 | 거짓 완료 | probe 검출/적용 | 회당 비용 USD | 회당 토큰 | 성공당 토큰 | 회당 시간 초 |
+| 조건/과제 | 검증된 성공 | 거짓 완료 | probe 검출/적용 | 회당 비용 USD | 회당 토큰 | 성공당 토큰 | 회당 시간 초 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| a-offer-quantity-all-paths / off | 1/1 | 0/1 | 2/2 | 2.8034 | 5,034,494 | 5,034,494 | 932.5 |
-| a-offer-quantity-all-paths / lean | 1/1 | 0/1 | 1/2 | 3.2220 | 6,501,086 | 6,501,086 | 968.8 |
-| a-product-source-stale-all-paths / off | 1/1 | 0/1 | 0/1 | 2.0695 | 3,682,669 | 3,682,669 | 1,037.6 |
-| a-product-source-stale-all-paths / lean | 1/1 | 0/1 | 0/1 | 1.7340 | 2,972,593 | 2,972,593 | 489.2 |
-| a-product-name-whitespace-complaint / off | 1/1 | 0/1 | 2/2 | 1.1451 | 1,612,035 | 1,612,035 | 484.4 |
-| a-product-name-whitespace-complaint / lean | 1/1 | 0/1 | 2/2 | 0.8474 | 1,194,814 | 1,194,814 | 539.2 |
-| a-import-offer-sequence / off | 1/1 | 0/1 | 1/1 | 3.1870 | 4,357,121 | 4,357,121 | 1,117.8 |
-| a-import-offer-sequence / lean | 1/1 | 0/1 | 1/1 | 3.0650 | 4,122,098 | 4,122,098 | 884.2 |
-| a-update-offer-list-complaint / off | 1/1 | 0/1 | 2/2 | 1.0433 | 1,282,838 | 1,282,838 | 351.8 |
-| a-update-offer-list-complaint / lean | 1/1 | 0/1 | 2/2 | 1.1818 | 1,414,021 | 1,414,021 | 394.8 |
-| b-sequence-category-branch-copy / off | 1/1 | 0/1 | 0/0 | 2.8324 | 4,167,110 | 4,167,110 | 995.3 |
-| b-sequence-category-branch-copy / lean | 1/1 | 0/1 | 0/0 | 2.2470 | 3,208,134 | 3,208,134 | 908.6 |
-| b-entitlement-design-save-api / off | 1/1 | 0/1 | 2/3 | 0.9204 | 1,291,983 | 1,291,983 | 408.8 |
-| b-entitlement-design-save-api / lean | 1/1 | 0/1 | 2/3 | 0.9314 | 1,223,820 | 1,223,820 | 276.8 |
-| b-contract-catalog-default-page / off | 1/1 | 0/1 | 0/2 | 1.0055 | 1,266,415 | 1,266,415 | 324.9 |
-| b-contract-catalog-default-page / lean | 1/1 | 0/1 | 0/0 | 1.4995 | 2,619,007 | 2,619,007 | 644.1 |
-| b-cross-path-custom-unit-limit / off | 1/1 | 0/1 | 1/1 | 1.2364 | 1,682,280 | 1,682,280 | 742.1 |
-| b-cross-path-custom-unit-limit / lean | 1/1 | 0/1 | 3/3 | 1.1660 | 1,759,425 | 1,759,425 | 532.9 |
-| cart-item-to-compare / off | 1/1 | 0/1 | 3/3 | 1.6489 | 2,938,948 | 2,938,948 | 437.0 |
-| cart-item-to-compare / lean | 1/1 | 0/1 | 3/3 | 1.9031 | 3,531,558 | 3,531,558 | 496.8 |
-| medicine-catalog-classification-bypass / off | 미실행 | — | — | — | — | — | — |
-| medicine-catalog-classification-bypass / lean | 미실행 | — | — | — | — | — | — |
-| rule-all-paths / off | 미실행 | — | — | — | — | — | — |
-| rule-all-paths / lean | 미실행 | — | — | — | — | — | — |
+| a-offer-quantity-all-paths / off | 2/2 | 0/2 | 3/4 | 2.9013 | 5,333,440 | 5,333,440 | 943.8 |
+| a-offer-quantity-all-paths / lean | 2/2 | 0/2 | 2/4 | 2.9722 | 5,911,294 | 5,911,294 | 854.3 |
+| a-product-source-stale-all-paths / off | 2/2 | 0/2 | 0/2 | 2.3974 | 4,259,538 | 4,259,538 | 829.4 |
+| a-product-source-stale-all-paths / lean | 1/2 | 1/2 | 0/2 | 1.8982 | 3,285,231 | 6,570,462 | 500.9 |
+| a-product-name-whitespace-complaint / off | 2/2 | 0/2 | 4/4 | 1.0981 | 939,312 | 939,312 | 429.1 |
+| a-product-name-whitespace-complaint / lean | 2/2 | 0/2 | 4/4 | 0.9817 | 730,358 | 730,358 | 504.1 |
+| a-import-offer-sequence / off | 2/2 | 0/2 | 2/2 | 3.0089 | 3,289,544 | 3,289,544 | 936.3 |
+| a-import-offer-sequence / lean | 2/2 | 0/2 | 2/2 | 2.8435 | 3,831,298 | 3,831,298 | 775.2 |
+| a-update-offer-list-complaint / off | 2/2 | 0/2 | 4/4 | 1.1552 | 1,574,250 | 1,574,250 | 395.0 |
+| a-update-offer-list-complaint / lean | 2/2 | 0/2 | 4/4 | 1.4092 | 2,015,268 | 2,015,268 | 441.0 |
+| b-sequence-category-branch-copy / off | 2/2 | 0/2 | 0/0 | 2.4697 | 2,596,519 | 2,596,519 | 879.5 |
+| b-sequence-category-branch-copy / lean | 2/2 | 0/2 | 0/0 | 2.7006 | 3,901,713 | 3,901,713 | 973.4 |
+| b-entitlement-design-save-api / off | 2/2 | 0/2 | 4/6 | 0.8932 | 1,207,678 | 1,207,678 | 409.8 |
+| b-entitlement-design-save-api / lean | 2/2 | 0/2 | 4/6 | 1.1779 | 1,809,953 | 1,809,953 | 396.2 |
+| b-contract-catalog-default-page / off | 2/2 | 0/2 | 0/4 | 0.9565 | 1,217,292 | 1,217,292 | 321.1 |
+| b-contract-catalog-default-page / lean | 2/2 | 0/2 | 0/2 | 1.2786 | 2,113,466 | 2,113,466 | 508.9 |
+| b-cross-path-custom-unit-limit / off | 2/2 | 0/2 | 2/2 | 1.1060 | 1,498,755 | 1,498,755 | 534.6 |
+| b-cross-path-custom-unit-limit / lean | 2/2 | 0/2 | 6/6 | 1.2297 | 1,926,356 | 1,926,356 | 668.5 |
+| cart-item-to-compare / off | 2/2 | 0/2 | 6/6 | 1.7980 | 3,359,078 | 3,359,078 | 431.8 |
+| cart-item-to-compare / lean | 2/2 | 0/2 | 6/6 | 2.1422 | 4,161,106 | 4,161,106 | 480.0 |
+| medicine-catalog-classification-bypass / off | 2/2 | 0/2 | 4/4 | 1.0207 | 1,622,508 | 1,622,508 | 227.9 |
+| medicine-catalog-classification-bypass / lean | 2/2 | 0/2 | 4/4 | 0.7029 | 989,088 | 989,088 | 172.6 |
+| rule-all-paths / off | 0/2 | 2/2 | 0/0 | 1.8694 | 3,273,362 | 미상 | 778.7 |
+| rule-all-paths / lean | 0/2 | 2/2 | 0/0 | 2.3044 | 4,366,386 | 미상 | 774.3 |
 
-**판정: 불완전한 행렬로 판정 보류**.
+토큰은 input/output/cache read/cache creation의 합계다. stock report의 `tokens_per_verified_success`는 input/output만 합산하므로 채택 판단에는 `analysis.json`의 네 항목 합계를 사용한다. 회당 비용·토큰·시간은 평균이다. 기존 20셀 시간은 정리 전, 새 셀 시간은 정리 후 wall time으로 clone·의존성 복사·세션·채점을 포함한다. 시간 차이는 이 계측 범위 차이까지 포함한다. 적용 문자열이 없는 probe는 probe 분모에서만 제외했다.
+
+**판정: 채택 기준 미달**. 유효 셀의 검증 성공률 차이 -4.17%p(기준 +15%p), 거짓 완료 2/24 → 3/24(기준 절반 이하), 성공당 토큰 2,742,843 → 3,337,287(기준 OFF 이하). 세 조건을 모두 충족해야 채택한다.
 
 성공 차이가 난 과제:
 
-- 동일하게 관측된 과제에서 성공 수 차이 없음.
+- `a-product-source-stale-all-paths`: OFF 2/2, lean 1/2.
 
-과제별 비용·도구 관측:
+첫 반복 `rule-all-paths`는 OFF·lean 모두 거짓 완료였다. OFF hidden은 초과 설명의 기존 상품 복제와 복원 차단을 놓쳤고, lean은 복제 차단을 놓쳤다(`rule-all-paths/{off,lean}/rep1/hidden0-retry.log`). lean이 복원 경로를 더 덮었어도 전체 과제 성공으로 세지 않았다. 두 세션 모두 프로젝트 전체 테스트를 추가 실행했으므로 이 과제의 비용·시간에는 자체 검증 범위가 반영됐다. 실행기 인프라 실패가 아닌 구현 결과로 유지했고 세션을 재시도하지 않았다.
 
-- `a-offer-quantity-all-paths` — off: 비용 $2.8034, cache read 4,849,569, output 29,533, Bash 43, 검사 8, 증명 0; 근거 `.work/delegation-eval/v2-0189-20261024-run/cells/a-offer-quantity-all-paths/off/rep1/session1.jsonl:289` / lean: 비용 $3.2220, cache read 6,307,489, output 34,349, Bash 53, 검사 7, 증명 1; 근거 `.work/delegation-eval/v2-0189-20261024-run/cells/a-offer-quantity-all-paths/lean/rep1/session1.jsonl:317`.
-- `a-product-source-stale-all-paths` — off: 비용 $2.0695, cache read 3,541,054, output 19,052, Bash 35, 검사 6, 증명 0; 근거 `.work/delegation-eval/v2-0189-20261024-run/cells/a-product-source-stale-all-paths/off/rep1/session1.jsonl:180` / lean: 비용 $1.7340, cache read 2,850,996, output 15,945, Bash 30, 검사 4, 증명 0; 근거 `.work/delegation-eval/v2-0189-20261024-run/cells/a-product-source-stale-all-paths/lean/rep1/session1.jsonl:194`.
-- `a-product-name-whitespace-complaint` — off: 비용 $1.1451, cache read 1,525,922, output 12,596, Bash 18, 검사 5, 증명 0; 근거 `.work/delegation-eval/v2-0189-20261024-run/cells/a-product-name-whitespace-complaint/off/rep1/session1.jsonl:85` / lean: 비용 $0.8474, cache read 1,130,927, output 9,191, Bash 15, 검사 3, 증명 0; 근거 `.work/delegation-eval/v2-0189-20261024-resume1/cells/a-product-name-whitespace-complaint/lean/rep1/session1.jsonl:110`.
-- `a-import-offer-sequence` — off: 비용 $3.1870, cache read 4,121,385, output 39,775, Bash 51, 검사 10, 증명 0; 근거 `.work/delegation-eval/v2-0189-20261024-resume1/cells/a-import-offer-sequence/off/rep1/session1.jsonl:199` / lean: 비용 $3.0650, cache read 3,894,710, output 38,949, Bash 44, 검사 7, 증명 0; 근거 `.work/delegation-eval/v2-0189-20261024-resume1/cells/a-import-offer-sequence/lean/rep1/session1.jsonl:187`.
-- `a-update-offer-list-complaint` — off: 비용 $1.0433, cache read 1,199,427, output 11,355, Bash 18, 검사 3, 증명 0; 근거 `.work/delegation-eval/v2-0189-20261024-resume1/cells/a-update-offer-list-complaint/off/rep1/session1.jsonl:89` / lean: 비용 $1.1818, cache read 1,316,136, output 11,301, Bash 13, 검사 2, 증명 0; 근거 `.work/delegation-eval/v2-0189-20261024-resume1/cells/a-update-offer-list-complaint/lean/rep1/session1.jsonl:195`.
-- `b-sequence-category-branch-copy` — off: 비용 $2.8324, cache read 3,974,090, output 41,159, Bash 52, 검사 13, 증명 0; 근거 `.work/delegation-eval/v2-0189-20261024-resume1/cells/b-sequence-category-branch-copy/off/rep1/session1.jsonl:79` / lean: 비용 $2.2470, cache read 3,048,618, output 30,132, Bash 44, 검사 11, 증명 0; 근거 `.work/delegation-eval/v2-0189-20261024-resume1/cells/b-sequence-category-branch-copy/lean/rep1/session1.jsonl:128`.
-- `b-entitlement-design-save-api` — off: 비용 $0.9204, cache read 1,223,030, output 10,365, Bash 22, 검사 1, 증명 0; 근거 `.work/delegation-eval/v2-0189-20261024-resume1/cells/b-entitlement-design-save-api/off/rep1/session1.jsonl:158` / lean: 비용 $0.9314, cache read 1,151,458, output 10,199, Bash 19, 검사 2, 증명 0; 근거 `.work/delegation-eval/v2-0189-20261024-resume1/cells/b-entitlement-design-save-api/lean/rep1/session1.jsonl:124`.
-- `b-contract-catalog-default-page` — off: 비용 $1.0055, cache read 1,188,820, output 12,262, Bash 14, 검사 0, 증명 0; 근거  / lean: 비용 $1.4995, cache read 2,521,336, output 17,842, Bash 32, 검사 9, 증명 0; 근거 `.work/delegation-eval/v2-0189-20261024-resume1/cells/b-contract-catalog-default-page/lean/rep1/session1.jsonl:158`.
-- `b-cross-path-custom-unit-limit` — off: 비용 $1.2364, cache read 1,589,307, output 14,579, Bash 23, 검사 5, 증명 0; 근거 `.work/delegation-eval/v2-0189-20261024-resume1/cells/b-cross-path-custom-unit-limit/off/rep1/session1.jsonl:123` / lean: 비용 $1.1660, cache read 1,676,722, output 14,107, Bash 24, 검사 4, 증명 5; 근거 `.work/delegation-eval/v2-0189-20261024-resume1/cells/b-cross-path-custom-unit-limit/lean/rep1/session1.jsonl:133`.
-- `cart-item-to-compare` — off: 비용 $1.6489, cache read 2,834,446, output 20,527, Bash 34, 검사 5, 증명 0; 근거 `.work/delegation-eval/v2-0189-20261024-resume1/cells/cart-item-to-compare/off/rep1/session1.jsonl:236` / lean: 비용 $1.9031, cache read 3,414,506, output 23,677, Bash 40, 검사 1, 증명 0; 근거 `.work/delegation-eval/v2-0189-20261024-resume1/cells/cart-item-to-compare/lean/rep1/session1.jsonl:248`.
+`a-product-source-stale-all-paths` 두 번째 반복은 OFF 성공, lean 거짓 완료였다. lean은 복원이 상품 원문을 바꿨을 때 승인 번역 상태를 “원문 변경”으로 바꾸지 않아 hidden 2건이 실패했다(`a-product-source-stale-all-paths/lean/rep2/hidden0-retry.log`). 회귀 62건은 통과했고 의존성·포트·프로세스 오류가 없었으므로 인프라 제외하지 않았다. 이 반복의 lean 비용 $2.0623은 OFF $2.7253보다 작았지만, 그 절약을 성공 개선으로 보지 않는다.
 
-도구 호출은 작업량의 관측이며 비용의 직접 배분이 아니다. 비용 차이의 원인은 토큰 구성 및 해당 transcript의 실제 검사·수정·재검사 순서와 함께 해석한다.
+전체 lean 비용은 OFF보다 $1.9333(+4.68%), 총 토큰은 9,740,485(+16.14%) 많았다. 추가 토큰의 9,502,116개(97.55%)는 cache read였다. OFF/lean의 output은 448,887/495,454, cache creation은 2,172,440/2,364,026이다. 비용을 개별 도구에 배분할 수는 없지만, 더 긴 문맥을 반복 소비한 흔적이 토큰 증가 대부분을 설명한다. 성공당 토큰은 2,742,843 → 3,337,287(+21.67%)로 실패 수 증가까지 반영한다.
 
-제외한 시도와 사유:
+증가가 큰 과제는 `rule-all-paths`(+ $0.8701), 장바구니(+ $0.6884), 카탈로그 기본 페이지(+ $0.6442), 권한·디자인 저장(+ $0.5694)였다(각 과제 두 반복 합계). 앵커 lean 두 번째 세션은 부분 검사 뒤 복원 테스트 fixture를 수정·재검사하고 전체 npm test/typecheck/lint까지 실행했다(`rule-all-paths/lean/rep2/session1.jsonl:306,455,466,478,498`). 분류·분기 복사 lean은 전체 검증 뒤 두 번째 세션에서 복제 검사 재실행과 typecheck/lint를 반복했다(`b-sequence-category-branch-copy/lean/rep2/session1.jsonl:329`, `session2.jsonl:206,240,264,276`). 권한 저장 lean도 부분 검사·증명·전체 검증을 실행했다(`b-entitlement-design-save-api/lean/rep2/session1.jsonl:204,234,279,317`). 장바구니 lean에는 반복 npm test, 보조 복사본과 브라우저 4종·빌드 검증이 추가됐다(`cart-item-to-compare/lean/rep2/session1.jsonl:114,122,330,365,413,477,564`). 이 과정의 환경 우회와 재검증 역시 해당 세션 비용에 남긴다.
 
-- `C:\Users\YS\Desktop\python\Skill_Management\.work\delegation-eval\v2-0189-20261024-resume1\cells\medicine-catalog-classification-bypass\off\rep1`: CalledProcessError: Command '['git', 'clone', '-q', '--local', '--no-hardlinks', 'C:\\Users\\YS\\Desktop\\python\\yeondoo-link', 'C:\\Users\\YS\\Desktop\\python\\Skill_Management\\.work\\delegation-eval\\v2-0189-20261024-resume1\\cells\\medicine-catalog-classification-bypass\\off\\rep1\\repo']' returned non-zero exit status 128.
-- `C:\Users\YS\Desktop\python\Skill_Management\.work\delegation-eval\v2-0189-20261024-resume1\retry1\medicine-catalog-classification-bypass\off\rep1`: CalledProcessError: Command '['git', 'clone', '-q', '--local', '--no-hardlinks', 'C:\\Users\\YS\\Desktop\\python\\yeondoo-link', 'C:\\Users\\YS\\Desktop\\python\\Skill_Management\\.work\\delegation-eval\\v2-0189-20261024-resume1\\retry1\\medicine-catalog-classification-bypass\\off\\rep1\\repo']' returned non-zero exit status 128.
+정규식 집계의 검사 명령은 OFF 115회, lean 100회로 lean이 오히려 적고, 증명 관련 명령은 0/15회였다. 따라서 “검사 호출 수가 늘어서”라는 단일 설명은 이 결과에 맞지 않는다. 명령 하나의 검사 범위, 문맥·수정량, 도구 출력과 재검증을 함께 봐야 한다. UI 브라우저 증거와 고정 hidden 성공은 별개이며, 아래 보조 검증의 외부 의존성 사용도 구분한다.
 
-probe 해석 한계: 사전 고정 명령은 지정된 기존 테스트 파일만 실행하므로 후보가 새 파일에 쓴 검사를 누락할 수 있다. 예를 들어 최초 가격 옵션 ON은 `tests/offerRules.test.ts`에 quantity=1000 사례를 썼지만(최초 raw `lean/rep1/session1.jsonl:297`) 해당 probe 명령은 그 파일을 실행하지 않는다. 따라서 공식 probe 미검출을 후보의 보호 테스트 부재로 해석할 수 없다. 관측 후 probe 명령을 바꾸거나 점수를 보정하지 않았으며, 새 테스트가 그 mutant를 실제 검출하는지도 별도로 실행하지 않았다.
+### 실행 경계 감사에서 남은 한계
 
-표본 한계: 과제당 조건별 2회이고 같은 제품·실패 유형의 12과제여서 일반적인 위임 성공률이나 통계적 우월성을 확정하지 못한다. 경로를 직접 나열하는 프롬프트와 v1 anchor가 포함된다. 초기 SHA256 편차는 원본 preflight에 보존했고 파일은 수정하지 않았다. reasoning effort는 명시 고정하지 않았다.
+부모 실행기의 clone·복사·정리는 소유한 짧은 작업 경로 안에서 수행됐지만, `bypassPermissions` 세션 자체의 파일 접근을 OS 수준으로 가두지는 않았다. `cart-item-to-compare`의 기존 OFF rep1과 새 OFF/lean rep2가 보조 typecheck·빌드·브라우저 검증에 원본 `yeondoo-link/node_modules`를 참조했다. 기존 OFF rep1과 새 lean rep2는 Temp 보조 복사본에 원본 의존성 junction도 만들었다. 새 lean rep2는 junction을 끊은 뒤 `Remove-Item -Recurse`로 보조 폴더를 정리했다(`session1.jsonl:365,372,583,590`). 이는 사용자가 금지한 재귀 정리를 세션 내부에서 막지 못한 운영상 위반이다. 이 임시 폴더는 현재 없고 원본 의존성 폴더는 존재한다. `boundary-audit.json`에 명령과 transcript 위치를 보존했다.
 
-Raw: `.work/delegation-eval/v2-0189-20261024-run/`(최초 5셀), `.work/delegation-eval/v2-0189-20261024-resume1/`(추가 셀과 누적 state/report/analysis). 원본 결과를 덮어쓰지 않았다.
+원본 프로젝트의 HEAD·Git status, 설정·설치 등록 파일 해시, 레지스트리는 전후 동일했다. 그러나 원본 의존성 `.vite`와 `.vite-temp`의 최종 수정 시각은 이번 보조 검증 시간대(2026-10-25 12:18:37, 12:20:16 KST)였다. 실행 전 원본 의존성 전체 해시가 없어 바이트 무변경이나 변경 범위를 입증하지 못한다. 원본 캐시를 지우거나 되돌리지는 않았다. 따라서 “원본 checkout 전체 무변경” 또는 “세션 전체가 격리됐다”고 주장하지 않는다. 추후 실행에서는 고정 후보·프롬프트를 바꾸는 대신 세션 호스트의 원본 쓰기 금지와 전용 임시·검증 의존성 경계를 강제해야 한다. 이는 이번 실행에서 미해결인 격리 문제다.
 
-정리는 소유한 경로 안에서 junction을 `cmd /c rmdir`로 분리한 뒤 파일 unlink와 디렉터리 rmdir를 사용했다. 재귀 clone 삭제는 사용하지 않았다. 최초 5셀과 재개 구간의 모든 실행 clone·전용 의존성 사본 부재를 확인했고, 과거 출력은 보존했다. 전역 설정·설치본을 변경하는 명령, push는 실행하지 않았다. 재개 중 기록한 전역 설정·설치 등록 파일 해시도 종료 시 같았다.
+고정 probe·회귀·hidden은 모두 각 평가 clone과 평가 의존성에서 실행됐고 해당 로그에 인프라 오류가 없었다. 보조 검증의 외부 참조는 성공을 대체하는 근거로 쓰지 않았으며, 사후에 새 제외 기준을 만들어 유리한 셀을 고르지도 않았다. 위 표는 공식 유효 48셀의 결과이고, 세션의 보조 검증·안전 준수까지 검증했다는 뜻은 아니다.
 
-검증 범위: package inventory 파일 해시와 junction 외부 대상 보존·비재귀 정리·범위 밖 삭제 거부 시험은 통과했다. 기존 runner 단위 검사 20개는 Windows 임시 디렉터리 잠금 오류 1개 및 cp949 reader 오류가 있어 통과로 주장하지 않는다. Feature는 `agent-workflow`의 평가 증거이며 기능·평가 정의를 바꾸지 않아 Feature Map 행 변경은 없다. 초기 불균형 행렬의 Markdown 렌더링 오류는 저장된 JSON에서 재생성했으며 유료 셀 재실행이나 판정 변경은 하지 않았다.
+과제별 비용·도구 관측(명령 수는 비용의 직접 배분이 아님):
+
+- `a-offer-quantity-all-paths`: off: $5.8026, cache read 10,290,160, output 60,959, Bash 88, 검사 명령 19, 증명 명령 0; `.work/delegation-eval/v2-0189-20261024-run/cells/a-offer-quantity-all-paths/off/rep1/session1.jsonl:289`, `.work/delegation-eval/v2-0189-20261025-resume2/a-offer-quantity-all-paths/off/rep2/session1.jsonl:218` / lean: $5.9445, cache read 11,460,137, output 62,807, Bash 100, 검사 명령 13, 증명 명령 1; `.work/delegation-eval/v2-0189-20261024-run/cells/a-offer-quantity-all-paths/lean/rep1/session1.jsonl:317`, `.work/delegation-eval/v2-0189-20261025-resume2/a-offer-quantity-all-paths/lean/rep2/session1.jsonl:275`.
+- `a-product-source-stale-all-paths`: off: $4.7947, cache read 8,202,298, output 51,725, Bash 78, 검사 명령 13, 증명 명령 0; `.work/delegation-eval/v2-0189-20261024-run/cells/a-product-source-stale-all-paths/off/rep1/session1.jsonl:180`, `.work/delegation-eval/v2-0189-20261025-resume2/a-product-source-stale-all-paths/off/rep2/session1.jsonl:234` / lean: $3.7963, cache read 6,307,513, output 35,982, Bash 66, 검사 명령 4, 증명 명령 0; `.work/delegation-eval/v2-0189-20261024-run/cells/a-product-source-stale-all-paths/lean/rep1/session1.jsonl:194`.
+- `a-product-name-whitespace-complaint`: off: $2.1962, cache read 1,789,286, output 13,893, Bash 37, 검사 명령 8, 증명 명령 0; `.work/delegation-eval/v2-0189-20261024-run/cells/a-product-name-whitespace-complaint/off/rep1/session1.jsonl:85`, `.work/delegation-eval/v2-0189-20261025-resume2/a-product-name-whitespace-complaint/off/rep2/session1.jsonl:130` / lean: $1.9635, cache read 1,393,048, output 11,175, Bash 35, 검사 명령 6, 증명 명령 0; `.work/delegation-eval/v2-0189-20261024-resume1/cells/a-product-name-whitespace-complaint/lean/rep1/session1.jsonl:110`, `.work/delegation-eval/v2-0189-20261025-resume2/a-product-name-whitespace-complaint/lean/rep2/session1.jsonl:139`.
+- `a-import-offer-sequence`: off: $6.0179, cache read 6,235,249, output 59,848, Bash 103, 검사 명령 19, 증명 명령 0; `.work/delegation-eval/v2-0189-20261024-resume1/cells/a-import-offer-sequence/off/rep1/session1.jsonl:199`, `.work/delegation-eval/v2-0189-20261025-resume2/a-import-offer-sequence/off/rep2/session1.jsonl:143` / lean: $5.6871, cache read 7,241,141, output 72,334, Bash 85, 검사 명령 12, 증명 명령 0; `.work/delegation-eval/v2-0189-20261024-resume1/cells/a-import-offer-sequence/lean/rep1/session1.jsonl:187`, `.work/delegation-eval/v2-0189-20261025-resume2/a-import-offer-sequence/lean/rep2/session1.jsonl:187`.
+- `a-update-offer-list-complaint`: off: $2.3104, cache read 2,968,907, output 23,356, Bash 41, 검사 명령 7, 증명 명령 0; `.work/delegation-eval/v2-0189-20261024-resume1/cells/a-update-offer-list-complaint/off/rep1/session1.jsonl:89`, `.work/delegation-eval/v2-0189-20261025-resume2/a-update-offer-list-complaint/off/rep2/session1.jsonl:99` / lean: $2.8185, cache read 3,818,445, output 29,872, Bash 43, 검사 명령 6, 증명 명령 5; `.work/delegation-eval/v2-0189-20261024-resume1/cells/a-update-offer-list-complaint/lean/rep1/session1.jsonl:195`, `.work/delegation-eval/v2-0189-20261025-resume2/a-update-offer-list-complaint/lean/rep2/session1.jsonl:177`.
+- `b-sequence-category-branch-copy`: off: $4.9395, cache read 4,928,079, output 54,407, Bash 91, 검사 명령 20, 증명 명령 0; `.work/delegation-eval/v2-0189-20261024-resume1/cells/b-sequence-category-branch-copy/off/rep1/session1.jsonl:79`, `.work/delegation-eval/v2-0189-20261025-resume2/b-sequence-category-branch-copy/off/rep2/session1.jsonl:120` / lean: $5.4011, cache read 7,430,412, output 77,654, Bash 99, 검사 명령 15, 증명 명령 0; `.work/delegation-eval/v2-0189-20261024-resume1/cells/b-sequence-category-branch-copy/lean/rep1/session1.jsonl:128`, `.work/delegation-eval/v2-0189-20261025-resume2/b-sequence-category-branch-copy/lean/rep2/session1.jsonl:126`.
+- `b-entitlement-design-save-api`: off: $1.7864, cache read 2,279,259, output 20,172, Bash 41, 검사 명령 1, 증명 명령 0; `.work/delegation-eval/v2-0189-20261024-resume1/cells/b-entitlement-design-save-api/off/rep1/session1.jsonl:158` / lean: $2.3557, cache read 3,448,513, output 24,607, Bash 50, 검사 명령 5, 증명 명령 1; `.work/delegation-eval/v2-0189-20261024-resume1/cells/b-entitlement-design-save-api/lean/rep1/session1.jsonl:124`, `.work/delegation-eval/v2-0189-20261025-resume2/b-entitlement-design-save-api/lean/rep2/session1.jsonl:204`.
+- `b-contract-catalog-default-page`: off: $1.9129, cache read 2,287,811, output 23,461, Bash 33, 검사 명령 0, 증명 명령 0; 집계 정규식에 맞는 검사 명령 없음 / lean: $2.5571, cache read 4,052,818, output 29,510, Bash 55, 검사 명령 9, 증명 명령 0; `.work/delegation-eval/v2-0189-20261024-resume1/cells/b-contract-catalog-default-page/lean/rep1/session1.jsonl:158`.
+- `b-cross-path-custom-unit-limit`: off: $2.2120, cache read 2,829,342, output 25,096, Bash 43, 검사 명령 8, 증명 명령 0; `.work/delegation-eval/v2-0189-20261024-resume1/cells/b-cross-path-custom-unit-limit/off/rep1/session1.jsonl:123`, `.work/delegation-eval/v2-0189-20261025-resume2/b-cross-path-custom-unit-limit/off/rep2/session1.jsonl:129` / lean: $2.4593, cache read 3,682,313, output 30,010, Bash 53, 검사 명령 9, 증명 명령 8; `.work/delegation-eval/v2-0189-20261024-resume1/cells/b-cross-path-custom-unit-limit/lean/rep1/session1.jsonl:133`, `.work/delegation-eval/v2-0189-20261025-resume2/b-cross-path-custom-unit-limit/lean/rep2/session1.jsonl:150`.
+- `cart-item-to-compare`: off: $3.5960, cache read 6,499,088, output 45,363, Bash 73, 검사 명령 6, 증명 명령 0; `.work/delegation-eval/v2-0189-20261024-resume1/cells/cart-item-to-compare/off/rep1/session1.jsonl:236`, `.work/delegation-eval/v2-0189-20261025-resume2/cart-item-to-compare/off/rep2/session1.jsonl:277` / lean: $4.2845, cache read 8,064,926, output 51,160, Bash 80, 검사 명령 4, 증명 명령 0; `.work/delegation-eval/v2-0189-20261024-resume1/cells/cart-item-to-compare/lean/rep1/session1.jsonl:248`, `.work/delegation-eval/v2-0189-20261025-resume2/cart-item-to-compare/lean/rep2/session1.jsonl:114`.
+- `medicine-catalog-classification-bypass`: off: $2.0414, cache read 3,105,643, output 25,478, Bash 46, 검사 명령 5, 증명 명령 0; `.work/delegation-eval/v2-0189-20261025-resume2/medicine-catalog-classification-bypass/off/rep1/session1.jsonl:75`, `.work/delegation-eval/v2-0189-20261025-resume2/medicine-catalog-classification-bypass/off/rep2/session1.jsonl:81` / lean: $1.4057, cache read 1,873,144, output 15,929, Bash 35, 검사 명령 5, 증명 명령 0; `.work/delegation-eval/v2-0189-20261025-resume2/medicine-catalog-classification-bypass/lean/rep1/session1.jsonl:53`, `.work/delegation-eval/v2-0189-20261025-resume2/medicine-catalog-classification-bypass/lean/rep2/session1.jsonl:73`.
+- `rule-all-paths`: off: $3.7388, cache read 6,304,607, output 45,129, Bash 74, 검사 명령 9, 증명 명령 0; `.work/delegation-eval/v2-0189-20261025-resume2/rule-all-paths/off/rep1/session1.jsonl:148`, `.work/delegation-eval/v2-0189-20261025-resume2/rule-all-paths/off/rep2/session1.jsonl:150` / lean: $4.6088, cache read 8,449,435, output 54,414, Bash 89, 검사 명령 12, 증명 명령 0; `.work/delegation-eval/v2-0189-20261025-resume2/rule-all-paths/lean/rep1/session1.jsonl:220`, `.work/delegation-eval/v2-0189-20261025-resume2/rule-all-paths/lean/rep2/session1.jsonl:306`.
+
+### 제외·복구·미해결 오류
+
+복구한 오류는 긴 결과 경로와 clone 작업 경로를 결합했던 실행기 설계다. 실제 고정 ref 무료 대조 시험과 경로 예산·자동 루트 전환·세션 미시작·결과 매핑·정리 범위·고정 ref clone·중단 재개·셀 예외 후 계속 실행 회귀 테스트로 검증했다. 기존 코드에 현재 31개 테스트를 적용한 RED는 25개 실패, 수정 후 실행기 테스트 31개와 문서 검사 14개가 통과했다. 과거 sandbox CIM/cp949 검사 실패는 프로세스 조회가 가능한 실행과 프로세스 한정 UTF-8로 해결했으며 테스트를 생략하거나 약화하지 않았다.
+
+| 제외 시도 | 단계 / 원인 | 세션 / 비용 | 증거 |
+| --- | --- | --- | --- |
+| medicine OFF rep1 최초 | clone checkout / Filename too long (276자), exit 128 | 미시작 / 0달러 (원본 cost는 null) | `resume1/cells/medicine-catalog-classification-bypass/off/rep1/classified.json` |
+| medicine OFF rep1 재시도 | 같은 clone 경로 오류 반복, exit 128 | 미시작 / 0달러 (원본 cost는 null) | `resume1/retry1/medicine-catalog-classification-bypass/off/rep1/classified.json` |
+
+위 경로의 `resume1`은 `.work/delegation-eval/v2-0189-20261024-resume1/`이다. 두 시도는 비용·이력에 보존했고 근본 수정 뒤 같은 셀을 새 경로에서 정상 실행했다. 새 28셀의 인프라 제외·유료 재시도는 없었다. 마지막 두 앵커 셀도 첫 반복과 같이 OFF는 복제·복원, lean은 복제 hidden이 실패했으며 구현 실패로 유지했다.
+
+미해결 인프라 오류는 없다. 미해결 운영 문제는 위 경계 감사의 세션 외부 의존성 접근·재귀 정리 차단 부재와 원본 의존성 바이트 보존 미검증이다. 실행기의 파일 정리 범위 검사만으로 세션 전체의 접근 경계를 보장하지 못한다.
+
+### 표본과 증거의 한계
+
+과제당 조건별 2회, 같은 제품·실패 유형의 12과제이므로 일반적인 위임 성공률이나 통계적 우월성을 확정하지 못한다. 경로를 직접 나열하는 프롬프트와 v1 앵커가 포함된다. 긴/짧은 작업 경로 구간의 차이도 있다. 동일한 제품·의존성에서 실행했지만 실행 순서와 호스트 부하가 시간에 영향을 줄 수 있다.
+
+실행 전 SHA256 302개 중 43개가 불일치했다. 41개는 CRLF→LF로 일치하고, 나머지는 과거 authoring 증거 `evidence/a-offer-quantity-all-paths/c-reference-product.ts`, `d-reference-backup.ts`로 Git blob도 manifest와 다르다. 이미 이를 보고한 뒤 사용자가 실행을 지시했다. 재개 전에도 대조만 했으며 파일을 고치지 않았다. 전체 세트의 byte-exact freeze 검증 통과로 주장하지 않는다.
+
+고정 probe 명령은 지정된 기존 테스트 파일만 실행하므로 후보가 새 파일에 쓴 검사를 누락할 수 있다. 최초 가격 옵션 lean은 `tests/offerRules.test.ts`에 quantity=1000 사례를 썼지만(최초 raw `lean/rep1/session1.jsonl:297`) 해당 probe는 그 파일을 실행하지 않는다. 공식 probe 미검출을 보호 테스트 부재로 해석하지 않는다. 관측 후 명령·점수를 보정하지 않았고 추가 테스트의 mutant 검출도 별도로 실행하지 않았다. 도구 집계의 검사 명령은 vitest/npm/playwright 정규식에 맞는 호출이며 Node 직접 실행 등은 누락될 수 있어 실제 transcript와 함께 해석한다.
+
+Raw: `.work/delegation-eval/v2-0189-20261024-run/`(최초 5셀), `.work/delegation-eval/v2-0189-20261024-resume1/`(기존 누적 20셀·무료 실패 2회), `.work/delegation-eval/v2-0189-20261025-resume2/`(새 셀과 통합 `state.json`, `report.json`, `report.md`, `analysis.json`). 무료 대조·설정 보존·freeze 대조 증거는 `.work/delegation-eval/v2-0189-20261025-shortpath-control/`다. 과거 출력은 덮어쓰거나 지우지 않았다.
+
+Feature는 `agent-workflow` 평가 실행 경로이며 Feature Map과 testing 문서를 갱신했다. 평가 대상 Skill은 변경하지 않았다. 설치본·전역 설정·레지스트리 변경과 push는 하지 않았다. 원본 프로젝트의 Git 상태는 같지만, 위 경계 감사의 원본 의존성 접근·캐시 한계는 남는다. 최종 보존 범위와 잔여물 확인은 resume2의 `preservation.json`에 기록한다.
