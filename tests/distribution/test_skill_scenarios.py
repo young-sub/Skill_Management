@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 RUNNER = ROOT / 'scripts/run_skill_scenarios.py'
@@ -58,6 +59,45 @@ class SkillScenarioGateTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             gate['run_probe'](self.root, {'name': 'absent', 'file': 'rule.py', 'find': 'MISSING', 'replace': 'x',
                                           'command': check}, 60)
+
+    def test_clone_disables_git_longpaths_checks_out_fixed_ref_and_skips_source_modules(self):
+        project = self.root / 'source'
+        project.mkdir()
+        subprocess.run(['git', 'init', '-q', str(project)], check=True)
+        def git(*args):
+            return subprocess.run(['git', *args], cwd=project, check=True, capture_output=True, text=True)
+        git('-c', 'user.name=test', '-c', 'user.email=test@invalid', 'commit', '--allow-empty', '-qm', 'short ref')
+        short_ref = git('rev-parse', 'HEAD').stdout.strip()
+        long_path = 'public/audio/app.summaryAnswers.protectionComfort/zh-Hans/' + 'a' * 64 + '.mp3'
+        long_file = project / Path(long_path)
+        long_file.parent.mkdir(parents=True)
+        long_file.write_bytes(b'long-path-content')
+        git('add', '--', long_path)
+        git('-c', 'user.name=test', '-c', 'user.email=test@invalid', 'commit', '-qm', 'long HEAD')
+        modules = project / 'node_modules'
+        modules.mkdir()
+        (modules / 'keep.txt').write_text('source dependency', encoding='utf-8')
+        destination = self.root / 'clone'
+        commands = []
+        real_run = subprocess.run
+
+        def capture(command, *args, **kwargs):
+            commands.append(command)
+            return real_run(command, *args, **kwargs)
+
+        with patch('subprocess.run', side_effect=capture):
+            gate['clone'](project, destination, ref=short_ref, link_modules=False)
+
+        self.assertEqual(commands[0][:8], ['git', '-c', 'core.longpaths=false', 'clone', '-q',
+                                           '--local', '--no-hardlinks', '--no-checkout'])
+        self.assertIn('--no-checkout', commands[0])
+        self.assertTrue(any(command[-3:] == ['checkout', '--detach', short_ref] for command in commands))
+        head = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=destination,
+                              check=True, capture_output=True, text=True).stdout.strip()
+        self.assertEqual(head, short_ref)
+        self.assertFalse((destination / Path(long_path)).exists())
+        self.assertFalse((destination / 'node_modules').exists())
+        self.assertEqual((modules / 'keep.txt').read_text(encoding='utf-8'), 'source dependency')
 
     def test_fixed_scenarios_are_valid_and_dry_run_spends_nothing(self):
         data = json.loads((ROOT / 'tests/scenarios/skill_routing.json').read_text(encoding='utf-8'))

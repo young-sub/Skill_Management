@@ -26,10 +26,21 @@ def replace_once(path, find, replace):
     return data
 
 
-def clone(project, destination):
-    subprocess.run(['git', 'clone', '-q', '--local', str(project), str(destination)], check=True)
+def clone(project, destination, ref=None, link_modules=True, log_dir=None):
+    """Checkout only the requested tree, without shared Git objects or long-path support."""
+    commands = [
+        ['git', '-c', 'core.longpaths=false', 'clone', '-q', '--local', '--no-hardlinks',
+         '--no-checkout', str(project), str(destination)],
+        ['git', '-c', 'core.longpaths=false', '-C', str(destination), 'checkout', '--detach', ref or 'HEAD'],
+    ]
+    for index, command in enumerate(commands):
+        result = subprocess.run(command, capture_output=True)
+        if log_dir is not None:
+            Path(log_dir, f'clone{index}.stdout').write_bytes(result.stdout)
+            Path(log_dir, f'clone{index}.stderr').write_bytes(result.stderr)
+        result.check_returncode()
     modules = Path(project) / 'node_modules'
-    if modules.is_dir():
+    if link_modules and modules.is_dir():
         link = destination / 'node_modules'
         if os.name == 'nt':
             subprocess.run(['cmd', '/c', 'mklink', '/J', str(link), str(modules)], check=True, capture_output=True)

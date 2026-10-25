@@ -214,3 +214,21 @@ regression checks fail; crashes and timeouts excluded), probe kill rate of the t
 the agent left behind, tokens, cost and wall time per condition. Adoption criteria and
 results live in the version's research record. `tests.distribution.test_delegation_eval`
 checks the runner with a fake executable.
+
+The v2 suite is `evals/delegation-v2/scenarios.json`. Clones and private dependency
+copies use `--work-root` (default `.work/e/<8-character cell hash>/r` for the clone),
+while transcripts, checks and `workspace.json` remain in the readable output cell.
+Before cloning or launching a paid session, the runner scans the pinned Git tree
+and dependency sources. `--path-limit` defaults to 240 characters, retaining room
+below Windows file (259) and directory (248) limits for generated files. It falls
+back to `%SystemDrive%/e/<hash>` if needed; an impossible plan records
+`path_budget_exceeded` with lengths and offending paths without launching a session.
+Git clone and checkout explicitly disable `core.longpaths`; no host setting changes.
+`--copy-deps --prune-clones` gives each cell private dependencies and removes only
+its short workspace, detaching junctions first without recursive deletion.
+
+`--resume-from <state.json>` reuses valid cells and retains all prior attempts and
+costs. Reopening an output with `state.json` resumes its unattempted cells. Paid or
+interrupted cells are never silently replayed. Cell exceptions are recorded as
+excluded infrastructure results and the remaining matrix continues; reports judge
+only valid cells and retain excluded evidence and unknown costs explicitly.
