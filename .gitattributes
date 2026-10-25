@@ -1,4 +1,5 @@
 # Preserve release bytes covered by package-files.json across clones.
+distribution/*.sh text eol=lf
 plugins/agentic-coding/** -text whitespace=trailing-space,space-before-tab,cr-at-eol
 
 # Evaluation assets keep byte-exact patches and logs (unified diffs need leading-space context lines).

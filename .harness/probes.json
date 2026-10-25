@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "probes": [
+    {
+      "id": "hook-python3-prompt",
+      "feature": "plugin-package",
+      "perspective": "architecture",
+      "layer": "Domain",
+      "file": "distribution/hooks.json",
+      "find": "\"sh \\\"${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}/hooks/run-hook.sh\\\" workflow_context.py\"",
+      "replace": "\"python -c \\\"pass\\\"\"",
+      "command": [
+        "python",
+        "-m",
+        "unittest",
+        "tests.distribution.test_plugin_package.PluginPackageTests.test_hook_commands_with_only_one_python_name"
+      ]
+    },
+    {
+      "id": "hook-python3-stop",
+      "feature": "plugin-package",
+      "perspective": "architecture",
+      "layer": "Domain",
+      "file": "distribution/hooks.json",
+      "find": "\"sh \\\"${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}/hooks/run-hook.sh\\\" completion_guard.py\"",
+      "replace": "\"python -c \\\"pass\\\"\"",
+      "command": [
+        "python",
+        "-m",
+        "unittest",
+        "tests.distribution.test_plugin_package.PluginPackageTests.test_hook_commands_with_only_one_python_name"
+      ]
+    }
+  ]
+}
