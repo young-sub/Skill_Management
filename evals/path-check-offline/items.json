@@ -1,0 +1,19 @@
+{
+  "suite": "evals/delegation-v2/scenarios.json",
+  "partials": {
+    "a-offer-quantity-all-paths": {"recipe": "patch", "patch": "evals/delegation-v2/evidence/a-offer-quantity-all-paths/d-quantity-only.patch", "on": "base"},
+    "a-product-source-stale-all-paths": {"recipe": "patch", "patch": "evals/delegation-v2/evidence/a-product-source-stale-all-paths/d-name-only-partial.patch", "on": "base"},
+    "a-product-name-whitespace-complaint": {"recipe": "patch", "patch": "evals/delegation-v2/evidence/a-product-name-whitespace-complaint/d-partial.patch", "on": "base"},
+    "a-import-offer-sequence": {"recipe": "probe", "probe": "direct-edit-requires-an-offer-list"},
+    "a-update-offer-list-complaint": {"recipe": "patch", "patch": "evals/delegation-v2/evidence/a-update-offer-list-complaint/final/partial.patch", "on": "base"},
+    "b-sequence-category-branch-copy": {"recipe": "probe", "probe": "branch-copy-allows-a-fourth-level"},
+    "b-entitlement-design-save-api": {"recipe": "probe", "probe": "revoked-period-still-grants-access"},
+    "b-cross-path-custom-unit-limit": {"recipe": "probe", "probe": "import-collapses-inner-spaces-before-counting"},
+    "cart-item-to-compare": {"recipe": "patch", "patch": "evals/delegation-v2/evidence/y-cart-item-to-compare/d-partial.patch", "on": "base"},
+    "medicine-catalog-classification-bypass": {"recipe": "patch", "patch": "evals/delegation-v2/evidence/y-medicine-catalog-classification-bypass/d-partial.patch", "on": "reference"},
+    "rule-all-paths": {"recipe": "patch", "patch": "evals/delegation-v2/evidence/rule-all-paths/d-partial.patch", "on": "base"}
+  },
+  "excluded_partials": {
+    "b-contract-catalog-default-page": "One-line reference; probes give an empty diff or an artificial bound, not a natural omission."
+  }
+}
