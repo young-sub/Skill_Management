@@ -35,8 +35,8 @@ DEPS_ROOT = Path('C:/e/deps')
 SESSION_TIMEOUT = 1200
 JUDGE_TIMEOUT = 600
 MAX_CANDIDATE_LINES = 60
-LEAK_MARKERS = ('delegation-v2', 'delegation-v1', 'Skill_Management', 'zz-eval', 'path-check-offline', 'hidden/')
-CODEX_DISABLED = ('agentic-coding@agentic-coding', 'agentic-coding@agentic-coding-local')
+LEAK_MARKERS = ('delegation-v2', 'delegation-v1', 'Skill_Management', 'zz-eval', 'path-check-offline', 'hidden/',
+                'agentic-coding/', 'memories/')
 COST_LOCK = threading.Lock()
 
 
@@ -142,9 +142,10 @@ def claude_session(prompt, repo, log_dir, config):
 
 def codex_session(prompt, repo, log_dir):
     transcript, last = log_dir / 'session.jsonl', log_dir / 'last-message.txt'
-    # Same condition as the Claude verifier: the user's environment with only agentic-coding disabled.
-    disabled = [arg for name in CODEX_DISABLED for arg in ('-c', f'plugins."{name}".enabled=false')]
-    argv = [shutil.which('codex') or 'codex', 'exec', *disabled, '--sandbox', 'workspace-write', '--ephemeral',
+    # Codex 0.160 `exec` ignores per-plugin `enabled=false` overrides (agentic-coding Skills stay listed),
+    # so every plugin is disabled. Memories are off: they hold this repository's suite vocabulary.
+    argv = [shutil.which('codex') or 'codex', 'exec', '--disable', 'plugins', '--disable', 'memories',
+            '--sandbox', 'workspace-write', '--ephemeral',
             '--skip-git-repo-check', '--json', '-C', str(repo), '-o', str(last), '-']
     started = time.monotonic()
     with transcript.open('wb') as stdout, transcript.with_suffix('.stderr').open('wb') as stderr:
@@ -205,6 +206,9 @@ def run_cell(item, scenario, verifier, output, config, state):
             result['session'] = {k: v for k, v in session.items() if k != 'final'}
             result['final'] = session['final'][-3000:]
             result['verdict'] = verdict_from(session['final'])
+            if result['verdict'] is None and session['exit'] != 0 and not session['timed_out']:
+                # A failed launch (for example HTTP 429) is not a verifier judgement; rerun it.
+                result['errors'].append(f'session exited {session["exit"]} without a verdict')
             result['verifier_edited'] = restore_product(repo, diff, log_dir)
             added = git(repo, 'ls-files', '--others', '--exclude-standard').stdout.decode().split()
             result['verifier_added'] = added
@@ -297,9 +301,31 @@ def inventory_recall(results):
     return rows
 
 
+def replay(cell, scenario, verifier, output):
+    """Run a verifier's saved tests on a fresh build of the same item, with no hidden files."""
+    added = output / 'cells' / cell['id'] / verifier / 'added'
+    tests = sorted(p.relative_to(added).as_posix() for p in added.rglob('*') if p.is_file())
+    log_dir = output / 'replay' / verifier / cell['id']
+    log_dir.mkdir(parents=True, exist_ok=True)
+    cell_dir = cell_workspace(f'{output.name}/replay/{cell["id"]}/{verifier}')
+    cell_dir.mkdir(parents=True)
+    try:
+        repo, _ = build(cell, scenario, cell_dir, log_dir)
+        for name in tests:
+            (repo / name).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(added / name, repo / name)
+        # The scenario's own runner prefix, pointed at the verifier's tests instead of its suite.
+        prefix = scenario['regression'].split(' tests/')[0].split(' src/')[0]
+        result = runner.check_command(f'{prefix} {" ".join(tests)}', repo, JUDGE_TIMEOUT, log_dir / 'replay.log')
+        return {'item': cell['id'], 'verifier': verifier, 'tests': tests, 'passed': result['passed']}
+    finally:
+        runner.kill_owned(cell_dir)
+        runner.remove_tree(cell_dir, WORK_ROOT)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=['precheck', 'run', 'report'])
+    parser.add_argument('action', choices=['precheck', 'run', 'report', 'replay'])
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--verifier', action='append', choices=['claude', 'codex'], default=[])
     parser.add_argument('--only', nargs='*')
@@ -326,9 +352,23 @@ def main():
         previous = output / 'results.json'
         merged = (json.loads(previous.read_text(encoding='utf-8')) if previous.exists() else []) + results
         runner.write_json(previous, merged)
+    elif args.action == 'replay':
+        # Flagged reference items only: does the verifier's failing test reproduce on a fresh reference?
+        config, scenarios, _ = load()
+        rows = []
+        for verifier in args.verifier:
+            for cell in cells:
+                path = output / 'cells' / cell['id'] / verifier / 'result.json'
+                result = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
+                if cell['variant'] == 'reference' and (result.get('verdict') or {}).get('verdict') == 'incomplete':
+                    rows.append(replay(cell, scenarios[cell['scenario']], verifier, output))
+                    print(json.dumps(rows[-1]), flush=True)
+        runner.write_json(output / 'replay.json', rows)
     else:
         precheck = json.loads((output / 'precheck.json').read_text(encoding='utf-8'))
-        results = json.loads((output / 'results.json').read_text(encoding='utf-8'))
+        # Per-cell results survive an interrupted matrix; the merged file is only written at the end.
+        results = [json.loads(p.read_text(encoding='utf-8')) for p in sorted((output / 'cells').glob('*/*/result.json'))
+                   if p.parent.name != 'inventory']
         verifiers = sorted({r['verifier'] for r in results})
         report = {'precheck_invalid': sorted(r['item'] for r in precheck if not r.get('valid')),
                   'scores': [score(results, v) for v in verifiers],

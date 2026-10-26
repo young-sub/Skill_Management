@@ -1,5 +1,7 @@
 # Agent Documentation Index
 
+- [Independent path check, offline](research/independent-path-check-offline.md): pre-registered falsification of a fresh-verifier device on v2 reference/partial items; both verifiers missed the false-alarm criterion, so the device is not built, and replayed flags show the v2 hidden checks miss real reference defects.
+
 - [Lean delegation 0.1.88/0.1.89](research/lean-delegation-0.1.88.md): explicit-only Skills, silent prompt hook, measured routes, delegation levers, probe registry, the v1 OFF/ON evaluation (criteria not met) and the 0.1.89 suite v2 evaluation with short workspace recovery.
 
 - [Delegated-work verification 0.1.86/0.1.87](research/delegated-work-verification-0.1.86.md): UTF-8 hooks, NOT_CONNECTED, durable scope and human business value, mandatory bypass proof, REVIEW_ONLY, request routes and the paid scenario gate with real-project results.

@@ -43,7 +43,7 @@ verifier runs.
 | --- | --- | --- |
 | `inventory` | none (`tools/inventory.py`, no model) | Diff and repository; lists write paths whose call chain references nothing the diff changed |
 | `claude` | Claude Code headless, default model, `agentic-coding` disabled, fresh session | Request(s), inventory candidates, workspace with the uncommitted diff |
-| `codex` | `codex exec`, default model, `workspace-write` sandbox, ephemeral | Same as `claude` |
+| `codex` | `codex exec`, default model, `workspace-write` sandbox, ephemeral, plugins and memories disabled (see amendments) | Same as `claude` |
 
 The verifier prompt is [verifier-prompt.md](verifier-prompt.md). It may add test files and
 run existing commands; it may not change product code or install dependencies. It must end
@@ -83,3 +83,18 @@ python -B evals/path-check-offline/tools/run.py report --output .work/path-check
 
 `run` refuses to start without a passing `precheck` in the same output and stops
 launching Claude cells once recorded Claude cost exceeds `--max-cost` (default $40).
+`replay --verifier <v>` rebuilds every reference item that verifier judged `incomplete` and
+runs only the verifier's saved tests there (no hidden files), to tell real defects from
+verifier errors.
+
+## Amendments after the first run (criteria unchanged)
+
+- Codex 0.160 `exec` ignored per-plugin `enabled=false` overrides, and its memories held this
+  repository's suite vocabulary: every first-run Codex cell read both. The Codex verifier now
+  runs with `--disable plugins --disable memories`, so ponytail is off too. `agentic-coding/`
+  and `memories/` are leak markers.
+- A session that exits non-zero without a verdict (for example HTTP 429) is an excluded
+  infrastructure error, not a `complete` verdict.
+
+Result: neither verifier met the false-alarm criterion. See
+[the record](../../docs/research/independent-path-check-offline.md).

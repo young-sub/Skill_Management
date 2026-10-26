@@ -227,6 +227,12 @@ Git clone and checkout explicitly disable `core.longpaths`; no host setting chan
 `--copy-deps --prune-clones` gives each cell private dependencies and removes only
 its short workspace, detaching junctions first without recursive deletion.
 
+A device claimed to differ from OFF is first falsified offline, with no coding agent:
+`evals/path-check-offline/` runs only an independent verifier on frozen v2 reference and
+partial implementations against criteria committed before the first verifier session
+([record](research/independent-path-check-offline.md)). `tests.distribution.test_path_check_offline`
+checks its inventory and scoring without a model.
+
 `--resume-from <state.json>` reuses valid cells and retains all prior attempts and
 costs. Reopening an output with `state.json` resumes its unattempted cells. Paid or
 interrupted cells are never silently replayed. Cell exceptions are recorded as
