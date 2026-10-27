@@ -1,0 +1,129 @@
+diff --git a/src/worker/backup.ts b/src/worker/backup.ts
+index ac01f05..639219e 100644
+--- a/src/worker/backup.ts
++++ b/src/worker/backup.ts
+@@ -376,6 +376,19 @@ async function restorePlan(env: BackupEnv, raw: unknown) {
+   for (const category of backup.data.categories) {
+     if (category.parent_id) category.parent_id = resolveMappedId(categoryIdMap, category.parent_id);
+   }
++  // The restored tree is the current tree with the backup's parent links applied; it must stay within three levels.
++  const restoredParents = new Map(currentCategories.results.map((row) => [String(row.id), row.parent_id ? String(row.parent_id) : null]));
++  for (const category of backup.data.categories) restoredParents.set(category.id, category.parent_id ?? null);
++  const restoredDepth = (id: string, seen = new Set<string>()): number => {
++    if (seen.has(id)) return Infinity;
++    seen.add(id);
++    const parent = restoredParents.get(id);
++    return parent && restoredParents.has(parent) ? restoredDepth(parent, seen) + 1 : 1;
++  };
++  for (const id of restoredParents.keys()) if (restoredDepth(id) > 3) {
++    conflicts.push({ domain: "categories", code: "invalid_category_hierarchy", key: id,
++      message: "복원 후 분류는 순환 없이 최대 3단계여야 합니다." });
++  }
+   for (const product of backup.data.products) product.category_id = resolveMappedId(categoryIdMap, product.category_id);
+   for (const phrase of backup.data.category_signs) if (phrase.category_id) phrase.category_id = resolveMappedId(categoryIdMap, phrase.category_id);
+   const categoryIds = new Set(backup.data.categories.map((category) => category.id));
+diff --git a/src/worker/categories.ts b/src/worker/categories.ts
+index 21653ea..4811f93 100644
+--- a/src/worker/categories.ts
++++ b/src/worker/categories.ts
+@@ -28,6 +28,10 @@ const updateCategorySchema = z.object({
+ });
+ 
+ const moveCategorySchema = z.object({ parentId: z.string().min(1).nullable(), beforeId: z.string().min(1).nullable() }).strict();
++const duplicateCategorySchema = z.object({
++  parentId: z.string().min(1).nullable(),
++  nameKo: z.string().trim().min(1).max(100).transform(normalizeText),
++}).strict();
+ 
+ const categorySelect = (withCounts = true) => `SELECT c.id, c.parent_id AS parentId, c.name_ko AS nameKo, c.icon_key AS iconKey, c.default_template_key AS defaultTemplateKey,
+   c.sort_order AS sortOrder, c.is_active AS isActive,
+@@ -180,3 +184,56 @@ export async function moveCategory(db: AccountDatabase, id: string, raw: unknown
+   }
+   return listCategories(db, true);
+ }
++
++export async function duplicateCategory(db: AccountDatabase, id: string, raw: unknown) {
++  const input = duplicateCategorySchema.parse(raw);
++  const all = await listCategories(db, true, false);
++  const current = all.find((category) => category.id === id);
++  if (!current) return null;
++  const byParent = new Map<string, (typeof all)[number][]>();
++  for (const category of all) {
++    if (!category.parentId) continue;
++    const group = byParent.get(category.parentId) ?? [];
++    group.push(category);
++    byParent.set(category.parentId, group);
++  }
++  for (const group of byParent.values()) {
++    group.sort((left, right) => left.sortOrder - right.sortOrder || left.nameKo.localeCompare(right.nameKo, "ko"));
++  }
++  const branch: (typeof all)[number][] = [];
++  const visit = (category: (typeof all)[number]) => {
++    branch.push(category);
++    for (const child of byParent.get(category.id) ?? []) visit(child);
++  };
++  visit(current);
++  const parent = input.parentId ? all.find((category) => category.id === input.parentId) : undefined;
++  if (input.parentId && !parent) throw new Error("category_hierarchy_invalid");
++  const branchHeight = Math.max(...branch.map((category) => category.depth - current.depth + 1));
++  if ((parent?.depth ?? 0) + branchHeight > 3) throw new Error("category_hierarchy_invalid");
++
++  const now = new Date().toISOString();
++  const siblings = all.filter((category) => category.parentId === input.parentId);
++  const rootSortOrder = siblings.length ? Math.max(...siblings.map((category) => category.sortOrder)) + 10 : 10;
++  const ids = new Map(branch.map((category) => [category.id, crypto.randomUUID()]));
++  const statements = branch.map((category, index) => db.prepare(`INSERT INTO categories
++    (owner_id,id,parent_id,name_ko,default_template_key,icon_key,sort_order,is_active,created_at,updated_at)
++    VALUES (${ownerValue(db)},?,?,?,?,?,?,?,?,?)`).bind(
++      ids.get(category.id)!,
++      index === 0 ? input.parentId : ids.get(category.parentId!)!,
++      index === 0 ? input.nameKo : category.nameKo,
++      null,
++      category.iconKey,
++      index === 0 ? rootSortOrder : category.sortOrder,
++      category.isActive ? 1 : 0,
++      now,
++      now,
++    ));
++  try {
++    await db.batch(statements);
++  } catch (cause) {
++    if (cause instanceof Error && cause.message.includes("UNIQUE")) throw new Error("category_duplicate", { cause });
++    throw cause;
++  }
++  const created = new Map((await listCategories(db, true, false)).map((category) => [category.id, category]));
++  return [...ids.values()].map((newId) => created.get(newId)!);
++}
+diff --git a/src/worker/index.ts b/src/worker/index.ts
+index ec1ed36..4164247 100644
+--- a/src/worker/index.ts
++++ b/src/worker/index.ts
+@@ -30,7 +30,7 @@ import { listDesignFavorites, setDesignFavorite } from "./designFavorites";
+ import { createPrintJob, deletePrintSet, findPrintJob, findPrintSet, listPrintJobs, listPrintSets, markPrintDialogOpened } from "./printing";
+ import { diagnostics } from "./diagnostics";
+ import { applyRestore, createBackup, previewRestore } from "./backup";
+-import { createCategory, deleteCategory, listCategories, moveCategory, updateCategory } from "./categories";
++import { createCategory, deleteCategory, duplicateCategory, listCategories, moveCategory, updateCategory } from "./categories";
+ import { assetContent, deleteAsset, listAssets, updateAsset, uploadAsset } from "./assets";
+ import { socialAuth, type SocialEnv } from "./socialAuth";
+ import { localAccess } from "./localAccess";
+@@ -140,6 +140,10 @@ app.get("/api/categories", async (context) => {
+ app.post("/api/categories", async (context) => {
+   return context.json({ ok: true, data: await createCategory(context.get("dataEnv").DB, await context.req.json()) }, 201);
+ });
++app.post("/api/categories/:id/duplicate", async (context) => {
++  const categories = await duplicateCategory(context.get("dataEnv").DB, context.req.param("id"), await context.req.json());
++  return categories ? context.json({ ok: true, data: categories }, 201) : error("not_found", "분류를 찾을 수 없습니다.", context.get("requestId"), 404);
++});
+ app.patch("/api/categories/:id", async (context) => {
+   const category = await updateCategory(context.get("dataEnv").DB, context.req.param("id"), await context.req.json(), context.get("actor").id);
+   return category ? context.json({ ok: true, data: category }) : error("not_found", "분류를 찾을 수 없습니다.", context.get("requestId"), 404);
+@@ -486,7 +490,7 @@ app.onError((cause, context) => {
+     return error("category_duplicate", "같은 이름의 분류가 이미 있습니다.", requestId, 409);
+   }
+   if (cause instanceof Error && cause.message === "category_hierarchy_invalid") {
+-    return error("validation_failed", "분류는 순환 없이 최대 3단계까지만 만들 수 있습니다.", requestId);
++    return error("category_hierarchy_invalid", "분류는 순환 없이 최대 3단계까지만 만들 수 있습니다.", requestId);
+   }
+   if (cause instanceof Error && cause.message === "invalid_page") {
+     return error("validation_failed", "목록 이동 조건을 확인해 주세요.", requestId);
