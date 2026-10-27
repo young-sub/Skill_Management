@@ -4,7 +4,7 @@ description: Deliver delegated coding work across FE, API/backend and business l
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: b09c20e4314ee3a39cbc7a32b0eacca8faab34798a7d993ba79baef83bc07ca2 -->
+<!-- Source-SHA256: a61ec68ef3bfbcc5773200220c750ffbc5466a698125b4ed76ec7f57c4a2d2b4 -->
 
 
 # Agent Workflow
@@ -44,7 +44,11 @@ the request is a trivial edit.
    the changed modules on every touched layer; rerun only what a later edit affects.
    New tests alone are not completion. Open a browser only for a visual or interaction
    change that no automated UI test covers.
-6. **Report the result card.**
+6. **Independent check.** For any behavior change, launch a fresh verifier that gets only
+   the user's request verbatim and the diff, per [independent check](references/independent-check.md).
+   Fix the violations its failing tests show; a stricter reading than the request goes to
+   *User decisions*. Your own checks cover the paths you chose; this covers the ones you did not.
+7. **Report the result card.**
 
 Settle questions that running code can answer (behavior, performance, layout) by
 experiment. Ask the user only for decisions they own: business value, scope,
@@ -63,6 +67,7 @@ Affected: <Feature / rule IDs> | business: <FE/API/Domain> | architecture: <boun
 Checks after the final edit: <check> ✓/✗ (command, raw location)
 Proof: <tests fail without the change ✓ | probe <id> killed ✓ | not run: reason>
 Paths covered: <writers/enforcers checked, or the uncovered one>
+Independent check: <complete | N violations → M fixed, K for user decision (tests: paths) | not run: reason>
 Unverified: <what was not observed and why>
 User decisions: <decision, recommendation, what happens without an answer> or none
 ```

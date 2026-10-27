@@ -1,7 +1,9 @@
-"""Stop hook: block one completion when code was edited after the turn's last executed command.
+"""Stop hook: block one completion when code was edited after the turn's last executed command,
+or when a behavior change was never handed to an independent verifier.
 
 It reads only the host transcript and never runs project commands. Passing it is not
-verification; it only prevents finishing on an unobserved final edit without a stated reason.
+verification; it only prevents finishing on an unobserved final edit, or on an unchecked
+change, without a stated reason.
 """
 import json
 import os
@@ -11,6 +13,10 @@ import sys
 
 EDIT_TOOLS = {'Edit', 'Write', 'MultiEdit', 'NotebookEdit'}
 EXEC_TOOLS = {'Bash', 'PowerShell'}
+AGENT_TOOLS = {'Agent', 'Task'}
+VERIFIER_MARKER = 'INDEPENDENT VERIFIER'  # first words of the independent-check template
+# Below this many changed code lines in a turn, the edit counts as trivial for the independent check.
+CHECK_MIN_LINES = 5
 DOC_SUFFIXES = {'.md', '.markdown', '.mdx', '.txt', '.rst', '.adoc'}
 # Segments that inspect or record but do not exercise behavior.
 INSPECTION = re.compile(r'^\s*(?:git\s+(?:status|diff|log|show|add|commit|branch|rev-parse|restore|stash|checkout)\b'
@@ -39,8 +45,15 @@ def shell_events(command):
     return events
 
 
+def changed_lines(name, arguments):
+    if name == 'MultiEdit':
+        return sum(str(e.get('new_string') or '').count('\n') + 1 for e in arguments.get('edits') or [] if isinstance(e, dict))
+    text = arguments.get('new_string') if name == 'Edit' else arguments.get('content', arguments.get('new_source'))
+    return str(text or '').count('\n') + 1
+
+
 def turn_events(transcript):
-    """Edits and executions after the latest human prompt, in order."""
+    """Edits (with changed line counts), executions and verifier launches after the latest human prompt."""
     events = []
     for line in transcript.read_text(encoding='utf-8', errors='replace').splitlines():
         try:
@@ -63,9 +76,13 @@ def turn_events(transcript):
                 continue
             arguments = block.get('input') or {}
             if block.get('name') in EDIT_TOOLS:
-                events.append(('edit', str(arguments.get('file_path') or arguments.get('notebook_path') or '')))
+                events.append(('edit', str(arguments.get('file_path') or arguments.get('notebook_path') or ''),
+                               changed_lines(block['name'], arguments)))
             elif block.get('name') in EXEC_TOOLS:
-                events.extend(shell_events(str(arguments.get('command') or '')))
+                # A shell write's size is unknown; it counts as one line.
+                events.extend((kind, value, 1) for kind, value in shell_events(str(arguments.get('command') or '')))
+            elif block.get('name') in AGENT_TOOLS and VERIFIER_MARKER in str(arguments.get('prompt') or ''):
+                events.append(('verify', '', 0))
     return events
 
 
@@ -73,21 +90,38 @@ def exercises_behavior(command):
     return any(kind == 'exec' for kind, _ in shell_events(command))
 
 
+def code_file(value, root):
+    """Project-relative path of a code file, or None for documentation and files outside the project."""
+    if not value:
+        return None
+    path = Path(value)
+    path = path if path.is_absolute() else root / path
+    try:
+        relative = path.resolve().relative_to(root)
+    except ValueError:
+        return None  # Scratch or other-project files are outside this guard.
+    return None if path.suffix.lower() in DOC_SUFFIXES else relative.as_posix()
+
+
 def unobserved_edits(events, root):
     pending = []
-    for kind, value in events:
+    for kind, value, _ in events:
         if kind == 'exec':
             pending = []
-        elif kind == 'edit' and value:
-            path = Path(value)
-            path = path if path.is_absolute() else root / path
-            try:
-                relative = path.resolve().relative_to(root)
-            except ValueError:
-                continue  # Scratch or other-project files are outside this guard.
-            if path.suffix.lower() not in DOC_SUFFIXES and relative.as_posix() not in pending:
-                pending.append(relative.as_posix())
+        elif kind == 'edit' and code_file(value, root) and code_file(value, root) not in pending:
+            pending.append(code_file(value, root))
     return pending
+
+
+def unchecked_lines(events, root):
+    """Changed code lines in the turn when no independent verifier ran after the first code edit."""
+    lines, verified = 0, False
+    for kind, value, count in events:
+        if kind == 'edit' and code_file(value, root):
+            lines += count
+        elif kind == 'verify' and lines:
+            verified = True
+    return 0 if verified else lines
 
 
 def guard(payload):
@@ -96,14 +130,21 @@ def guard(payload):
     transcript, cwd = payload.get('transcript_path'), payload.get('cwd')
     if not transcript or not cwd or not Path(transcript).is_file():
         return {}
-    pending = unobserved_edits(turn_events(Path(transcript)), Path(cwd).resolve())
-    if not pending:
+    events, root = turn_events(Path(transcript)), Path(cwd).resolve()
+    pending, lines = unobserved_edits(events, root), unchecked_lines(events, root)
+    reasons = []
+    if pending:
+        shown = ', '.join(pending[:5]) + (f' (+{len(pending) - 5} more)' if len(pending) > 5 else '')
+        reasons.append(f'{len(pending)} code file(s) changed after the last executed command in this turn: {shown}. '
+                       'Run the affected check or flow against the final edit and report the observation, or state '
+                       'explicitly why no execution applies (for example descriptive-only change or unavailable runner).')
+    if lines >= CHECK_MIN_LINES:
+        reasons.append(f'{lines} changed code line(s) were not handed to an independent verifier. Launch one with only '
+                       "the user's request verbatim and the diff (agent-workflow references/independent-check.md), "
+                       'or state on the card why the change is trivial.')
+    if not reasons:
         return {}
-    shown = ', '.join(pending[:5]) + (f' (+{len(pending) - 5} more)' if len(pending) > 5 else '')
-    return {'decision': 'block', 'reason': (
-        f'Completion guard: {len(pending)} code file(s) changed after the last executed command in this turn: {shown}. '
-        'Run the affected check or flow against the final edit and report the observation, or state explicitly why '
-        'no execution applies (for example descriptive-only change or unavailable runner). This guard blocks once.')}
+    return {'decision': 'block', 'reason': 'Completion guard: ' + ' '.join(reasons) + ' This guard blocks once.'}
 
 
 def main():
