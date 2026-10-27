@@ -1,5 +1,7 @@
 # Agent Documentation Index
 
+- [Independent check 0.1.91](research/agent-coding-system-direction.md#독립-경로-검증-사용자-결정으로-채택-0191): delegated behavior changes end with a fresh sub-agent verifier that sees only the verbatim request and the diff; the Claude Code Stop guard asks for it once; adopted by user decision without a measured OFF gain.
+
 - [Independent path check, offline](research/independent-path-check-offline.md): pre-registered falsification of a fresh-verifier device on v2 reference/partial items; both verifiers missed the false-alarm criterion, so the device is not built, and replayed flags show the v2 hidden checks miss real reference defects.
 
 - [Lean delegation 0.1.88/0.1.89](research/lean-delegation-0.1.88.md): explicit-only Skills, silent prompt hook, measured routes, delegation levers, probe registry, the v1 OFF/ON evaluation (criteria not met) and the 0.1.89 suite v2 evaluation with short workspace recovery.

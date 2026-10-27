@@ -83,6 +83,32 @@ class CompletionGuardTests(unittest.TestCase):
         self.assertEqual(self.stop([prompt('scratch'), outside, result()]), {})
         self.assertEqual(self.stop([prompt('fix'), self.code_edit(), result(), prompt('thanks, what changed?')]), {})
 
+    def large_edit(self, name='src/app.py', lines=5):
+        return tool('Edit', file_path=str(self.root / name), old_string='a', new_string='\n'.join(['b'] * lines))
+
+    def verifier(self, prompt_text='INDEPENDENT VERIFIER. A colleague implemented the request below.'):
+        return tool('Agent', subagent_type='general-purpose', description='verify', prompt=prompt_text)
+
+    def test_a_behavior_change_needs_an_independent_verifier_after_the_first_code_edit(self):
+        run = tool('Bash', command='python -m unittest')
+        decision = self.stop([prompt('fix'), self.large_edit(), result(), run, result()])
+        self.assertEqual(decision['decision'], 'block')
+        self.assertIn('5 changed code line(s) were not handed to an independent verifier', decision['reason'])
+        self.assertNotIn('after the last executed command', decision['reason'])
+        self.assertEqual(self.stop([prompt('fix'), self.large_edit(), result(), self.verifier(), result(),
+                                    self.code_edit(), result(), run, result()]), {})
+        for entries in ([self.verifier(), result(), self.large_edit(), result()],
+                        [self.large_edit(), result(), self.verifier('Review this change'), result()]):
+            with self.subTest(entries=entries[0]['message']['content'][1]['name']):
+                self.assertIn('independent verifier', self.stop([prompt('fix'), *entries, run, result()])['reason'])
+
+    def test_small_documentation_and_outside_changes_skip_the_independent_check(self):
+        run = tool('Bash', command='python -m unittest')
+        self.assertEqual(self.stop([prompt('fix'), self.large_edit(lines=4), result(), run, result()]), {})
+        self.assertEqual(self.stop([prompt('docs'), self.large_edit('docs/guide.md', 50), result()]), {})
+        outside = tool('Write', file_path=str(Path(tempfile.gettempdir()) / 'scratch.py'), content='x\n' * 50)
+        self.assertEqual(self.stop([prompt('scratch'), outside, result(), run, result()]), {})
+
     def test_blocks_only_once_and_honors_opt_out_and_unreadable_input(self):
         entries = [prompt('fix'), self.code_edit(), result()]
         self.assertEqual(self.stop(entries, stop_hook_active=True), {})

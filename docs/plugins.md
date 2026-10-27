@@ -259,6 +259,13 @@ writes nothing; a passing guard is not verification, and any executed command
 (not necessarily the right one) clears it. Hosts whose transcript format differs
 are allowed rather than trapped.
 
+Since 0.1.91 the same stop also blocks once when the turn changed at least five code
+lines (edit tool line counts; a shell write counts as one) and no `Agent`/`Task` call
+whose prompt carries the `INDEPENDENT VERIFIER` template ran after the first code edit.
+The Agent then launches the [independent check](../authoring/references/independent-check.md)
+or states on the card why the change is trivial. Both conditions share one block. Codex
+has no plugin Stop hook; there the Skill instruction alone asks for the sub-agent.
+
 OpenAI documents plugin hooks and a separate trust review before command hooks
 run ([plugin packaging](https://developers.openai.com/plugins/build/plugins),
 [hook lifecycle](https://learn.chatgpt.com/docs/hooks)). The local Codex 0.160.0

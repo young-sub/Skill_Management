@@ -69,3 +69,9 @@ python -B evals/review-loop/tools/run.py --scenarios evals/delegation-v3/scenari
 Rerunning the same output skips cells with a `cell.json`; paid cells are never replayed.
 Launching stops once recorded cost exceeds `--max-cost` (default $120).
 `tests.distribution.test_review_loop` checks the runner with a fake executable.
+
+## Status
+
+Not run. The user judged independent verification better in most cases and had it built
+into the plugin without this comparison (2026-10-27, 0.1.91). The runner and criteria stay
+for a later measurement.

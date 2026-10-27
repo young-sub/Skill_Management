@@ -40,7 +40,11 @@ the request is a trivial edit.
    the changed modules on every touched layer; rerun only what a later edit affects.
    New tests alone are not completion. Open a browser only for a visual or interaction
    change that no automated UI test covers.
-6. **Report the result card.**
+6. **Independent check.** For any behavior change, launch a fresh verifier that gets only
+   the user's request verbatim and the diff, per [independent check](references/independent-check.md).
+   Fix the violations its failing tests show; a stricter reading than the request goes to
+   *User decisions*. Your own checks cover the paths you chose; this covers the ones you did not.
+7. **Report the result card.**
 
 Settle questions that running code can answer (behavior, performance, layout) by
 experiment. Ask the user only for decisions they own: business value, scope,
@@ -59,6 +63,7 @@ Affected: <Feature / rule IDs> | business: <FE/API/Domain> | architecture: <boun
 Checks after the final edit: <check> ✓/✗ (command, raw location)
 Proof: <tests fail without the change ✓ | probe <id> killed ✓ | not run: reason>
 Paths covered: <writers/enforcers checked, or the uncovered one>
+Independent check: <complete | N violations → M fixed, K for user decision (tests: paths) | not run: reason>
 Unverified: <what was not observed and why>
 User decisions: <decision, recommendation, what happens without an answer> or none
 ```
