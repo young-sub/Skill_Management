@@ -266,6 +266,14 @@ The Agent then launches the [independent check](../authoring/references/independ
 or states on the card why the change is trivial. Both conditions share one block. Codex
 has no plugin Stop hook; there the Skill instruction alone asks for the sub-agent.
 
+Since 0.1.92 the guard also reads the verifier's final JSON line from its `Agent`/`Task`
+result. When it reported violations (`"verdict": "incomplete"`) and `.harness/probes.json`
+was not edited afterwards, the same single block asks the Agent to register each fixed
+violation as an `origin: "independent-check …"` probe and run `probe_check.py probes`, or
+to state why none was a requested-behavior defect. The probe report's *Origins* line
+counts killed/total per origin, and answered user decisions go to `.harness/decisions.md`,
+which the next verifier reads ([recorded decisions](../authoring/references/independent-check.md#recorded-decisions)).
+
 OpenAI documents plugin hooks and a separate trust review before command hooks
 run ([plugin packaging](https://developers.openai.com/plugins/build/plugins),
 [hook lifecycle](https://learn.chatgpt.com/docs/hooks)). The local Codex 0.160.0

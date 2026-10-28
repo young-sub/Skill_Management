@@ -109,6 +109,33 @@ class CompletionGuardTests(unittest.TestCase):
         outside = tool('Write', file_path=str(Path(tempfile.gettempdir()) / 'scratch.py'), content='x\n' * 50)
         self.assertEqual(self.stop([prompt('scratch'), outside, result(), run, result()]), {})
 
+    def verifier_report(self, report):
+        launch = tool('Agent', subagent_type='general-purpose', description='verify',
+                      prompt='INDEPENDENT VERIFIER. A colleague implemented the request below.')
+        launch['message']['content'][1]['id'] = 'v'
+        reply = {'type': 'user', 'message': {'role': 'user', 'content': [{'type': 'tool_result', 'tool_use_id': 'v', 'content': [
+            {'type': 'text', 'text': 'Import skips the check.\n' + json.dumps(report)}]}]}}
+        return [launch, reply]
+
+    def test_reported_violations_need_a_probe_registered_after_the_report(self):
+        run = tool('Bash', command='python -m unittest')
+        incomplete = {'verdict': 'incomplete', 'violations': [{'path': 'import', 'test': 't.py:3', 'observed': 'saved'}] * 2,
+                      'questions': []}
+        before = [prompt('fix'), self.large_edit(), result(), run, result()]
+        decision = self.stop([*before, *self.verifier_report(incomplete), self.code_edit(), result(), run, result()])
+        self.assertEqual(decision['decision'], 'block')
+        self.assertIn('reported 2 violation(s) and .harness/probes.json was not updated', decision['reason'])
+        self.assertNotIn('independent verifier.', decision['reason'])
+        registry = tool('Write', file_path=str(self.root / '.harness/probes.json'), content='{}')
+        probes = tool('Bash', command='python probe_check.py probes --root .')
+        self.assertEqual(self.stop([*before, *self.verifier_report(incomplete), self.code_edit(), result(),
+                                    registry, result(), probes, result()]), {})
+        self.assertIn('violation(s)', self.stop([*before, registry, result(), *self.verifier_report(incomplete),
+                                                  run, result()])['reason'])
+        for report in ({'verdict': 'complete', 'violations': [], 'questions': ['import?']}, 'no json'):
+            with self.subTest(report=report):
+                self.assertEqual(self.stop([*before, *self.verifier_report(report)]), {})
+
     def test_blocks_only_once_and_honors_opt_out_and_unreadable_input(self):
         entries = [prompt('fix'), self.code_edit(), result()]
         self.assertEqual(self.stop(entries, stop_hook_active=True), {})

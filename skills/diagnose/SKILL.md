@@ -4,7 +4,7 @@ description: Investigate reported incorrect behavior (user or customer complaint
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/diagnose/SKILL.md -->
-<!-- Source-SHA256: 3149c42eaf91083b61b442bf596e6e7f1c1dd855fa405db05f4f7c2feac4d257 -->
+<!-- Source-SHA256: e30721a8ab8a2e8961c82d386eb79f7fb78c818ea466f22f0e4675be1c533e4b -->
 
 
 # Diagnose
@@ -42,6 +42,6 @@ current availability. Lookup never diagnoses, repairs or clears a manual disable
 5. Enumerate alternate paths that can reproduce the same failure class (other callers, settlement/refund/retry/import paths, sibling queries that repeat the same rule). Prove each is blocked by the new regression, or record why none exists with the inspected owner files (`guardrail.bypass_absence`). A guardrail that only covers the reported path is not prevention. Register the original fault and each alternate path as probes in `.harness/probes.json` and run `python <this Skill's directory>/scripts/probe_check.py probes --root <project>`; every probe must be killed. The step-1 reproduction shows the regression fails without the fix; use `probe_check.py prove --skip-current` only for a regression written after the fix.
 6. In a connected project, record the complaint, cause, repair, guardrail and bypass evidence in the existing feedback record so the next task inherits it. In an unconnected project, say that no feedback record can be kept and offer `setup-project-verification` once.
 7. Recheck affected public behavior and relevant sibling callers. Expand verification only for newly affected logic or an explicit request; unrelated baseline debt is not a completion gate.
-8. After an authorized fix, run the [independent check](references/independent-check.md): a fresh verifier with only the complaint verbatim and the diff writes failing tests for paths you did not cover. Fix what they show; a stricter reading than the complaint is the user's decision.
+8. After an authorized fix, run the [independent check](references/independent-check.md): a fresh verifier with only the complaint verbatim and the diff writes failing tests for paths you did not cover. Fix what they show and register each fixed violation as a probe beside the step-5 probes; a stricter reading than the complaint is the user's decision, recorded in `.harness/decisions.md` once answered.
 
 For active contract work, append only new failure/cause/fix/check evidence to `.work/goals/active/<work-id>/agent/evidence.jsonl`; otherwise a concise task record or chat is enough. Reuse permission for covered live checks; obtain missing authorization only for real external effects, cost, or sensitive changes. Report unresolved causes without inventing certainty.

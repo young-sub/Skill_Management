@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/probe_check.py
-# Source-SHA256: 391d437cf315d8bee7800bc8c622ab8d6d3d48c225b4f50ec4f614e56d40dd8a
+# Source-SHA256: c859394012fb0b8f319cda8f7f9342aba15ce81accacb795d865ffb0452d7890
 
 """Exercise checks against synthetic faults in disposable Git worktrees.
 
@@ -176,7 +176,7 @@ def run_command(copy, command, timeout):
 
 
 def probe_result(copy, probe, timeout):
-    result = {key: probe.get(key, '') for key in ('id', 'feature', 'rule', 'perspective', 'layer')}
+    result = {key: probe.get(key, '') for key in ('id', 'feature', 'rule', 'perspective', 'layer', 'origin')}
     result.update(detected=False, expected=probe.get('expect_detected', True),
                   status='INVALID', exit=None, seconds=0, tail='')
     path = relative_file(copy, probe['file'])
@@ -223,6 +223,12 @@ def report(probes):
                 cells.append(f'{sum(p["detected"] for p in items)}/{len(items)}')
             lines.append('| ' + perspective + ' | ' + ' | '.join(cells) + ' |')
         lines.append('')
+    # The origin's first word (independent-check, feedback, ...) shows which guardrails grew from findings.
+    origins = {}
+    for probe in probes:
+        origins.setdefault(probe['origin'].split()[0] if probe['origin'].strip() else 'unrecorded', []).append(probe)
+    lines += ['Origins: ' + ', '.join(f'{cell(origin)} {sum(p["detected"] for p in group)}/{len(group)}'
+                                      for origin, group in origins.items()), '']
     for probe in probes:
         if probe['status'] != 'KILLED':
             lines.append(f'- {cell(probe["id"])} ({cell(probe["rule"])}): '

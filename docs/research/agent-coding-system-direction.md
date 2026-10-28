@@ -49,7 +49,8 @@ OFF/ON 비교 전에 기준을 새로 정한다. 결과를 본 뒤 기준을 낮
   읽어 쓴다([inventory](../architecture/skill-inventory.md)).
 - 프롬프트 hook은 선택된 task가 없으면 Git도 runtime도 실행하지 않는다. 요청 유형이 맞을 때만 한 줄
   route를 남긴다. 따옴표 문구 편집과 고치라는 요청이 없는 질문에는 route를 주지 않는다.
-- Stop guard는 마지막 편집 뒤 실행이 없거나, 코드 5줄 이상을 바꾸고 독립 검증자를 띄우지 않았을 때 한 번 막는다.
+- Stop guard는 마지막 편집 뒤 실행이 없거나, 코드 5줄 이상을 바꾸고 독립 검증자를 띄우지 않았거나, 검증자가 지적한
+  뒤 probe 등록부를 갱신하지 않았을 때 한 번 막는다.
   막을 때만 컨텍스트를 쓴다(Claude Code만. Codex는 plugin Stop hook이 없다).
 
 ### 위임 작업의 핵심 장치 (`agent-workflow`, `diagnose`, 플레이북)
@@ -60,7 +61,7 @@ OFF/ON 비교 전에 기준을 새로 정한다. 결과를 본 뒤 기준을 낮
 | L2 `probe_check.py prove`: 새 테스트는 소스 변경 없이 실패해야 함. 규칙은 probe로 등록 | 테스트 PASS인데 결함 통과 (Labeler 4/11, yeondoo 3/8) |
 | L3 영향받는 기존 검사를 최종 편집 뒤 실행 | 기존 `PublicAPI-test.js` 미실행 |
 | L4 같은 규칙을 쓰는 모든 경로 확인, 반박된 가설의 변경 되돌리기 | settle-order 우회 누락 (0.1.85) |
-| L5 독립 검증: 구현 맥락 없는 새 하위 Agent가 요청 원문과 diff만 받아 실패 테스트를 쓰고, 구현자가 요청 위반만 고친다 ([reference](../../authoring/references/independent-check.md)) | 구현자와 그 검사가 같은 경로 목록을 공유해 생긴 소리 없는 거짓 완료 (v2 5/5) |
+| L5 독립 검증: 구현 맥락 없는 새 하위 Agent가 요청 원문과 diff만 받아 실패 테스트를 쓰고, 구현자가 요청 위반만 고친다. 고친 지적은 probe로, 답을 받은 사용자 결정은 `.harness/decisions.md`로 남긴다 ([reference](../../authoring/references/independent-check.md)) | 구현자와 그 검사가 같은 경로 목록을 공유해 생긴 소리 없는 거짓 완료 (v2 5/5) |
 | L6 결과 카드: 요청→동작, 영향 Feature/계층, 최종 편집 뒤 검사, 증명, 독립 검증, 미확인, 사용자 결정 | 무엇을 검증했는지 알 수 없음 |
 
 pstack(MIT, Lauren Tan, 0.15.25 `101b274`)의 test-behavior·tdd·fix-root-causes·attack-the-premise·
@@ -77,6 +78,13 @@ Feature × 관점 × 계층의 killed/total을 보여 준다. 이 한 등록부�
 - 피드백·가드레일: 불만의 원래 결함과 우회 경로를 probe로 등록해 재발을 잡는다
 - UI 기준: token 하드코딩·간격 변형을 lint·시각 검사가 잡아야 한다
 - 검사 정리: 고유하게 잡는 probe가 없는 검사는 통합·제거 후보, 아무도 못 잡은 probe는 공백
+
+probe의 `origin` 첫 단어(`independent-check`, `feedback` 등)별 killed/total이 보고서의 *Origins* 줄이다.
+독립 검증이나 피드백에서 자란 가드레일 수가 여기 보인다.
+
+`.harness/decisions.md`는 답을 받은 사용자 결정을 한 줄씩 담는다(날짜, 영역, 질문 → 답, 출처). 구현자는 1단계에서,
+독립 검증자는 판정 전에 읽는다. 정해진 해석은 다시 묻지 않고, 엄격한 해석을 채택한 답은 새 요청으로 구현해
+검증자 테스트와 probe를 남긴다.
 
 Feature Map(규칙 → 검사 → 계층 책임자)과 UI 가이드·token은 프로젝트가 소유한다. 결과는 `audit --report`
 와 probe 행렬로 본다.
@@ -140,6 +148,9 @@ v2의 실패는 모두(OFF 2, ON 3) 기존 회귀가 통과하고 숨긴 수락 
 
 0.1.91은 독립 검증(L5)을 위임 기본 경로에 넣었다. `agent-workflow`·`diagnose`의 단계와 Claude Code Stop guard가 그것이다.
 오프라인 반증이 기준에 미달했지만 사용자 결정으로 채택했고, OFF 대비 이득은 측정되지 않았다.
+0.1.92는 독립 검증 결과를 프로젝트에 남긴다. 고친 지적은 `origin: independent-check` probe가 되어 다음 변경에서
+기존 검사가 먼저 잡고(Stop guard가 한 번 요구), 답한 사용자 결정은 `.harness/decisions.md`에 남아 같은 질문을 막는다.
+만든 자산은 OFF에서도 작동하므로 ON/OFF 이득 주장이 아니라 자가개선·가드레일(목적 3, 6)을 위한 사용자 결정이다.
 프롬프트 route와 자동 호출 Skill 지침 중 무엇을 남길지는 사용자가 정한다.
 같은 반증에서 v2 숨긴 검사가 참조 구현의 실제 결함(`a-import`, `b-sequence`, `rule-all-paths`)을 덮지 못한다는
 것이 드러났다. 그래서 v2 성공 수는 두 조건 모두의 상한이다. 다음 OFF/ON 평가 전에 숨긴 검사를 보강하고 새 기준을

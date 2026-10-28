@@ -1,5 +1,7 @@
 # Agent Documentation Index
 
+- [Findings to guardrails 0.1.92](research/agent-coding-system-direction.md#현재-상태): fixed independent-check violations become `origin: independent-check` probes (Stop guard asks once; the probe report counts origins) and answered user decisions go to `.harness/decisions.md`, read by the implementer and the next verifier.
+
 - [Independent check 0.1.91](research/agent-coding-system-direction.md#독립-경로-검증-사용자-결정으로-채택-0191): delegated behavior changes end with a fresh sub-agent verifier that sees only the verbatim request and the diff; the Claude Code Stop guard asks for it once; adopted by user decision without a measured OFF gain.
 
 - [Independent path check, offline](research/independent-path-check-offline.md): pre-registered falsification of a fresh-verifier device on v2 reference/partial items; both verifiers missed the false-alarm criterion, so the device is not built, and replayed flags show the v2 hidden checks miss real reference defects.

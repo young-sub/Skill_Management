@@ -4,7 +4,7 @@ description: Deliver delegated coding work across FE, API/backend and business l
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: a61ec68ef3bfbcc5773200220c750ffbc5466a698125b4ed76ec7f57c4a2d2b4 -->
+<!-- Source-SHA256: 8911a02168d32e9cd247025a907d2f7baec0cc2a314178dbb2fcdc36de0ea876 -->
 
 
 # Agent Workflow
@@ -16,8 +16,8 @@ the request is a trivial edit.
 
 ## Delivery loop
 
-1. **Scope.** Read the project's AGENTS/index and the Feature Map rules, owners and
-   checks for the touched area. Trace callers and state/data owners through
+1. **Scope.** Read the project's AGENTS/index, the Feature Map rules, owners and
+   checks for the touched area, and `.harness/decisions.md` (answered user decisions). Trace callers and state/data owners through
    FE → API → Domain → storage; use [change impact](references/change-impact.md)
    when ownership or contracts are shared.
 2. **Acceptance first.** Before changing behavior, write or name the checks that
@@ -46,8 +46,9 @@ the request is a trivial edit.
    change that no automated UI test covers.
 6. **Independent check.** For any behavior change, launch a fresh verifier that gets only
    the user's request verbatim and the diff, per [independent check](references/independent-check.md).
-   Fix the violations its failing tests show; a stricter reading than the request goes to
-   *User decisions*. Your own checks cover the paths you chose; this covers the ones you did not.
+   Fix the violations its failing tests show and register each fixed one as a probe; a
+   stricter reading than the request goes to *User decisions*. Your own checks cover the
+   paths you chose; this covers the ones you did not.
 7. **Report the result card.**
 
 Settle questions that running code can answer (behavior, performance, layout) by
@@ -67,7 +68,7 @@ Affected: <Feature / rule IDs> | business: <FE/API/Domain> | architecture: <boun
 Checks after the final edit: <check> ✓/✗ (command, raw location)
 Proof: <tests fail without the change ✓ | probe <id> killed ✓ | not run: reason>
 Paths covered: <writers/enforcers checked, or the uncovered one>
-Independent check: <complete | N violations → M fixed, K for user decision (tests: paths) | not run: reason>
+Independent check: <complete | N violations → M fixed (probes: ids), K for user decision (tests: paths) | not run: reason>
 Unverified: <what was not observed and why>
 User decisions: <decision, recommendation, what happens without an answer> or none
 ```
@@ -107,7 +108,9 @@ independent; say that you are doing so.
 Render `lookup --report` for a task or `audit --report` for the project with the
 bundled [CLI](scripts/project_workflow.py) and answer from it. Add the
 `probe_check.py probes` matrix when probes exist: it shows how many synthetic
-defects each Feature's checks detect per business/architecture/UI × layer. An
+defects each Feature's checks detect per business/architecture/UI × layer, and its
+*Origins* line how many came from independent checks or feedback. Include the area's
+`.harness/decisions.md` lines as decided behavior. An
 unconnected project reports NOT_CONNECTED: say so and offer setup. Ask the report's
 *Questions for the user* in the same turn and record the answers. Do not run tests,
 repairs or services for a results request.
@@ -116,6 +119,8 @@ repairs or services for a results request.
 
 - Human correction or a turn worth repeating: [feedback and success reuse](references/feedback-and-success.md).
   A first clear correction is enough; praise alone is not a rule request.
+- An answer to a *User decision*: record it in `.harness/decisions.md` per
+  [recorded decisions](references/independent-check.md#recorded-decisions) before acting on it.
 - UI standards: the project guide and its tokens/components own values. Follow
   [UI discovery and comparison](references/repair-and-reuse.md#ui-discovery-and-comparison);
   a drift guardrail is a lint or visual check plus a probe that it rejects.
