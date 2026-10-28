@@ -172,7 +172,7 @@ def run_command(copy, command, timeout):
 
 
 def probe_result(copy, probe, timeout):
-    result = {key: probe.get(key, '') for key in ('id', 'feature', 'rule', 'perspective', 'layer')}
+    result = {key: probe.get(key, '') for key in ('id', 'feature', 'rule', 'perspective', 'layer', 'origin')}
     result.update(detected=False, expected=probe.get('expect_detected', True),
                   status='INVALID', exit=None, seconds=0, tail='')
     path = relative_file(copy, probe['file'])
@@ -219,6 +219,12 @@ def report(probes):
                 cells.append(f'{sum(p["detected"] for p in items)}/{len(items)}')
             lines.append('| ' + perspective + ' | ' + ' | '.join(cells) + ' |')
         lines.append('')
+    # The origin's first word (independent-check, feedback, ...) shows which guardrails grew from findings.
+    origins = {}
+    for probe in probes:
+        origins.setdefault(probe['origin'].split()[0] if probe['origin'].strip() else 'unrecorded', []).append(probe)
+    lines += ['Origins: ' + ', '.join(f'{cell(origin)} {sum(p["detected"] for p in group)}/{len(group)}'
+                                      for origin, group in origins.items()), '']
     for probe in probes:
         if probe['status'] != 'KILLED':
             lines.append(f'- {cell(probe["id"])} ({cell(probe["rule"])}): '

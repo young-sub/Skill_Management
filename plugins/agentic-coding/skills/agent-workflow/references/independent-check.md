@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/independent-check.md -->
-<!-- Source-SHA256: f189451627be9966c9ef981b037421e0b60208c3149962f62f96a92c20a22c9a -->
+<!-- Source-SHA256: 540109da53a378489d713ef630b2821b5fb79a0dbb281812e824c1a3c1c93676 -->
 
 # Independent check
 
@@ -41,6 +41,9 @@ request states hold on every path the request applies to.
 Request (verbatim):
 <request>
 
+Decided readings: if `.harness/decisions.md` exists, read it. The user settled those
+questions; behavior it decides counts as requested, and a settled question is not a question.
+
 Rules:
 - Do not modify product (non-test) files. Add verification tests only as new files,
   following the project's test layout.
@@ -62,8 +65,36 @@ End with one JSON line:
    reading), do not fix it. Put it under *User decisions* with your recommendation,
    together with the verifier's questions.
 3. Keep the verifier tests that guard requested behavior, adapted to the suite's
-   naming; remove those that encode an undecided reading.
-4. Do not relaunch the verifier after fixing; its failing tests are the check. Relaunch
+   naming, and add them to the Feature's registered checks so later changes run them.
+   Remove those that encode an undecided reading.
+4. Turn each fixed violation into a guardrail: add a probe to `.harness/probes.json`
+   that undoes the fix at its owner (`find` the fixed code, `replace` it with the
+   original), with `command` running the kept test and `origin`
+   `"independent-check <date>"`. Run `probe_check.py probes --root <project>`; the probe
+   must be killed. The next change that reopens the same path then fails an existing
+   check instead of waiting for another verifier. The Claude Code Stop guard asks once
+   when the verifier reported violations and the registry was not updated afterwards.
+5. Do not relaunch the verifier after fixing; its failing tests are the check. Relaunch
    only when a fix changed a different path than the one reported.
 
-Card line: `Independent check: complete | N violations → M fixed, K for user decision (tests: <paths>)`.
+Card line: `Independent check: complete | N violations → M fixed (probes: <ids>), K for user decision (tests: <paths>)`.
+
+## Recorded decisions
+
+When the user answers a *User decision*, append one line to `.harness/decisions.md`
+(create it if missing) before acting on the answer:
+
+```
+- 2026-10-28 product-name: Does the 50-character limit apply to bulk import? → Yes, reject the row. (asked by: independent check)
+```
+
+Date, Feature or area, the question, the answer, and where it came from. A later
+answer to the same question replaces the line instead of adding one. Then:
+
+- If the answer adopts the stricter reading, it is a new request: implement it through
+  the delivery loop with a regression for it (the verifier's removed test is a starting
+  point) and its probe.
+- If the answer rejects it, the line alone stops the next verifier from asking again.
+
+Read the file in delivery step 1 with the Feature Map: a decision there is part of the
+expected behavior for every later change in that area.

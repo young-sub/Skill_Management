@@ -1,5 +1,6 @@
 """Stop hook: block one completion when code was edited after the turn's last executed command,
-or when a behavior change was never handed to an independent verifier.
+when a behavior change was never handed to an independent verifier, or when the verifier
+reported violations and none became a probe.
 
 It reads only the host transcript and never runs project commands. Passing it is not
 verification; it only prevents finishing on an unobserved final edit, or on an unchecked
@@ -17,6 +18,8 @@ AGENT_TOOLS = {'Agent', 'Task'}
 VERIFIER_MARKER = 'INDEPENDENT VERIFIER'  # first words of the independent-check template
 # Below this many changed code lines in a turn, the edit counts as trivial for the independent check.
 CHECK_MIN_LINES = 5
+PROBE_REGISTRY = '.harness/probes.json'
+VERDICT = re.compile(r'\{\s*"verdict".*\}')
 DOC_SUFFIXES = {'.md', '.markdown', '.mdx', '.txt', '.rst', '.adoc'}
 # Segments that inspect or record but do not exercise behavior.
 INSPECTION = re.compile(r'^\s*(?:git\s+(?:status|diff|log|show|add|commit|branch|rev-parse|restore|stash|checkout)\b'
@@ -52,9 +55,26 @@ def changed_lines(name, arguments):
     return str(text or '').count('\n') + 1
 
 
+def reported_violations(content):
+    """Violation count in the verifier's final JSON line; an incomplete verdict counts at least one."""
+    if isinstance(content, list):
+        content = '\n'.join(str(block.get('text') or '') for block in content if isinstance(block, dict))
+    for match in reversed(VERDICT.findall(str(content or ''))):
+        try:
+            report = json.loads(match)
+        except ValueError:
+            continue
+        if isinstance(report, dict) and report.get('verdict') == 'incomplete':
+            violations = report.get('violations')
+            return max(len(violations) if isinstance(violations, list) else 0, 1)
+        return 0
+    return 0
+
+
 def turn_events(transcript):
-    """Edits (with changed line counts), executions and verifier launches after the latest human prompt."""
-    events = []
+    """Edits (with changed line counts), executions, verifier launches and their reported violations
+    after the latest human prompt."""
+    events, verifiers = [], set()
     for line in transcript.read_text(encoding='utf-8', errors='replace').splitlines():
         try:
             entry = json.loads(line)
@@ -67,7 +87,12 @@ def turn_events(transcript):
         if entry.get('type') == 'user' and not entry.get('isMeta') and (
                 isinstance(content, str) or isinstance(content, list) and any(
                     isinstance(block, dict) and block.get('type') == 'text' for block in content)):
-            events = []
+            events, verifiers = [], set()
+            continue
+        if entry.get('type') == 'user' and isinstance(content, list):
+            events.extend(('violations', '', reported_violations(block.get('content'))) for block in content
+                          if isinstance(block, dict) and block.get('type') == 'tool_result'
+                          and block.get('tool_use_id') in verifiers)
             continue
         if entry.get('type') != 'assistant' or not isinstance(content, list):
             continue
@@ -83,6 +108,7 @@ def turn_events(transcript):
                 events.extend((kind, value, 1) for kind, value in shell_events(str(arguments.get('command') or '')))
             elif block.get('name') in AGENT_TOOLS and VERIFIER_MARKER in str(arguments.get('prompt') or ''):
                 events.append(('verify', '', 0))
+                verifiers.add(block.get('id'))
     return events
 
 
@@ -124,6 +150,17 @@ def unchecked_lines(events, root):
     return 0 if verified else lines
 
 
+def unregistered_violations(events, root):
+    """Reported verifier violations with no edit to the probe registry after the report."""
+    count = 0
+    for kind, value, n in events:
+        if kind == 'violations':
+            count += n
+        elif kind == 'edit' and code_file(value, root) == PROBE_REGISTRY:
+            count = 0
+    return count
+
+
 def guard(payload):
     if payload.get('stop_hook_active') or os.environ.get('AGENT_COMPLETION_GUARD', '').lower() == 'off':
         return {}
@@ -132,6 +169,7 @@ def guard(payload):
         return {}
     events, root = turn_events(Path(transcript)), Path(cwd).resolve()
     pending, lines = unobserved_edits(events, root), unchecked_lines(events, root)
+    violations = unregistered_violations(events, root)
     reasons = []
     if pending:
         shown = ', '.join(pending[:5]) + (f' (+{len(pending) - 5} more)' if len(pending) > 5 else '')
@@ -142,6 +180,10 @@ def guard(payload):
         reasons.append(f'{lines} changed code line(s) were not handed to an independent verifier. Launch one with only '
                        "the user's request verbatim and the diff (agent-workflow references/independent-check.md), "
                        'or state on the card why the change is trivial.')
+    if violations:
+        reasons.append(f'The independent verifier reported {violations} violation(s) and {PROBE_REGISTRY} was not '
+                       'updated afterwards. Register each violation you fixed as a probe (origin "independent-check") '
+                       'and run probe_check.py probes, or state on the card why none was a requested-behavior defect.')
     if not reasons:
         return {}
     return {'decision': 'block', 'reason': 'Completion guard: ' + ' '.join(reasons) + ' This guard blocks once.'}
