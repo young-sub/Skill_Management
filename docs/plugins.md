@@ -274,6 +274,32 @@ to state why none was a requested-behavior defect. The probe report's *Origins* 
 counts killed/total per origin, and answered user decisions go to `.harness/decisions.md`,
 which the next verifier reads ([recorded decisions](../authoring/references/independent-check.md#recorded-decisions)).
 
+Since 0.1.94 the size of a turn's change no longer depends on how it was written. A
+real Claude Code session edited only through `cat > file <<'EOF'` and a
+`python - <<'EOF'` script that called `open(p, 'w')`; 61 code lines changed and the
+guard stayed silent, because a shell write counted as one line and the script was not
+seen as writing. Now a heredoc written to a file counts its body lines (like the Write
+tool's content); PowerShell writes take `-Path` anywhere or the first positional
+argument; `cd` within a command is followed; an empty heredoc no longer swallows the
+next one. An interpreter script (heredoc, `-c`, `-e`) is still an execution, and one
+with a file-write call, or whose output is redirected into a file, also marks the turn
+as having written. When the turn wrote anything, the count is the larger of the
+transcript's and read-only `git diff --numstat -z` (plus untracked text files) for the
+files that belong to the turn: those it named, and, using the prompt's transcript
+timestamp, those modified since the turn started. Earlier turns' uncommitted changes
+and build output therefore do not count, and a commit within the turn is measured from
+the commit before it. Without a timestamp the guard falls back to the paths a script's
+write calls name. `.log`/`.out` files are output, not code; a report a verification
+script writes counts only when it is not gitignored. Without Git the transcript count
+stays. The block names the installed template path, so an Agent that never loaded the
+Skill can still launch the verifier. Independent verifiers found missed and regressed
+paths in three rounds of this change and none in a fourth; their tests are kept as
+`tests/distribution/test_completion_guard_{edit_paths,rework_regressions,script_targets,turn_mtime}.py`.
+Known limits: deleted files have no modification time and are not counted; `git stash`
+and `pop` within a turn refresh earlier changes' times, and the timestamp-less fallback
+lets a script with run-time paths claim every changed file. Both over-count by at most
+one block.
+
 OpenAI documents plugin hooks and a separate trust review before command hooks
 run ([plugin packaging](https://developers.openai.com/plugins/build/plugins),
 [hook lifecycle](https://learn.chatgpt.com/docs/hooks)). The local Codex 0.160.0
