@@ -4,3 +4,5 @@ plugins/agentic-coding/** -text whitespace=trailing-space,space-before-tab,cr-at
 
 # Evaluation assets keep byte-exact patches and logs (unified diffs need leading-space context lines).
 evals/** -whitespace
+# Rebuilt attempt patches mix LF and CRLF lines; keep their bytes for git apply.
+evals/failure-replay/attempts/*.patch -text
