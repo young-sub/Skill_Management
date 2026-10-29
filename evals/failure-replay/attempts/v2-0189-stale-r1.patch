@@ -1,0 +1,166 @@
+diff --git a/docs/product-architecture.md b/docs/product-architecture.md
+index f1fb1a3..9958918 100644
+--- a/docs/product-architecture.md
++++ b/docs/product-architecture.md
+@@ -749,6 +749,7 @@ draft가 없어도 외부 검토자는 한 locale의 상품명·설명 번역과
+ - 승인 transaction은 승인본 upsert 후 현재 draft를 삭제한다. review는 translation hash에 연결해 보존하므로 승인 상세와 과거 print snapshot의 근거로 조회할 수 있다.
+ - 새 draft를 만드는 동안 기존 승인본은 유지된다. 원문 hash가 같으면 계속 인쇄 가능하다.
+ - 원문이 바뀌면 기존 승인본은 보존되지만 stale이 되어 인쇄에 사용하지 않는다.
++- 상품 직접 수정, 상품 XLSX 일괄 수정, 백업 복원 모두 같은 규칙이다. 이름·설명이 바뀌면 승인 문구는 그대로 보이되 상품 상태는 `원문 변경`, 번역 항목은 `stale: true`가 된다. 가격 옵션만 바뀌면 `번역 완료`를 유지한다. 복원은 백업 파일의 `translation_source_hash`를 신뢰하지 않고 복원될 이름·설명·분류로 다시 계산한다. 검증: `tests/productSourceStale.test.ts`.
+ 
+ ### 수정과 재검토
+ 
+diff --git a/src/worker/backup.ts b/src/worker/backup.ts
+index ac01f05..ec507a7 100644
+--- a/src/worker/backup.ts
++++ b/src/worker/backup.ts
+@@ -7,6 +7,7 @@ import { templateConfigSchema } from "../shared/template";
+ import { printQueueSchema } from "../shared/printing";
+ import { categoryDesignSchema, categoryQueueSchema, categorySnapshotSchema } from "../shared/categorySign";
+ import { fieldSourceHash } from "../shared/fieldTranslation";
++import { sourceHash } from "../shared/product";
+ import { commonPrintInputSchema, commonSnapshotSchema } from "../shared/commonPrinting";
+ import { remapCommonSet, remapCommonSnapshot } from "./commonPrintBackup";
+ import { favoriteKey, type DesignFavorite } from "../shared/designFavorite";
+@@ -383,6 +384,15 @@ async function restorePlan(env: BackupEnv, raw: unknown) {
+     domain: "products", code: "missing_category", key: product.id,
+     message: "상품이 참조하는 분류가 백업에 없습니다.",
+   });
++  // The Worker owns the source hash: a restored name, description or category
++  // makes existing approved translations stale even if the file kept an old hash.
++  const restoredCategoryNames = new Map(backup.data.categories.map((category) => [category.id, category.name_ko]));
++  for (const product of backup.data.products) {
++    const categoryNameKo = restoredCategoryNames.get(product.category_id);
++    if (categoryNameKo !== undefined) product.translation_source_hash = await sourceHash({
++      nameKo: product.name_ko, descriptionKo: product.description_ko, categoryId: product.category_id, categoryNameKo,
++    });
++  }
+   const productIds = new Set(backup.data.products.map((product) => product.id));
+   for (const phrase of backup.data.category_signs) if (phrase.category_id && !categoryIds.has(phrase.category_id)) conflicts.push({domain:"category_signs",code:"missing_category",key:phrase.id,message:"팜플렛 분류가 백업에 없습니다."});
+   const categorySignsById = new Map(currentCategorySigns.results.map((row) => [String(row.id), row]));
+diff --git a/tests/productSourceStale.test.ts b/tests/productSourceStale.test.ts
+new file mode 100644
+index 0000000..f28f85c
+--- /dev/null
++++ b/tests/productSourceStale.test.ts
+@@ -0,0 +1,120 @@
++import { fixtureFetch } from "./accountFixture";
++import { env } from "cloudflare:workers";
++import { describe, expect, it } from "vitest";
++
++// A product name/description change keeps approved copy visible but marks it
++// stale on every write path; an offer-only change leaves it complete.
++const request = (path: string, init?: RequestInit) => fixtureFetch(`http://localhost${path}`, {
++  ...init,
++  headers: init?.body ? { "content-type": "application/json", origin: "http://localhost", ...init.headers } : init?.headers,
++});
++const send = async (path: string, method: string, body: unknown) => request(path, { method, body: JSON.stringify(body) });
++const data = async (response: Response) => ((await response.json()) as any).data;
++const locales = ["en", "zh-CN", "ja"] as const;
++
++async function createProduct(nameKo: string, descriptionKo = "원래 설명") {
++  const response = await send("/api/products", "POST", {
++    categoryId: "category-supplements", nameKo, descriptionKo, offers: [{ quantity: 1, unitCode: "bottle", priceKrw: 3000 }],
++  });
++  expect(response.status).toBe(201);
++  return data(response);
++}
++
++async function approve(product: { id: string; sourceHash: string }) {
++  const timestamp = new Date().toISOString();
++  await (env as Env).DB.batch(locales.map((locale) => (env as Env).DB.prepare(`INSERT INTO product_localizations
++    (product_id, locale, name, description, source_hash, translation_hash, origin, provider, model, approved_by, approved_at, updated_at)
++    VALUES (?, ?, ?, ?, ?, ?, 'manual', NULL, NULL, 'reviewer@example.com', ?, ?)
++    ON CONFLICT(product_id, locale) DO UPDATE SET name=excluded.name, description=excluded.description, source_hash=excluded.source_hash,
++      translation_hash=excluded.translation_hash, approved_at=excluded.approved_at, updated_at=excluded.updated_at`)
++    .bind(product.id, locale, `Approved ${locale}`, `Approved copy ${locale}`, product.sourceHash, `approved-${locale}`, timestamp, timestamp)));
++}
++
++async function expectTranslations(id: string, stale: boolean) {
++  const product = await data(await request(`/api/products/${id}`));
++  expect(product.translationStatus).toBe(stale ? "원문 변경" : "번역 완료");
++  const detail = await data(await request(`/api/translations/fields/product/${id}`));
++  for (const locale of locales) {
++    expect(detail.fields.name.locales[locale]).toMatchObject({ text: `Approved ${locale}`, stale });
++    expect(detail.fields.description.locales[locale]).toMatchObject({ text: `Approved copy ${locale}`, stale });
++  }
++  const stored = await (env as Env).DB.prepare("SELECT locale, name, description FROM product_localizations WHERE product_id = ? ORDER BY locale")
++    .bind(id).all<{ locale: string; name: string; description: string }>();
++  expect(stored.results).toEqual([...locales].sort().map((locale) => ({ locale, name: `Approved ${locale}`, description: `Approved copy ${locale}` })));
++  return product;
++}
++
++const importRow = (product: any, changes: Record<string, unknown>) => ({
++  rowNumber: 2, productId: product.id, currentVersion: product.version, categoryNameKo: "영양제",
++  nameKo: product.nameKo, descriptionKo: product.descriptionKo, priceKrw: 3000, unitLabel: "병", ...changes,
++});
++
++describe("approved translations after a product source change", () => {
++  it("marks approved copy stale after a direct name or description edit and keeps it complete after an offer-only edit", async () => {
++    for (const change of [{ nameKo: "직접 변경 이름" }, { descriptionKo: "직접 변경 설명" }]) {
++      const product = await createProduct(`직접 수정 ${crypto.randomUUID()}`);
++      await approve(product);
++      await expectTranslations(product.id, false);
++      const response = await send(`/api/products/${product.id}`, "PATCH", { expectedVersion: product.version, ...change });
++      expect(response.status).toBe(200);
++      await expectTranslations(product.id, true);
++    }
++    const product = await createProduct(`가격만 수정 ${crypto.randomUUID()}`);
++    await approve(product);
++    const response = await send(`/api/products/${product.id}`, "PATCH", {
++      expectedVersion: product.version, offers: [{ quantity: 1, unitCode: "bottle", priceKrw: 4500 }, { quantity: 3, unitCode: "bottle", priceKrw: 12000 }],
++    });
++    expect(response.status).toBe(200);
++    await expectTranslations(product.id, false);
++  });
++
++  it("applies the same rule to spreadsheet updates", async () => {
++    for (const change of [{ nameKo: `엑셀 변경 이름 ${crypto.randomUUID()}` }, { descriptionKo: "엑셀 변경 설명" }, { priceKrw: 9900 }]) {
++      const product = await createProduct(`엑셀 수정 ${crypto.randomUUID()}`);
++      await approve(product);
++      const rows = [importRow(product, change)];
++      expect((await data(await send("/api/product-import/preview", "POST", { rows }))).updateRows).toBe(1);
++      const applied = await send("/api/product-import/apply", "POST", { rows });
++      expect(applied.status).toBe(200);
++      expect((await data(applied)).updatedRows).toBe(1);
++      const current = await expectTranslations(product.id, !("priceKrw" in change));
++      if ("priceKrw" in change) expect(current.offers).toMatchObject([{ priceKrw: 9900 }]);
++    }
++  });
++
++  it("applies the same rule to backup restores", async () => {
++    const restore = async (backup: unknown) => {
++      const applied = await send("/api/admin/restore/apply", "POST", { mode: "update", backup });
++      expect(applied.status).toBe(200);
++    };
++    // A backup taken before the source was edited and approved restores the old source.
++    for (const change of [{ nameKo: `복원 후 이름 ${crypto.randomUUID()}` }, { descriptionKo: "복원 후 설명" }]) {
++      const product = await createProduct(`복원 ${crypto.randomUUID()}`);
++      const backup = await (await request("/api/admin/backup")).json();
++      const edited = await data(await send(`/api/products/${product.id}`, "PATCH", { expectedVersion: product.version, ...change }));
++      await approve(edited);
++      await expectTranslations(product.id, false);
++      await restore(backup);
++      expect(await data(await request(`/api/products/${product.id}`))).toMatchObject({ nameKo: product.nameKo, descriptionKo: product.descriptionKo });
++      await expectTranslations(product.id, true);
++    }
++    // An edited backup file cannot keep the old source hash for a new source.
++    const product = await createProduct(`복원 파일 수정 ${crypto.randomUUID()}`);
++    await approve(product);
++    const edited = (await (await request("/api/admin/backup")).json()) as any;
++    const row = edited.data.products.find((item: any) => item.id === product.id);
++    row.name_ko = `${product.nameKo} 파일 변경`; row.name_ko_normalized = row.name_ko.toLocaleLowerCase("ko"); row.description_ko = "파일 변경 설명";
++    await restore(edited);
++    expect(await data(await request(`/api/products/${product.id}`))).toMatchObject({ nameKo: row.name_ko, descriptionKo: "파일 변경 설명" });
++    await expectTranslations(product.id, true);
++    // A restore that only changes offers leaves approved copy complete.
++    const priced = await createProduct(`복원 가격 ${crypto.randomUUID()}`);
++    await approve(priced);
++    const priceBackup = (await (await request("/api/admin/backup")).json()) as any;
++    for (const offer of priceBackup.data.product_offers.filter((item: any) => item.product_id === priced.id)) {
++      offer.price_krw = 7700; offer.price_minor = 770000;
++    }
++    await restore(priceBackup);
++    expect((await expectTranslations(priced.id, false)).offers).toMatchObject([{ priceKrw: 7700 }]);
++  });
++});

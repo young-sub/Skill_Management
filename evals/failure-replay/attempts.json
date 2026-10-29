@@ -1,0 +1,167 @@
+{
+  "note": "Plugin-ON attempts replayed offline. 'failure' rows are every valid ON false completion caused by a missed alternate write path; 'control' rows are verified successes of the same scenarios and plugin generation, used to count harm. Transcripts live under %TEMP% and .work and may expire; the rebuilt patches in attempts/ are the durable input.",
+  "attempts": [
+    {
+      "id": "v1-0188-rule-r2",
+      "kind": "failure",
+      "plugin": "0.1.88",
+      "suite": "evals/delegation-v1/scenarios.json",
+      "scenario": "rule-all-paths",
+      "missed_path": "copy (legacy product duplicate)",
+      "recorded": {
+        "regression": true,
+        "hidden": false
+      },
+      "transcripts": [
+        "C:/Users/YS/AppData/Local/Temp/claude/delegation-eval-run3/rule-all-paths/lean/rep2/session1.jsonl"
+      ],
+      "missed_markers": [
+        "duplicateProduct"
+      ]
+    },
+    {
+      "id": "v1-0187-rule-r1",
+      "kind": "failure",
+      "plugin": "0.1.87",
+      "suite": "evals/delegation-v1/scenarios.json",
+      "scenario": "rule-all-paths",
+      "missed_path": "backup restore (update/overwrite)",
+      "recorded": {
+        "regression": true,
+        "hidden": false
+      },
+      "transcripts": [
+        "C:/Users/YS/AppData/Local/Temp/claude/delegation-eval-run5-v087/rule-all-paths/v087/rep1/session1.jsonl"
+      ],
+      "missed_markers": [
+        "src/worker/backup.ts"
+      ]
+    },
+    {
+      "id": "v1-0187-rule-r2",
+      "kind": "failure",
+      "plugin": "0.1.87",
+      "suite": "evals/delegation-v1/scenarios.json",
+      "scenario": "rule-all-paths",
+      "missed_path": "backup restore (update/overwrite)",
+      "recorded": {
+        "regression": true,
+        "hidden": false
+      },
+      "transcripts": [
+        "C:/Users/YS/AppData/Local/Temp/claude/delegation-eval-run5-v087/rule-all-paths/v087/rep2/session1.jsonl"
+      ],
+      "missed_markers": [
+        "src/worker/backup.ts"
+      ]
+    },
+    {
+      "id": "v2-0189-rule-r1",
+      "kind": "failure",
+      "plugin": "0.1.89",
+      "suite": "evals/delegation-v2/scenarios.json",
+      "scenario": "rule-all-paths",
+      "missed_path": "copy (legacy product duplicate)",
+      "recorded": {
+        "regression": true,
+        "hidden": false
+      },
+      "transcripts": [
+        "C:/Users/YS/Desktop/python/Skill_Management/.work/delegation-eval/v2-0189-20261025-resume2/rule-all-paths/lean/rep1/session1.jsonl"
+      ],
+      "missed_markers": [
+        "duplicateProduct"
+      ]
+    },
+    {
+      "id": "v2-0189-rule-r2",
+      "kind": "failure",
+      "plugin": "0.1.89",
+      "suite": "evals/delegation-v2/scenarios.json",
+      "scenario": "rule-all-paths",
+      "missed_path": "copy (legacy product duplicate)",
+      "recorded": {
+        "regression": true,
+        "hidden": false
+      },
+      "transcripts": [
+        "C:/Users/YS/Desktop/python/Skill_Management/.work/delegation-eval/v2-0189-20261025-resume2/rule-all-paths/lean/rep2/session1.jsonl"
+      ],
+      "missed_markers": [
+        "duplicateProduct"
+      ]
+    },
+    {
+      "id": "v2-0189-stale-r2",
+      "kind": "failure",
+      "plugin": "0.1.89",
+      "suite": "evals/delegation-v2/scenarios.json",
+      "scenario": "a-product-source-stale-all-paths",
+      "missed_path": "backup restore (name/description change)",
+      "recorded": {
+        "regression": true,
+        "hidden": false
+      },
+      "transcripts": [
+        "C:/Users/YS/Desktop/python/Skill_Management/.work/delegation-eval/v2-0189-20261025-resume2/a-product-source-stale-all-paths/lean/rep2/session1.jsonl"
+      ],
+      "missed_markers": [
+        "src/worker/backup.ts"
+      ]
+    },
+    {
+      "id": "v1-0188-rule-r1",
+      "kind": "control",
+      "plugin": "0.1.88",
+      "suite": "evals/delegation-v1/scenarios.json",
+      "scenario": "rule-all-paths",
+      "recorded": {
+        "regression": true,
+        "hidden": true
+      },
+      "transcripts": [
+        "C:/Users/YS/AppData/Local/Temp/claude/delegation-eval-run3/rule-all-paths/lean/rep1/session1.jsonl"
+      ],
+      "missed_markers": [
+        "duplicateProduct",
+        "src/worker/backup.ts"
+      ]
+    },
+    {
+      "id": "v1-0188-rule-r3",
+      "kind": "control",
+      "plugin": "0.1.88",
+      "suite": "evals/delegation-v1/scenarios.json",
+      "scenario": "rule-all-paths",
+      "recorded": {
+        "regression": true,
+        "hidden": true
+      },
+      "transcripts": [
+        "C:/Users/YS/AppData/Local/Temp/claude/delegation-eval-run4-rep3/rule-all-paths/lean/rep1/session1.jsonl"
+      ],
+      "missed_markers": [
+        "duplicateProduct",
+        "src/worker/backup.ts"
+      ]
+    },
+    {
+      "id": "v2-0189-stale-r1",
+      "kind": "control",
+      "plugin": "0.1.89",
+      "suite": "evals/delegation-v2/scenarios.json",
+      "scenario": "a-product-source-stale-all-paths",
+      "recorded": {
+        "regression": true,
+        "hidden": true
+      },
+      "transcripts": [
+        "C:/Users/YS/Desktop/python/Skill_Management/.work/delegation-eval/v2-0189-20261024-run/cells/a-product-source-stale-all-paths/lean/rep1/session1.jsonl"
+      ],
+      "missed_markers": [
+        "duplicateProduct",
+        "src/worker/backup.ts"
+      ]
+    }
+  ]
+}

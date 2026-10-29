@@ -1,0 +1,310 @@
+diff --git a/docs/product-architecture.md b/docs/product-architecture.md
+index f1fb1a3..d8f485d 100644
+--- a/docs/product-architecture.md
++++ b/docs/product-architecture.md
+@@ -487,7 +487,7 @@ Cloudflare Worker
+ 
+ - 활성 분류
+ - 한국어 상품명: trim 후 1–100자
+-- 한국어 설명: trim 후 1–500자
++- 한국어 설명: trim 후 1–300자. 직접 등록·수정, 엑셀 가져오기, 상품 DB에서 추가, 복사 모두 300자를 넘으면 저장하지 않는다. 한도 이전에 저장된 300자 초과 설명은 그대로 보존·인쇄·백업 복원되지만, 설명을 수정해 저장하거나 복사하려면 300자 이내로 줄여야 한다.
+ - 단품 가격: 0–99,999,999 정수 원
+ - 단품 수량: 1–999 정수
+ - 단위: 지원 unit 또는 `직접 입력`
+diff --git a/docs/product-catalog-implementation.md b/docs/product-catalog-implementation.md
+index b6f365e..e5eaff8 100644
+--- a/docs/product-catalog-implementation.md
++++ b/docs/product-catalog-implementation.md
+@@ -105,7 +105,7 @@ I0030은 국내 제조 신고 품목의 범위다. 원료용·수출용·생산
+ 
+ - 날짜 `YYYYMMDD`와 `YYYY-MM-DD`를 정규화하되 원본 값도 유지한다. 원본 수정일과 수집 성공일을 분리한다. 잘못된 날짜는 현재 시각으로 대체하지 않는다.
+ - HTML/XML의 표시용 텍스트와 원본 제품 필드를 분리한다. 함량·숫자·단위·제형·효능의 대상과 제한을 보존한다. 공용 DB의 내용 비교는 실제 값으로 수행하고 내용 해시는 저장하지 않는다.
+-- 현재 계정 상품명 한도 100자, 설명 한도 500자를 유지한다. 검색용 원본명과 라벨 표시명은 구분할 수 있다. 긴 상품명을 잘라 함량을 잃거나 동명 제품으로 합치지 않는다.
++- 현재 계정 상품명 한도 100자, 설명 한도 300자를 유지한다(2026-10-24에 500자에서 축소). 승인된 공용 설명이 300자를 넘으면 계정에 추가하기 전에 300자 이내로 줄여야 한다. 검색용 원본명과 라벨 표시명은 구분할 수 있다. 긴 상품명을 잘라 함량을 잃거나 동명 제품으로 합치지 않는다.
+ - 짧은 공식 설명은 원문 유지 상태와 출처를 표시한다. 자동 공개는 명시된 품질 규칙을 통과한 공식 원문에 한하고 적용한 규칙 버전을 남긴다. 충돌·누락·이상 문구는 검토 대기다. 짧다는 이유만으로 의미 검증을 생략하지 않는다.
+ - 긴 설명은 DB에 원문과 준비 상태를 남기고 승인된 짧은 버전만 기본값으로 공개한다. 새 리뷰 JSON은 만들지 않는다. 검수되지 않은 상품은 원문 확인과 설명 수기 입력을 제공한다. 이름·식별정보가 검증되면 설명 미준비 상품도 검색 가능하다.
+ - 원료용·수출용·종료·취소·전문약·식별 충돌은 국내 판매용 공개 기준으로 분류한다. 상세 상태가 미확인인 품목은 확인 필요 상태를 보여 준다.
+diff --git a/src/client/GuestApp.tsx b/src/client/GuestApp.tsx
+index 2e7f7e9..74d9ac4 100644
+--- a/src/client/GuestApp.tsx
++++ b/src/client/GuestApp.tsx
+@@ -3,6 +3,7 @@ import { HeaderTools } from './HeaderTools';
+ import { lazy, Suspense, useState } from "react";
+ import { Check, PackagePlus } from "lucide-react";
+ import type { Product } from "./api";
++import { MAX_PRODUCT_DESCRIPTION_LENGTH } from "../shared/product";
+ import { GuestPrint } from "./GuestPrint";
+ import type { DesignSelection } from "./CommonDesignWorkspace";
+ import type { CommonLibraryAction } from "./CommonDesignLibrary";
+@@ -67,7 +68,7 @@ export function GuestApp({ onExit, previewRole }: { onExit: () => void; previewR
+       {notice && <p className="notice" role="status"><Check size={18} />{notice}</p>}
+       <section className="product-summary"><span><strong>{products.length}</strong>임시 상품</span><span><strong>{3 - products.length}</strong>추가 가능</span></section>
+       <section className="product-surface"><div className="table-wrap"><table><thead><tr><th>상품명</th><th>분류</th><th>가격</th><th>번역</th><th>상태</th><th>작업</th></tr></thead><tbody>{products.map(product => <tr key={product.id}><td><strong>{product.nameKo}</strong><span>{product.descriptionKo}</span></td><td>{product.categoryNameKo}</td><td>{product.offers[0].quantity}개 · {product.offers[0].priceKrw.toLocaleString()}원</td><td><span className={`badge ${product.translationStatus === "번역 완료" ? "success" : "warning"}`}>● {product.translationStatus}</span></td><td><span className="badge success">● 사용중</span></td><td><button className="secondary-button" onClick={() => openForm(product)}>수정</button> <button className="secondary-button" disabled={products.length >= 3} onClick={() => duplicate(product)}>복사</button></td></tr>)}</tbody></table></div></section>
+-      {editingId !== null && <section className="guest-form" aria-label="임시 상품 편집"><h2>{editingId ? "상품 수정" : "상품 추가"}</h2><p>입력한 내용은 새로고침하면 사라집니다.</p><form onSubmit={event => { event.preventDefault(); save(); }}><label>한국어 상품명<input required maxLength={100} value={draft.nameKo} onChange={event => setDraft({ ...draft, nameKo: event.target.value })} /></label><label>한국어 설명<textarea required maxLength={500} value={draft.descriptionKo} onChange={event => setDraft({ ...draft, descriptionKo: event.target.value })} /></label><label>단품 가격 (원)<input type="number" min="0" required value={draft.priceKrw} onChange={event => setDraft({ ...draft, priceKrw: event.target.value })} /></label><div className="form-actions"><button type="button" className="secondary-button" onClick={() => setEditingId(null)}>취소</button><button className="primary-button">임시 저장</button></div></form></section>}
++      {editingId !== null && <section className="guest-form" aria-label="임시 상품 편집"><h2>{editingId ? "상품 수정" : "상품 추가"}</h2><p>입력한 내용은 새로고침하면 사라집니다.</p><form onSubmit={event => { event.preventDefault(); save(); }}><label>한국어 상품명<input required maxLength={100} value={draft.nameKo} onChange={event => setDraft({ ...draft, nameKo: event.target.value })} /></label><label>한국어 설명<textarea required maxLength={MAX_PRODUCT_DESCRIPTION_LENGTH} value={draft.descriptionKo} onChange={event => setDraft({ ...draft, descriptionKo: event.target.value })} /></label><label>단품 가격 (원)<input type="number" min="0" required value={draft.priceKrw} onChange={event => setDraft({ ...draft, priceKrw: event.target.value })} /></label><div className="form-actions"><button type="button" className="secondary-button" onClick={() => setEditingId(null)}>취소</button><button className="primary-button">임시 저장</button></div></form></section>}
+     </main>}
+     {view === "translations" && <Suspense fallback={<main className="workspace">번역 화면을 여는 중입니다…</main>}><GuestTranslationManager readOnly previewOnly={previewRole === "developer" || previewRole === "operator"} demoProducts={products} privateDeepLKey="" onPrivateDeepLKeyChange={() => undefined} /></Suspense>}
+     {visited.includes("templates") && <div className="route-cache" hidden={view !== "templates"}><Suspense fallback={<main className="workspace">디자인 화면을 여는 중입니다…</main>}><CommonDesignWorkspace active={view === "templates"} paid localOnly mode={designMode} onMode={setDesignMode} selection={designSelection} onDirtyChange={setDesignDirty} onLibrary={() => nav("library")} /></Suspense></div>}
+diff --git a/src/client/ProductCatalogFinder.tsx b/src/client/ProductCatalogFinder.tsx
+index b857292..64fed03 100644
+--- a/src/client/ProductCatalogFinder.tsx
++++ b/src/client/ProductCatalogFinder.tsx
+@@ -6,7 +6,7 @@ import { ProductForm } from "./ProductForm";
+ import { DebouncedSearchInput } from "./DebouncedSearchInput";
+ import { CategorySelects } from "./CategorySelects";
+ import { PageSelection } from "./PageSelection";
+-import { UNIT_LABELS } from "../shared/product";
++import { MAX_PRODUCT_DESCRIPTION_LENGTH, PRODUCT_DESCRIPTION_LENGTH_MESSAGE, UNIT_LABELS } from "../shared/product";
+ import { CATALOG_ADD_BATCH_SIZE } from "../shared/productCatalog";
+ 
+ const PAGE_SIZE = 20;
+@@ -61,7 +61,7 @@ export function catalogDraftError(draft: ProductCatalogDraft): string | null {
+   if (!draft.nameKo.trim()) return "상품명을 입력해 주세요.";
+   if (draft.nameKo.trim().length > 100) return "상품명은 100자 이내로 입력해 주세요.";
+   if (!draft.descriptionKo.trim()) return "설명을 입력해 주세요.";
+-  if (draft.descriptionKo.trim().length > 500) return "설명은 500자 이내로 입력해 주세요.";
++  if (draft.descriptionKo.trim().length > MAX_PRODUCT_DESCRIPTION_LENGTH) return PRODUCT_DESCRIPTION_LENGTH_MESSAGE;
+   const quantity = Number(draft.quantity);
+   if (!Number.isInteger(quantity) || quantity < 1 || quantity > 999) return "판매 수량을 1개 이상 입력해 주세요.";
+   if (!draft.unitCode) return "판매 단위를 선택해 주세요.";
+@@ -490,7 +490,7 @@ export function ProductCatalogFinder({ categories, onClose, onApplied, onManualA
+             <fieldset className="product-catalog-entry-grid" disabled={busy || manualMode || inputHidden}>
+               <div className="product-catalog-wide"><span className="product-catalog-field-label">계정 분류</span><CategorySelects categories={categories} value={draft.categoryId} onChange={(value) => updateDraft(item.id, "categoryId", value)} mode="form" /></div>
+               <label>상품명<input required maxLength={100} value={draft.nameKo} onChange={(event) => updateDraft(item.id, "nameKo", event.target.value)} /></label>
+-              <label>설명<textarea required maxLength={500} rows={3} value={draft.descriptionKo} onChange={(event) => updateDraft(item.id, "descriptionKo", event.target.value)} /></label>
++              <label>설명<textarea required maxLength={MAX_PRODUCT_DESCRIPTION_LENGTH} rows={3} value={draft.descriptionKo} onChange={(event) => updateDraft(item.id, "descriptionKo", event.target.value)} /></label>
+               <label>포장 규격<select value={draft.packageId || CUSTOM_PACKAGE_ID} onChange={(event) => choosePackage(item.id, event.target.value)}><option value={CUSTOM_PACKAGE_ID}>{packages.length ? "수기 입력" : "포장 미확인 · 수기 입력"}</option>{packages.map((pack) => <option key={pack.id} value={pack.id}>{catalogPackageOptionLabel(pack)}</option>)}</select></label>
+               <label>판매 규격 메모<input value={draft.packageKo} onChange={(event) => updateDraft(item.id, "packageKo", event.target.value)} placeholder="예: 10정/상자" /></label>
+               <label>판매 수량<input required min={1} max={999} type="number" inputMode="numeric" value={draft.quantity} onChange={(event) => updateDraft(item.id, "quantity", event.target.value)} placeholder="예: 1" /></label>
+diff --git a/src/client/ProductForm.tsx b/src/client/ProductForm.tsx
+index 5f6c68e..1e5e3eb 100644
+--- a/src/client/ProductForm.tsx
++++ b/src/client/ProductForm.tsx
+@@ -1,7 +1,7 @@
+ import { TutorialEntry } from "./TutorialEntry";
+ import { useId, useLayoutEffect, useRef, useState, type FormEvent } from "react";
+ import { Plus, Trash2, X } from "lucide-react";
+-import { MAX_PRODUCT_OFFERS, PRODUCT_CURRENCIES, UNIT_LABELS } from "../shared/product";
++import { MAX_PRODUCT_DESCRIPTION_LENGTH, MAX_PRODUCT_OFFERS, PRODUCT_CURRENCIES, UNIT_LABELS } from "../shared/product";
+ import type { Category, Product } from "./api";
+ import { CategorySelects } from "./CategorySelects";
+ 
+@@ -80,7 +80,7 @@ export function ProductForm({ categories, product, saving, onClose, onSave, prev
+         {error && <div className="form-error" role="alert">{error}</div>}
+         <CategorySelects categories={categories} value={value.categoryId} onChange={(categoryId) => set("categoryId", categoryId)} mode="form" />
+         <label>한국어 상품명<input required maxLength={100} onBlur={() => onTutorialField?.("nameKo", value.nameKo)} data-tutorial={onTutorialField ? "product-nameKo" : undefined} value={value.nameKo} onChange={(event) => set("nameKo", event.target.value)} placeholder="예: 마그랑비" /></label>
+-        <label>한국어 설명<textarea aria-label="한국어 설명" aria-describedby={descriptionHint} required maxLength={500} rows={4} onBlur={() => onTutorialField?.("descriptionKo", value.descriptionKo)} data-tutorial={onTutorialField ? "product-descriptionKo" : undefined} value={value.descriptionKo} onChange={(event) => set("descriptionKo", event.target.value)} placeholder="라벨에 표시할 짧은 설명" /><small id={descriptionHint}>고객 이름이나 연락처 같은 개인정보는 입력하지 마세요.</small></label>
++        <label>한국어 설명<textarea aria-label="한국어 설명" aria-describedby={descriptionHint} required maxLength={MAX_PRODUCT_DESCRIPTION_LENGTH} rows={4} onBlur={() => onTutorialField?.("descriptionKo", value.descriptionKo)} data-tutorial={onTutorialField ? "product-descriptionKo" : undefined} value={value.descriptionKo} onChange={(event) => set("descriptionKo", event.target.value)} placeholder="라벨에 표시할 짧은 설명" /><small id={descriptionHint}>고객 이름이나 연락처 같은 개인정보는 입력하지 마세요.</small></label>
+         <label>가격 통화<select aria-label="가격 통화" value={value.currencyCode} onChange={(event) => set("currencyCode", event.target.value)}>{PRODUCT_CURRENCIES.map((code) => <option key={code} value={code}>{code === "KRW" ? "원 (KRW)" : code}</option>)}</select></label>
+         <div className="two-columns">
+           <label>단품 수량<input required min={1} max={999} inputMode="numeric" type="number" onBlur={() => onTutorialField?.("singleQuantity", value.singleQuantity)} data-tutorial={onTutorialField ? "product-singleQuantity" : undefined} value={value.singleQuantity} onChange={(event) => set("singleQuantity", event.target.value)} /></label>
+diff --git a/src/shared/product.ts b/src/shared/product.ts
+index 039c221..ce1711f 100644
+--- a/src/shared/product.ts
++++ b/src/shared/product.ts
+@@ -17,10 +17,14 @@ export const LEGACY_PRODUCT_XLSX_HEADERS = [
+ ] as const;
+ export const PRODUCT_XLSX_ROW_KIND_HEADER = "_row_kind";
+ export const MAX_PRODUCT_OFFERS = 10;
++export const MAX_PRODUCT_DESCRIPTION_LENGTH = 300;
++export const PRODUCT_DESCRIPTION_LENGTH_MESSAGE = `설명은 ${MAX_PRODUCT_DESCRIPTION_LENGTH}자 이내로 입력해 주세요.`;
+ export const PRODUCT_CURRENCIES = ["KRW", "USD", "CNY", "JPY", "EUR"] as const;
+ export type ProductCurrency = typeof PRODUCT_CURRENCIES[number];
+ export const formatProductPrice = (amount: number, currency: ProductCurrency = "KRW") => `${amount.toLocaleString("ko-KR", { minimumFractionDigits: currency === "KRW" ? 0 : 2, maximumFractionDigits: 2 })}${currency === "KRW" ? "원" : ` ${currency}`}`;
+ 
++export const productDescriptionSchema = z.string().trim().min(1).max(MAX_PRODUCT_DESCRIPTION_LENGTH, PRODUCT_DESCRIPTION_LENGTH_MESSAGE);
++
+ const unitCode = z.enum(Object.keys(UNIT_LABELS) as [keyof typeof UNIT_LABELS, ...(keyof typeof UNIT_LABELS)[]]);
+ 
+ export const offerSchema = z.object({
+@@ -40,7 +44,7 @@ export const offerSchema = z.object({
+ const productFields = {
+   categoryId: z.string().min(1),
+   nameKo: z.string().trim().min(1).max(100),
+-  descriptionKo: z.string().trim().min(1).max(500),
++  descriptionKo: productDescriptionSchema,
+   templateKeyOverride: z.string().trim().min(1).optional().nullable(),
+   currencyCode: z.enum(PRODUCT_CURRENCIES).default("KRW"),
+ };
+@@ -64,7 +68,7 @@ export const updateProductSchema = z.object({
+   expectedVersion: z.number().int().min(1),
+   categoryId: z.string().min(1).optional(),
+   nameKo: z.string().trim().min(1).max(100).optional(),
+-  descriptionKo: z.string().trim().min(1).max(500).optional(),
++  descriptionKo: productDescriptionSchema.optional(),
+   templateKeyOverride: z.string().trim().min(1).optional().nullable(),
+   currencyCode: z.enum(PRODUCT_CURRENCIES).optional(),
+   offers: offersSchema.optional(),
+diff --git a/src/shared/productCatalog.ts b/src/shared/productCatalog.ts
+index ed2795a..4a2f0f2 100644
+--- a/src/shared/productCatalog.ts
++++ b/src/shared/productCatalog.ts
+@@ -1,5 +1,5 @@
+ import { z } from "zod";
+-import { normalizeText } from "./product";
++import { normalizeText, productDescriptionSchema } from "./product";
+ 
+ export const CATALOG_KINDS = ["otc", "supplement", "cosmetic"] as const;
+ export type CatalogKind = (typeof CATALOG_KINDS)[number];
+@@ -121,7 +121,7 @@ const packageOverrideSchema = z.object({
+ 
+ export const catalogAddOverrideSchema = z.object({
+   nameKo: z.string().trim().min(1).max(100).transform(normalizeText).optional(),
+-  descriptionKo: z.string().trim().min(1).max(500).transform(normalizeText).optional(),
++  descriptionKo: productDescriptionSchema.transform(normalizeText).optional(),
+   package: packageOverrideSchema.optional(),
+ }).strict();
+ 
+diff --git a/src/worker/productImport.ts b/src/worker/productImport.ts
+index 4f7a6d8..b909e32 100644
+--- a/src/worker/productImport.ts
++++ b/src/worker/productImport.ts
+@@ -1,5 +1,5 @@
+ import { owner, type AccountDatabase } from "./accountData";
+-import { UNIT_LABELS, createProductSchema, normalizeText, type ProductInput } from "../shared/product";
++import { MAX_PRODUCT_DESCRIPTION_LENGTH, UNIT_LABELS, createProductSchema, normalizeText, type ProductInput } from "../shared/product";
+ import { findProducts, prepareProductInsert, prepareProductUpdate } from "./products";
+ 
+ type ImportRow = {
+@@ -130,7 +130,7 @@ async function validateRows(db: AccountDatabase, raw: unknown, limit: number) {
+     const retainingInactiveCategory = existingById && category?.id === existingById.category_id;
+     if (!category || (!category.is_active && !retainingInactiveCategory)) messages.push("현재 사용하는 분류명을 입력해 주세요.");
+     if (!nameKo || nameKo.length > 100) messages.push("상품명은 1~100자로 입력해 주세요.");
+-    if (!descriptionKo || descriptionKo.length > 500) messages.push("설명은 1~500자로 입력해 주세요.");
++    if (!descriptionKo || descriptionKo.length > MAX_PRODUCT_DESCRIPTION_LENGTH) messages.push(`설명은 1~${MAX_PRODUCT_DESCRIPTION_LENGTH}자로 입력해 주세요.`);
+     const singleQuantity = row.singleQuantity === undefined ? 1 : row.singleQuantity;
+     if (typeof singleQuantity !== "number" || !Number.isInteger(singleQuantity) || singleQuantity < 1 || singleQuantity > 999) {
+       messages.push("단품 수량은 1~999의 숫자로 입력해 주세요.");
+diff --git a/src/worker/products.ts b/src/worker/products.ts
+index 7e51ced..7c9dca0 100644
+--- a/src/worker/products.ts
++++ b/src/worker/products.ts
+@@ -4,6 +4,7 @@ import {
+   UNIT_LABELS,
+   createProductSchema,
+   normalizeText,
++  productDescriptionSchema,
+   sourceHash,
+   updateProductSchema,
+   type ProductInput,
+@@ -262,6 +263,7 @@ export async function deleteProduct(db: AccountDatabase, id: string, raw: unknow
+ export async function duplicateProduct(db: AccountDatabase, id: string, actorEmail: string) {
+   const current = await findProduct(db, id);
+   if (!current) return null;
++  productDescriptionSchema.parse(current.descriptionKo);
+   for (let copyNumber = 1; copyNumber < 100; copyNumber += 1) {
+     const suffix = copyNumber === 1 ? " 복사본" : ` 복사본 ${copyNumber}`;
+     try {
+diff --git a/tests/product.test.ts b/tests/product.test.ts
+index f11eaf6..24c54ba 100644
+--- a/tests/product.test.ts
++++ b/tests/product.test.ts
+@@ -203,6 +203,42 @@ describe("shared product management", () => {
+     expect(((await response.json()) as any).error.message).toBe("묶음 수량과 묶음 가격을 함께 입력해 주세요.");
+   });
+ 
++  it("stores product descriptions up to 300 characters on create, update, import, and duplicate", async () => {
++    const suffix = crypto.randomUUID();
++    const body = (nameKo: string, descriptionKo: string) => JSON.stringify({
++      categoryId: "category-supplements", nameKo, descriptionKo, offers: [{ quantity: 1, unitCode: "bottle", priceKrw: 1000 }],
++    });
++    const rejected = async (response: Response) => {
++      expect(response.status).toBe(400);
++      expect(((await response.json()) as any).error.message).toBe("설명은 300자 이내로 입력해 주세요.");
++    };
++    await rejected(await request("/api/products", { method: "POST", body: body(`설명 초과 ${suffix}`, "가".repeat(301)) }));
++    const created = await request("/api/products", { method: "POST", body: body(`설명 한도 ${suffix}`, "가".repeat(300)) });
++    expect(created.status).toBe(201);
++    const product = ((await created.json()) as any).data;
++    expect(product.descriptionKo).toHaveLength(300);
++    await rejected(await request(`/api/products/${product.id}`, { method: "PATCH", body: JSON.stringify({ expectedVersion: product.version, descriptionKo: "가".repeat(301) }) }));
++
++    const rows = [{ rowNumber: 2, categoryNameKo: "영양제", nameKo: `엑셀 설명 초과 ${suffix}`, descriptionKo: "가".repeat(301), priceKrw: 1000, unitLabel: "병" }];
++    const preview = ((await (await request("/api/product-import/preview", { method: "POST", body: JSON.stringify({ rows }) })).json()) as any).data;
++    expect(preview).toMatchObject({ createRows: 0, invalidRows: 1 });
++    expect(preview.rows[0].messages).toContain("설명은 1~300자로 입력해 주세요.");
++    expect(((await (await request("/api/product-import/apply", { method: "POST", body: JSON.stringify({ rows }) })).json()) as any).data.createdRows).toBe(0);
++
++    const legacyId = `legacy-long-description-${suffix}`;
++    const timestamp = new Date().toISOString();
++    await (env as Env).DB.batch([
++      (env as Env).DB.prepare(`INSERT INTO products (id, category_id, name_ko, name_ko_normalized, description_ko, translation_source_hash, created_by, created_at, updated_by, updated_at)
++        VALUES (?, 'category-supplements', ?, ?, ?, ?, 'tester@example.com', ?, 'tester@example.com', ?)`)
++        .bind(legacyId, `기존 긴 설명 ${suffix}`, `기존 긴 설명 ${suffix}`, "가".repeat(301), `source-${legacyId}`, timestamp, timestamp),
++      (env as Env).DB.prepare(`INSERT INTO product_offers (id, product_id, sort_order, quantity, unit_code, unit_custom_ko, price_krw, price_minor, created_at, updated_at)
++        VALUES (?, ?, 0, 1, 'bottle', NULL, 1000, 100000, ?, ?)`).bind(crypto.randomUUID(), legacyId, timestamp, timestamp),
++    ]);
++    await rejected(await request(`/api/products/${legacyId}/duplicate`, { method: "POST", body: "{}" }));
++    const legacy = ((await (await request(`/api/products/${legacyId}`)).json()) as any).data;
++    expect(legacy.descriptionKo).toHaveLength(301);
++  });
++
+   it("supports three category levels, sibling names, cycle guards, and descendant filtering", async () => {
+     const suffix = crypto.randomUUID();
+     const createCategory = async (nameKo: string, parentId?: string) => {
+diff --git a/tests/productCatalog.test.ts b/tests/productCatalog.test.ts
+index 73ac1cb..02e958c 100644
+--- a/tests/productCatalog.test.ts
++++ b/tests/productCatalog.test.ts
+@@ -292,6 +292,8 @@ it("allows an unprepared public product only with an explicit account descriptio
+   const account = await createTestAccount("customer");
+   const category = (await (await account.request("/categories", "POST", { nameKo: `수기-${crypto.randomUUID()}`, sortOrder: 1 })).json() as any).data;
+   const db = accountDatabase((env as Env).DB, account.id);
++  await expect(addProductCatalog(db, { items: [{ catalogProductId: catalogId, categoryId: category.id, quantity: 1, unitCode: "box", priceKrw: 1200, override: { descriptionKo: "가".repeat(301) } }] }, account.id)).rejects.toThrow("설명은 300자 이내로 입력해 주세요.");
++  expect((await db.prepare("SELECT COUNT(*) AS count FROM products WHERE owner_id = ?").bind(account.id).first<number>("count")) ?? 0).toBe(0);
+   const result = await addProductCatalog(db, { items: [{ catalogProductId: catalogId, categoryId: category.id, quantity: 1, unitCode: "box", priceKrw: 1200, override: { descriptionKo: "계정에서 확인한 설명" } }] }, account.id);
+   expect(result.items[0]).toMatchObject({ status: "added", descriptionVersion: null });
+ });
+diff --git a/tests/translationCredits.test.ts b/tests/translationCredits.test.ts
+index 469ae91..53bca9a 100644
+--- a/tests/translationCredits.test.ts
++++ b/tests/translationCredits.test.ts
+@@ -26,6 +26,14 @@ async function fixture(role: "customer" | "developer" | "operator" = "customer",
+ const screenTarget = (id: string) => ({ kind: "product" as const, id, fields: ["name", "description"] });
+ const patchProduct = async (a: Awaited<ReturnType<typeof fixture>>, id: string, version: number, body: object) =>
+   ((await (await a.request(`/products/${id}`, "PATCH", { expectedVersion: version, ...body })).json()) as any).data;
++// Descriptions are capped at 300 characters, so 1,000 source characters span three products: 398 + 302 + 300.
++const createProduct = async (a: Awaited<ReturnType<typeof fixture>>, nameKo: string, descriptionKo: string) =>
++  ((await (await a.request("/products", "POST", { categoryId: a.product.categoryId, nameKo, descriptionKo, offers: [{ quantity: 1, unitCode: "box", priceKrw: 1000 }] })).json()) as any).data;
++const productsWith1000Characters = async (a: Awaited<ReturnType<typeof fixture>>) => [
++  await patchProduct(a, a.product.id, a.product.version, { nameKo: "나".repeat(98), descriptionKo: "가".repeat(300) }),
++  await createProduct(a, "둘째", "가".repeat(300)),
++  await createProduct(a, "셋째", "가".repeat(298)),
++];
+ 
+ it("prices the screen's field quote in 100-character bands per language at the 100/101 boundary", async () => {
+   const a = await fixture();
+@@ -41,11 +49,11 @@ it("prices the screen's field quote in 100-character bands per language at the 1
+ 
+ it("quotes screen field source over 1000 characters and charges the full amount", async () => {
+   const a = await fixture();
+-  await patchProduct(a, a.product.id, a.product.version, { descriptionKo: "가".repeat(498) });
+-  const second = (await (await a.request("/products", "POST", { categoryId: a.product.categoryId, nameKo: "둘째", descriptionKo: "가".repeat(498), offers: [{ quantity: 1, unitCode: "box", priceKrw: 1000 }] })).json() as any).data;
+-  const targets = [screenTarget(a.product.id), screenTarget(second.id)];
++  const products = await productsWith1000Characters(a);
++  const third = products[2];
++  const targets = products.map(product => screenTarget(product.id));
+   expect((await createTranslationQuote(a.bindings, { targets, locales: ["en", "zh-CN", "ja"] })).totalCredits).toBe(15000);
+-  await patchProduct(a, second.id, second.version, { descriptionKo: "가".repeat(499) });
++  await patchProduct(a, third.id, third.version, { descriptionKo: "가".repeat(299) });
+   const larger = await createTranslationQuote(a.bindings, { targets, locales: ["en"] });
+   expect(larger.targets[0]).toMatchObject({ characters: 1001, credits: 5500 });
+   expect(larger.totalCredits).toBe(5500);
+@@ -174,12 +182,12 @@ it("retains successful languages and returns failed reverse translation reservat
+ 
+ it("quotes source text over 1000 characters and charges the full amount", async () => {
+   const a = await fixture();
+-  await a.request(`/products/${a.product.id}`, "PATCH", { expectedVersion: a.product.version, descriptionKo: "가".repeat(498) });
+-  const second = (await (await a.request("/products", "POST", { categoryId: a.product.categoryId, nameKo: "둘째", descriptionKo: "가".repeat(498), offers: [{ quantity: 1, unitCode: "box", priceKrw: 1000 }] })).json() as any).data;
+-  const quote = await createTranslationQuote(a.bindings, { productIds: [a.product.id, second.id], locales: ["en", "zh-CN", "ja"] });
++  const products = await productsWith1000Characters(a);
++  const productIds = products.map(product => product.id);
++  const quote = await createTranslationQuote(a.bindings, { productIds, locales: ["en", "zh-CN", "ja"] });
+   expect(quote.totalCredits).toBe(15000);
+-  await a.request(`/products/${second.id}`, "PATCH", { expectedVersion: second.version, descriptionKo: "가".repeat(499) });
+-  const larger = await createTranslationQuote(a.bindings, { productIds: [a.product.id, second.id], locales: ["en"] });
++  await patchProduct(a, products[2].id, products[2].version, { descriptionKo: "가".repeat(299) });
++  const larger = await createTranslationQuote(a.bindings, { productIds, locales: ["en"] });
+   expect(larger.targets[0].characters).toBe(1001);
+   expect(larger.targets[0].credits).toBe(5500);
+   expect(larger.totalCredits).toBe(5500);

@@ -1,0 +1,122 @@
+diff --git a/docs/product-architecture.md b/docs/product-architecture.md
+index f1fb1a3..cb66863 100644
+--- a/docs/product-architecture.md
++++ b/docs/product-architecture.md
+@@ -749,6 +749,7 @@ draft가 없어도 외부 검토자는 한 locale의 상품명·설명 번역과
+ - 승인 transaction은 승인본 upsert 후 현재 draft를 삭제한다. review는 translation hash에 연결해 보존하므로 승인 상세와 과거 print snapshot의 근거로 조회할 수 있다.
+ - 새 draft를 만드는 동안 기존 승인본은 유지된다. 원문 hash가 같으면 계속 인쇄 가능하다.
+ - 원문이 바뀌면 기존 승인본은 보존되지만 stale이 되어 인쇄에 사용하지 않는다.
++- 이 규칙은 상품 직접 수정, 상품 엑셀 일괄 수정, 백업 복원(update·overwrite)에 모두 적용된다. 상품명·설명이 바뀌면 승인본 문구는 그대로 표시되고 상태는 `원문 변경`, 번역 항목은 `stale: true`가 된다. 가격 옵션만 바뀌면 원문 hash가 같으므로 `번역 완료`·`stale: false`를 유지한다. `tests/productSourceStale.test.ts`가 세 경로를 검사한다.
+ 
+ ### 수정과 재검토
+ 
+diff --git a/tests/productSourceStale.test.ts b/tests/productSourceStale.test.ts
+new file mode 100644
+index 0000000..f2b9db2
+--- /dev/null
++++ b/tests/productSourceStale.test.ts
+@@ -0,0 +1,104 @@
++import { env } from "cloudflare:workers";
++import { describe, expect, it } from "vitest";
++import { createTestAccount } from "./accountFixture";
++
++// A changed product name or description keeps approved translations visible but
++// marks them stale on every write path; an offer-only change keeps them current.
++const data = async (response: Response) => {
++  expect(response.status).toBeLessThan(300);
++  return (await response.json() as { data: any }).data;
++};
++const LOCALES = ["en", "zh-CN", "ja"] as const;
++const approvedText = (locale: string) => ({ name: `Approved name ${locale}`, description: `Approved description ${locale}` });
++
++async function fixture() {
++  const account = await createTestAccount("developer");
++  const category = await data(await account.request("/categories", "POST", { nameKo: `원문 변경 분류 ${crypto.randomUUID()}`, sortOrder: 1 }));
++  const product = await data(await account.request("/products", "POST", {
++    categoryId: category.id, nameKo: `원래 상품 ${crypto.randomUUID()}`, descriptionKo: "원래 설명",
++    offers: [{ quantity: 1, unitCode: "bottle", priceKrw: 3000 }],
++  }));
++  return { ...account, category, product };
++}
++
++async function approveAll(productId: string, sourceHash: string) {
++  const timestamp = new Date().toISOString();
++  await (env as Env).DB.batch(LOCALES.map(locale => (env as Env).DB.prepare(`INSERT INTO product_localizations
++    (product_id, locale, name, description, source_hash, translation_hash, origin, provider, model, approved_by, approved_at, updated_at)
++    VALUES (?, ?, ?, ?, ?, ?, 'manual', NULL, NULL, 'tester@example.com', ?, ?)`)
++    .bind(productId, locale, approvedText(locale).name, approvedText(locale).description, sourceHash, `approved-${locale}`, timestamp, timestamp)));
++}
++
++async function expectTranslations(a: Awaited<ReturnType<typeof fixture>>, productId: string, stale: boolean) {
++  const product = await data(await a.request(`/products/${productId}`));
++  expect(product.translationStatus).toBe(stale ? "원문 변경" : "번역 완료");
++  const detail = await data(await a.request(`/translations/fields/product/${productId}`));
++  for (const locale of LOCALES) {
++    expect(detail.fields.name.locales[locale]).toMatchObject({ text: approvedText(locale).name, stale });
++    expect(detail.fields.description.locales[locale]).toMatchObject({ text: approvedText(locale).description, stale });
++  }
++  const rows = await (env as Env).DB.prepare("SELECT locale, name, description, translation_hash FROM product_localizations WHERE product_id = ? ORDER BY locale")
++    .bind(productId).all<{ locale: string; name: string; description: string; translation_hash: string }>();
++  expect(rows.results).toEqual([...LOCALES].sort().map(locale => ({ locale, ...approvedText(locale), translation_hash: `approved-${locale}` })));
++}
++
++const importRow = (a: Awaited<ReturnType<typeof fixture>>, product: any, change: Record<string, unknown>) => ({
++  rowNumber: 2, productId: product.id, currentVersion: product.version, categoryNameKo: a.category.nameKo,
++  nameKo: product.nameKo, descriptionKo: product.descriptionKo, priceKrw: 3000, unitLabel: "병", ...change,
++});
++
++describe("approved translations after a product source change", () => {
++  it("direct edit: name or description change marks approved translations stale; offer change does not", async () => {
++    for (const change of [{ nameKo: `바뀐 이름 ${crypto.randomUUID()}` }, { descriptionKo: "바뀐 설명" }]) {
++      const a = await fixture();
++      await approveAll(a.product.id, a.product.sourceHash);
++      await expectTranslations(a, a.product.id, false);
++      await data(await a.request(`/products/${a.product.id}`, "PATCH", { expectedVersion: a.product.version, ...change }));
++      await expectTranslations(a, a.product.id, true);
++    }
++    const a = await fixture();
++    await approveAll(a.product.id, a.product.sourceHash);
++    await data(await a.request(`/products/${a.product.id}`, "PATCH", { expectedVersion: a.product.version, offers: [{ quantity: 2, unitCode: "bottle", priceKrw: 5500 }] }));
++    await expectTranslations(a, a.product.id, false);
++  });
++
++  it("spreadsheet bulk edit: name or description change marks approved translations stale; price change does not", async () => {
++    for (const change of [{ nameKo: `엑셀 바뀐 이름 ${crypto.randomUUID()}` }, { descriptionKo: "엑셀 바뀐 설명" }]) {
++      const a = await fixture();
++      await approveAll(a.product.id, a.product.sourceHash);
++      const rows = [importRow(a, a.product, change)];
++      expect((await data(await a.request("/product-import/preview", "POST", { rows }))).updateRows).toBe(1);
++      expect(await data(await a.request("/product-import/apply", "POST", { rows }))).toMatchObject({ updatedRows: 1 });
++      await expectTranslations(a, a.product.id, true);
++    }
++    const a = await fixture();
++    await approveAll(a.product.id, a.product.sourceHash);
++    const rows = [importRow(a, a.product, { priceKrw: 4200 })];
++    expect(await data(await a.request("/product-import/apply", "POST", { rows }))).toMatchObject({ updatedRows: 1 });
++    expect((await data(await a.request(`/products/${a.product.id}`))).offers).toMatchObject([{ priceKrw: 4200 }]);
++    await expectTranslations(a, a.product.id, false);
++  });
++
++  it.each(["update", "overwrite"] as const)("backup restore (%s): restored name or description marks approved translations stale; restored price does not", async (mode) => {
++    const confirm = () => mode === "overwrite" ? { confirmation: "덮어쓰기", safetyBackupExportedAt: new Date().toISOString() } : {};
++    for (const change of [{ nameKo: `복원 전 이름 ${crypto.randomUUID()}` }, { descriptionKo: "복원 전 설명" }]) {
++      const a = await fixture();
++      const backup = await (await a.request("/admin/backup")).json();
++      const edited = await data(await a.request(`/products/${a.product.id}`, "PATCH", { expectedVersion: a.product.version, ...change }));
++      await approveAll(a.product.id, edited.sourceHash);
++      await expectTranslations(a, a.product.id, false);
++      const preview = await data(await a.request("/admin/restore/preview", "POST", { mode, backup }));
++      expect(preview).toMatchObject({ canApply: true, conflicts: [] });
++      await data(await a.request("/admin/restore/apply", "POST", { mode, backup, ...confirm() }));
++      expect(await data(await a.request(`/products/${a.product.id}`))).toMatchObject({ nameKo: a.product.nameKo, descriptionKo: a.product.descriptionKo });
++      await expectTranslations(a, a.product.id, true);
++    }
++    const a = await fixture();
++    const backup = await (await a.request("/admin/backup")).json();
++    await data(await a.request(`/products/${a.product.id}`, "PATCH", { expectedVersion: a.product.version, offers: [{ quantity: 2, unitCode: "bottle", priceKrw: 9900 }] }));
++    await approveAll(a.product.id, a.product.sourceHash);
++    await data(await a.request("/admin/restore/apply", "POST", { mode, backup, ...confirm() }));
++    expect((await data(await a.request(`/products/${a.product.id}`))).offers).toMatchObject([{ quantity: 1, priceKrw: 3000 }]);
++    await expectTranslations(a, a.product.id, false);
++  });
++});
