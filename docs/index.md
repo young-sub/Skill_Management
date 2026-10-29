@@ -1,5 +1,7 @@
 # Agent Documentation Index
 
+- [Failure replay](research/failure-replay-20261030.md): every valid plugin-ON failure counted by cause (missed alternate write path 6, mismatched hidden expectation 5, unrelated timeout 1; Stop guard blocked 0); on 6 rebuilt path-miss attempts the shipped independent check changed 5 by the pre-registered rule (named the missed path in 2), the write-path inventory 0 within a prompt, so the next paid step is the pre-registered [L5 ON/OFF with an L4 ablation](../evals/l5-on-off/README.md).
+
 - [Shell-edit sizing 0.1.94](plugins.md): a real session edited 61 lines only through heredocs and a Python script and the Stop guard stayed silent; the guard now treats file-writing interpreter scripts as edits and sizes the turn's change with read-only `git diff --numstat`.
 
 - [Lean bodies 0.1.93](research/agent-coding-system-direction.md#현재-상태): the `agent-workflow` and `diagnose` bodies read on every delegated task shrink from 13.9KB to 12.7KB; an independent verifier compared old and new twice and the six dropped or weakened directives it found were restored; environment recovery links to its existing reference row.

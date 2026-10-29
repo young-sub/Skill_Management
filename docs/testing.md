@@ -233,6 +233,14 @@ partial implementations against criteria committed before the first verifier ses
 ([record](research/independent-path-check-offline.md)). `tests.distribution.test_path_check_offline`
 checks its inventory and scoring without a model.
 
+Before a paid ON/OFF run, a candidate device is replayed on the recorded ON failures:
+`evals/failure-replay/` rebuilds failed attempts from their transcripts on fresh clones, keeps
+only those that reproduce their recorded regression/hidden results, and counts how many each
+candidate would have changed under rules committed before the first verifier session.
+`evals/l5-on-off/` holds the pre-registered criteria and the one-command runner for the next
+comparison (`off`, `on`, one ablation). `tests.distribution.test_failure_replay` and
+`tests.distribution.test_l5_on_off` check replay, ablation removals and scoring without a model.
+
 `--resume-from <state.json>` reuses valid cells and retains all prior attempts and
 costs. Reopening an output with `state.json` resumes its unattempted cells. Paid or
 interrupted cells are never silently replayed. Cell exceptions are recorded as

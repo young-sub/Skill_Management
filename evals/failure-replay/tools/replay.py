@@ -242,6 +242,17 @@ def load(output, stage, attempt):
     return json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
 
 
+MISSED_WORDS = {'copy': ('duplicate', 'copy', '복제', '복사'), 'backup': ('restore', 'backup', '복원', '백업')}
+
+
+def named(attempt, entries):
+    kind = 'copy' if attempt.get('missed_path', '').startswith('copy') else 'backup'
+    if attempt['kind'] != 'failure':
+        return None
+    text = ' '.join(json.dumps(e, ensure_ascii=False) for e in entries).lower()
+    return any(word in text for word in MISSED_WORDS[kind])
+
+
 def report(output):
     rows = []
     for attempt in attempts():
@@ -262,6 +273,9 @@ def report(output):
             'questions': len((ver.get('verdict') or {}).get('questions', [])),
             # A: flagged with a verifier test that fails on the attempt and that the reference passes.
             'a_changed': bool(flagged and on_attempt is False and bool(failing_attempt - failing_reference)),
+            # Added after the first two verdicts (post hoc): does a violation name the recorded missed path?
+            'a_named_missed_path': named(attempt, (ver.get('verdict') or {}).get('violations', [])),
+            'a_asked_missed_path': named(attempt, [{'path': q} for q in (ver.get('verdict') or {}).get('questions', [])]),
             'a_tests_attempt_failed': sorted(failing_attempt), 'a_tests_reference_failed': sorted(failing_reference),
             'a_reference_passed': on_reference, 'cost_usd': (ver.get('session') or {}).get('cost_usd'),
             'contamination': ver.get('contamination'), 'errors': pre.get('errors', []) + ver.get('errors', []),
@@ -276,6 +290,8 @@ def report(output):
                          'b_inventory_hit': sum(bool(r['inventory_hit']) for r in group),
                          'a_flagged': sum(r['verdict'] == 'incomplete' for r in group),
                          'a_changed': sum(r['a_changed'] for r in group),
+                         'a_named_missed_path': sum(bool(r['a_named_missed_path']) for r in group),
+                         'a_asked_missed_path': sum(bool(r['a_asked_missed_path']) for r in group),
                          'a_changed_and_guard_current': sum(r['a_changed'] and bool(r['guard_current']) for r in group)}
     costs = [r['cost_usd'] for r in rows if r['cost_usd'] is not None]
     out = {'summary': summary, 'unfaithful': [r['id'] for r in rows if not r['faithful']],

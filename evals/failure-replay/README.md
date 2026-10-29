@@ -53,3 +53,12 @@ python -B evals/failure-replay/tools/replay.py report --output .work/failure-rep
 ```
 
 `verify` skips attempts that are not faithful and never reruns a cell that already has a session.
+
+## Result (2026-10-30)
+
+All 9 rebuilt attempts were faithful. Of the 6 failures: the Stop guard each attempt ran blocked 0, the
+current guard would block 6; A changed 5 by the rule (2 named the recorded missed path as a violation,
+2 asked it as a question, 3 of the 5 flags were the NFKC defect); B hit 3 in raw output of 211–246
+paths, 0 within 60 rendered lines (a post-hoc measure), so B is dropped. Verifier cost $8.02.
+`named`/`asked` and the 60-line measure were added after the first two verdicts and do not change the
+pre-registered counts. Record: [research](../../docs/research/failure-replay-20261030.md).

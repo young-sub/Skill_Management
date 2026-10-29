@@ -55,8 +55,8 @@ class CountingRuleTests(unittest.TestCase):
         path.write_text(json.dumps(value), encoding='utf-8')
 
     def test_a_counts_only_a_flag_backed_by_a_test_the_reference_passes(self):
-        attempts = [{'id': 'f1', 'kind': 'failure', 'plugin': '0.1.89'},
-                    {'id': 'f2', 'kind': 'failure', 'plugin': '0.1.89'},
+        attempts = [{'id': 'f1', 'kind': 'failure', 'plugin': '0.1.89', 'missed_path': 'copy (duplicate)'},
+                    {'id': 'f2', 'kind': 'failure', 'plugin': '0.1.89', 'missed_path': 'copy (duplicate)'},
                     {'id': 'c1', 'kind': 'control', 'plugin': '0.1.89'}]
         with tempfile.TemporaryDirectory() as folder:
             output = Path(folder)
@@ -78,6 +78,7 @@ class CountingRuleTests(unittest.TestCase):
                 replay.attempts = original
         self.assertEqual(summary['failure'], {'n': 2, 'guard_then_blocked': 0, 'guard_current_blocked': 2,
                                               'b_inventory_hit': 0, 'a_flagged': 2, 'a_changed': 1,
+                                              'a_named_missed_path': 2, 'a_asked_missed_path': 0,
                                               'a_changed_and_guard_current': 1})
         self.assertEqual(summary['control']['a_flagged'], 1)
 
