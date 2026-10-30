@@ -1,10 +1,11 @@
 ---
 name: setup-project-verification
 description: Map the requested project scope and connect verification using existing requirements, commands and UI assets. Use for initial mapping or missing execution paths; resume completed partitions and preserve explicit verification gaps.
+disable-model-invocation: true
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/setup-project-verification/SKILL.md -->
-<!-- Source-SHA256: 949c37accc0bc7679d689a1c8cbe1b1b84e089f2e28c903d7e3ead67c33408c8 -->
+<!-- Source-SHA256: 30e92a2bea4282446ff4735b66940e84077995a16578a1aee01070d125a29a5b -->
 
 
 # Setup Project Verification

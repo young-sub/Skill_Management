@@ -1,6 +1,7 @@
 ---
 name: recall
 description: Recover a project's goal, decisions, last completed work, remaining work and execution state from handoff or accessible records, then reconcile with the current checkout. Use for remembering where work stopped or continuing prior work; recall itself is read-only.
+disable-model-invocation: true
 ---
 
 # Recall

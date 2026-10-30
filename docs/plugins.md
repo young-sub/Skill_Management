@@ -19,6 +19,20 @@ execution selection, freshness checks or task acceptance. There is no fixed byte
 ceiling: capture a detailed lookup and select relevant fields instead of printing
 an entire report into the model context.
 
+## Version 0.1.96
+
+Only `agent-workflow` stays model-invocable. `diagnose`, `recall`,
+`setup-project-verification` and `fixing-accessibility` become explicit-only (Claude
+`disable-model-invocation: true`, Codex `allow_implicit_invocation: false`), which removes
+about 460 tokens of descriptions from every session; the Skill listing keeps one entry of
+about 150. The prompt hook still distinguishes symptoms, resume and verification requests,
+but each route now invokes `agent-workflow` and names the sibling `SKILL.md` to read, since
+an explicit-only Skill cannot be invoked by the model. The [lean audit](research/lean-audit-20261030.md)
+found no measured gain for these four (no paired ON/OFF of their own; diagnose route
+precision 1/12 on real prompts). Router patterns, the Stop guard and Skill bodies are
+unchanged. The pre-registered [3-arm](../evals/lean-audit/README.md) and
+[L5](../evals/l5-on-off/README.md) runs keep measuring 0.1.95 from commit `4bc7595`.
+
 ## Version 0.1.95
 
 LSP is optional; the manifest declares no plugin dependency. To enable TypeScript

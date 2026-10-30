@@ -7,18 +7,20 @@ report: score the pre-registered criteria from the runner's state and transcript
 import argparse
 import hashlib
 import importlib.util
+import io
 import json
 import math
 import random
 import shutil
 import subprocess
 import sys
+import tarfile
 from pathlib import Path
 
 SUITE = Path(__file__).resolve().parents[1]
 ROOT = SUITE.parents[1]
 sys.dont_write_bytecode = True
-PLUGIN = ROOT / 'plugins/agentic-coding'
+PLUGIN_REF = '4bc7595'  # 0.1.95, the plugin this pre-registration measures as `on`
 SCENARIOS = {'v3': ROOT / 'evals/delegation-v3/scenarios.json'}
 DEPS_ROOT = Path('C:/e/deps')
 REPS = 2
@@ -47,6 +49,22 @@ def sha256_tree(root):
     return digest.hexdigest()
 
 
+def pinned_plugin(output):
+    """The plugin tree at PLUGIN_REF, extracted once under output; later working-copy releases do not change it."""
+    target = output / 'packages' / f'on-{PLUGIN_REF}'
+    if not (target / 'agentic-coding/plugin.json').is_file():
+        if target.exists():
+            shutil.rmtree(target)
+        target.mkdir(parents=True)
+        archive = subprocess.run(['git', '-C', str(ROOT), 'archive', '--format=tar', PLUGIN_REF, 'plugins/agentic-coding'],
+                                 capture_output=True, check=True).stdout
+        with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
+            tar.extractall(target, filter='data')
+        shutil.move(str(target / 'plugins/agentic-coding'), str(target / 'agentic-coding'))
+        shutil.rmtree(target / 'plugins')
+    return target / 'agentic-coding'
+
+
 def git(*args):
     return subprocess.run(['git', '-C', str(ROOT), *args], capture_output=True, text=True, check=True).stdout.strip()
 
@@ -68,7 +86,8 @@ def build_lean(output):
         return target, json.loads(record_path.read_text(encoding='utf-8'))
     if target.parent.exists():
         shutil.rmtree(target.parent)
-    shutil.copytree(PLUGIN, target, ignore=shutil.ignore_patterns('__pycache__'))
+    source = pinned_plugin(output)
+    shutil.copytree(source, target, ignore=shutil.ignore_patterns('__pycache__'))
     hooks_path = target / 'hooks/hooks.json'
     hooks = json.loads(hooks_path.read_text(encoding='utf-8'))
     removed_hooks = sorted(set(hooks['hooks']) - {'Stop'})
@@ -82,7 +101,7 @@ def build_lean(output):
         edit_once(path, description + '\n', description + '\ndisable-model-invocation: true\n')
     for old, new in GUARD_EDITS:
         edit_once(target / 'hooks/completion_guard.py', old, new)
-    record = {'arm': LEAN, 'source_commit': git('rev-parse', 'HEAD'), 'source_sha256': sha256_tree(PLUGIN),
+    record = {'arm': LEAN, 'source_commit': git('rev-parse', PLUGIN_REF), 'source_sha256': sha256_tree(source),
               'package_sha256': sha256_tree(target), 'removed_hooks': removed_hooks,
               'explicit_only': list(MODEL_INVOCABLE), 'guard_edits': GUARD_EDITS}
     smoke(target)
@@ -117,7 +136,7 @@ def run(output, suite, dry_run):
     output.mkdir(parents=True, exist_ok=True)
     package, record = build_lean(output)
     argv = [sys.executable, '-B', str(ROOT / 'scripts/run_delegation_eval.py'), '--scenarios', str(SCENARIOS[suite]),
-            '--output', str(output / 'runs' / suite), '--condition', 'off=off', '--condition', f'on=plugin:{PLUGIN}',
+            '--output', str(output / 'runs' / suite), '--condition', 'off=off', '--condition', f'on=plugin:{pinned_plugin(output)}',
             '--condition', f'{LEAN}=plugin:{package}', '--reps', str(REPS), '--jobs', str(JOBS),
             '--deps-root', str(DEPS_ROOT), '--copy-deps', '--prune-clones']
     print(json.dumps({'lean': record, 'argv': argv}, ensure_ascii=False, indent=2), flush=True)

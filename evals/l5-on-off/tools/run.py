@@ -6,17 +6,19 @@ report: score the pre-registered criteria from the runner's state and transcript
 """
 import argparse
 import hashlib
+import io
 import json
 from pathlib import Path
 import shutil
 import subprocess
 import sys
+import tarfile
 
 SUITE = Path(__file__).resolve().parents[1]
 ROOT = SUITE.parents[1]
 sys.dont_write_bytecode = True
 SCENARIOS = ROOT / 'evals/delegation-v3/scenarios.json'
-PLUGIN = ROOT / 'plugins/agentic-coding'
+PLUGIN_REF = '4bc7595'  # 0.1.95, the plugin this pre-registration measures as `on`
 DEPS_ROOT = Path('C:/e/deps')
 REPS = 2
 JOBS = 2
@@ -55,11 +57,28 @@ def sha256_tree(root):
     return digest.hexdigest()
 
 
+def pinned_plugin(output):
+    """The plugin tree at PLUGIN_REF, extracted once under output; later working-copy releases do not change it."""
+    target = output / 'packages' / f'on-{PLUGIN_REF}'
+    if not (target / 'agentic-coding/plugin.json').is_file():
+        if target.exists():
+            shutil.rmtree(target)
+        target.mkdir(parents=True)
+        archive = subprocess.run(['git', '-C', str(ROOT), 'archive', '--format=tar', PLUGIN_REF, 'plugins/agentic-coding'],
+                                 capture_output=True, check=True).stdout
+        with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
+            tar.extractall(target, filter='data')
+        shutil.move(str(target / 'plugins/agentic-coding'), str(target / 'agentic-coding'))
+        shutil.rmtree(target / 'plugins')
+    return target / 'agentic-coding'
+
+
 def build_ablation(output):
     target = output / 'packages' / ABLATION / 'agentic-coding'
     if target.exists():
         return target, json.loads((target.parent / 'ablation.json').read_text(encoding='utf-8'))
-    shutil.copytree(PLUGIN, target)
+    source = pinned_plugin(output)
+    shutil.copytree(source, target)
     for name, edits in REMOVALS.items():
         path = target / name
         text = path.read_bytes().decode('utf-8')
@@ -71,8 +90,8 @@ def build_ablation(output):
                 raise SystemExit(f'{name}: removal text matched {text.count(old)} times, expected 1')
             text = text.replace(old, new)
         path.write_bytes((text.replace('\n', '\r\n') if crlf else text).encode('utf-8'))
-    record = {'ablation': ABLATION, 'source': str(PLUGIN), 'source_commit': git('rev-parse', 'HEAD'),
-              'source_sha256': sha256_tree(PLUGIN), 'package_sha256': sha256_tree(target),
+    record = {'ablation': ABLATION, 'source': str(source), 'source_commit': git('rev-parse', PLUGIN_REF),
+              'source_sha256': sha256_tree(source), 'package_sha256': sha256_tree(target),
               'removed': {name: [old for old, _ in edits] for name, edits in REMOVALS.items()}}
     (target.parent / 'ablation.json').write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding='utf-8')
     return target, record
@@ -86,7 +105,7 @@ def run(output, dry_run):
     output.mkdir(parents=True, exist_ok=True)
     package, record = build_ablation(output)
     argv = [sys.executable, '-B', str(ROOT / 'scripts/run_delegation_eval.py'), '--scenarios', str(SCENARIOS),
-            '--output', str(output / 'runs'), '--condition', 'off=off', '--condition', f'on=plugin:{PLUGIN}',
+            '--output', str(output / 'runs'), '--condition', 'off=off', '--condition', f'on=plugin:{pinned_plugin(output)}',
             '--condition', f'{ABLATION}=plugin:{package}', '--reps', str(REPS), '--jobs', str(JOBS),
             '--deps-root', str(DEPS_ROOT), '--copy-deps', '--prune-clones']
     print(json.dumps({'ablation': record, 'argv': argv}, ensure_ascii=False, indent=2), flush=True)

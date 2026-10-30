@@ -1,6 +1,7 @@
 ---
 name: diagnose
 description: Investigate reported incorrect behavior (user or customer complaints, bugs, something that disappeared or looks wrong), implementation or verification failures and human direction corrections; distinguish root causes from environment limits or intentional exceptions, fix the responsible owner when authorized and block the original and alternate paths. A Harness contract is optional.
+disable-model-invocation: true
 ---
 
 # Diagnose

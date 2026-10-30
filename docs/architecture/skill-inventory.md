@@ -9,9 +9,8 @@ reuse extend `agent-workflow` and `diagnose`, with a mapped shared reference and
 procedure template. No separate `reflect` or authoring Skill is distributed;
 independent new procedures use an available host authoring tool only when needed.
 
-Invocation policy (0.1.88): only `agent-workflow`, `diagnose`, `recall`,
-`setup-project-verification` and `fixing-accessibility` are model-invocable. The
-other 17 declare `disable-model-invocation: true` (Claude Code) and
+Invocation policy (0.1.96): only `agent-workflow` is model-invocable. The other 21
+declare `disable-model-invocation: true` (Claude Code) and
 `policy.allow_implicit_invocation: false` in `agents/openai.yaml` (Codex), so their
 descriptions stay out of the session context. Users invoke them directly, and
 `agent-workflow` names each one in its capability table and reads the sibling

@@ -59,9 +59,9 @@ User decisions: <decision, recommendation, default> or none
 
 ## Capabilities
 
-Auto: `diagnose`, `recall`, `setup-project-verification`, `fixing-accessibility`.
 Explicit-only: read the sibling Skill's `SKILL.md` when needed; if absent, continue here:
-`architect`, `swarm`, `multi-agent-review`, `maintain-project-verification`, `impeccable`,
+`diagnose` (reported incorrect behavior), `recall` (resume prior work),
+`setup-project-verification`, `fixing-accessibility`, `architect`, `swarm`, `multi-agent-review`, `maintain-project-verification`, `impeccable`,
 `vercel-react-best-practices`, `prototype`, `zoom-out`, `explore-idea`,
 `design-goal`/`execute-codex-goal`/`close-goal`, `setup-agent-harness`/`maintain-agent-harness`.
 Installed resources, global settings, providers and publishing need their own authority.

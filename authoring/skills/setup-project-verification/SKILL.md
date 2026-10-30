@@ -1,6 +1,7 @@
 ---
 name: setup-project-verification
 description: Map the requested project scope and connect verification using existing requirements, commands and UI assets. Use for initial mapping or missing execution paths; resume completed partitions and preserve explicit verification gaps.
+disable-model-invocation: true
 ---
 
 # Setup Project Verification
