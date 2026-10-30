@@ -4,7 +4,7 @@ description: Deliver delegated coding work across FE, API/backend and business l
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: 4b2493ad1471e06817a3c55a89d460118bce87ebab6ef78235828ccca47983d4 -->
+<!-- Source-SHA256: 4a9fc282ba1fdce1836657e6f90d8d75230af85163bc5db5d604b48fea4fca00 -->
 
 
 # Agent Workflow
@@ -63,9 +63,9 @@ User decisions: <decision, recommendation, default> or none
 
 ## Capabilities
 
-Auto: `diagnose`, `recall`, `setup-project-verification`, `fixing-accessibility`.
 Explicit-only: read the sibling Skill's `SKILL.md` when needed; if absent, continue here:
-`architect`, `swarm`, `multi-agent-review`, `maintain-project-verification`, `impeccable`,
+`diagnose` (reported incorrect behavior), `recall` (resume prior work),
+`setup-project-verification`, `fixing-accessibility`, `architect`, `swarm`, `multi-agent-review`, `maintain-project-verification`, `impeccable`,
 `vercel-react-best-practices`, `prototype`, `zoom-out`, `explore-idea`,
 `design-goal`/`execute-codex-goal`/`close-goal`, `setup-agent-harness`/`maintain-agent-harness`.
 Installed resources, global settings, providers and publishing need their own authority.

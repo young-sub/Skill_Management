@@ -1,10 +1,11 @@
 ---
 name: diagnose
 description: Investigate reported incorrect behavior (user or customer complaints, bugs, something that disappeared or looks wrong), implementation or verification failures and human direction corrections; distinguish root causes from environment limits or intentional exceptions, fix the responsible owner when authorized and block the original and alternate paths. A Harness contract is optional.
+disable-model-invocation: true
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/diagnose/SKILL.md -->
-<!-- Source-SHA256: bbf190bb45c669571a77c971a587d9527f92f8301def1bd190f324b086d63b9a -->
+<!-- Source-SHA256: a0ccacf557794323b3009b9a2df0425913eca2a2c1ca4b6bfc6a5c9d98a0abce -->
 
 
 # Diagnose
