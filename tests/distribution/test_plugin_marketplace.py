@@ -45,6 +45,14 @@ class PluginMarketplaceTests(unittest.TestCase):
                     name,
                 )
 
+    def test_marketplace_clone_fits_windows_path_limit(self):
+        # Codex clones the whole repository; the longest staging prefix seen (an Orca account home) was 153
+        # characters, and Windows git without core.longpaths fails past 259.
+        budget = 259 - 153
+        listed = subprocess.run(['git', '-c', 'core.quotepath=false', 'ls-files', '-z'], cwd=ROOT,
+                                capture_output=True, check=True).stdout.decode('utf-8').split('\0')
+        self.assertEqual([p for p in listed if len(p) > budget], [])
+
     def test_optional_upstream_entries_track_latest(self):
         # Opt-in upstream plugins: separate installs, never pinned, so upstream releases need no catalog edit.
         codex = json.loads((ROOT / '.agents/plugins/marketplace.json').read_text())

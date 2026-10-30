@@ -272,7 +272,7 @@
   "hidden/b-sequence/zz-eval-b-sequence.test.ts": "9fc6ea06cc5aed74d123c1485b23b5fbb0938b80270470023a08560b05af07ac",
   "hidden/rule-all-paths/zz-eval-rule-all-paths.test.ts": "b5c38f3ee88e51a0c48256a31c9c23ccb33f82889ce5734f1c85da5ed4986cf2",
   "hidden/y-cart-item-to-compare/zz-eval-cart-item-to-compare.test.mjs": "adfa6a86095399c854640c9ecd38b5e71b8e8182f1078498cc7698708b8860db",
-  "hidden/y-medicine-catalog-classification-bypass/zz-eval-medicine-classification.test.mjs": "1a92fb1a3890bc20c66a561f43e466d79d8568ee9071cc67c38052f28f4c1bbd",
+  "hidden/y-medicine-catalog-classification-bypass/zz-eval-medicine.test.mjs": "1a92fb1a3890bc20c66a561f43e466d79d8568ee9071cc67c38052f28f4c1bbd",
   "README.md": "bfc3f934ed2833dbc7dca1b2d603b6ac6efff5e6733bf66af8a26266884a8105",
   "reference/a-import-offer-sequence.patch": "89dff2f184df9254223cdfe0d6f34b418671f9a3c660f9096c2a1c2f8c4f1e2e",
   "reference/a-offer-quantity-all-paths.patch": "d8932af82e7b662af130c7237ff54da5a33cd39b814f213ea7301736b1f0245f",
