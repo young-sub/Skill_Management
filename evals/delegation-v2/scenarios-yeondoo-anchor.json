@@ -80,7 +80,7 @@
           "command": "node --experimental-strip-types --test scripts/zz-eval-medicine-classification.test.mjs",
           "expect": "pass",
           "files": {
-            "scripts/zz-eval-medicine-classification.test.mjs": "hidden/y-medicine-catalog-classification-bypass/zz-eval-medicine-classification.test.mjs"
+            "scripts/zz-eval-medicine-classification.test.mjs": "hidden/y-medicine-catalog-classification-bypass/zz-eval-medicine.test.mjs"
           }
         }
       ],
