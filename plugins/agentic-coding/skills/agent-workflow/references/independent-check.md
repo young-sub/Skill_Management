@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/independent-check.md -->
-<!-- Source-SHA256: 540109da53a378489d713ef630b2821b5fb79a0dbb281812e824c1a3c1c93676 -->
+<!-- Source-SHA256: 5ffc33fd033af95394b66c72340ac7091c6c8e0d8f5c6b5a53d7ceca9a51cde3 -->
 
 # Independent check
 
@@ -14,7 +14,7 @@ a verdict to obey.
 
 ## When
 
-After the affected checks pass (delivery step 5), for every change to behavior: code,
+After the affected checks pass (delivery step 3), for every change to behavior: code,
 schema, query or configuration that changes what users get. Skip only trivial edits
 (copy, typo, one config value) and say so on the card.
 
@@ -51,7 +51,17 @@ Rules:
 - Derive expected behavior from the request, never from running the implementation.
 - Test at the entry points users actually use (API handlers, public functions, UI actions).
 - Report `incomplete` only with a failing test you wrote and ran.
-- Where the request can reasonably be read two ways, list a question instead of a verdict.
+- A rule over all saves/users/paths applies to every such path: a path that does not
+  apply it is a VIOLATION, not a question to the user. Report it with a failing test.
+- Only genuinely ambiguous scope belongs in questions; do not invent exceptions.
+
+Examples (after writing and running the failing test):
+- Request: round every invoice total to cents, half up. Interactive entry rounds
+  1.005 to 1.01; recurring invoice creation stores 1.005. VIOLATION: recurring
+  creation misses the rule; report that path and test, not a rounding-scope question.
+- Request: lowercase usernames on every save. Signup saves `alice`, but profile
+  editing saves `ALICE`. VIOLATION: profile editing bypasses normalization; report
+  its failing save test, not a question about whether existing users are exempt.
 
 End with one JSON line:
 {"verdict": "complete" | "incomplete", "violations": [{"path": "...", "test": "file:line", "observed": "..."}], "questions": ["..."]}
@@ -60,7 +70,7 @@ End with one JSON line:
 ## Handle the report
 
 1. Run each failing verifier test yourself. If it fails because requested behavior is
-   missing, fix it at the owner, rerun that test and the step-5 checks.
+   missing, fix it at the owner, rerun that test and the affected checks.
 2. If a test's expectation is not what the request says (a stricter or different
    reading), do not fix it. Put it under *User decisions* with your recommendation,
    together with the verifier's questions.
@@ -96,5 +106,5 @@ answer to the same question replaces the line instead of adding one. Then:
   point) and its probe.
 - If the answer rejects it, the line alone stops the next verifier from asking again.
 
-Read the file in delivery step 1 with the Feature Map: a decision there is part of the
+Read the file in acceptance step 1: a decision there is part of the
 expected behavior for every later change in that area.

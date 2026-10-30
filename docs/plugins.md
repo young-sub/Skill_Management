@@ -19,6 +19,33 @@ execution selection, freshness checks or task acceptance. There is no fixed byte
 ceiling: capture a detailed lookup and select relevant fields instead of printing
 an entire report into the model context.
 
+## Version 0.1.95
+
+LSP is optional; the manifest declares no plugin dependency. To enable TypeScript
+references, optionally run `npm install -g typescript-language-server typescript@6`
+and `/plugin install typescript-lsp@claude-plugins-official`. TypeScript 7.x ships
+no `tsserver.js`, so typescript-language-server cannot start with it; the
+[upstream setup](https://github.com/typescript-language-server/typescript-language-server#installing)
+pins TypeScript 6. Without an `LSP` tool, the Skills fall back to text search.
+Claude Code 2.1.311 validation passed with warnings: missing author, plus
+submission-only license/icon diagnostics and README install advice. Validation
+neither installs the optional tools nor exercises an LSP server.
+
+The agent-workflow body is 3,500 characters (previously 6,564; LF-normalized Unicode,
+excluding frontmatter). Acceptance lists ambiguous readings: ask interactively;
+in delegated/headless work choose and lead the card with `가정/Assumptions`.
+The workflow and feature playbook find every stored-data writer; diagnose finds
+every path to the same failure. All three combine optional `LSP findReferences`
+with mandatory table/column write searches (SQL INSERT/UPDATE, ORM calls and
+import/restore jobs), and check every writer/path.
+`probe_check.py prove` is optional when a new test's detection ability is in doubt;
+diagnose retains original-fault probe registration. The verifier treats a missed
+path under an explicit universal rule as a violation, with invoice and username
+examples; its `INDEPENDENT VERIFIER` marker and final JSON contract are unchanged.
+The L4 ablation removes the three writer/path-search instructions; it retains the
+L5 template, so it measures instruction removal, not optional LSP availability.
+No installed-plugin update, paid evaluation or improved-outcome claim accompanies this build.
+
 ## Git marketplace release
 
 Version 0.1.78 was [installed and exercised in isolated homes/projects](research/installed-release-0.1.78-results.md)

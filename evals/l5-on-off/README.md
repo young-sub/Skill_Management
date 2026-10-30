@@ -31,8 +31,14 @@ The fix pass after a flag was not replayed; this run measures it.
 | Condition | Plugin |
 | --- | --- |
 | `off` | none (`agentic-coding` disabled) |
-| `on` | `plugins/agentic-coding` at the commit that holds this README (0.1.94) |
-| `on-no-l4` | `on` with the L4 instructions removed (all-paths step in `agent-workflow`, the matching playbook line and the alternate-path step in `diagnose`; see `tools/run.py`) |
+| `on` | `plugins/agentic-coding` at the commit that holds this README (0.1.95) |
+| `on-no-l4` | `on` with the three L4 writer/path-search instructions removed (`agent-workflow`, its feature playbook and `diagnose`; see `tools/run.py`). Original-fault probe registration and the L5 template remain; LSP setup is optional in both conditions. |
+
+The 0.1.95 candidate combines optional `LSP findReferences` (text-search fallback)
+with mandatory table/column write searches, shortens the workflow, states assumptions and strengthens
+the verifier's universal-rule reading. This ablation tests the reference-check
+instructions, not LSP availability. The historical replay above used the earlier
+template; it is not evidence for this revision. Scoring criteria below are unchanged.
 
 ## Measures
 

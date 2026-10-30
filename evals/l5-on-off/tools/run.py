@@ -23,27 +23,29 @@ JOBS = 2
 VERIFIER_MARKER = 'INDEPENDENT VERIFIER'
 # The ablated device: every instruction that carries it, removed by exact text (each must match once).
 ABLATION = 'on-no-l4'
-REMOVALS = {
-    'skills/agent-workflow/SKILL.md': [(
-        '3. **Fix at the owner, on every path.** List every place that writes or enforces the\n'
-        '   same rule (callers, other endpoints, triggers, imports, background jobs) and cover\n'
-        '   each with a check. A rule stated for all saves or all users applies to every such\n'
-        '   path; exempting one (for example restore or import) is the user\'s decision, so ask\n'
-        '   instead of deciding it. A guard is a fix only when that state can\n',
-        '3. **Fix at the owner.** A guard is a fix only when that state can\n')],
-    'skills/agent-workflow/playbooks/feature.md': [(
-        '   tests, config and docs. Use existing tools and validation at trust boundaries.\n'
-        '   Every entry point that creates or changes the same data obeys the same rule.\n',
-        '   tests, config and docs. Use existing tools and validation at trust boundaries.\n')],
-    'skills/diagnose/SKILL.md': [(
-        '5. Enumerate alternate paths to the same failure class (other callers,\n'
-        '   settlement/refund/retry/import paths, sibling queries repeating the rule). Prove each\n'
-        '   is blocked by the regression, or record why none exists with the inspected owner\n'
-        '   files (`guardrail.bypass_absence`). Register the original fault and each alternate\n'
-        '   path as probes in `.harness/probes.json` (a guardrail that covers only the reported\n'
-        '   path is not prevention) and run\n',
-        '5. Register the original fault as a probe in `.harness/probes.json` and run\n')],
-}
+REMOVALS = {'skills/agent-workflow/SKILL.md': [('2. **Fix at the owner.** When enforcing a rule on stored '
+                                     'data, find every writer: run `LSP findReferences`\n'
+                                     '   on the writing function (text search if no `LSP` tool), '
+                                     'and text-search table/column writes too\n'
+                                     '   (SQL INSERT/UPDATE, ORM calls, import/restore jobs). '
+                                     'Cover each writer with a check.\n',
+                                     '2. **Fix at the owner.**\n')],
+ 'skills/agent-workflow/playbooks/feature.md': [('   When enforcing a rule on stored data, find '
+                                                 'every writer: run `LSP findReferences`\n'
+                                                 '   on the writing function (text search if no '
+                                                 '`LSP` tool), and text-search table/column writes '
+                                                 'too\n'
+                                                 '   (SQL INSERT/UPDATE, ORM calls, import/restore '
+                                                 'jobs). Cover each writer with a check.\n',
+                                                 '')],
+ 'skills/diagnose/SKILL.md': [('5. Find every path to the same failure: `LSP findReferences` on '
+                               'the faulty function\n'
+                               '   (text search if no `LSP` tool), plus text-search table/column '
+                               'writes (SQL INSERT/UPDATE,\n'
+                               '   ORM calls, import/restore jobs). Cover each with the '
+                               'regression.\n'
+                               '   Register the original fault',
+                               '5. Register the original fault')]}
 
 
 def sha256_tree(root):

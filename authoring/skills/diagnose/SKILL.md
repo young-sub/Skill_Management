@@ -51,15 +51,13 @@ Lookup never diagnoses, repairs or clears a manual disable.
    observe GREEN. Reuse existing evidence that already proves the behavior; do not add a
    test solely to document a one-off diagnosis. A diagnosis-only request ends with
    evidence and the proposed fix.
-5. Enumerate alternate paths to the same failure class (other callers,
-   settlement/refund/retry/import paths, sibling queries repeating the rule). Prove each
-   is blocked by the regression, or record why none exists with the inspected owner
-   files (`guardrail.bypass_absence`). Register the original fault and each alternate
-   path as probes in `.harness/probes.json` (a guardrail that covers only the reported
-   path is not prevention) and run
+5. Find every path to the same failure: `LSP findReferences` on the faulty function
+   (text search if no `LSP` tool), plus text-search table/column writes (SQL INSERT/UPDATE,
+   ORM calls, import/restore jobs). Cover each with the regression.
+   Register the original fault as a probe in `.harness/probes.json` and run
    `python <this Skill's directory>/scripts/probe_check.py probes --root <project>`;
-   every probe must be killed. Use `probe_check.py prove --skip-current` only for a
-   regression written after the fix.
+   every probe must be killed. Optionally use `probe_check.py prove --skip-current`
+   when a new test's ability to catch the defect is in doubt.
 6. In a connected project, record complaint, cause, repair, guardrail and bypass
    evidence in the existing feedback record so the next task inherits it; update
    existing work instead of creating another ledger. Unconnected: say no feedback

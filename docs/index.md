@@ -1,5 +1,7 @@
 # Agent Documentation Index
 
+- [0.1.95 workflow](plugins.md#version-0195): Optional TypeScript LSP, writer reference checks plus table/column write searches with text-search fallback, a lean acceptance-first body, stated assumptions and a verifier that treats missed paths under universal rules as violations. Local package validation is separate from installed LSP or model outcome evidence.
+
 - [Failure replay](research/failure-replay-20261030.md): every valid plugin-ON failure counted by cause (missed alternate write path 6, mismatched hidden expectation 5, unrelated timeout 1; Stop guard blocked 0); on 6 rebuilt path-miss attempts the shipped independent check changed 5 by the pre-registered rule (named the missed path in 2), the write-path inventory 0 within a prompt, so the next paid step is the pre-registered [L5 ON/OFF with an L4 ablation](../evals/l5-on-off/README.md).
 
 - [Shell-edit sizing 0.1.94](plugins.md): a real session edited 61 lines only through heredocs and a Python script and the Stop guard stayed silent; the guard now treats file-writing interpreter scripts as edits and sizes the turn's change with read-only `git diff --numstat`.
