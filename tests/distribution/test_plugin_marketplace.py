@@ -45,13 +45,18 @@ class PluginMarketplaceTests(unittest.TestCase):
                     name,
                 )
 
-    def test_marketplace_clone_fits_windows_path_limit(self):
-        # Codex clones the whole repository; the longest staging prefix seen (an Orca account home) was 153
-        # characters, and Windows git without core.longpaths fails past 259.
+    def test_sparse_install_fits_windows_path_limit(self):
+        # The README installs with --sparse (.agents, .claude-plugin, plugins; Git cone mode adds top-level
+        # files). The longest staging prefix seen (an Orca account Codex home) was 153 characters, and
+        # Windows Git without core.longpaths fails past 259.
         budget = 259 - 153
         listed = subprocess.run(['git', '-c', 'core.quotepath=false', 'ls-files', '-z'], cwd=ROOT,
                                 capture_output=True, check=True).stdout.decode('utf-8').split('\0')
-        self.assertEqual([p for p in listed if len(p) > budget], [])
+        installed = [p for p in listed if p and ('/' not in p or p.split('/')[0] in ('.agents', '.claude-plugin', 'plugins'))]
+        self.assertEqual([p for p in installed if len(p) > budget], [])
+        readme = (ROOT / 'README.md').read_text(encoding='utf-8')
+        for line in (l for l in readme.splitlines() if 'plugin marketplace add' in l and 'Skill_Management' in l):
+            self.assertIn('--sparse', line)
 
     def test_optional_upstream_entries_track_latest(self):
         # Opt-in upstream plugins: separate installs, never pinned, so upstream releases need no catalog edit.
