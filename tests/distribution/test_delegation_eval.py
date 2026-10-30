@@ -1,6 +1,7 @@
 """Offline runner checks: every model invocation uses a temporary Python fake."""
 import contextlib
 import copy
+import hashlib
 import importlib.util
 import io
 import json
@@ -93,10 +94,21 @@ class DelegationEvalTests(unittest.TestCase):
     def write_config(self):
         self.file.write_text(json.dumps(self.config, ensure_ascii=False), encoding='utf-8')
 
+    def add_long_file(self):
+        relative = 'public/audio/app.summaryAnswers.protectionComfort/zh-Hans/' + 'a' * 64 + '.mp3'
+        path = self.project / Path(relative)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(hashlib.sha256(relative.encode()).digest())
+        self.git('add', '--', relative)
+        self.git('-c', 'user.name=test', '-c', 'user.email=test@invalid', 'commit', '-qm', 'long tracked file')
+        self.scenario['ref'] = self.git('rev-parse', 'HEAD').stdout.strip()
+        return relative
+
     def cli(self, *extra):
         self.write_config()
         argv = ['--scenarios', str(self.file), '--output', str(self.output), '--condition', 'off=off',
-                '--claude', json.dumps(self.command), '--reps', '1', '--jobs', '2', *extra]
+                '--claude', json.dumps(self.command), '--reps', '1', '--jobs', '2',
+                '--work-root', str(self.base / 'workspace'), *extra]
         with contextlib.redirect_stdout(io.StringIO()) as stdout:
             code = runner.main(argv)
         return code, stdout.getvalue()
@@ -104,8 +116,17 @@ class DelegationEvalTests(unittest.TestCase):
     def result(self, condition='off', rep=1, scenario='held-out'):
         return json.loads((self.output / scenario / condition / f'rep{rep}/result.json').read_text(encoding='utf-8'))
 
-    def calls(self, condition='off'):
-        path = self.output / 'held-out' / condition / 'rep1/repo/calls.jsonl'
+    def work(self, condition='off', rep=1, scenario='held-out'):
+        return self.output / scenario / condition / f'rep{rep}'
+
+    def workspace(self, condition='off', rep=1, scenario='held-out'):
+        return json.loads((self.work(condition, rep, scenario) / 'workspace.json').read_text(encoding='utf-8'))
+
+    def repo(self, condition='off', rep=1, scenario='held-out'):
+        return Path(self.workspace(condition, rep, scenario)['repo'])
+
+    def calls(self, condition='off', scenario='held-out'):
+        path = self.repo(condition, scenario=scenario) / 'calls.jsonl'
         return [json.loads(line) for line in path.read_text(encoding='utf-8').splitlines()]
 
     def test_off_plugin_argv_and_metrics(self):
@@ -146,7 +167,7 @@ class DelegationEvalTests(unittest.TestCase):
         result = self.result()
         self.assertTrue(result['probes'][0]['detected'])
         self.assertEqual(result['probe_kill_rate'], 1)
-        repo = self.output / 'held-out/off/rep1/repo'
+        repo = self.repo()
         self.assertEqual((repo / 'probe-ran').read_text(), 'yes')
         self.assertEqual((repo / 'value.txt').read_text(), 'good')
         self.assertTrue((repo / 'hidden.py').is_file())
@@ -194,7 +215,7 @@ class DelegationEvalTests(unittest.TestCase):
         self.assertEqual(result['usage']['input_tokens'], 200)
         self.assertEqual(result['cost_usd'], 0.25)
         self.assertEqual(result['tools']['Skill'], 2)
-        transcript = self.output / 'held-out/off/rep1/session.jsonl'
+        transcript = self.work() / 'session.jsonl'
         self.assertEqual(sum(json.loads(line).get('type') == 'result'
                              for line in transcript.read_text().splitlines() if line.strip()), 2)
 
@@ -207,7 +228,7 @@ class DelegationEvalTests(unittest.TestCase):
         self.scenario['prompt'] = json.dumps({'edit': 'good'})
         self.assertEqual(self.cli()[0], 0)
         self.assertEqual(self.calls()[0]['before'], 'bad')
-        repo = self.output / 'held-out/off/rep1/repo'
+        repo = self.repo()
         self.assertEqual((repo / 'dependencies/marker').read_text(), 'shared')
         commit = subprocess.run(['git', 'log', '-1', '--format=%s'], cwd=repo, capture_output=True, text=True, check=True)
         self.assertEqual(commit.stdout.strip(), 'planted')
@@ -225,8 +246,9 @@ class DelegationEvalTests(unittest.TestCase):
         self.scenario['regression'] = shell_python(reader)
         self.assertEqual(self.cli('--deps-root', str(self.base / 'deps'), '--prune-clones')[0], 0)
         self.assertTrue(self.result()['verified_success'])
-        self.assertFalse((self.output / 'held-out/off/rep1/repo').exists())
+        self.assertFalse(self.repo().exists())
         self.assertTrue((self.output / 'held-out/off/rep1/result.json').is_file())
+        self.assertEqual(self.workspace()['repo'], str(self.repo()))
         self.assertEqual((deps / 'marker').read_text(), 'evaluation copy')
         self.assertEqual((self.project / 'dependencies/marker').read_text(), 'user')
 
@@ -240,7 +262,8 @@ class DelegationEvalTests(unittest.TestCase):
             "from pathlib import Path; Path('dependencies/marker').write_text('changed by agent')")
         self.assertEqual(self.cli('--deps-root', str(self.base / 'deps'), '--copy-deps', '--prune-clones')[0], 0)
         self.assertEqual((deps / 'marker').read_text(), 'shared')
-        self.assertFalse((self.output / 'held-out/off/rep1/deps').exists())
+        self.assertTrue(self.workspace()['dependencies'])
+        self.assertTrue(all(not Path(path).exists() for path in self.workspace()['dependencies'].values()))
 
     def test_judging_retries_a_failed_check_once(self):
         flaky = ("from pathlib import Path; p = Path('attempt'); n = int(p.read_text()) if p.exists() else 0; "
@@ -263,7 +286,7 @@ class DelegationEvalTests(unittest.TestCase):
         self.scenario['hidden'][0]['command'] = shell_python(
             "import os; from pathlib import Path; exec(open('hidden.py', encoding='utf-8').read())")
         self.assertEqual(self.cli()[0], 0)
-        pid = int((self.output / 'held-out/off/rep1/repo/server.pid').read_text())
+        pid = int((self.repo() / 'server.pid').read_text())
         if os.name == 'nt':
             alive = str(pid) in subprocess.run(['tasklist', '/FI', f'PID eq {pid}'], capture_output=True, text=True).stdout
         else:
@@ -287,6 +310,36 @@ class DelegationEvalTests(unittest.TestCase):
         report = json.loads((self.output / 'report.json').read_text())
         self.assertEqual(len(report['failures']), 2)
 
+    def test_resume_reuses_valid_result_without_a_second_fake_session(self):
+        self.assertEqual(self.cli()[0], 0)
+        self.assertEqual(len(self.calls()), 1)
+        self.assertEqual(self.cli()[0], 0)
+        self.assertEqual(len(self.calls()), 1)
+        state = json.loads((self.output / 'state.json').read_text(encoding='utf-8'))
+        self.assertEqual(len(state['valid']), 1)
+        self.assertEqual(state['pending'], 0)
+
+    def test_safe_run_records_exception_and_continues_to_next_cell(self):
+        following = copy.deepcopy(self.scenario)
+        following['id'] = 'after-error'
+        self.config['scenarios'].append(following)
+        original_run = runner.run
+
+        def fail_first(scenario, *args, **kwargs):
+            if scenario['id'] == 'held-out':
+                raise RuntimeError('synthetic runner exception')
+            return original_run(scenario, *args, **kwargs)
+
+        with patch.object(runner, 'run', side_effect=fail_first):
+            code, _ = self.cli('--jobs', '1')
+        self.assertEqual(code, 1)
+        state = json.loads((self.output / 'state.json').read_text(encoding='utf-8'))
+        attempts = {(row['scenario'], row['condition']): row for row in state['attempts']}
+        self.assertTrue(attempts[('held-out', 'off')]['excluded'])
+        self.assertIn('synthetic runner exception', attempts[('held-out', 'off')]['errors'][0])
+        self.assertTrue(attempts[('after-error', 'off')]['verified_success'])
+        self.assertEqual(len(self.calls(scenario='after-error')), 1)
+
     def test_fallback_usage_and_defensive_parser(self):
         self.scenario['prompt'] = json.dumps({'fallback': True})
         self.assertEqual(self.cli()[0], 0)
@@ -308,7 +361,7 @@ class DelegationEvalTests(unittest.TestCase):
         self.git('branch', 'heldout-ref')
         self.scenario['ref'] = 'heldout-ref'
         self.assertEqual(self.cli()[0], 0)
-        repo = self.output / 'held-out/off/rep1/repo'
+        repo = self.repo()
         current = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=repo, check=True, capture_output=True, text=True)
         self.assertEqual(current.stdout.strip(), self.ref)
 
@@ -376,6 +429,99 @@ class DelegationEvalTests(unittest.TestCase):
         self.output.mkdir()
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
             self.cli('--dry-run')
+
+    def test_short_workspace_fits_long_scenario_and_tracked_audio_path(self):
+        relative = self.add_long_file()
+        self.scenario['id'] = 'long-case-' + 's' * 100
+        plan = runner.plan_workspace(self.scenario, {'name': 'off'}, 1, self.output, path_limit=240)
+        repo = Path(plan['repo'])
+        legacy_repo = self.output / self.scenario['id'] / 'off' / 'rep1' / 'repo'
+        self.assertTrue(plan['path_budget']['fits'], plan['path_budget'])
+        self.assertGreater(len(str(legacy_repo / Path(relative))), 240)
+        self.assertLessEqual(len(str(repo / Path(relative))), 240)
+        self.assertLess(len(str(Path(plan['result_directory']))), 240)
+        self.assertEqual(repo.parent, Path(plan['directory']))
+        self.assertRegex(plan['cell_id'], r'^[0-9a-f]{8}$')
+        self.assertEqual(repo.name, 'r')
+        self.assertEqual(repo.parent.name, plan['cell_id'])
+        self.assertEqual(repo.parent.parent.name, 'e')
+        self.assertEqual(repo.parent.parent.parent, ROOT / '.work')
+
+    def test_short_workspace_switches_to_fallback_when_primary_exceeds_budget(self):
+        relative = self.add_long_file()
+        fallback = self.base / 'e'
+        args = (self.scenario, {'name': 'off'}, 1, self.output)
+        with patch.object(runner, 'fallback_work_root', return_value=fallback):
+            primary = runner.plan_workspace(*args, path_limit=1000)
+            fallback_repo = fallback / primary['cell_id'] / 'r'
+            primary_length = len(str(Path(primary['repo']) / Path(relative)))
+            fallback_length = len(str(fallback_repo / Path(relative)))
+            self.assertLess(fallback_length, primary_length)
+            limit = fallback_length
+            plan = runner.plan_workspace(*args, path_limit=limit)
+        self.assertTrue(plan['path_budget']['fits'], plan['path_budget'])
+        self.assertEqual(Path(plan['repo']), fallback_repo)
+        self.assertEqual(plan['path_budget']['limit'], limit)
+
+    def test_dependency_copy_extent_can_exceed_both_workspace_roots(self):
+        relative = 'n' * 150 + '.bin'
+        deps = self.base / 'deps' / self.project.name / 'node_modules'
+        deps.mkdir(parents=True)
+        (deps / relative).write_bytes(b'dependency')
+        self.scenario['links'] = ['node_modules']
+        fallback = self.base / ('fallback-' + 'f' * 45)
+        with patch.object(runner, 'fallback_work_root', return_value=fallback):
+            plan = runner.plan_workspace(self.scenario, {'name': 'off'}, 1, self.output,
+                                         deps_root=self.base / 'deps', copy_deps=True, path_limit=220)
+        budget = plan['path_budget']
+        self.assertFalse(budget['fits'], budget)
+        self.assertEqual(budget['limit'], 220)
+        self.assertGreater(budget['required_file_length'], 220)
+        self.assertIn(relative, budget['cause_file'])
+
+    def test_over_budget_is_recorded_without_clone_or_fake_session(self):
+        self.scenario['id'] = 'long-case-' + 's' * 100
+        with patch.object(runner, 'fallback_work_root', return_value=self.base / 'fallback'), \
+             patch.object(runner, 'clone') as clone:
+            code, _ = self.cli('--path-limit', '40')
+        self.assertEqual(code, 1)
+        result = self.result(scenario=self.scenario['id'])
+        mapping = self.workspace(scenario=self.scenario['id'])
+        self.assertFalse(mapping['path_budget']['fits'])
+        self.assertIn('path_budget_exceeded', json.dumps(result['errors']))
+        self.assertEqual(result['sessions'], [])
+        clone.assert_not_called()
+        self.assertFalse((Path(mapping['repo']) / 'calls.jsonl').exists())
+
+    def test_workspace_mapping_preserves_readable_outputs_and_safe_cleanup(self):
+        self.assertEqual(self.cli('--prune-clones')[0], 0)
+        work = self.work()
+        mapping = self.workspace()
+        self.assertEqual(mapping['result_directory'], str(work))
+        self.assertEqual(mapping['repo'], str(self.repo()))
+        self.assertTrue((work / 'result.json').is_file())
+        self.assertTrue((work / 'session.jsonl').is_file())
+        self.assertFalse(self.repo().exists())
+
+        work_root = self.base / 'safe-root'
+        clone = work_root / 'cell' / 'r'
+        clone.mkdir(parents=True)
+        external = self.base / 'external'
+        external.mkdir()
+        (external / 'keep.txt').write_text('preserve', encoding='utf-8')
+        link = clone / 'node_modules'
+        if os.name == 'nt':
+            subprocess.run(['cmd', '/c', 'mklink', '/J', str(link), str(external)],
+                           check=True, capture_output=True)
+        else:
+            link.symlink_to(external, target_is_directory=True)
+        runner.remove_tree(clone, work_root)
+        self.assertFalse(clone.exists())
+        self.assertEqual((external / 'keep.txt').read_text(encoding='utf-8'), 'preserve')
+        with self.assertRaises(ValueError):
+            runner.remove_tree(work_root, work_root)
+        with self.assertRaises(ValueError):
+            runner.remove_tree(external, work_root)
 
     def test_aggregate_fixed_math_and_unknowns(self):
         def row(success, tokens, cost, wall, probe, incomplete):

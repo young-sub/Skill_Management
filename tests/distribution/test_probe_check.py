@@ -93,6 +93,15 @@ class ProbeCheckTests(unittest.TestCase):
         self.assertEqual((self.root / '규칙.py').read_bytes(), original)
         self.assertEqual((self.output / 'report.md').read_text(encoding='utf-8'), stdout)
 
+    def test_origins_summarize_which_guardrails_grew_from_findings(self):
+        self.write('test_rule.py', self.check_source('self.assertFalse(allowed(1))'))
+        self.registry_write([self.probe(origin='independent-check 2026-10-28 import'),
+                             self.probe(id='floor', find='return amount', replace='return True or amount',
+                                        origin='independent-check 2026-10-28'),
+                             self.probe(id='old')])
+        stdout = self.invoke('probes', '--output', str(self.output), expected=1)
+        self.assertIn('Origins: independent-check 1/2, unrecorded 0/1', stdout)
+
     def test_survived(self):
         self.write('test_rule.py', self.check_source('self.assertFalse(allowed(1))'))
         self.registry_write([self.probe()])

@@ -6,6 +6,11 @@
 
 호스트에서 이 패키지를 등록하고 활성화한 뒤 [agent-workflow](skills/agent-workflow/SKILL.md)를 선택하여 실제 업무를 요청합니다. 플러그인 생성만으로 호스트 등록·인증·hook 신뢰가 설정되지는 않습니다. 개별 스킬을 따로 다시 설치할 필요는 없습니다.
 
+Optional TypeScript LSP setup: `npm install -g typescript-language-server typescript@6`,
+then `/plugin install typescript-lsp@claude-plugins-official`. TypeScript 7.x ships no
+`tsserver.js`, so typescript-language-server cannot start with it. Without the `LSP`
+tool, the Skills fall back to text search; table/column write searches still apply.
+
 ```text
 상품 저장 기능을 구현하고, 화면 입력부터 저장 후 재조회까지 검증해줘.
 검사한 이유와 실제 결과, 아직 확인하지 못한 부분을 보여줘.
@@ -13,7 +18,7 @@
 
 모델이 스스로 고르는 Skill은 `agent-workflow`, `diagnose`, `recall`, `setup-project-verification`, `fixing-accessibility` 다섯 개입니다. 나머지는 명시 호출 전용이라 평소 컨텍스트에 설명이 실리지 않습니다. 사용자가 직접 부르거나 `agent-workflow`가 필요할 때 형제 Skill의 `SKILL.md`를 읽어 사용합니다. 프롬프트 hook은 선택된 작업이나 명확한 요청 유형이 있을 때만 한 줄을 남기고, 그 외에는 아무것도 주입하지 않습니다.
 
-위임한 작업은 요청에서 도출한 수락 검사, 변경 없이 새 테스트가 실패하는지 보는 증명(`probe_check.py prove`), 영향받는 기존 검사, 결과 카드로 끝납니다. 프로젝트의 `.harness/probes.json`에 등록한 인공 결함은 `probe_check.py probes`로 실행해 Feature × 업무/아키텍처/UI × 계층별로 몇 개를 잡는지 보여 줍니다.
+위임한 작업은 요청에서 도출한 수락 검사, 변경 없이 새 테스트가 실패하는지 보는 증명(`probe_check.py prove`; optional when a new test's ability to catch the defect is in doubt), 영향받는 기존 검사, 결과 카드로 끝납니다. 프로젝트의 `.harness/probes.json`에 등록한 인공 결함은 `probe_check.py probes`로 실행해 Feature × 업무/아키텍처/UI × 계층별로 몇 개를 잡는지 보여 줍니다.
 
 프로젝트의 기존 AGENTS·기능 지도·요구사항·실행 명령을 먼저 사용합니다. 작은 수정에는 전체 프로젝트 설정이나 여섯 영역의 전수 검사를 요구하지 않습니다. 검증 연결이 없는 경로는 [setup-project-verification](skills/setup-project-verification/SKILL.md)으로 연결합니다.
 

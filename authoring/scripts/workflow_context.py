@@ -14,10 +14,10 @@ ROUTES = (
      r'(검증|테스트)\s?(결과|현황|상태)|어떤\s?(테스트|검증)|무엇이\s?검증|검증(되지|이 안|안 된)|테스트\s?(되어|돼)\s?있|'
      r'검증이?\s?(끝난|됐|된)\s?(거|건)|verification\s(status|results|coverage)|test coverage|been verified|'
      r'what\s(is|was|gets)\s(tested|verified)|not\scovered|show\s.{0,12}(results|verification)'),
-    ('recall', 'resume prior work: reconcile the handoff with the checkout before acting',
+    ('agent-workflow', 'resume prior work: read the sibling recall SKILL.md, reconcile the handoff with the checkout',
      r'어디까지|이어서|이어\s?하|계속\s?하자|하던\s?작업|중단된\s.{0,12}작업|작업\s?계속|where (were|did) we|'
      r'continue (where|the previous)|left off|pick up .{0,40}(where|from)'),
-    ('setup-project-verification', 'connect verification for a flow',
+    ('agent-workflow', 'connect verification for a flow: read the sibling setup-project-verification SKILL.md',
      r'검증\s?체계|검증.{0,12}연결|연결.{0,12}검증|테스트\s?환경\s?(붙|연결|구성)|테스트를?\s?붙여|(e2e|E2E)\s?테스트를?\s?(연결|붙)|'
      r'connect\s.{0,20}verification|set\s?up\s.{0,30}(verification|automated (checks?|tests?))'),
     ('agent-workflow', 'guardrail: express the rule in the existing linter/runner and prove it rejects a synthetic violation',
@@ -31,7 +31,8 @@ SYMPTOM = (r'버그|고장|깨져|깨짐|잘려|사라졌|사라져|엉뚱|틀�
            r'(오류|에러)(가|이)\s|고객.{0,12}(문의|불만|항의|화)|제보|항의|(했|됐|인|는)데도?\s|두\s?번\s?(차감|결제|청구)|'
            r'마이너스|음수로|하얀\s?화면|흰\s?화면|\bbug\b|\bbroken\b|\bwrong\b|\bfail(s|ing)\b|crash|complain|are seeing|'
            r'never (arrives|loads|shows)|doesn.?t work|not working|regress')
-DIAGNOSE = ('diagnose', 'reported incorrect behavior: reproduce, find the cause owner, block the original and alternate paths')
+DIAGNOSE = ('agent-workflow', 'reported incorrect behavior: read the sibling diagnose SKILL.md; reproduce, find the cause owner, '
+            'block the original and alternate paths')
 DELEGATE = ('agent-workflow', 'delegated work: acceptance first, prove the checks catch the defect, run affected checks, result card')
 
 # Direct work: quoted copy or label edits, renames, version bumps, questions, reviews, summaries and

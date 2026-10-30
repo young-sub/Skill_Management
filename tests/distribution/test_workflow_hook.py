@@ -156,7 +156,9 @@ class WorkflowHookTests(unittest.TestCase):
                 result = hook({'hook_event_name': 'UserPromptSubmit', 'cwd': str(root),
                                'prompt': 'Fix the failing user flow. PRIVATE PROMPT'})
             context = result['hookSpecificOutput']['additionalContext']
-            self.assertEqual(json.loads(context.split('\n', 1)[1])['route']['skill'], 'diagnose')
+            routed = json.loads(context.split('\n', 1)[1])['route']
+            self.assertEqual(routed['skill'], 'agent-workflow')
+            self.assertIn('read the sibling diagnose SKILL.md', routed['reason'])
             self.assertNotIn('NOT_CONFIGURED', context, 'Setup guidance is not repeated on every prompt')
             self.assertNotIn('PRIVATE PROMPT', context)
             with mock.patch.dict(os.environ, AGENT_WORKFLOW_CONTEXT=''):

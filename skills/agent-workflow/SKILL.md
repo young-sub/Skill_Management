@@ -1,127 +1,71 @@
 ---
 name: agent-workflow
-description: Deliver delegated coding work across FE, API/backend and business logic with acceptance checks derived from the request, proof that new tests catch the defect, affected existing checks and a result card. Also shows what is verified, reuses UI standards, builds guardrails and opens explicit-only capabilities. Trivial edits stay direct.
+description: Deliver delegated coding work across FE, API/backend and business logic with acceptance checks derived from the request, proof that new tests catch the defect, affected existing checks, an independent verifier and a result card. Also shows what is verified, reuses UI standards, builds guardrails and opens explicit-only capabilities. Trivial edits stay direct.
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: b09c20e4314ee3a39cbc7a32b0eacca8faab34798a7d993ba79baef83bc07ca2 -->
+<!-- Source-SHA256: 4a9fc282ba1fdce1836657e6f90d8d75230af85163bc5db5d604b48fea4fca00 -->
 
 
 # Agent Workflow
 
-Deliver the outcome inside the authorized scope, prove it, and report it so the
-user can delegate more. Trivial edits (copy, typo, one config value) need none of
-this. When the prompt context carries a `route`, invoke that Skill first unless
-the request is a trivial edit.
+Trivial edits stay direct. Invoke the prompt context's `route` Skill first.
 
 ## Delivery loop
 
-1. **Scope.** Read the project's AGENTS/index and the Feature Map rules, owners and
-   checks for the touched area. Trace callers and state/data owners through
-   FE → API → Domain → storage; use [change impact](references/change-impact.md)
-   when ownership or contracts are shared.
-2. **Acceptance first.** Before changing behavior, write or name the checks that
-   decide success. Derive expected values from the request and the documented rule,
-   never from running the new code. Run them on the current code and confirm they
-   fail for the intended reason; if reproduction is infeasible, say why.
-3. **Fix at the owner, on every path.** List every place that writes or enforces
-   the same rule (callers, other endpoints, triggers, imports, background jobs) and
-   cover each with a check. When the request states the rule for all saves or all
-   users, apply it on every such path; exempting one (for example restore or import)
-   is the user's decision, so ask instead of deciding it. A guard is a fix only when that state
-   can legitimately occur. Revert changes made for a hypothesis the evidence refuted;
-   after two failures on one premise, test the premise before the next fix.
-4. **Prove the checks catch the defect.** A failure observed in step 2 for the intended
-   reason is the proof. Only for tests written after the change, run
-   `python <this Skill's directory>/scripts/probe_check.py prove --root <project> --base HEAD --tests <new or changed tests> --command "<test command>" --skip-current`:
-   the tests must fail without the source change. Pass ignored dependency directories
-   with `--link node_modules` instead of creating links in the copy yourself. For a
-   business, architecture or UI rule worth protecting, add a probe to
-   `.harness/probes.json` and run `probe_check.py probes`. A surviving probe means the
-   rule is not protected yet.
-5. **Run affected existing checks once, after the final edit.** In one batch, run the
-   new tests with the Feature's registered checks and the existing tests that exercise
-   the changed modules on every touched layer; rerun only what a later edit affects.
-   New tests alone are not completion. Open a browser only for a visual or interaction
-   change that no automated UI test covers.
-6. **Report the result card.**
+1. **Acceptance first.** Derive checks from the request and recorded
+   `.harness/decisions.md`, not new-code output. List the 1-3 points whose behavior
+   admits multiple readings (or none). In interactive sessions ask; in delegated/headless
+   work choose a reading and put it on the first `가정/Assumptions` card line.
+2. **Fix at the owner.** When enforcing a rule on stored data, find every writer: run `LSP findReferences`
+   on the writing function (text search if no `LSP` tool), and text-search table/column writes too
+   (SQL INSERT/UPDATE, ORM calls, import/restore jobs). Cover each writer with a check.
+3. **Verify.** Run acceptance and affected existing checks after the final edit.
+   Use `probe_check.py prove` optionally, when a new test's ability to catch the
+   defect is in doubt; pass ignored dependencies with `--link node_modules`.
+4. **Independent check.** For behavior changes, dispatch a fresh verifier with only
+   the verbatim request and diff using [the template](references/independent-check.md).
+   Fix demonstrated violations and register each as a probe; undecided readings go
+   to *User decisions*. Run `probe_check.py probes` for registered faults.
+5. **Report the result card.**
 
-Settle questions that running code can answer (behavior, performance, layout) by
-experiment. Ask the user only for decisions they own: business value, scope,
-irreversible or outward-facing actions.
-
-Playbooks add task-specific cases: [feature](playbooks/feature.md),
-[bug fix](playbooks/bug-fix.md), [refactoring](playbooks/refactoring.md).
+Playbooks: [feature](playbooks/feature.md), [bug fix](playbooks/bug-fix.md),
+[refactoring](playbooks/refactoring.md).
 
 ## Result card
 
-End delegated work with at most about 15 lines:
+Separate facts, inference and unverified claims (about 15 lines).
+Distinguish fixture, product, package and native-host evidence.
 
 ```
+가정/Assumptions: <chosen readings, confirmed answers, or none>
 Request → changed behavior: <one line>
-Affected: <Feature / rule IDs> | business: <FE/API/Domain> | architecture: <boundary or owner>
+Affected: <Feature / rule IDs> | business: <FE/API/Domain> | architecture: <owner>
 Checks after the final edit: <check> ✓/✗ (command, raw location)
-Proof: <tests fail without the change ✓ | probe <id> killed ✓ | not run: reason>
-Paths covered: <writers/enforcers checked, or the uncovered one>
-Unverified: <what was not observed and why>
-User decisions: <decision, recommendation, what happens without an answer> or none
+Proof: <tests fail without change | probe killed | not run: reason>
+Paths covered: <writers/enforcers checked, or uncovered>
+Independent check: <complete | N violations → M fixed (probes: ids), K for user decision (tests: paths) | not run: reason>
+Unverified: <what and why>
+User decisions: <decision, recommendation, default> or none
 ```
 
-Keep observed results, inference and unverified claims separate. Fixture, product,
-package and native-host evidence are different evidence.
+## Other requests
+
+- **Results:** use [CLI](scripts/project_workflow.py) `lookup --report` or `audit --report`;
+  no tests, repairs or services. Include recorded decisions and ask its user questions.
+  NOT_CONNECTED: offer setup. Existing task state only: [obligations](references/workflow-obligations.md)
+  and [lookup](references/result-viewer.md); never guess among tasks.
+- **Correction/reuse:** [feedback](references/feedback-and-success.md).
+- **Decision answers:** [record before acting](references/independent-check.md#recorded-decisions).
+- **UI standards:** [project tokens/components](references/repair-and-reuse.md#ui-discovery-and-comparison).
+- **Guardrail:** enforce through lint/types/tests; a probe must reject a violation
+  while nearby valid code passes.
 
 ## Capabilities
 
-Auto-invocable Skills (Skill tool): `diagnose` for incorrect behavior or a complaint,
-`recall` to resume prior work, `setup-project-verification` to connect verification
-for a flow, `fixing-accessibility` for interaction and accessibility.
-
-Explicit-only capabilities stay out of the context until needed. When one of these
-needs arises, read `SKILL.md` in the named sibling Skill directory (same parent as this
-Skill's directory) and follow it. If that directory is absent, continue here.
-
-| Need | Sibling Skill |
-| --- | --- |
-| Design choice across modules, interfaces or data ownership | `architect` |
-| Parallel implementation over disjoint files, or resuming delegated work | `swarm` |
-| Adversarial review of a plan or implementation | `multi-agent-review` |
-| Prune, merge or repair checks, Feature Map or guide drift | `maintain-project-verification` |
-| Visual design quality, redesign or critique | `impeccable` |
-| React/Next.js performance | `vercel-react-best-practices` |
-| A runnable experiment before production code | `prototype` |
-| Explain how or why code works | `zoom-out` |
-| Unclear problem or value | `explore-idea` |
-| Work contract lifecycle | `design-goal`, `execute-codex-goal`, `close-goal` |
-| Harness configuration | `setup-agent-harness`, `maintain-agent-harness` |
-
-Use `swarm` only when the user asked for parallel work or the split is clearly
-independent; say that you are doing so.
-
-## Show what is verified
-
-Render `lookup --report` for a task or `audit --report` for the project with the
-bundled [CLI](scripts/project_workflow.py) and answer from it. Add the
-`probe_check.py probes` matrix when probes exist: it shows how many synthetic
-defects each Feature's checks detect per business/architecture/UI × layer. An
-unconnected project reports NOT_CONNECTED: say so and offer setup. Ask the report's
-*Questions for the user* in the same turn and record the answers. Do not run tests,
-repairs or services for a results request.
-
-## Feedback, UI standards and guardrails
-
-- Human correction or a turn worth repeating: [feedback and success reuse](references/feedback-and-success.md).
-  A first clear correction is enough; praise alone is not a rule request.
-- UI standards: the project guide and its tokens/components own values. Follow
-  [UI discovery and comparison](references/repair-and-reuse.md#ui-discovery-and-comparison);
-  a drift guardrail is a lint or visual check plus a probe that it rejects.
-- Guardrail: express the rule in the project's existing linter, type system or test
-  runner. Prove it rejects a synthetic violation (probe) and still allows nearby valid
-  code. A written rule without enforcement is not a guardrail.
-
-## Persistent workflow state
-
-Only for an existing task or an explicit request: use the bundled CLI with
-[workflow obligations](references/workflow-obligations.md) and
-[result lookup](references/result-viewer.md). Never guess among active tasks; lookup
-writes nothing and runs no product command. Installed resources, global settings,
-providers and publishing need their own authority.
+Explicit-only: read the sibling Skill's `SKILL.md` when needed; if absent, continue here:
+`diagnose` (reported incorrect behavior), `recall` (resume prior work),
+`setup-project-verification`, `fixing-accessibility`, `architect`, `swarm`, `multi-agent-review`, `maintain-project-verification`, `impeccable`,
+`vercel-react-best-practices`, `prototype`, `zoom-out`, `explore-idea`,
+`design-goal`/`execute-codex-goal`/`close-goal`, `setup-agent-harness`/`maintain-agent-harness`.
+Installed resources, global settings, providers and publishing need their own authority.

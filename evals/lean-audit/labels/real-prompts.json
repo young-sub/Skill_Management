@@ -1,0 +1,690 @@
+{
+ "910f6e23#6": {
+  "label": "SLASH",
+  "note": ""
+ },
+ "c208f210#0": {
+  "label": "OTHER",
+  "note": ""
+ },
+ "c208f210#1": {
+  "label": "SLASH",
+  "note": ""
+ },
+ "c208f210#2": {
+  "label": "QUESTION",
+  "note": ""
+ },
+ "c208f210#3": {
+  "label": "OPS",
+  "note": "symlink CLAUDE.md to AGENTS.md (file op, no code)"
+ },
+ "d50dc570#0": {
+  "label": "OPS",
+  "note": "same symlink request"
+ },
+ "d50dc570#1": {
+  "label": "CONT",
+  "note": ""
+ },
+ "d50dc570#2": {
+  "label": "QUESTION",
+  "note": "check what the user did"
+ },
+ "8c0543c5#0": {
+  "label": "ANALYSIS",
+  "note": "explore an external repo"
+ },
+ "00c95bd2#0": {
+  "label": "BUG",
+  "note": "eval run failed twice; asks cause and whether a fix is needed"
+ },
+ "00c95bd2#1": {
+  "label": "PROMPT",
+  "note": "write a resume prompt for a Codex session"
+ },
+ "00c95bd2#2": {
+  "label": "PROMPT",
+  "note": "correction to the prompt being written"
+ },
+ "078b05b9#0": {
+  "label": "ANALYSIS",
+  "note": "review plugin status and propose"
+ },
+ "078b05b9#3": {
+  "label": "IMPL",
+  "note": "update install, delete, verify"
+ },
+ "078b05b9#5": {
+  "label": "OPS",
+  "note": "push to main"
+ },
+ "078b05b9#6": {
+  "label": "ANALYSIS",
+  "note": "re-check plugin status (explicit $agent-workflow text)"
+ },
+ "078b05b9#11": {
+  "label": "ANALYSIS",
+  "note": "independent review, present improvements"
+ },
+ "078b05b9#14": {
+  "label": "CONT",
+  "note": "change target project of the ongoing analysis"
+ },
+ "078b05b9#15": {
+  "label": "IMPL",
+  "note": ""
+ },
+ "078b05b9#16": {
+  "label": "QUESTION",
+  "note": ""
+ },
+ "078b05b9#17": {
+  "label": "QUESTION",
+  "note": ""
+ },
+ "078b05b9#18": {
+  "label": "IMPL-GO",
+  "note": "approve applying the change"
+ },
+ "078b05b9#19": {
+  "label": "OPS",
+  "note": "merge/push plus question"
+ },
+ "078b05b9#20": {
+  "label": "QUESTION",
+  "note": ""
+ },
+ "078b05b9#21": {
+  "label": "ANALYSIS",
+  "note": "re-review necessity"
+ },
+ "078b05b9#22": {
+  "label": "IMPL-GO",
+  "note": ""
+ },
+ "078b05b9#23": {
+  "label": "SYS-CONT",
+  "note": "compaction summary"
+ },
+ "078b05b9#24": {
+  "label": "OPS",
+  "note": "pull and finish"
+ },
+ "15972af9#1": {
+  "label": "ANALYSIS",
+  "note": "read article, propose questions ('원인' keyword)"
+ },
+ "15972af9#2": {
+  "label": "ANALYSIS",
+  "note": "investigate session records"
+ },
+ "15972af9#9": {
+  "label": "QUESTION",
+  "note": ""
+ },
+ "15972af9#10": {
+  "label": "PROMPT",
+  "note": "deeper-suffix rewrite request"
+ },
+ "1dc71010#1": {
+  "label": "ANALYSIS",
+  "note": "this audit; plugin code edits forbidden"
+ },
+ "3e212896#1": {
+  "label": "ANALYSIS",
+  "note": "analysis and decision only, no code"
+ },
+ "3e212896#2": {
+  "label": "CONT",
+  "note": ""
+ },
+ "3e212896#3": {
+  "label": "ANALYSIS",
+  "note": "direction correction of analysis"
+ },
+ "3e212896#4": {
+  "label": "ANALYSIS",
+  "note": ""
+ },
+ "3e212896#5": {
+  "label": "ANALYSIS",
+  "note": ""
+ },
+ "412f9a2a#1": {
+  "label": "ANALYSIS",
+  "note": ""
+ },
+ "412f9a2a#4": {
+  "label": "ANALYSIS",
+  "note": ""
+ },
+ "412f9a2a#5": {
+  "label": "IMPL-GO",
+  "note": "execute the proposal"
+ },
+ "412f9a2a#41": {
+  "label": "IMPL-GO",
+  "note": ""
+ },
+ "412f9a2a#44": {
+  "label": "CONT",
+  "note": ""
+ },
+ "412f9a2a#45": {
+  "label": "OPS",
+  "note": "commit push"
+ },
+ "412f9a2a#46": {
+  "label": "OPS",
+  "note": "merge, push, release"
+ },
+ "412f9a2a#47": {
+  "label": "OPS",
+  "note": ""
+ },
+ "65fcfb58#0": {
+  "label": "SYS-CONT",
+  "note": ""
+ },
+ "65fcfb58#1": {
+  "label": "ANALYSIS",
+  "note": ""
+ },
+ "65fcfb58#2": {
+  "label": "PROMPT",
+  "note": "deeper-suffix rewrite request"
+ },
+ "65fcfb58#3": {
+  "label": "CONT",
+  "note": ""
+ },
+ "65fcfb58#5": {
+  "label": "ANALYSIS",
+  "note": "external research"
+ },
+ "65fcfb58#7": {
+  "label": "QUESTION",
+  "note": ""
+ },
+ "65fcfb58#8": {
+  "label": "IMPL",
+  "note": ""
+ },
+ "65fcfb58#12": {
+  "label": "QUESTION",
+  "note": ""
+ },
+ "65fcfb58#13": {
+  "label": "QUESTION",
+  "note": "why-question about the plugin history"
+ },
+ "65fcfb58#15": {
+  "label": "OTHER",
+  "note": ""
+ },
+ "65fcfb58#16": {
+  "label": "ANALYSIS",
+  "note": ""
+ },
+ "65fcfb58#17": {
+  "label": "PROMPT",
+  "note": "deeper-suffix rewrite request"
+ },
+ "65fcfb58#18": {
+  "label": "QUESTION",
+  "note": ""
+ },
+ "85f5d48d#1": {
+  "label": "ANALYSIS",
+  "note": "evaluate plugin"
+ },
+ "85f5d48d#2": {
+  "label": "PROMPT",
+  "note": "give prompt essentials for Codex"
+ },
+ "85f5d48d#3": {
+  "label": "ANALYSIS",
+  "note": ""
+ },
+ "85f5d48d#4": {
+  "label": "ANALYSIS",
+  "note": ""
+ },
+ "85f5d48d#5": {
+  "label": "ANALYSIS",
+  "note": ""
+ },
+ "85f5d48d#7": {
+  "label": "IMPL-GO",
+  "note": "do it and update design docs"
+ },
+ "85f5d48d#10": {
+  "label": "SYS-CONT",
+  "note": ""
+ },
+ "85f5d48d#14": {
+  "label": "QUESTION",
+  "note": ""
+ },
+ "85f5d48d#15": {
+  "label": "ANALYSIS",
+  "note": ""
+ },
+ "85f5d48d#16": {
+  "label": "ANALYSIS",
+  "note": ""
+ },
+ "85f5d48d#18": {
+  "label": "CONT",
+  "note": ""
+ },
+ "85f5d48d#20": {
+  "label": "QUESTION",
+  "note": ""
+ },
+ "85f5d48d#21": {
+  "label": "FEEDBACK",
+  "note": "human direction correction"
+ },
+ "85f5d48d#24": {
+  "label": "SYS-CONT",
+  "note": ""
+ },
+ "85f5d48d#25": {
+  "label": "QUESTION",
+  "note": ""
+ },
+ "85f5d48d#26": {
+  "label": "QUESTION",
+  "note": ""
+ },
+ "85f5d48d#27": {
+  "label": "IMPL-GO",
+  "note": ""
+ },
+ "85f5d48d#28": {
+  "label": "IMPL-GO",
+  "note": ""
+ },
+ "85f5d48d#38": {
+  "label": "SYS-CONT",
+  "note": ""
+ },
+ "aeb81dd1#0": {
+  "label": "ANALYSIS",
+  "note": "consider adopting external skills"
+ },
+ "aeb81dd1#1": {
+  "label": "QUESTION",
+  "note": ""
+ },
+ "aeb81dd1#2": {
+  "label": "ANALYSIS",
+  "note": "find a way"
+ },
+ "aeb81dd1#3": {
+  "label": "QUESTION",
+  "note": ""
+ },
+ "aeb81dd1#4": {
+  "label": "IMPL",
+  "note": "do the work and update usage docs"
+ },
+ "aeb81dd1#5": {
+  "label": "OPS",
+  "note": ""
+ },
+ "aeb81dd1#6": {
+  "label": "OPS",
+  "note": "delete branches"
+ },
+ "b47aef9f#1": {
+  "label": "ANALYSIS",
+  "note": "review plugin, what to remove"
+ },
+ "b47aef9f#2": {
+  "label": "PROMPT",
+  "note": "same review plus deeper-suffix rewrite request"
+ },
+ "dddfe3d6#3": {
+  "label": "OTHER",
+  "note": "fragment"
+ },
+ "dddfe3d6#4": {
+  "label": "ANALYSIS",
+  "note": ""
+ },
+ "dddfe3d6#5": {
+  "label": "QUESTION",
+  "note": ""
+ },
+ "dddfe3d6#6": {
+  "label": "PROMPT",
+  "note": "deeper-suffix rewrite request"
+ },
+ "dddfe3d6#7": {
+  "label": "QUESTION",
+  "note": ""
+ },
+ "ec4818f2#3": {
+  "label": "ANALYSIS",
+  "note": "record-based decision"
+ },
+ "1792b3cb#1": {
+  "label": "IMPL",
+  "note": ""
+ },
+ "1792b3cb#2": {
+  "label": "IMPL",
+  "note": ""
+ },
+ "1792b3cb#3": {
+  "label": "IMPL",
+  "note": ""
+ },
+ "1792b3cb#7": {
+  "label": "IMPL",
+  "note": ""
+ },
+ "1792b3cb#9": {
+  "label": "IMPL",
+  "note": ""
+ },
+ "1792b3cb#14": {
+  "label": "OPS",
+  "note": "commit push deploy"
+ },
+ "1792b3cb#19": {
+  "label": "IMPL",
+  "note": "layout change (cropped photo mentioned)"
+ },
+ "1792b3cb#22": {
+  "label": "TRIVIAL",
+  "note": "change a phone number"
+ },
+ "1792b3cb#23": {
+  "label": "SYS-CONT",
+  "note": ""
+ },
+ "4b3921da#1": {
+  "label": "RESUME",
+  "note": "follow the handoff prompt to finish remaining work"
+ },
+ "4b3921da#12": {
+  "label": "IMPL",
+  "note": ""
+ },
+ "4b3921da#15": {
+  "label": "OPS",
+  "note": "run local server and show"
+ },
+ "4b3921da#16": {
+  "label": "OPS",
+  "note": ""
+ },
+ "7d52c5ae#0": {
+  "label": "IMPL",
+  "note": "build homepage"
+ },
+ "7d52c5ae#2": {
+  "label": "ANALYSIS",
+  "note": "stack question, plan"
+ },
+ "7d52c5ae#4": {
+  "label": "CONT",
+  "note": ""
+ },
+ "7d52c5ae#5": {
+  "label": "CONT",
+  "note": "answers to agent questions"
+ },
+ "7d52c5ae#7": {
+  "label": "SLASH",
+  "note": "explicit /agentic-coding:agent-workflow"
+ },
+ "7d52c5ae#8": {
+  "label": "IMPL-GO",
+  "note": ""
+ },
+ "7d52c5ae#9": {
+  "label": "SLASH",
+  "note": "explicit /agentic-coding:agent-workflow asking for a next-session prompt"
+ },
+ "7e39c1a3#1": {
+  "label": "PROMPT",
+  "note": "deeper-suffix rewrite request (SEO review)"
+ },
+ "a1693903#1": {
+  "label": "ANALYSIS",
+  "note": "evaluate SEO"
+ },
+ "b7649984#1": {
+  "label": "ANALYSIS",
+  "note": "read-only evaluation"
+ },
+ "b7649984#2": {
+  "label": "ANALYSIS",
+  "note": ""
+ },
+ "b7649984#3": {
+  "label": "ANALYSIS",
+  "note": ""
+ },
+ "b7649984#4": {
+  "label": "ANALYSIS",
+  "note": ""
+ },
+ "b7649984#5": {
+  "label": "ANALYSIS",
+  "note": ""
+ },
+ "b7649984#8": {
+  "label": "IMPL",
+  "note": ""
+ },
+ "b7649984#11": {
+  "label": "IMPL-GO",
+  "note": ""
+ },
+ "d829ba59#1": {
+  "label": "ANALYSIS",
+  "note": "SEO check plus why-question"
+ },
+ "d829ba59#2": {
+  "label": "BUG",
+  "note": "wrong Kakao map link, plus recommendation"
+ },
+ "d829ba59#5": {
+  "label": "IMPL",
+  "note": ""
+ },
+ "d829ba59#8": {
+  "label": "IMPL",
+  "note": ""
+ },
+ "d829ba59#9": {
+  "label": "IMPL",
+  "note": "copy correction"
+ },
+ "d829ba59#10": {
+  "label": "CONT",
+  "note": ""
+ },
+ "d829ba59#12": {
+  "label": "OPS",
+  "note": ""
+ },
+ "d829ba59#15": {
+  "label": "OPS",
+  "note": "deploy"
+ },
+ "d829ba59#16": {
+  "label": "OPS",
+  "note": "check auto build"
+ },
+ "d829ba59#18": {
+  "label": "QUESTION",
+  "note": ""
+ },
+ "d829ba59#19": {
+  "label": "QUESTION",
+  "note": ""
+ },
+ "d829ba59#20": {
+  "label": "TRIVIAL",
+  "note": "insert two meta tags"
+ },
+ "d829ba59#21": {
+  "label": "QUESTION",
+  "note": ""
+ },
+ "d829ba59#22": {
+  "label": "QUESTION",
+  "note": ""
+ },
+ "d829ba59#23": {
+  "label": "QUESTION",
+  "note": ""
+ },
+ "d829ba59#24": {
+  "label": "QUESTION",
+  "note": ""
+ },
+ "e096458f#1": {
+  "label": "IMPL",
+  "note": ""
+ },
+ "e096458f#2": {
+  "label": "IMPL",
+  "note": ""
+ },
+ "e096458f#4": {
+  "label": "IMPL",
+  "note": ""
+ },
+ "e096458f#6": {
+  "label": "IMPL-GO",
+  "note": ""
+ },
+ "e096458f#7": {
+  "label": "IMPL",
+  "note": ""
+ },
+ "e096458f#9": {
+  "label": "IMPL",
+  "note": ""
+ },
+ "e096458f#11": {
+  "label": "IMPL",
+  "note": ""
+ },
+ "e096458f#12": {
+  "label": "IMPL",
+  "note": ""
+ },
+ "e096458f#13": {
+  "label": "IMPL",
+  "note": "content removal ('질문이 이상해')"
+ },
+ "e096458f#15": {
+  "label": "IMPL",
+  "note": ""
+ },
+ "e096458f#21": {
+  "label": "IMPL",
+  "note": ""
+ },
+ "e096458f#22": {
+  "label": "IMPL",
+  "note": ""
+ },
+ "e096458f#23": {
+  "label": "IMPL",
+  "note": ""
+ },
+ "6813042e#0": {
+  "label": "IMPL",
+  "note": ""
+ },
+ "6813042e#1": {
+  "label": "BUG",
+  "note": "save blocked, why"
+ },
+ "6813042e#2": {
+  "label": "IMPL",
+  "note": ""
+ },
+ "6813042e#3": {
+  "label": "OPS",
+  "note": "plus question"
+ },
+ "6813042e#5": {
+  "label": "OPS",
+  "note": "deploy"
+ },
+ "6813042e#7": {
+  "label": "QUESTION",
+  "note": ""
+ },
+ "6813042e#8": {
+  "label": "BUG",
+  "note": "error in screenshot, asks cause"
+ },
+ "6813042e#9": {
+  "label": "IMPL-GO",
+  "note": ""
+ },
+ "6813042e#10": {
+  "label": "OPS",
+  "note": ""
+ },
+ "6813042e#11": {
+  "label": "QUESTION",
+  "note": ""
+ },
+ "6813042e#12": {
+  "label": "IMPL-GO",
+  "note": ""
+ },
+ "ec4818f2#22": {
+  "label": "DUPLICATE",
+  "note": "same prompt and timestamp as a 65fcfb58 row"
+ },
+ "ec4818f2#24": {
+  "label": "DUPLICATE",
+  "note": "same prompt and timestamp as a 65fcfb58 row"
+ },
+ "ec4818f2#17": {
+  "label": "DUPLICATE",
+  "note": "same prompt and timestamp as a 65fcfb58 row"
+ },
+ "ec4818f2#10": {
+  "label": "DUPLICATE",
+  "note": "same prompt and timestamp as a 65fcfb58 row"
+ },
+ "ec4818f2#9": {
+  "label": "DUPLICATE",
+  "note": "same prompt and timestamp as a 65fcfb58 row"
+ },
+ "ec4818f2#12": {
+  "label": "DUPLICATE",
+  "note": "same prompt and timestamp as a 65fcfb58 row"
+ },
+ "ec4818f2#21": {
+  "label": "DUPLICATE",
+  "note": "same prompt and timestamp as a 65fcfb58 row"
+ },
+ "ec4818f2#11": {
+  "label": "DUPLICATE",
+  "note": "same prompt and timestamp as a 65fcfb58 row"
+ },
+ "ec4818f2#16": {
+  "label": "DUPLICATE",
+  "note": "same prompt and timestamp as a 65fcfb58 row"
+ },
+ "ec4818f2#14": {
+  "label": "DUPLICATE",
+  "note": "same prompt and timestamp as a 65fcfb58 row"
+ }
+}

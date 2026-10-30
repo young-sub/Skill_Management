@@ -5,7 +5,9 @@ Hidden checks are installed only after all fresh sessions and mutation probes.
 """
 import argparse
 from collections import Counter
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from functools import lru_cache
+import hashlib
 import importlib.util
 import json
 import math
@@ -17,7 +19,9 @@ import signal
 import statistics
 import subprocess
 import sys
+import tempfile
 import time
+import traceback
 
 
 _spec = importlib.util.spec_from_file_location('skill_scenarios', Path(__file__).with_name('run_skill_scenarios.py'))
@@ -30,6 +34,7 @@ _probe = importlib.util.module_from_spec(_probe_spec)
 _probe_spec.loader.exec_module(_probe)
 TOKEN_KEYS = ('input_tokens', 'output_tokens', 'cache_read_input_tokens', 'cache_creation_input_tokens')
 DEFAULT_MARKERS = ['미완료', '완료하지 못', 'could not complete', 'unable to complete']
+DEFAULT_WORK_ROOT = Path(__file__).resolve().parents[1] / '.work/e'
 
 
 def require(ok, message):
@@ -233,6 +238,8 @@ def execute(command, repo, timeout, transcript, shell=False):
     with transcript.open('wb') as stdout, transcript.with_suffix('.stderr').open('wb') as stderr:
         process = subprocess.Popen(command, cwd=repo, shell=shell, stdout=stdout, stderr=stderr,
                                    start_new_session=os.name != 'nt')
+        transcript.with_suffix('.process.json').write_text(json.dumps({
+            'pid': process.pid, 'cwd': str(repo), 'started_at': time.time()}), encoding='utf-8')
         timed_out = False
         try:
             process.wait(timeout=timeout)
@@ -273,11 +280,41 @@ def known_sum(values):
     return sum(values) if values and all(isinstance(v, (int, float)) for v in values) else None
 
 
-def remove_tree(path):
-    """Delete a clone without following links into shared dependency directories."""
-    if path.exists():
-        _probe.unlink_all_links(path)
-        shutil.rmtree(path, onerror=lambda f, p, e: (os.chmod(p, 0o700), f(p)))
+def write_json(path, value):
+    temporary = path.with_suffix(path.suffix + '.tmp')
+    temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding='utf-8')
+    temporary.replace(path)
+
+
+def remove_tree(path, root):
+    """Detach links, then remove only owned short-workspace descendants without recursion."""
+    path, root = Path(os.path.abspath(path)), Path(os.path.abspath(root))
+    require(root == root.resolve(), 'cleanup root contains a reparse point')
+    require(path != root and path.is_relative_to(root), f'cleanup path leaves workspace root: {path}')
+    for parent in path.parents:
+        if parent == root:
+            break
+        require(not _probe.is_link(parent), f'cleanup ancestor is a link: {parent}')
+    if not path.exists() and not _probe.is_link(path):
+        return
+    stack = [(path, False)]
+    while stack:
+        item, visited = stack.pop()
+        if _probe.is_link(item):
+            if os.name == 'nt' and item.is_dir():
+                subprocess.run(['cmd', '/c', 'rmdir', str(item)], check=True, capture_output=True)
+            else:
+                item.unlink()
+        elif item.is_dir():
+            if visited:
+                item.rmdir()
+            else:
+                stack.append((item, True))
+                with os.scandir(item) as entries:
+                    stack.extend((Path(entry.path), False) for entry in entries)
+        else:
+            os.chmod(item, 0o700)
+            item.unlink()
 
 
 def link_directory(link, source):
@@ -303,44 +340,130 @@ def kill_owned(work):
         subprocess.run(['pkill', '-f', marker], capture_output=True)
 
 
-def copy_tree(source, target):
+def path_extent(files, directories):
+    return {'file': max(files, key=len, default=''), 'directory': max(directories, key=len, default='')}
+
+
+@lru_cache(maxsize=None)
+def tracked_extent(project, ref):
+    names = subprocess.check_output(['git', '-C', str(project), 'ls-tree', '-r', '-z', '--name-only', ref])
+    files = [name for name in names.decode('utf-8').split('\0') if name]
+    directories = {str(p).replace('\\', '/') for name in files for p in Path(name).parents if str(p) != '.'}
+    return path_extent(files, directories)
+
+
+@lru_cache(maxsize=None)
+def dependency_extent(source):
+    source = Path(source)
+    require(source.is_dir(), f'link source missing: {source}')
+    files, directories = [], []
+    for directory, names, filenames in os.walk(source, followlinks=False):
+        # Match robocopy /XJ: a shared directory junction is never followed into a private copy.
+        names[:] = [n for n in names if not _probe.is_link(Path(directory) / n)]
+        directories.extend(str((Path(directory) / n).relative_to(source)) for n in names)
+        files.extend(str((Path(directory) / n).relative_to(source)) for n in filenames)
+    return path_extent(files, directories)
+
+
+def budget_for(root, extent, limit):
+    file = str(root / extent['file']) if extent['file'] else str(root)
+    directory = str(root / extent['directory']) if extent['directory'] else str(root)
+    return {'fits': len(file) <= min(limit, 259) and len(directory) <= min(limit, 248),
+            'required_file_length': len(file), 'required_directory_length': len(directory),
+            'cause_file': file, 'cause_directory': directory}
+
+
+def fallback_work_root():
+    return Path(os.environ.get('SystemDrive', 'C:') + '/e') if os.name == 'nt' else Path(tempfile.gettempdir()) / 'e'
+
+
+def dependency_sources(scenario, deps_root):
+    project = Path(scenario['project'])
+    names = scenario.get('links', []) or (['node_modules'] if (project / 'node_modules').is_dir() else [])
+    return {name: (Path(deps_root) / project.name / name if deps_root else project / name) for name in names}
+
+
+def plan_workspace(scenario, condition, rep, output, deps_root=None, copy_deps=False,
+                   work_root=None, path_limit=240):
+    """Budget the pinned tree and dependencies before creating a clone or starting a session."""
+    work = Path(output).resolve() / scenario['id'] / condition['name'] / f'rep{rep}'
+    cell_id = hashlib.sha256(str(work).encode('utf-8')).hexdigest()[:8]
+    extent = tracked_extent(str(Path(scenario['project']).resolve()), scenario.get('ref', 'HEAD'))
+    sources = dependency_sources(scenario, deps_root)
+    dependencies = {name: dependency_extent(str(source.resolve())) for name, source in sources.items()}
+    candidates = []
+    for root in dict.fromkeys((Path(work_root or DEFAULT_WORK_ROOT).resolve(), fallback_work_root().resolve())):
+        cell = root / cell_id
+        repo = cell / 'r'
+        private = {name: str(cell / 'd' / name) for name in sources} if copy_deps else {}
+        checks = [budget_for(repo, extent, path_limit)]
+        for name, dep_extent in dependencies.items():
+            # Tools also address dependencies through the node_modules link in the clone.
+            checks.append(budget_for(repo / name, dep_extent, path_limit))
+            if copy_deps:
+                checks.append(budget_for(Path(private[name]), dep_extent, path_limit))
+            else:
+                checks.append(budget_for(sources[name].resolve(), dep_extent, path_limit))
+        worst_file = max(checks, key=lambda x: x['required_file_length'])
+        worst_dir = max(checks, key=lambda x: x['required_directory_length'])
+        fits = all(c['fits'] for c in checks)
+        budget = dict(worst_file, required_directory_length=worst_dir['required_directory_length'],
+                      cause_directory=worst_dir['cause_directory'], fits=fits, limit=path_limit)
+        candidates.append(dict(budget, root=str(root)))
+        plan = {'cell_id': cell_id, 'cell': {'scenario': scenario['id'], 'condition': condition['name'], 'rep': rep},
+                'result_directory': str(work), 'work_root': str(root), 'directory': str(cell),
+                'repo': str(repo), 'dependencies': private, 'path_budget': dict(budget, candidates=list(candidates))}
+        if fits:
+            return plan
+    return plan
+
+
+def copy_tree(source, target, path_limit=240, log_dir=None):
+    budget = budget_for(Path(target).resolve(), dependency_extent(str(Path(source).resolve())), path_limit)
+    require(budget['fits'], 'path_budget_exceeded: ' + json.dumps(budget))
     if os.name == 'nt':  # robocopy is far faster for node_modules; exit codes below 8 mean success.
-        code = subprocess.run(['robocopy', str(source), str(target), '/E', '/MT:16', '/NFL', '/NDL', '/NJH', '/NJS', '/NP'],
-                              capture_output=True).returncode
-        require(code < 8, f'dependency copy failed: robocopy exit {code}')
+        result = subprocess.run(['robocopy', str(source), str(target), '/E', '/XJ', '/SL', '/256', '/MT:16', '/NFL', '/NDL', '/NJH', '/NJS', '/NP'],
+                                capture_output=True)
+        if log_dir is not None:
+            Path(log_dir, f'copy-{target.name}.log').write_bytes(result.stdout + result.stderr)
+        require(result.returncode < 8, f'dependency copy failed: robocopy exit {result.returncode}')
     else:
-        shutil.copytree(source, target, symlinks=True)
+        shutil.copytree(source, target, symlinks=True,
+                        ignore=lambda directory, names: [n for n in names if
+                            (Path(directory) / n).is_dir() and _probe.is_link(Path(directory) / n)])
 
 
 def run(scenario, condition, rep, output, command, config, timeout, source_dir, deps_root=None, prune=False,
-        copy_deps=False):
+        copy_deps=False, work_root=None, path_limit=240):
     started = time.monotonic()
     work = output / scenario['id'] / condition['name'] / f'rep{rep}'
     work.mkdir(parents=True)
-    repo = work / 'repo'
+    workspace, created = None, False
     result = {'scenario': scenario['id'], 'condition': condition['name'], 'rep': rep, 'area': scenario['area'],
               'exit': None, 'timed_out': False, 'sessions': [], 'hidden': [], 'regression': None,
-              'probes': [], 'errors': []}
+              'probes': [], 'errors': [], 'infrastructure_errors': [], 'stage': 'preflight',
+              'raw_path': str(work), 'session_started': False}
     (work / 'session.jsonl').touch()
     budget = scenario.get('budget_seconds', timeout)
     try:
-        clone(Path(scenario['project']), repo)
-        if scenario.get('ref'):
-            subprocess.run(['git', 'checkout', '--detach', scenario['ref']], cwd=repo, check=True, capture_output=True)
-        for name in scenario.get('links', []) or (['node_modules'] if (repo / 'node_modules').exists() else []):
+        workspace = plan_workspace(scenario, condition, rep, output, deps_root, copy_deps, work_root, path_limit)
+        (work / 'workspace.json').write_text(json.dumps(workspace, indent=2), encoding='utf-8')
+        require(workspace['path_budget']['fits'], 'path_budget_exceeded: ' + json.dumps(workspace['path_budget']))
+        cell, repo = Path(workspace['directory']), Path(workspace['repo'])
+        cell.mkdir(parents=True, exist_ok=False)
+        created = True
+        result['stage'] = 'clone'
+        clone(Path(scenario['project']), repo, ref=scenario.get('ref'), link_modules=False, log_dir=work)
+        result['stage'] = 'dependencies'
+        for name, source in dependency_sources(scenario, deps_root).items():
             link = repo / name
             # Shared dependencies come from an evaluation copy so an agent's install never touches the user's project.
-            source = (deps_root / Path(scenario['project']).name / name) if deps_root else Path(scenario['project']) / name
-            if _probe.is_link(link):
-                if os.name == 'nt':
-                    os.rmdir(link)
-                else:
-                    link.unlink()
             require(not link.exists(), f'link destination exists: {name}')
             require(source.is_dir(), f'link source missing: {source}')
             if copy_deps:  # Each run gets its own copy: one agent's install cannot break a concurrent run.
-                private = work / 'deps' / name
-                copy_tree(source, private)
+                private = Path(workspace['dependencies'][name])
+                private.parent.mkdir(parents=True, exist_ok=True)
+                copy_tree(source, private, path_limit, log_dir=work)
                 source = private
             link_directory(link, source)
         if scenario.get('fault'):
@@ -351,6 +474,7 @@ def run(scenario, condition, rep, output, command, config, timeout, source_dir, 
                             'commit', '-m', fault['commit_message']], cwd=repo, check=True, capture_output=True)
         prompts = scenario.get('prompts', [scenario.get('prompt')])
         for index, prompt in enumerate(prompts, 1):
+            result['stage'] = f'session{index}'
             transcript = work / f'session{index}.jsonl'
             status = execute(session_argv(command, prompt, condition, config['disable_plugins']), repo, budget, transcript)
             result['exit'] = status['exit']
@@ -366,7 +490,8 @@ def run(scenario, condition, rep, output, command, config, timeout, source_dir, 
             if status['exit'] != 0 or status['timed_out'] or not facts['result_received'] or facts['is_error']:
                 result['errors'].append(f'session {index}: timeout' if status['timed_out'] else f'session {index}: failed or missing result')
                 break
-        kill_owned(work)
+        kill_owned(cell)
+        result['stage'] = 'probes'
         for index, probe in enumerate(scenario.get('probes', [])):
             record = {'name': probe['name'], 'detected': False}
             try:
@@ -383,6 +508,7 @@ def run(scenario, condition, rep, output, command, config, timeout, source_dir, 
             result['probes'].append(record)
         # The existing suite runs before hidden files exist, so a glob never counts them twice.
         if scenario.get('regression'):
+            result['stage'] = 'regression'
             result['regression'] = judged_command(scenario['regression'], repo, timeout, work / 'regression.log')
         # Install all hidden files together: no session or probe can read them beforehand.
         for check in scenario['hidden']:
@@ -391,10 +517,38 @@ def run(scenario, condition, rep, output, command, config, timeout, source_dir, 
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(source_dir / relative_path(source), target)
         for index, check in enumerate(scenario['hidden']):
+            result['stage'] = f'hidden{index}'
             result['hidden'].append({'name': check['name'], **judged_command(
                 check['command'], repo, timeout, work / f'hidden{index}.log')})
     except Exception as error:
         result['errors'].append(f'{type(error).__name__}: {error}')
+        result['infrastructure_errors'].append({'stage': result['stage'], 'message': str(error),
+                                                'log': str(work / 'infrastructure.log')})
+        (work / 'infrastructure.log').write_text(traceback.format_exc(), encoding='utf-8')
+    result['session_started'] = any(work.glob('session[0-9]*.process.json'))
+    if created:
+        try:
+            kill_owned(Path(workspace['directory']))
+            if prune:
+                remove_tree(Path(workspace['directory']), Path(workspace['work_root']))
+        except Exception as error:
+            result['errors'].append(f'cleanup failed: {error}')
+            result['infrastructure_errors'].append({'stage': 'cleanup', 'message': str(error),
+                                                    'log': str(work / 'cleanup.log')})
+            (work / 'cleanup.log').write_text(traceback.format_exc(), encoding='utf-8')
+    return finish_result(result, scenario, work, started)
+
+
+def finish_result(result, scenario, work, started):
+    checks = [('regression', result['regression'])] + [
+        (f'hidden{index}', check) for index, check in enumerate(result['hidden'])] + [
+        (f'probe{index}', check) for index, check in enumerate(result['probes']) if 'error' not in check]
+    for stage, check in checks:
+        if check and (check.get('exit') is None or check.get('timed_out')):
+            message = f'{stage}: judging process unavailable or timed out'
+            result['errors'].append(message)
+            result['infrastructure_errors'].append({'stage': stage, 'message': message,
+                                                    'log': str(work / f'{stage}.log')})
     sessions = result['sessions']
     for key in ('cost_usd', 'turns', 'duration_s', 'hook_context_chars', 'stop_blocks'):
         result[key] = known_sum(s.get(key) for s in sessions)
@@ -418,15 +572,49 @@ def run(scenario, condition, rep, output, command, config, timeout, source_dir, 
     result['probes_applicable'] = len(applicable)
     result['probe_kill_rate'] = sum(p['detected'] for p in applicable) / len(applicable) if applicable else None
     result['wall_seconds'] = time.monotonic() - started
-    (work / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
-    kill_owned(work)
-    if prune:
-        try:
-            remove_tree(repo)
-            remove_tree(work / 'deps')
-        except OSError as error:
-            result['errors'].append(f'prune failed: {error}')
+    result['excluded'] = bool(result['infrastructure_errors'])
+    for name in ('result.json', 'classified.json'):
+        write_json(work / name, result)
     return result
+
+
+def safe_run(scenario, condition, rep, output, *args):
+    """A broken cell cannot abort the matrix; recover paid evidence rather than replaying it."""
+    work = output / scenario['id'] / condition['name'] / f'rep{rep}'
+    try:
+        return run(scenario, condition, rep, output, *args)
+    except Exception as error:
+        work.mkdir(parents=True, exist_ok=True)
+        log = work / f'runner-error-{time.time_ns()}.log'
+        log.write_text(traceback.format_exc(), encoding='utf-8')
+        mapping = work / 'workspace.json'
+        cleanup_error = None
+        if mapping.is_file():
+            try:
+                workspace = json.loads(mapping.read_text(encoding='utf-8'))
+                expected_id = hashlib.sha256(str(work.resolve()).encode()).hexdigest()[:8]
+                cell = Path(workspace['work_root']) / expected_id
+                require(str(cell) == workspace['directory'], 'interrupted workspace mapping mismatch')
+                kill_owned(cell)
+                if args[5]:
+                    remove_tree(cell, Path(workspace['work_root']))
+            except Exception as failure:
+                cleanup_error = str(failure)
+        sessions = []
+        for path in sorted(work.glob('session[0-9]*.jsonl')):
+            facts = summarize_session(path, condition['plugin'])
+            facts['admitted_incomplete'] = any(m.casefold() in facts['answer'].casefold()
+                                             for m in args[1]['incomplete_markers'])
+            sessions.append(facts)
+        result = {'scenario': scenario['id'], 'condition': condition['name'], 'rep': rep,
+                  'area': scenario['area'], 'raw_path': str(work), 'exit': None, 'timed_out': False,
+                  'sessions': sessions, 'hidden': [], 'regression': None, 'probes': [],
+                  'session_started': bool(sessions), 'stage': 'runner',
+                  'errors': [str(error)], 'infrastructure_errors': [
+                      {'stage': 'runner', 'message': str(error), 'log': str(log)}]}
+        if cleanup_error:
+            result['errors'].append('interrupted cleanup: ' + cleanup_error)
+        return finish_result(result, scenario, work, time.monotonic())
 
 
 def median(values):
@@ -491,7 +679,8 @@ def markdown(report):
     names = list(report['conditions'])
     lines += ['', '| Scenario | ' + ' | '.join(names) + ' |', '| --- | ' + ' | '.join('---' for _ in names) + ' |']
     for scenario, values in report['scenarios'].items():
-        lines.append('| ' + scenario + ' | ' + ' | '.join(f"{values[n]['k']}/{values[n]['n']}" for n in names) + ' |')
+        lines.append('| ' + scenario + ' | ' + ' | '.join(
+            f"{values[n]['k']}/{values[n]['n']}" if n in values else '—' for n in names) + ' |')
     if report['failures']:
         lines += ['', 'Failed / timeout runs:']
         for f in report['failures']:
@@ -513,12 +702,19 @@ def main(argv=None):
     parser.add_argument('--deps-root', type=Path, help='Directory holding <project-name>/<link> copies for clones')
     parser.add_argument('--prune-clones', action='store_true', help='Delete each clone after judging (links detached first)')
     parser.add_argument('--copy-deps', action='store_true', help='Give every run a private copy of each linked directory')
+    parser.add_argument('--work-root', type=Path, default=DEFAULT_WORK_ROOT,
+                        help='Short workspace root; logs remain under --output (default: .work/e)')
+    parser.add_argument('--path-limit', type=int, default=240, help='Maximum planned file/directory length (default: 240)')
+    parser.add_argument('--resume-from', type=Path, action='append', default=[],
+                        help='Reuse valid/paid cells and costs from an earlier state.json; repeatable')
     args = parser.parse_args(argv)
     if hasattr(sys.stdout, 'reconfigure'):
         sys.stdout.reconfigure(encoding='utf-8')
     try:
         require(args.reps > 0 and args.jobs > 0 and positive(args.timeout), 'reps, jobs and timeout must be positive')
-        require(not args.output.exists(), 'output directory must not exist')
+        require(0 < args.path_limit <= 259, 'path-limit must be between 1 and 259')
+        require(not args.output.exists() or (args.output / 'state.json').is_file(),
+                'output directory must not exist without a resumable state.json')
         config = load_scenarios(args.scenarios.resolve())
         conditions = parse_conditions(args.condition)
         command = claude_command(args.claude)
@@ -532,18 +728,68 @@ def main(argv=None):
                           'argv': {c['name']: session_argv(command, scenarios[0].get('prompt', scenarios[0].get('prompts', [''])[0]),
                                   c, config['disable_plugins']) for c in conditions}}, ensure_ascii=False, indent=2))
         return 0
-    args.output.mkdir(parents=True, exist_ok=False)
+    output = args.output.resolve()
+    previous = [json.loads(p.read_text(encoding='utf-8')) for p in args.resume_from]
+    current = json.loads((output / 'state.json').read_text(encoding='utf-8')) if output.exists() else None
+    if current:
+        previous.append(current)
+    attempts, valid = {}, {}
+    def cell_key(row):
+        return row['scenario'], row['condition'], row['rep']
+    def attempt_key(row):
+        return row.get('raw_path') or json.dumps(row, sort_keys=True)
+    for state in previous:
+        for row in state['attempts']:
+            attempts[attempt_key(row)] = row
+        for row in state['valid']:
+            key = cell_key(row)
+            require(key not in valid or attempt_key(valid[key]) == attempt_key(row),
+                    f'multiple valid results for cell: {key}')
+            valid[key] = row
+    def paid(row):
+        return bool(row.get('session_started') or row.get('sessions') or row.get('cost_usd'))
+    skip = set(valid) | {cell_key(r) for r in attempts.values() if paid(r)}
+    if current:
+        # Current-run infrastructure attempts are retained, not blindly retried after a process restart.
+        skip |= {cell_key(r) for r in current['attempts']}
+    expected = {(s['id'], c['name'], rep) for s, c, rep in matrix}
+    matrix = [(s, c, rep) for s, c, rep in matrix if (s['id'], c['name'], rep) not in skip]
+    output.mkdir(parents=True, exist_ok=True)
+    def save_state(remaining):
+        rows = list(attempts.values())
+        excluded = [r for r in rows if cell_key(r) not in valid or attempt_key(valid[cell_key(r)]) != attempt_key(r)]
+        unknown = [r for r in rows if paid(r) and r.get('cost_usd') is None]
+        known = sum(r['cost_usd'] for r in rows if r.get('cost_usd') is not None)
+        write_json(output / 'state.json', {
+            'attempts': rows, 'valid': list(valid.values()), 'excluded': excluded,
+            'spent_usd': None if unknown else known, 'reported_cost_known_usd': known,
+            'unknown_cost_attempts': len(unknown), 'pending': remaining, 'remaining': remaining,
+            'stopped': None, 'resume_from': [str(p.resolve()) for p in args.resume_from],
+            'scenarios_sha256': hashlib.sha256(args.scenarios.read_bytes()).hexdigest(),
+            'conditions': conditions, 'reps': args.reps, 'work_root': str(args.work_root.resolve()),
+            'path_limit': args.path_limit})
+    save_state(len(matrix))
     with ThreadPoolExecutor(max_workers=args.jobs) as pool:
-        futures = [pool.submit(run, s, c, rep, args.output.resolve(), command, config, args.timeout,
+        futures = [pool.submit(safe_run, s, c, rep, output, command, config, args.timeout,
                                args.scenarios.resolve().parent, args.deps_root and args.deps_root.resolve(),
-                               args.prune_clones, args.copy_deps) for s, c, rep in matrix]
-        results = [future.result() for future in futures]
-    report = aggregate(results)
+                               args.prune_clones, args.copy_deps, args.work_root, args.path_limit) for s, c, rep in matrix]
+        for index, future in enumerate(as_completed(futures), 1):
+            row = future.result()
+            attempts[attempt_key(row)] = row
+            if not row.get('excluded'):
+                valid[cell_key(row)] = row
+            save_state(len(futures) - index)
+            print(f"CELL {row['scenario']}/{row['condition']}/rep{row['rep']} "
+                  f"success={row['verified_success']} excluded={row.get('excluded', False)} "
+                  f"cost={row['cost_usd']} valid={len(valid)}", flush=True)
+    report = aggregate(list(valid.values()))
+    report.update(attempts=list(attempts.values()), excluded=[r for r in attempts.values()
+                  if cell_key(r) not in valid or attempt_key(valid[cell_key(r)]) != attempt_key(r)])
     rendered = markdown(report)
     (args.output / 'report.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
     (args.output / 'report.md').write_text(rendered, encoding='utf-8')
     print(rendered)
-    return 0 if all(r['verified_success'] for r in results) else 1
+    return 0 if all(key in valid and valid[key]['verified_success'] for key in expected) else 1
 
 
 if __name__ == '__main__':

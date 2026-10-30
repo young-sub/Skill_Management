@@ -1,6 +1,22 @@
 # Agent Documentation Index
 
-- [Lean delegation 0.1.88/0.1.89](research/lean-delegation-0.1.88.md): explicit-only Skills, silent prompt hook, measured routes, delegation levers, probe registry, the v1 OFF/ON evaluation (criteria not met) and the unmeasured 0.1.89 trim with suite v2.
+- [Lean audit](research/lean-audit-20261030.md): rebuilt from OFF with deterministic counts. Static always-on plugin context is about 600 tokens, but the ON−OFF gap is 377–406k tokens per cell, mostly longer sessions and process artifacts. The prompt router is right on 90/162 real prompts against 127 with no router. The Stop guard blocked 0/112 eval cells and 1/280 real runs. Lean = OFF + the independent check; the [3-arm pre-registration and OFF probes](../evals/lean-audit/README.md) are unrun.
+
+- [0.1.95 workflow](plugins.md#version-0195): Optional TypeScript LSP, writer reference checks plus table/column write searches with text-search fallback, a lean acceptance-first body, stated assumptions and a verifier that treats missed paths under universal rules as violations. Local package validation is separate from installed LSP or model outcome evidence.
+
+- [Failure replay](research/failure-replay-20261030.md): every valid plugin-ON failure counted by cause (missed alternate write path 6, mismatched hidden expectation 5, unrelated timeout 1; Stop guard blocked 0); on 6 rebuilt path-miss attempts the shipped independent check changed 5 by the pre-registered rule (named the missed path in 2), the write-path inventory 0 within a prompt, so the next paid step is the pre-registered [L5 ON/OFF with an L4 ablation](../evals/l5-on-off/README.md).
+
+- [Shell-edit sizing 0.1.94](plugins.md): a real session edited 61 lines only through heredocs and a Python script and the Stop guard stayed silent; the guard now treats file-writing interpreter scripts as edits and sizes the turn's change with read-only `git diff --numstat`.
+
+- [Lean bodies 0.1.93](research/agent-coding-system-direction.md#현재-상태): the `agent-workflow` and `diagnose` bodies read on every delegated task shrink from 13.9KB to 12.7KB; an independent verifier compared old and new twice and the six dropped or weakened directives it found were restored; environment recovery links to its existing reference row.
+
+- [Findings to guardrails 0.1.92](research/agent-coding-system-direction.md#현재-상태): fixed independent-check violations become `origin: independent-check` probes (Stop guard asks once; the probe report counts origins) and answered user decisions go to `.harness/decisions.md`, read by the implementer and the next verifier.
+
+- [Independent check 0.1.91](research/agent-coding-system-direction.md#독립-경로-검증-사용자-결정으로-채택-0191): delegated behavior changes end with a fresh sub-agent verifier that sees only the verbatim request and the diff; the Claude Code Stop guard asks for it once; adopted by user decision without a measured OFF gain.
+
+- [Independent path check, offline](research/independent-path-check-offline.md): pre-registered falsification of a fresh-verifier device on v2 reference/partial items; both verifiers missed the false-alarm criterion, so the device is not built, and replayed flags show the v2 hidden checks miss real reference defects.
+
+- [Lean delegation 0.1.88/0.1.89](research/lean-delegation-0.1.88.md): explicit-only Skills, silent prompt hook, measured routes, delegation levers, probe registry, the v1 OFF/ON evaluation (criteria not met) and the 0.1.89 suite v2 evaluation with short workspace recovery.
 
 - [Delegated-work verification 0.1.86/0.1.87](research/delegated-work-verification-0.1.86.md): UTF-8 hooks, NOT_CONNECTED, durable scope and human business value, mandatory bypass proof, REVIEW_ONLY, request routes and the paid scenario gate with real-project results.
 

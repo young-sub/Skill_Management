@@ -9,9 +9,11 @@ stays direct; this is a decision aid, not a required plan, task or contract.
    current code for the intended reason. Find the current owner and affected callers.
 2. Implement the smallest complete change, including affected inputs, outputs,
    tests, config and docs. Use existing tools and validation at trust boundaries.
-   Every entry point that creates or changes the same data obeys the same rule.
-3. If the new checks were not seen failing before the change, prove they fail without
-   it (`probe_check.py prove --skip-current`). After the final edit, run them once with
+   When enforcing a rule on stored data, find every writer: run `LSP findReferences`
+   on the writing function (text search if no `LSP` tool), and text-search table/column writes too
+   (SQL INSERT/UPDATE, ORM calls, import/restore jobs). Cover each writer with a check.
+3. When a new test's ability to catch the defect is in doubt, optionally use
+   `probe_check.py prove --skip-current`. After the final edit, run them once with
    the existing checks that exercise the changed modules. For changed
    layer connections follow input through API, Domain, storage and fresh read;
    rejected writes must preserve data.

@@ -19,6 +19,47 @@ execution selection, freshness checks or task acceptance. There is no fixed byte
 ceiling: capture a detailed lookup and select relevant fields instead of printing
 an entire report into the model context.
 
+## Version 0.1.96
+
+Only `agent-workflow` stays model-invocable. `diagnose`, `recall`,
+`setup-project-verification` and `fixing-accessibility` become explicit-only (Claude
+`disable-model-invocation: true`, Codex `allow_implicit_invocation: false`), which removes
+about 460 tokens of descriptions from every session; the Skill listing keeps one entry of
+about 150. The prompt hook still distinguishes symptoms, resume and verification requests,
+but each route now invokes `agent-workflow` and names the sibling `SKILL.md` to read, since
+an explicit-only Skill cannot be invoked by the model. The [lean audit](research/lean-audit-20261030.md)
+found no measured gain for these four (no paired ON/OFF of their own; diagnose route
+precision 1/12 on real prompts). Router patterns, the Stop guard and Skill bodies are
+unchanged. The pre-registered [3-arm](../evals/lean-audit/README.md) and
+[L5](../evals/l5-on-off/README.md) runs keep measuring 0.1.95 from commit `4bc7595`.
+
+## Version 0.1.95
+
+LSP is optional; the manifest declares no plugin dependency. To enable TypeScript
+references, optionally run `npm install -g typescript-language-server typescript@6`
+and `/plugin install typescript-lsp@claude-plugins-official`. TypeScript 7.x ships
+no `tsserver.js`, so typescript-language-server cannot start with it; the
+[upstream setup](https://github.com/typescript-language-server/typescript-language-server#installing)
+pins TypeScript 6. Without an `LSP` tool, the Skills fall back to text search.
+Claude Code 2.1.311 validation passed with warnings: missing author, plus
+submission-only license/icon diagnostics and README install advice. Validation
+neither installs the optional tools nor exercises an LSP server.
+
+The agent-workflow body is 3,500 characters (previously 6,564; LF-normalized Unicode,
+excluding frontmatter). Acceptance lists ambiguous readings: ask interactively;
+in delegated/headless work choose and lead the card with `가정/Assumptions`.
+The workflow and feature playbook find every stored-data writer; diagnose finds
+every path to the same failure. All three combine optional `LSP findReferences`
+with mandatory table/column write searches (SQL INSERT/UPDATE, ORM calls and
+import/restore jobs), and check every writer/path.
+`probe_check.py prove` is optional when a new test's detection ability is in doubt;
+diagnose retains original-fault probe registration. The verifier treats a missed
+path under an explicit universal rule as a violation, with invoice and username
+examples; its `INDEPENDENT VERIFIER` marker and final JSON contract are unchanged.
+The L4 ablation removes the three writer/path-search instructions; it retains the
+L5 template, so it measures instruction removal, not optional LSP availability.
+No installed-plugin update, paid evaluation or improved-outcome claim accompanies this build.
+
 ## Git marketplace release
 
 Version 0.1.78 was [installed and exercised in isolated homes/projects](research/installed-release-0.1.78-results.md)
@@ -258,6 +299,47 @@ execution applies. `stop_hook_active`, a missing/unparseable transcript or
 writes nothing; a passing guard is not verification, and any executed command
 (not necessarily the right one) clears it. Hosts whose transcript format differs
 are allowed rather than trapped.
+
+Since 0.1.91 the same stop also blocks once when the turn changed at least five code
+lines (edit tool line counts; a shell write counts as one) and no `Agent`/`Task` call
+whose prompt carries the `INDEPENDENT VERIFIER` template ran after the first code edit.
+The Agent then launches the [independent check](../authoring/references/independent-check.md)
+or states on the card why the change is trivial. Both conditions share one block. Codex
+has no plugin Stop hook; there the Skill instruction alone asks for the sub-agent.
+
+Since 0.1.92 the guard also reads the verifier's final JSON line from its `Agent`/`Task`
+result. When it reported violations (`"verdict": "incomplete"`) and `.harness/probes.json`
+was not edited afterwards, the same single block asks the Agent to register each fixed
+violation as an `origin: "independent-check …"` probe and run `probe_check.py probes`, or
+to state why none was a requested-behavior defect. The probe report's *Origins* line
+counts killed/total per origin, and answered user decisions go to `.harness/decisions.md`,
+which the next verifier reads ([recorded decisions](../authoring/references/independent-check.md#recorded-decisions)).
+
+Since 0.1.94 the size of a turn's change no longer depends on how it was written. A
+real Claude Code session edited only through `cat > file <<'EOF'` and a
+`python - <<'EOF'` script that called `open(p, 'w')`; 61 code lines changed and the
+guard stayed silent, because a shell write counted as one line and the script was not
+seen as writing. Now a heredoc written to a file counts its body lines (like the Write
+tool's content); PowerShell writes take `-Path` anywhere or the first positional
+argument; `cd` within a command is followed; an empty heredoc no longer swallows the
+next one. An interpreter script (heredoc, `-c`, `-e`) is still an execution, and one
+with a file-write call, or whose output is redirected into a file, also marks the turn
+as having written. When the turn wrote anything, the count is the larger of the
+transcript's and read-only `git diff --numstat -z` (plus untracked text files) for the
+files that belong to the turn: those it named, and, using the prompt's transcript
+timestamp, those modified since the turn started. Earlier turns' uncommitted changes
+and build output therefore do not count, and a commit within the turn is measured from
+the commit before it. Without a timestamp the guard falls back to the paths a script's
+write calls name. `.log`/`.out` files are output, not code; a report a verification
+script writes counts only when it is not gitignored. Without Git the transcript count
+stays. The block names the installed template path, so an Agent that never loaded the
+Skill can still launch the verifier. Independent verifiers found missed and regressed
+paths in three rounds of this change and none in a fourth; their tests are kept as
+`tests/distribution/test_completion_guard_{edit_paths,rework_regressions,script_targets,turn_mtime}.py`.
+Known limits: deleted files have no modification time and are not counted; `git stash`
+and `pop` within a turn refresh earlier changes' times, and the timestamp-less fallback
+lets a script with run-time paths claim every changed file. Both over-count by at most
+one block.
 
 OpenAI documents plugin hooks and a separate trust review before command hooks
 run ([plugin packaging](https://developers.openai.com/plugins/build/plugins),

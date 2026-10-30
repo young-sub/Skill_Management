@@ -214,3 +214,35 @@ regression checks fail; crashes and timeouts excluded), probe kill rate of the t
 the agent left behind, tokens, cost and wall time per condition. Adoption criteria and
 results live in the version's research record. `tests.distribution.test_delegation_eval`
 checks the runner with a fake executable.
+
+The v2 suite is `evals/delegation-v2/scenarios.json`. Clones and private dependency
+copies use `--work-root` (default `.work/e/<8-character cell hash>/r` for the clone),
+while transcripts, checks and `workspace.json` remain in the readable output cell.
+Before cloning or launching a paid session, the runner scans the pinned Git tree
+and dependency sources. `--path-limit` defaults to 240 characters, retaining room
+below Windows file (259) and directory (248) limits for generated files. It falls
+back to `%SystemDrive%/e/<hash>` if needed; an impossible plan records
+`path_budget_exceeded` with lengths and offending paths without launching a session.
+Git clone and checkout explicitly disable `core.longpaths`; no host setting changes.
+`--copy-deps --prune-clones` gives each cell private dependencies and removes only
+its short workspace, detaching junctions first without recursive deletion.
+
+A device claimed to differ from OFF is first falsified offline, with no coding agent:
+`evals/path-check-offline/` runs only an independent verifier on frozen v2 reference and
+partial implementations against criteria committed before the first verifier session
+([record](research/independent-path-check-offline.md)). `tests.distribution.test_path_check_offline`
+checks its inventory and scoring without a model.
+
+Before a paid ON/OFF run, a candidate device is replayed on the recorded ON failures:
+`evals/failure-replay/` rebuilds failed attempts from their transcripts on fresh clones, keeps
+only those that reproduce their recorded regression/hidden results, and counts how many each
+candidate would have changed under rules committed before the first verifier session.
+`evals/l5-on-off/` holds the pre-registered criteria and the one-command runner for the next
+comparison (`off`, `on`, one ablation). `tests.distribution.test_failure_replay` and
+`tests.distribution.test_l5_on_off` check replay, ablation removals and scoring without a model.
+
+`--resume-from <state.json>` reuses valid cells and retains all prior attempts and
+costs. Reopening an output with `state.json` resumes its unattempted cells. Paid or
+interrupted cells are never silently replayed. Cell exceptions are recorded as
+excluded infrastructure results and the remaining matrix continues; reports judge
+only valid cells and retain excluded evidence and unknown costs explicitly.

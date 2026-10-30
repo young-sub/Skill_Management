@@ -2,6 +2,7 @@
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
@@ -10,6 +11,16 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / 'authoring/scripts/project_workflow.py'
 HOOK = ROOT / 'authoring/scripts/workflow_context.py'
+
+
+def capability(route):
+    """The Skill a route opens: agent-workflow itself, or the explicit-only sibling its reason names."""
+    if not route:
+        return None
+    sibling = re.search(r'read the sibling ([\w-]+) SKILL\.md', route['reason'])
+    return sibling.group(1) if sibling else route['skill']
+
+
 GUARD = ROOT / 'authoring/scripts/completion_guard.py'
 OUTCOME = '저장한 가격을 다시 읽으면 10원이다'
 
@@ -110,18 +121,18 @@ class WorkflowRobustnessTests(unittest.TestCase):
         prompts = json.loads((ROOT / 'tests/distribution/fixtures/route_prompts.json').read_text(encoding='utf-8'))
         for name, (prompt, expected) in prompts.items():
             with self.subTest(name=name):
-                self.assertEqual((route(prompt) or {}).get('skill'), expected)
+                self.assertEqual(capability(route(prompt)), expected)
         heldout = json.loads((ROOT / 'tests/distribution/fixtures/route_heldout.json').read_text(encoding='utf-8'))
         for prompt, expected in heldout['prompts']:
             with self.subTest(prompt=prompt):
-                self.assertEqual((route(prompt) or {}).get('skill'), expected)
+                self.assertEqual(capability(route(prompt)), expected)
         categories = {'bug': 'diagnose', 'change': 'agent-workflow', 'trivial': None, 'results': 'agent-workflow',
                       'connect': 'setup-project-verification', 'ui': 'agent-workflow',
                       'guardrail': 'agent-workflow', 'resume': 'recall'}
         fresh = json.loads((ROOT / 'tests/distribution/fixtures/route_fresh.json').read_text(encoding='utf-8'))
         for prompt, category in fresh['prompts']:
             with self.subTest(prompt=prompt):
-                self.assertEqual((route(prompt) or {}).get('skill'), categories[category])
+                self.assertEqual(capability(route(prompt)), categories[category])
         fresh2 = json.loads((ROOT / 'tests/distribution/fixtures/route_fresh2.json').read_text(encoding='utf-8'))
         loaded = [bool(route(prompt)) for prompt, category in fresh2['prompts'] if category != 'trivial']
         self.assertGreaterEqual(sum(loaded), len(loaded) - 1, 'non-trivial work loads the plugin')
@@ -135,7 +146,8 @@ class WorkflowRobustnessTests(unittest.TestCase):
                                      env=environment(), timeout=60)
             context = json.loads(json.loads(process.stdout)['hookSpecificOutput']['additionalContext'].split('\n', 1)[1])
             with self.subTest(kind=kind):
-                self.assertEqual(context['route']['skill'], 'diagnose')
+                self.assertEqual(context['route']['skill'], 'agent-workflow')
+                self.assertEqual(capability(context['route']), 'diagnose')
 
     def test_hooks_decode_raw_utf8_korean_payloads(self):
         root = self.project('unconfigured')
@@ -148,7 +160,8 @@ class WorkflowRobustnessTests(unittest.TestCase):
             with self.subTest(prompt=prompt):
                 if expected:
                     context = json.loads(output['hookSpecificOutput']['additionalContext'].split('\n', 1)[1])
-                    self.assertEqual(context['route']['skill'], 'diagnose')
+                    self.assertEqual(context['route']['skill'], 'agent-workflow')
+                    self.assertEqual(capability(context['route']), 'diagnose')
                 else:
                     self.assertEqual(output, {})
         korean = Path(self.temp.name) / '한글 프로젝트'
