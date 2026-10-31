@@ -29,7 +29,8 @@ import tempfile
 import time
 
 _here = Path(__file__).resolve().parent
-for _candidate in (_here, _here.parent / 'scripts', _here.parent / 'skills/agent-workflow/scripts'):
+# Beside this file (Skill scripts), or the package's scripts/ when run from hooks/.
+for _candidate in (_here, _here.parent / 'scripts'):
     if (_candidate / 'probe_check.py').is_file():
         sys.path.insert(0, str(_candidate))
         break
@@ -39,6 +40,7 @@ STATE = 'agentic-acceptance'
 MAX_FAILURES = 3
 INTEGRITY = 'tamper-detection-only'
 DOC_SUFFIXES = {'.md', '.markdown', '.mdx', '.rst', '.adoc'}
+DEV_NULL = '/'.join(('', 'dev', 'null'))  # what Git prints for the missing side of an added or deleted file
 TEST_PATH = re.compile(r'(^|/)(tests?|__tests__|spec|e2e)/|(^|/)test_[^/]*$|_test\.\w+$|\.(test|spec)\.\w+$', re.IGNORECASE)
 
 
@@ -186,7 +188,7 @@ def code_hunks(copy, base, exclude):
         elif body is None and line.startswith(('--- ', '+++ ')):
             header.append(line)
             path = line[4:].rstrip('\n').rstrip('\t')  # Git ends names containing spaces with a tab
-            if path != '/dev/null' and (line.startswith('+++ ') or name is None):
+            if path != DEV_NULL and (line.startswith('+++ ') or name is None):
                 name = path[2:]
         elif line.startswith('Binary files '):
             match = re.search(r' and (?:b/)?(.*) differ$', line.rstrip('\n'))
