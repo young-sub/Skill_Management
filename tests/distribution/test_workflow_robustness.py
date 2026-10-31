@@ -2,7 +2,6 @@
 import json
 import os
 from pathlib import Path
-import re
 import subprocess
 import sys
 import tempfile
@@ -11,14 +10,6 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / 'authoring/scripts/project_workflow.py'
 HOOK = ROOT / 'authoring/scripts/workflow_context.py'
-
-
-def capability(route):
-    """The Skill a route opens: agent-workflow itself, or the explicit-only sibling its reason names."""
-    if not route:
-        return None
-    sibling = re.search(r'read the sibling ([\w-]+) SKILL\.md', route['reason'])
-    return sibling.group(1) if sibling else route['skill']
 
 
 GUARD = ROOT / 'authoring/scripts/completion_guard.py'
@@ -115,62 +106,27 @@ class WorkflowRobustnessTests(unittest.TestCase):
         self.assertIn('Verification is not connected', unconnected.stdout.decode('utf-8'))
         self.assertEqual(unconnected.returncode, 3)
 
-    def test_observed_scenario_prompts_route_to_the_expected_skill(self):
-        import runpy
-        route = runpy.run_path(str(HOOK))['request_route']
-        prompts = json.loads((ROOT / 'tests/distribution/fixtures/route_prompts.json').read_text(encoding='utf-8'))
-        for name, (prompt, expected) in prompts.items():
-            with self.subTest(name=name):
-                self.assertEqual(capability(route(prompt)), expected)
-        heldout = json.loads((ROOT / 'tests/distribution/fixtures/route_heldout.json').read_text(encoding='utf-8'))
-        for prompt, expected in heldout['prompts']:
-            with self.subTest(prompt=prompt):
-                self.assertEqual(capability(route(prompt)), expected)
-        categories = {'bug': 'diagnose', 'change': 'agent-workflow', 'trivial': None, 'results': 'agent-workflow',
-                      'connect': 'setup-project-verification', 'ui': 'agent-workflow',
-                      'guardrail': 'agent-workflow', 'resume': 'recall'}
-        fresh = json.loads((ROOT / 'tests/distribution/fixtures/route_fresh.json').read_text(encoding='utf-8'))
-        for prompt, category in fresh['prompts']:
-            with self.subTest(prompt=prompt):
-                self.assertEqual(capability(route(prompt)), categories[category])
-        fresh2 = json.loads((ROOT / 'tests/distribution/fixtures/route_fresh2.json').read_text(encoding='utf-8'))
-        loaded = [bool(route(prompt)) for prompt, category in fresh2['prompts'] if category != 'trivial']
-        self.assertGreaterEqual(sum(loaded), len(loaded) - 1, 'non-trivial work loads the plugin')
-        self.assertFalse(any(route(prompt) for prompt, category in fresh2['prompts'] if category == 'trivial'))
-        for kind in ('unconfigured', 'configured'):
-            root = self.project(kind)
-            prompt = prompts['L1 customer complaint'][0]
-            payload = json.dumps({'cwd': str(root), 'hook_event_name': 'UserPromptSubmit', 'prompt': prompt},
-                                 ensure_ascii=False).encode('utf-8')
-            process = subprocess.run([sys.executable, str(HOOK)], input=payload, capture_output=True,
-                                     env=environment(), timeout=60)
-            context = json.loads(json.loads(process.stdout)['hookSpecificOutput']['additionalContext'].split('\n', 1)[1])
-            with self.subTest(kind=kind):
-                self.assertEqual(context['route']['skill'], 'agent-workflow')
-                self.assertEqual(capability(context['route']), 'diagnose')
-
     def test_hooks_decode_raw_utf8_korean_payloads(self):
         root = self.project('unconfigured')
-        for prompt, expected in (('상품 저장 버그 고쳐줘', True), ('오늘 점심 메뉴 추천해줘', False)):
+        for prompt in ('상품 저장 버그 고쳐줘', '오늘 점심 메뉴 추천해줘'):
             payload = json.dumps({'cwd': str(root), 'hook_event_name': 'UserPromptSubmit', 'prompt': prompt},
                                  ensure_ascii=False).encode('utf-8')
             process = subprocess.run([sys.executable, str(HOOK)], input=payload, capture_output=True,
                                      env=environment(), timeout=60)
-            output = json.loads(process.stdout)
             with self.subTest(prompt=prompt):
-                if expected:
-                    context = json.loads(output['hookSpecificOutput']['additionalContext'].split('\n', 1)[1])
-                    self.assertEqual(context['route']['skill'], 'agent-workflow')
-                    self.assertEqual(capability(context['route']), 'diagnose')
-                else:
-                    self.assertEqual(output, {})
+                self.assertEqual(json.loads(process.stdout), {}, 'Decoded without error and not routed')
+                # The payload bytes decode as UTF-8, not the locale codec, with or without a BOM.
+                import io, runpy
+                read_payload = runpy.run_path(str(HOOK))['read_payload']
+                for raw in (payload, b'\xef\xbb\xbf' + payload):
+                    self.assertEqual(read_payload(io.BytesIO(raw))['prompt'], prompt)
         korean = Path(self.temp.name) / '한글 프로젝트'
         korean.mkdir()
         transcript = korean / 't.jsonl'
         transcript.write_text('\n'.join(json.dumps(e, ensure_ascii=False) for e in (
             {'type': 'user', 'message': {'content': '고쳐줘'}},
             {'type': 'assistant', 'message': {'content': [{'type': 'tool_use', 'name': 'Edit',
-                'input': {'file_path': str(korean / 'app.py')}}]}})), encoding='utf-8')
+                'input': {'file_path': str(korean / 'app.py'), 'new_string': '가\n' * 5}}]}})), encoding='utf-8')
         payload = json.dumps({'cwd': str(korean), 'transcript_path': str(transcript), 'stop_hook_active': False},
                              ensure_ascii=False).encode('utf-8')
         process = subprocess.run([sys.executable, str(GUARD)], input=payload, capture_output=True,

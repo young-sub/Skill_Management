@@ -5,7 +5,7 @@ description: Deliver delegated coding work across FE, API/backend and business l
 
 # Agent Workflow
 
-Trivial edits stay direct. Invoke the prompt context's `route` Skill first.
+Trivial edits stay direct.
 
 ## Delivery loop
 

@@ -4,12 +4,12 @@ description: Deliver delegated coding work across FE, API/backend and business l
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: 4a9fc282ba1fdce1836657e6f90d8d75230af85163bc5db5d604b48fea4fca00 -->
+<!-- Source-SHA256: 93e8ca6a4b973d77c6eead15a32b5575e48acf5d8df35acca02bccaa38f619fd -->
 
 
 # Agent Workflow
 
-Trivial edits stay direct. Invoke the prompt context's `route` Skill first.
+Trivial edits stay direct.
 
 ## Delivery loop
 

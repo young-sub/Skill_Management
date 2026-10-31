@@ -19,6 +19,19 @@ execution selection, freshness checks or task acceptance. There is no fixed byte
 ceiling: capture a detailed lookup and select relevant fields instead of printing
 an entire report into the model context.
 
+## Version 0.1.97
+
+The prompt hook no longer routes. On replayed real prompts the regex router chose the right
+Skill 90/162 times against 127/162 with no router, and it attached a route to 130/145
+background-task notifications ([direction research](research/direction-research-20261031.md#4-걷어낼-것)).
+Without a task selected through `AGENT_WORKFLOW_CONTEXT` the hook now prints `{}` and runs
+neither Git nor the runtime; the selected-task handoff is unchanged. The Stop guard keeps only
+the independent-check rule. It no longer blocks on a code edit after the last executed command
+(0/112 eval cells and 1/280 real runs blocked, no file changed after a block) or asks for a
+probe after verifier violations. Nothing replaces them yet: a sealed acceptance check run outside
+the session is the planned replacement (design step 2), and `hooks.json` still runs this guard.
+The route regression fixtures are removed, and the scenario gate no longer expects a route.
+
 ## Version 0.1.96
 
 Only `agent-workflow` stays model-invocable. `diagnose`, `recall`,
@@ -281,20 +294,20 @@ Bash) and a working Python 3 on PATH. Package-command tests exercise these paths
 actual macOS message submission and response completion remain native-host checks.
 
 The package includes `hooks/hooks.json` and `hooks/workflow_context.py`, with an
-explicit compatibility-manifest hook path. `UserPromptSubmit` resolves the Git
-project from the supplied working directory. An explicit `AGENT_WORKFLOW_CONTEXT`
-is validated before auditing its task; selected sources still use the existing
-impact and freshness checks. Without a selector it lists bounded candidates and
-marks the project `NOT_AUDITED`, without inventory or active-work detail audits.
-The output reserves room for task blockers, next actions and an exact lookup
-pointer before optional detail. It never starts tasks, reads transcripts, runs
-project checks or writes state. An unconfigured development prompt receives a
-short existing-guide/caller/test fallback; the prompt is only a discovery hint,
-never a task selector or authorization. Other fresh unconfigured requests stay
-silent. Full inspection remains available through explicit `audit`/`resume`.
+explicit compatibility-manifest hook path. Without a task selected through
+`AGENT_WORKFLOW_CONTEXT` the hook prints `{}` and runs neither Git nor the runtime.
+With one, `UserPromptSubmit` resolves the Git project from the supplied working
+directory and validates the selector before auditing its task; selected sources still
+use the existing impact and freshness checks. The output reserves room for task
+blockers, next actions and an exact lookup pointer before optional detail. It never
+starts tasks, reads transcripts, runs project checks or writes state, and the prompt
+text is never a task selector or authorization. Full inspection remains available through explicit `audit`/`resume`.
 This handoff does not implement protected completion.
 
 ## Final-edit completion guard
+
+Since 0.1.97 only the independent-check rule (0.1.91, sized as in 0.1.94) remains; the
+final-edit rule and the probe-registration rule described below were removed.
 
 `hooks/completion_guard.py` is a `Stop` hook. It reads only the host transcript
 supplied in the payload and considers the turn since the latest human prompt.

@@ -1,5 +1,7 @@
 # Agent Documentation Index
 
+- [0.1.97 router and guard removal](plugins.md#version-0197): the prompt hook stops routing (90/162 right against 127 with no router) and the Stop guard keeps only the independent-check rule; the final-edit and probe-registration rules that blocked 0/112 eval cells are gone.
+
 - [Direction research](research/direction-research-20261031.md): 2026-02+ sources (187, verified and red-teamed by Codex) on removing the human bottleneck. Teams that cut human gates invested in judgment the agent cannot edit and in blast-radius limits, not in-session instructions. Design in dependency order: a per-product run-and-observe command, a sealed pre-implementation acceptance contract with deterministic strength checks, risk-tiered integration, a blast-radius profile, an event-driven failure-to-asset loop; remove the prompt router now.
 
 - [Lean audit](research/lean-audit-20261030.md): rebuilt from OFF with deterministic counts. Static always-on plugin context is about 600 tokens, but the ON−OFF gap is 377–406k tokens per cell, mostly longer sessions and process artifacts. The prompt router is right on 90/162 real prompts against 127 with no router. The Stop guard blocked 0/112 eval cells and 1/280 real runs. Lean = OFF + the independent check; the [3-arm pre-registration and OFF probes](../evals/lean-audit/README.md) are unrun.

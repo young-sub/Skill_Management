@@ -189,8 +189,7 @@ python scripts/run_skill_scenarios.py --scenarios tests/scenarios/skill_routing.
 ```
 
 Each scenario clones the named project, optionally plants one labelled synthetic fault,
-runs `claude -p` with the installed plugin and records invoked plugin Skills, the hook
-`route`, Stop-guard blocks, cost and post-session probes (the fault re-applied, or an
+runs `claude -p` with the installed plugin and records invoked plugin Skills, Stop-guard blocks, cost and post-session probes (the fault re-applied, or an
 alternate-path fault, must make the named checks fail). Exit 1 blocks the release.
 `--dry-run` lists scenarios without cloning or model calls; `tests.distribution.test_skill_scenarios`
 checks the gate logic without model runs.

@@ -34,7 +34,7 @@ class WorkflowHookTests(unittest.TestCase):
         current = result['current_task']
         self.assertEqual(current['ui_system_omitted'], 5 - len(current.get('ui_systems', [])))
 
-    def test_unselected_prompt_is_silent_unless_routed_and_never_reads_work(self):
+    def test_unselected_prompt_is_silent_and_never_reads_work(self):
         hook = runpy.run_path(str(HOOK))['context']
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()
@@ -47,12 +47,10 @@ class WorkflowHookTests(unittest.TestCase):
             no_git = mock.Mock(side_effect=AssertionError('unselected prompts must not run git or the runtime'))
             with mock.patch.dict(os.environ, AGENT_WORKFLOW_CONTEXT=''), \
                  mock.patch.dict(hook.__globals__, {'subprocess': mock.Mock(run=no_git)}):
-                for prompt in ('What does this regex match?', 'Translate hello into Korean', 'Explain how sessions refresh'):
+                # Prompts are not routed: questions, results requests and fix requests all stay silent.
+                for prompt in ('What does this regex match?', 'show results only', 'Fix the failing user flow',
+                               '상품 저장 버그 고쳐줘'):
                     self.assertEqual(hook({'hook_event_name': 'UserPromptSubmit', 'cwd': str(root), 'prompt': prompt}), {})
-                result = hook({'hook_event_name': 'UserPromptSubmit', 'cwd': str(root), 'prompt': 'show results only'})
-            detail = json.loads(result['hookSpecificOutput']['additionalContext'].split('\n', 1)[1])
-            self.assertEqual(set(detail), {'route'})
-            self.assertEqual(detail['route']['skill'], 'agent-workflow')
             self.assertFalse((root / '.work').exists())
 
     def test_budget_preserves_blocker_next_action_and_exact_lookup_before_optional_details(self):
@@ -153,17 +151,8 @@ class WorkflowHookTests(unittest.TestCase):
             (root / 'README.md').write_text('Use the existing native project checks.\n')
             before = {str(p): p.read_bytes() for p in root.rglob('*') if p.is_file()}
             with mock.patch.dict(os.environ, AGENT_WORKFLOW_CONTEXT=''):
-                result = hook({'hook_event_name': 'UserPromptSubmit', 'cwd': str(root),
-                               'prompt': 'Fix the failing user flow. PRIVATE PROMPT'})
-            context = result['hookSpecificOutput']['additionalContext']
-            routed = json.loads(context.split('\n', 1)[1])['route']
-            self.assertEqual(routed['skill'], 'agent-workflow')
-            self.assertIn('read the sibling diagnose SKILL.md', routed['reason'])
-            self.assertNotIn('NOT_CONFIGURED', context, 'Setup guidance is not repeated on every prompt')
-            self.assertNotIn('PRIVATE PROMPT', context)
-            with mock.patch.dict(os.environ, AGENT_WORKFLOW_CONTEXT=''):
                 self.assertEqual(hook({'hook_event_name': 'UserPromptSubmit', 'cwd': str(root),
-                                       'prompt': 'Translate hello into Korean'}), {})
+                                       'prompt': 'Fix the failing user flow. PRIVATE PROMPT'}), {})
             self.assertFalse((root / '.work').exists())
             self.assertEqual(before, {str(p): p.read_bytes() for p in root.rglob('*') if p.is_file()})
 
@@ -240,14 +229,7 @@ class WorkflowHookTests(unittest.TestCase):
                     capture_output=True, text=True, encoding='utf-8', env=env)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 return json.loads(result.stdout)
-            result = invoke()
-            self.assertEqual(result['hookSpecificOutput']['hookEventName'], 'UserPromptSubmit')
-            context = result['hookSpecificOutput']['additionalContext']
-            details = json.loads(context.split('\n', 1)[1])
-            self.assertEqual(set(details), {'route'}, 'No task candidates or status on an unselected prompt')
-            self.assertNotIn('NEVER ECHO THIS', context)
-            self.assertNotIn('decision', result)
-            self.assertEqual(invoke(), result)
+            self.assertEqual(invoke(), {}, 'No task candidates or status on an unselected prompt')
             self.assertEqual(before, {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in paths})
             self.assertEqual(set(before), {str(p) for p in root.rglob('*') if p.is_file() and '.git' not in p.parts})
             runtime = runpy.run_path(str(WORKFLOW))
@@ -267,7 +249,7 @@ class WorkflowHookTests(unittest.TestCase):
                 if work_id == 'W-B':
                     (root / '.work/task.json').write_text(json.dumps(work_state))
             snapshot = {str(p): p.read_bytes() for p in root.rglob('*') if p.is_file() and '.git' not in p.parts}
-            self.assertEqual(invoke(), result, 'Unselected prompts stay identical with active work present')
+            self.assertEqual(invoke(), {}, 'Unselected prompts stay identical with active work present')
             for work_id, expected in [('W-A', 'PARTIAL'), ('W-B', 'READY_FOR_REVIEW')]:
                 selected, _ = runtime['work_record'](root, work_id)
                 self.assertEqual(runtime['inspect_project'](root, project, selected)['status'], expected)
@@ -280,7 +262,7 @@ class WorkflowHookTests(unittest.TestCase):
             self.assertIn('verification', linked['current_task']['obligations'][0]['requires'])
             self.assertEqual(snapshot, {str(p): p.read_bytes() for p in root.rglob('*') if p.is_file() and '.git' not in p.parts})
             config.write_text('{}')
-            self.assertEqual(invoke(), result, 'Missing configuration does not add setup guidance')
+            self.assertEqual(invoke(), {}, 'Missing configuration does not add setup guidance')
             config.unlink()
             self.assertEqual(invoke(dict(payload, prompt='Translate hello')), {})
             self.assertEqual(invoke(dict(payload, hook_event_name='Stop')), {})

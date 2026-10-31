@@ -30,7 +30,7 @@ class PluginPackageTests(unittest.TestCase):
                 shutil.copyfile(launcher, package / 'hooks/run-hook.sh')
             transcript = root / 'turn.jsonl'
             transcript.write_text(json.dumps({'type': 'assistant', 'message': {'content': [
-                {'type': 'tool_use', 'name': 'Edit', 'input': {'file_path': str(root / 'app.py')}}]}}))
+                {'type': 'tool_use', 'name': 'Edit', 'input': {'file_path': str(root / 'app.py'), 'new_string': 'x' + chr(10) * 5}}]}}))
             for runtime in ('python3', 'python', 'broken-python3', 'missing'):
                 bin_dir = root / runtime
                 bin_dir.mkdir()
@@ -65,7 +65,7 @@ class PluginPackageTests(unittest.TestCase):
                                 if event == 'Stop':
                                     self.assertEqual(output['decision'], 'block')
                                 else:
-                                    self.assertIn('diagnose', output['hookSpecificOutput']['additionalContext'])
+                                    self.assertEqual(output, {})  # no selected task, no context
                     if runtime != 'missing':
                         (package / 'hooks/failure.py').write_text('raise SystemExit(23)\n')
                         failed = subprocess.run([SH, str(package / 'hooks/run-hook.sh'), 'failure.py'],
@@ -121,7 +121,7 @@ class PluginPackageTests(unittest.TestCase):
             transcript.write_text('\n'.join(json.dumps(entry) for entry in (
                 {'type': 'user', 'message': {'content': 'fix'}},
                 {'type': 'assistant', 'message': {'content': [{'type': 'tool_use', 'name': 'Edit',
-                    'input': {'file_path': str(root / 'app.py')}}]}})), encoding='utf-8')
+                    'input': {'file_path': str(root / 'app.py'), 'new_string': 'x' + chr(10) * 5}}]}})), encoding='utf-8')
             stop_command = hook['Stop'][0]['hooks'][0]['commandWindows']
             stop_environment = {k: v for k, v in os.environ.items() if k != 'PLUGIN_ROOT'}
             stop_environment['CLAUDE_PLUGIN_ROOT'] = str(package)
@@ -165,21 +165,14 @@ class PluginPackageTests(unittest.TestCase):
                 environment = {k: v for k, v in os.environ.items()
                                if k not in ('PLUGIN_ROOT', 'CLAUDE_PLUGIN_ROOT', 'AGENT_WORKFLOW_CONTEXT')}
                 environment[root_variable] = str(package)
-                for prompt, expected in [('The probe output is broken, fix it', 'agent-workflow'),
-                                         ('Translate hello into Korean', None)]:
+                # The packaged hook runs and, with no selected task, adds nothing to any prompt.
+                for prompt in ('The probe output is broken, fix it', 'Translate hello into Korean'):
                     delivered = subprocess.run(['powershell', '-NoProfile', '-Command', hook_command],
                         input=json.dumps({'hook_event_name': 'UserPromptSubmit', 'cwd': str(consumer),
                                           'prompt': prompt}),
                         env=environment, capture_output=True, text=True, timeout=30)
                     self.assertEqual(delivered.returncode, 0, delivered.stderr)
-                    output = json.loads(delivered.stdout)
-                    if expected:
-                        context = output['hookSpecificOutput']['additionalContext']
-                        routed = json.loads(context.split('\n', 1)[1])['route']
-                        self.assertEqual(routed['skill'], expected)
-                        self.assertIn('read the sibling diagnose SKILL.md', routed['reason'])
-                    else:
-                        self.assertEqual(output, {})
+                    self.assertEqual(json.loads(delivered.stdout), {})
             self.assertEqual(before_hook, {str(p): p.read_bytes() for p in consumer.rglob('*') if p.is_file()})
             revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=consumer, text=True).strip()
             viewer = package / 'skills/agent-workflow/scripts/verification_results.py'

@@ -103,11 +103,10 @@ class SkillScenarioGateTests(unittest.TestCase):
         data = json.loads((ROOT / 'tests/scenarios/skill_routing.json').read_text(encoding='utf-8'))
         ids = [s['id'] for s in data['scenarios']]
         self.assertEqual(len(ids), len(set(ids)))
-        route = runpy.run_path(str(ROOT / 'authoring/scripts/workflow_context.py'))['request_route']
         for scenario in data['scenarios']:
             with self.subTest(scenario=scenario['id']):
                 self.assertIn('skill', scenario['expect'])
-                self.assertEqual((route(scenario['prompt']) or {}).get('skill'), scenario['expect'].get('route'))
+                self.assertNotIn('route', scenario['expect'], 'The prompt hook no longer routes')
         process = subprocess.run([sys.executable, str(RUNNER), '--scenarios', str(ROOT / 'tests/scenarios/skill_routing.json'),
                                   '--output', str(self.root / 'never'), '--dry-run'], capture_output=True, timeout=60)
         self.assertEqual(process.returncode, 0, process.stderr)
