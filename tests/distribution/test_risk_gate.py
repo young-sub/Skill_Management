@@ -400,6 +400,76 @@ class RiskGateTests(unittest.TestCase):
         code, outcome = capacity('--max-high', '1', '--max-questions', '2')
         self.assertEqual((code, sorted(outcome['full'])), (1, ['open_questions', 'unmerged_high']))
 
+    def test_without_a_table_the_built_in_high_list_applies_and_nothing_is_low(self):
+        self.git('rm', '-q', '.harness/risk.yaml')
+        self.commit('no table')
+        self.write('src/auth/session.py', 'def login(amount):\n    return True\n')
+        decided = self.classify()
+        self.assertEqual(decided['tier'], 'HIGH', decided['reasons'])
+        self.assertIn('built-in HIGH list', ' '.join(decided['reasons']))
+        self.git('checkout', '--', 'src/auth/session.py')
+        self.write('docs/guide.md', 'guide v2\n')
+        self.assertEqual(self.classify()['tier'], 'MED', 'nothing is LOW without a table')
+        self.assertEqual(set(risk.DEFAULT_HIGH),
+                         set(json.loads((SCRIPTS.parent / 'templates/project/risk.yaml').read_text(encoding='utf-8'))['high']['paths']),
+                         'the built-in list is the template list')
+
+    def test_paths_match_case_insensitively_on_every_platform(self):
+        self.assertTrue(risk.matches('src/Auth/Login.py', ['src/auth/*']))
+        self.assertTrue(risk.matches('src/UserAuthController.ts', ['*auth*']))
+        self.write('src/Auth/Token.py', 'def token():\n    return 1\n')
+        self.assertEqual(self.classify()['tier'], 'HIGH')
+
+    def test_a_revert_with_a_custom_subject_raises_the_tier_and_a_revert_subject_alone_does_not(self):
+        self.write('docs/guide.md', 'bad\n')
+        self.commit('docs: bad guide')
+        bad = self.git('rev-parse', 'HEAD').strip()
+        self.write('docs/guide.md', 'guide\n')
+        self.git('add', '-A')
+        self.git('commit', '-qm', 'Roll back the guide', '-m', f'This reverts commit {bad}.')
+        self.write('docs/guide.md', 'guide v3\n')
+        decided = self.classify()
+        self.assertEqual(decided['tier'], 'MED', decided['reasons'])
+        self.assertIn('reverted within 30 days: docs/guide.md', ' '.join(decided['reasons']))
+        self.git('checkout', '--', 'docs/guide.md')
+        self.write('docs/other.md', 'x\n')
+        self.commit('Revert to the old wording')  # a subject, not a revert
+        self.write('docs/other.md', 'y\n')
+        self.assertEqual(self.classify()['tier'], 'LOW')
+
+    def test_an_indented_local_variable_is_not_a_changed_symbol(self):
+        self.write('src/auth/session.py', 'def login(result):\n    data = result\n    return data\n')
+        self.write('src/calc.js', 'function total(a) {\n  const result = a;\n  return result;\n}\n')
+        self.commit('callers')
+        self.write('src/calc.js', 'function total(a) {\n  const result = a + 1;\n  let data = result;\n  return data;\n}\n')
+        decided = self.classify()
+        self.assertNotEqual(decided['tier'], 'HIGH', decided['reasons'])
+        self.write('src/calc.js', 'export const result = 2;\n')
+        self.assertEqual(self.classify()['tier'], 'HIGH', 'a module-level constant still reaches a sensitive caller')
+
+    def test_recheck_refuses_to_integrate_a_med_candidate_whose_checks_pass(self):
+        self.git('switch', '-q', '-c', 'work')
+        self.assertEqual(self.seal_and_fix().returncode, 0)
+        self.write('README.md', 'unregistered\n')
+        self.commit('raise the minimum and add a readme')
+        code, outcome = self.recheck()
+        self.assertEqual((code, outcome['verdict'], outcome['tests_pass'], outcome['candidate_tier']),
+                         (1, 'NOT_LOW', True, 'MED'), outcome)
+
+    def test_the_policy_ref_supplies_the_table_a_feature_branch_cannot_see(self):
+        self.git('switch', '-q', '-c', 'work')
+        self.git('switch', '-q', 'main')
+        self.write('.harness/risk.yaml', json.dumps(dict(TABLE, high={'paths': ['src/auth/*', '.harness/*', 'src/rule.py']})))
+        self.commit('rule.py becomes sensitive')
+        self.git('switch', '-q', 'work')
+        self.write('src/rule.py', RULE.replace('>= 10', '>= 20'))
+        old = subprocess.run([sys.executable, str(SCRIPT), 'classify', '--root', str(self.root), '--base', 'work'],
+                             capture_output=True, timeout=120)
+        self.assertNotEqual(json.loads(old.stdout)['tier'], 'HIGH')
+        new = subprocess.run([sys.executable, str(SCRIPT), 'classify', '--root', str(self.root), '--base', 'work',
+                              '--policy', 'main'], capture_output=True, timeout=120)
+        self.assertEqual(json.loads(new.stdout)['tier'], 'HIGH', new.stdout)
+
     def test_trailers_record_tier_and_acceptance(self):
         self.write('docs/guide.md', 'guide v2\n')
         lines = subprocess.run([sys.executable, str(SCRIPT), 'trailers', '--root', str(self.root), '--base', 'main',

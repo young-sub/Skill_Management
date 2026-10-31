@@ -2,16 +2,23 @@
 
 classify  LOW, MED or HIGH for the current tree against a base. The risk table is read from the
           base ref (`git show <base>:.harness/risk.yaml`), so a branch cannot loosen its own
-          rules. LOW is positive only: every changed file belongs to a registered LOW class and
-          that class's required evidence holds for the current tree and intact sealed tests.
+          rules (`--policy <integration ref>` reads it from the integration branch instead, which a
+          feature branch cannot edit either). Without a table the built-in HIGH list applies and
+          nothing is LOW. LOW is positive only: every changed file belongs to a registered LOW class
+          and that class's required evidence holds for the current tree and intact sealed tests.
+          Paths match case-insensitively on every platform.
           HIGH: a sensitive path, a modified, deleted or retyped existing test, fixture or
           expectation, a changed symbol referenced from a sensitive file (in the base or the work
           tree, symlinks followed), or a rename out of a sensitive path. Paths changed by a recent
-          revert move up one tier. Everything else, including unknown paths, is MED.
-recheck   For a committed candidate whose work tree is clean, merge it onto the integration tip in
-          a disposable worktree, classify the merged change again (a new sensitive caller on the
-          tip makes it HIGH), and run the sealed acceptance command plus any --regression
-          commands there. Integrate only while the tip still equals the reported `onto`.
+          revert (`This reverts commit` in the message) move up one tier.
+          Everything else, including unknown paths, is MED.
+recheck   For a committed candidate whose work tree is clean, classify it against its merge base
+          with the integration tip's table (it must be LOW with its evidence), merge it onto the tip
+          in a disposable worktree, classify the merged change again (a new sensitive caller on the
+          tip makes it HIGH), and run the sealed acceptance command plus any --regression commands
+          there. PASS (exit 0) means integrable; passing tests on a MED or HIGH candidate report
+          `tests_pass` with verdict NOT_LOW and exit 1. Integrate only while the tip still equals
+          the reported `onto`.
 trailers  Commit trailers for traceability (Agent-Task, Risk, Acceptance). They do not measure
           human time or silent failures.
 events    Reverts (`This reverts commit`) on the base become tasks: reproduce the reverted defect as an
@@ -22,7 +29,7 @@ capacity  Whether another delegated task may start: open correctness questions a
 An LLM may raise a tier; nothing here lowers one. An agent's approval is never a human approval.
 """
 import argparse
-from fnmatch import fnmatch
+from fnmatch import fnmatchcase
 import json
 from pathlib import Path
 import re
@@ -42,16 +49,28 @@ ORDER = ['LOW', 'MED', 'HIGH']
 TEST_PATH = acceptance_gate.TEST_PATH
 FIXTURE_PATH = re.compile(r'(^|/)(fixtures?|snapshots?|__snapshots__|golden|expected|expectations?|baselines?)(/|$)|'
                           r'\.snap$', re.IGNORECASE)
-# Declarations on changed lines (def/function/class/const/let/var/type, any indent) and module-level
-# assignments (`LIMIT = 10`, unindented, so local variables do not make every change HIGH).
+# Declarations on changed lines: functions, classes and types at any indent (methods count), but
+# const/let/var and plain assignments only unindented, so a local `result` or `data` does not make
+# every change that a sensitive file happens to mention HIGH.
 SYMBOL = re.compile(r'^[+-](?:\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?'
-                    r'(?:def|function|class|const|let|var|interface|type|func|fn)\s+([A-Za-z_]\w+)|'
+                    r'(?:def|function|class|interface|type|func|fn)\s+([A-Za-z_]\w+)|'
+                    r'(?:export\s+)?(?:const|let|var)\s+([A-Za-z_]\w+)|'
                     r'([A-Za-z_]\w+)\s*(?::[^=\n]*)?=(?!=))', re.MULTILINE)
 # The enclosing declaration Git prints after a hunk header, including `const f = (...) =>`.
 HUNK_SYMBOL = re.compile(r'^@@[^@]*@@\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?'
                          r'(?:(?:def|function|class|const|let|var|func|fn)\s+([A-Za-z_]\w+)|([A-Za-z_]\w+)\s*[=(:])',
                          re.MULTILINE)
 EVIDENCE = {'acceptance-pass', 'no-untested', 'no-uncovered', 'sealed-additions'}
+# Used when the policy ref has no table: the template's HIGH list. Nothing is LOW without a table.
+DEFAULT_HIGH = [
+    '*auth*', '*permission*', '*secret*', '*credential*', '*payment*', '*billing*', '*.env*',
+    '*migrations/*', '*schema*', '*api/public/*',
+    '*.github/*', '*.harness/*', '*AGENTS.md', '*CLAUDE.md', '*skills/*',
+    'package.json', 'package-lock.json', 'pyproject.toml', 'requirements*.txt',
+    '*eslint*', '*stylelint*', '*prettier*', '*biome.json*', '*ruff.toml', '*.flake8', '*setup.cfg', '*tox.ini',
+    '*tsconfig*.json', '*.golangci*', '*probes.json',
+]
+REVERT_BODY = re.compile(r'This reverts commit ([0-9a-f]{7,40})')
 
 
 def git(root, *args, check=True):
@@ -62,14 +81,16 @@ def git(root, *args, check=True):
 
 
 def matches(path, patterns):
-    return any(fnmatch(path, pattern) or fnmatch('/' + path, pattern) for pattern in patterns)
+    """Case-insensitive on every platform: `src/Auth/` is as sensitive on Linux as on Windows."""
+    path = path.lower()
+    return any(fnmatchcase(path, pattern.lower()) or fnmatchcase('/' + path, pattern.lower()) for pattern in patterns)
 
 
 def load_table(root, base):
-    """The risk table as committed on the base ref; a missing table makes every change MED or HIGH."""
+    """The risk table as committed on the policy ref; without one the built-in HIGH list applies and nothing is LOW."""
     text = git(root, 'show', f'{base}:{TABLE}', check=False)
     if not text.strip():
-        return {'schema_version': 1, 'low': [], 'high': {'paths': []}}
+        return {'schema_version': 1, 'low': [], 'high': {'paths': list(DEFAULT_HIGH)}, 'default': True}
     table = json.loads(text)
     if table.get('schema_version') != 1 or not isinstance(table.get('low'), list) or not isinstance(table.get('high'), dict):
         raise ValueError(f'{TABLE} on {base} needs schema_version 1, a low list and a high object')
@@ -105,8 +126,8 @@ def changed_symbols(root, base, tree, paths):
     return sorted(found)
 
 
-def sensitive_reference(root, base, symbols, high):
-    """(symbol, file) when a sensitive file in the base or the work tree names a changed symbol."""
+def sensitive_reference(root, refs, symbols, high):
+    """(symbol, file) when a sensitive file in one of the refs or the work tree names a changed symbol."""
     if not symbols or not high:
         return None
     words = re.compile(r'\b(' + '|'.join(map(re.escape, symbols)) + r')\b')
@@ -119,27 +140,43 @@ def sensitive_reference(root, base, symbols, high):
         hit = words.search(text)
         if hit:
             return hit.group(1), name
-    for name in sorted(line for line in git(root, 'ls-tree', '-r', '--name-only', base).splitlines() if matches(line, high)):
-        hit = words.search(git(root, 'show', f'{base}:{name}', check=False))
-        if hit:
-            return hit.group(1), name
+    for ref in dict.fromkeys(refs):
+        for name in sorted(line for line in git(root, 'ls-tree', '-r', '--name-only', ref).splitlines()
+                           if matches(line, high)):
+            hit = words.search(git(root, 'show', f'{ref}:{name}', check=False))
+            if hit:
+                return hit.group(1), name
     return None
 
 
-def reverted_paths(root, base, days):
-    """Paths changed by commits titled `Revert ...` on the base within the window."""
-    log = git(root, 'log', base, f'--since={days}.days', '--format=%x00%s', '--name-only', check=False)
-    paths = set()
+def reverts(root, base, days):
+    """(revert commit, reverted sha) on the base within the window. A revert is a commit whose message
+    says `This reverts commit <sha>` (what `git revert` writes, whatever the subject became), not a
+    subject that starts with "Revert". Events and tier promotion share this one reading."""
+    found = []
+    log = git(root, 'log', base, f'--since={days}.days', '--format=%x00%H%x01%B', check=False)
     for record in log.split('\0'):
-        lines = [line for line in record.splitlines() if line.strip()]
-        if lines and lines[0].startswith('Revert'):
-            paths.update(lines[1:])
-    return paths
+        sha, _, body = record.partition('\x01')
+        if not sha.strip():
+            continue
+        named = REVERT_BODY.search(body)
+        if named:
+            found.append((sha.strip(), named.group(1)))
+    return found
 
 
-def evidence(root, added=()):
-    """What the latest full sealed-acceptance result for the current tree establishes, with intact tests.
-    `sealed-additions` holds when every file in `added` is byte-identical to a sealed test."""
+def revert_paths(root, sha):
+    return [p for p in git(root, 'show', '--format=', '--name-only', '-m', '--first-parent', sha).splitlines() if p]
+
+
+def reverted_paths(root, base, days):
+    """Paths changed by reverts on the base within the window."""
+    return {path for sha, _ in reverts(root, base, days) for path in revert_paths(root, sha)}
+
+
+def evidence(root, added=(), tree=None):
+    """What the latest full sealed-acceptance result for the tree (default: the current one) establishes,
+    with intact tests. `sealed-additions` holds when every file in `added` is byte-identical to a sealed test."""
     contract, directory, contract_hash = acceptance_gate.load_contract(root)
     if contract is None:
         return set(), None
@@ -147,7 +184,7 @@ def evidence(root, added=()):
     if changed:
         return set(), {'verdict': 'TAMPERED', 'untested': [], 'uncovered': []}
     sealed = dict(tests)
-    tree = acceptance_gate.tree_id(root)
+    tree = tree or acceptance_gate.tree_id(root)
     latest = next((r for r in reversed(acceptance_gate.results(directory))
                    if r.get('tree') == tree and r.get('contract') == contract_hash and r.get('ablated')), None)
     held = set()
@@ -157,12 +194,17 @@ def evidence(root, added=()):
             held.add('no-untested')
         if not latest['uncovered']:
             held.add('no-uncovered')
-        if all(name in sealed and (root / name).is_file() and (root / name).read_bytes() == sealed[name] for name in added):
+        if all(name in sealed and blob(root, tree, name) == sealed[name] for name in added):
             held.add('sealed-additions')
     return held, latest
 
 
-def high_reasons(root, base, rows, tree, high):
+def blob(root, tree, name):
+    result = subprocess.run(['git', '-C', str(root), 'cat-file', 'blob', f'{tree}:{name}'], capture_output=True)
+    return result.stdout if result.returncode == 0 else None
+
+
+def high_reasons(root, base, rows, tree, high, refs):
     reasons = []
     for status, old, new in rows:
         if matches(new, high) or matches(old, high):
@@ -170,7 +212,7 @@ def high_reasons(root, base, rows, tree, high):
         if status in 'MDRT' and (TEST_PATH.search(old) or FIXTURE_PATH.search(old)):
             reasons.append(f'HIGH existing test or fixture {"deleted" if status == "D" else "changed"}: {old}')
     symbols = changed_symbols(root, base, tree, [new for _, _, new in rows if not matches(new, high)])
-    referenced = sensitive_reference(root, base, symbols, high)
+    referenced = sensitive_reference(root, refs, symbols, high)
     if referenced:
         reasons.append(f'HIGH changed symbol {referenced[0]} is referenced from a sensitive file: {referenced[1]}')
     return reasons
@@ -178,7 +220,7 @@ def high_reasons(root, base, rows, tree, high):
 
 def commit(root, ref):
     """The commit a ref names; an unknown ref is an error, never an empty history."""
-    return git(root, 'rev-parse', '--verify', '--quiet', ref + '^{commit}').strip() or None
+    return git(root, 'rev-parse', '--verify', '--quiet', ref + '^{commit}', check=False).strip() or None
 
 
 def require(root, ref):
@@ -188,21 +230,24 @@ def require(root, ref):
     return found
 
 
-def classify(root, base, revert_days=30, tree=None, with_evidence=True):
-    require(root, base)
-    table = load_table(root, base)
+def classify(root, base, revert_days=30, tree=None, with_evidence=True, policy=None):
+    """Tier of the tree against `base`. The table comes from `policy` (default: base); sensitive callers
+    and revert history are read from both."""
+    base = require(root, base)
+    policy = require(root, policy) if policy else base
+    table = load_table(root, policy)
     rows, tree = changes(root, base, tree)
     if not rows:
-        return {'tier': 'LOW', 'tree': tree, 'reasons': ['no change'], 'files': []}
+        return {'tier': 'LOW', 'tree': tree, 'reasons': ['no change'], 'files': [], 'policy': policy}
     high = table['high'].get('paths', [])
-    reasons, tier = high_reasons(root, base, rows, tree, high), 'MED'
+    reasons, tier = high_reasons(root, base, rows, tree, high, [base, policy]), 'MED'
     if reasons:
         tier = 'HIGH'
     else:
         classes = [next((c for c in table['low'] if matches(new, c['paths']) and (status != 'R' or matches(old, c['paths']))
                          and (status == 'A' or not c.get('additive_only'))), None) for status, old, new in rows]
         added = [new for (_, _, new), c in zip(rows, classes) if c and c.get('additive_only')]
-        held = evidence(root, added)[0] if with_evidence else set()
+        held = evidence(root, added, tree)[0] if with_evidence else set()
         if all(classes):
             missing = sorted({need for c in classes for need in c.get('requires', [])} - held)
             if missing:
@@ -213,11 +258,15 @@ def classify(root, base, revert_days=30, tree=None, with_evidence=True):
         else:
             unknown = [new for (_, _, new), c in zip(rows, classes) if not c]
             reasons.append('MED not in a registered LOW class: ' + ', '.join(unknown[:5]))
-    reverted = reverted_paths(root, base, revert_days) & ({new for _, _, new in rows} | {old for _, old, _ in rows})
+    if table.get('default'):
+        reasons.append(f'no {TABLE} on {policy[:12]}: the built-in HIGH list applies and nothing is LOW')
+    history = reverted_paths(root, policy, revert_days) | reverted_paths(root, base, revert_days)
+    touched = {path for _, old, new in rows for path in (old, new)}
+    reverted = sorted(path for path in touched if path.lower() in {item.lower() for item in history})
     if reverted and tier != 'HIGH':
         tier = ORDER[ORDER.index(tier) + 1]
-        reasons.append(f'{tier} raised: reverted within {revert_days} days: ' + ', '.join(sorted(reverted)[:5]))
-    return {'tier': tier, 'tree': tree, 'reasons': reasons, 'files': [new for _, _, new in rows]}
+        reasons.append(f'{tier} raised: reverted within {revert_days} days: ' + ', '.join(reverted[:5]))
+    return {'tier': tier, 'tree': tree, 'reasons': reasons, 'files': [new for _, _, new in rows], 'policy': policy}
 
 
 def recheck(root, candidate, onto, timeout, regressions=()):
@@ -233,24 +282,37 @@ def recheck(root, candidate, onto, timeout, regressions=()):
             root, 'rev-parse', 'HEAD^{tree}').strip():
         raise ValueError('The work tree differs from the candidate commit: commit first, then recheck')
     onto = git(root, 'rev-parse', '--verify', onto + '^{commit}').strip()
+    fork = git(root, 'merge-base', onto, candidate).strip()
+    # The candidate's own change (from where it left the tip) under the tip's current table, with its evidence.
+    own = classify(root, fork, tree=git(root, 'rev-parse', candidate + '^{tree}').strip(), policy=onto)
+    result = {'onto': onto, 'candidate': candidate, 'candidate_tier': own['tier'], 'candidate_reasons': own['reasons']}
+    if own['tier'] == 'HIGH':
+        return dict(result, verdict='HIGH', tests_pass=None,
+                    reason='the candidate is HIGH under the integration table: ' + '; '.join(own['reasons'][:3]))
     with probe_check.worktree(root, onto, links=contract.get('links', [])) as copy:
         merged = subprocess.run(['git', '-C', str(copy), '-c', 'user.name=risk-gate', '-c', 'user.email=risk-gate@invalid',
                                  'merge', '--no-ff', '--no-edit', candidate], capture_output=True)
         if merged.returncode:
-            return {'verdict': 'CONFLICT', 'onto': onto, 'reason': merged.stdout.decode('utf-8', 'replace')[-400:]}
+            return dict(result, verdict='CONFLICT', tests_pass=None, reason=merged.stdout.decode('utf-8', 'replace')[-400:])
         tier = classify(copy, onto, tree=git(copy, 'rev-parse', 'HEAD^{tree}').strip(), with_evidence=False)
-        result = {'onto': onto, 'candidate': candidate, 'merged_tier_reasons': tier['reasons']}
+        result['merged_tier_reasons'] = tier['reasons']
         if tier['tier'] == 'HIGH':
-            return dict(result, verdict='HIGH', reason='on the integration tip the change is HIGH: ' + '; '.join(tier['reasons'][:3]))
+            return dict(result, verdict='HIGH', tests_pass=None,
+                        reason='on the integration tip the change is HIGH: ' + '; '.join(tier['reasons'][:3]))
         acceptance_gate.install(copy, tests)
         _, outcome = acceptance_gate.run(copy, contract, timeout)
         if outcome['verdict'] != 'pass':
-            return dict(result, verdict='FAIL', reason=f'sealed tests: {outcome["reason"]}')
+            return dict(result, verdict='FAIL', tests_pass=False, reason=f'sealed tests: {outcome["reason"]}')
         for command in regressions:
             ran = probe_check.run_command(copy, command, timeout)
             if ran['timeout'] or ran['exit'] != 0:
-                return dict(result, verdict='FAIL', reason=f'regression `{command}` exit {ran["exit"]}: {ran["tail"][-300:]}')
-    return dict(result, verdict='PASS', reason='sealed and regression checks pass on the merged tree')
+                return dict(result, verdict='FAIL', tests_pass=False,
+                            reason=f'regression `{command}` exit {ran["exit"]}: {ran["tail"][-300:]}')
+    if own['tier'] != 'LOW':
+        return dict(result, verdict='NOT_LOW', tests_pass=True,
+                    reason=f'checks pass on the merged tree, but the candidate is {own["tier"]}: '
+                           + '; '.join(own['reasons'][:3]) + '; a person reviews it before integration')
+    return dict(result, verdict='PASS', tests_pass=True, reason='LOW, and the sealed and regression checks pass on the merged tree')
 
 
 def task_trailers(root, sha):
@@ -268,15 +330,11 @@ def events(root, base, days):
     corrections are not detected here; they enter the same loop by hand."""
     require(root, base)
     tasks = []
-    for sha in git(root, 'log', base, f'--since={days}.days', '--format=%H').split():
-        body = git(root, 'log', '-1', '--format=%B', sha)
-        reverted = re.search(r'This reverts commit ([0-9a-f]{7,40})', body)
-        if not reverted:
-            continue
-        source = commit(root, reverted.group(1))
-        paths = [p for p in git(root, 'show', '--format=', '--name-only', '-m', '--first-parent', sha).splitlines() if p]
-        tasks.append({'event': 'revert', 'commit': sha, 'reverted': source or reverted.group(1),
-                      'agent_tasks': task_trailers(root, source) if source else [], 'paths': sorted(set(paths)),
+    for sha, named in reverts(root, base, days):
+        source = commit(root, named)
+        tasks.append({'event': 'revert', 'commit': sha, 'reverted': source or named,
+                      'agent_tasks': task_trailers(root, source) if source else [],
+                      'paths': sorted(set(revert_paths(root, sha))),
                       'action': 'reproduce the reverted defect as a new acceptance test (it must fail on the reverted '
                                 'change), seal it, then register a probe; an additive sealed test is LOW, editing existing '
                                 'tests, probes, lint configuration, risk.yaml or rule files is HIGH'})
@@ -310,8 +368,8 @@ def capacity(root, onto, limits):
     return {'start': not full, 'counts': counts, 'limits': limits, 'full': full}
 
 
-def trailers(root, base, task):
-    decided = classify(root, base)
+def trailers(root, base, task, policy=None):
+    decided = classify(root, base, policy=policy)
     _, latest = evidence(root)
     acceptance = 'none' if latest is None else latest['verdict'].lower() + (
         f" untested={len(latest['untested'])} uncovered={len(latest['uncovered'])}" if latest['verdict'] == 'PASS' else '')
@@ -340,7 +398,9 @@ def main(argv=None):
     gating.add_argument('--max-high', type=int, default=2)
     gating.add_argument('--max-med', type=int, default=5)
     for mode in (classifying, tagging, listing):
-        mode.add_argument('--base', required=True, help='the ref the risk table is read from, for example origin/main')
+        mode.add_argument('--base', required=True, help='the ref the change is compared with, for example origin/main')
+    for mode in (classifying, tagging):
+        mode.add_argument('--policy', help='the ref the risk table is read from (default: --base), for example origin/main')
     for mode in modes.choices.values():
         mode.add_argument('--root', type=Path, required=True)
     args = parser.parse_args(argv)
@@ -349,7 +409,7 @@ def main(argv=None):
         if Path(git(root, 'rev-parse', '--show-toplevel').strip()).resolve() != root:
             raise ValueError('--root must be the worktree root')
         if args.mode == 'classify':
-            decided = classify(root, args.base, args.revert_days)
+            decided = classify(root, args.base, args.revert_days, policy=args.policy)
             print(json.dumps(decided, ensure_ascii=False, indent=2))
             return {'LOW': 0, 'MED': 10, 'HIGH': 20}[decided['tier']]
         if args.mode == 'recheck':
@@ -364,7 +424,7 @@ def main(argv=None):
                                                  'unmerged_high': args.max_high, 'unmerged_med': args.max_med})
             print(json.dumps(outcome, ensure_ascii=False, indent=2))
             return 0 if outcome['start'] else 1
-        print('\n'.join(trailers(root, args.base, args.task)))
+        print('\n'.join(trailers(root, args.base, args.task, args.policy)))
         return 0
     except (OSError, ValueError, subprocess.SubprocessError, json.JSONDecodeError) as error:
         print(f'error: {error}', file=sys.stderr)
