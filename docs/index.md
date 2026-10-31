@@ -1,5 +1,7 @@
 # Agent Documentation Index
 
+- [Direction research](research/direction-research-20261031.md): 2026-02+ sources (187, verified and red-teamed by Codex) on removing the human bottleneck. Teams that cut human gates invested in judgment the agent cannot edit and in blast-radius limits, not in-session instructions. Design in dependency order: a per-product run-and-observe command, a sealed pre-implementation acceptance contract with deterministic strength checks, risk-tiered integration, a blast-radius profile, an event-driven failure-to-asset loop; remove the prompt router now.
+
 - [Lean audit](research/lean-audit-20261030.md): rebuilt from OFF with deterministic counts. Static always-on plugin context is about 600 tokens, but the ON−OFF gap is 377–406k tokens per cell, mostly longer sessions and process artifacts. The prompt router is right on 90/162 real prompts against 127 with no router. The Stop guard blocked 0/112 eval cells and 1/280 real runs. Lean = OFF + the independent check; the [3-arm pre-registration and OFF probes](../evals/lean-audit/README.md) are unrun.
 
 - [0.1.95 workflow](plugins.md#version-0195): Optional TypeScript LSP, writer reference checks plus table/column write searches with text-search fallback, a lean acceptance-first body, stated assumptions and a verifier that treats missed paths under universal rules as violations. Local package validation is separate from installed LSP or model outcome evidence.
