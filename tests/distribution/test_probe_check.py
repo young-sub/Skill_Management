@@ -412,6 +412,22 @@ class ProbeCheckTests(unittest.TestCase):
                          {'tests': 3, 'skipped': 0, 'assertions': 1, 'other_failures': 1, 'errors': 1})
         self.assertEqual(probe_check.jest_counts({'numRuntimeErrorTestSuites': 2, 'testResults': []})['errors'], 2)
 
+    def test_a_live_drive_script_result_is_a_report(self):
+        report = self.root / 'live.json'
+        run = {'timeout': False, 'exit': 1, 'tail': '', 'output': ''}
+        cases = (([{'name': 'checkout total', 'status': 'failed', 'message': 'expected 115, got 100'}], 'assertion_failure'),
+                 ([{'name': 'server', 'status': 'error', 'message': 'port 3000 never answered'},
+                   {'name': 'checkout total', 'status': 'failed'}], 'error'),
+                 ([{'name': 'checkout total', 'status': 'skipped'}], 'unclassified'))
+        for checks, verdict in cases:
+            with self.subTest(verdict=verdict):
+                report.write_text(json.dumps({'checks': checks}), encoding='utf-8')
+                self.assertEqual(probe_check.run_outcome(self.root, run, 'live.json')['verdict'], verdict)
+        report.write_text(json.dumps({'checks': [{'name': 'ok', 'status': 'passed'}]}), encoding='utf-8')
+        self.assertEqual(probe_check.run_outcome(self.root, dict(run, exit=0), 'live.json')['verdict'], 'pass')
+        report.write_text(json.dumps({'checks': [{'name': 'x', 'status': 'broken'}]}), encoding='utf-8')
+        self.assertEqual(probe_check.run_outcome(self.root, run, 'live.json')['verdict'], 'unclassified')
+
     def test_errors_on_a_parent_suite_or_after_an_assertion_are_not_hidden(self):
         # A parent suite's own setup error beside a child's assertion failure.
         nested = ('<testsuites><testsuite name="file" tests="1" errors="1">'

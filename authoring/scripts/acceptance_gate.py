@@ -492,7 +492,7 @@ def main(argv=None):
     sealing.add_argument('--base', default='HEAD')
     sealing.add_argument('--tests', nargs='+', required=True, help='SOURCE=NAME; keep SOURCE outside the worktree')
     sealing.add_argument('--command', required=True)
-    sealing.add_argument('--report', help='JUnit XML or Jest-format JSON the command writes')
+    sealing.add_argument('--report', help='JUnit XML, Jest-format JSON or live {"checks": [...]} JSON the command writes')
     sealing.add_argument('--preserve', action='store_true', help='behavior-preserving work: tests pass on the base')
     sealing.add_argument('--scenarios', type=Path, help='JSON list of {"scenario": text, "covered_by": [test names]}')
     sealing.add_argument('--link', nargs='+', action='extend', default=[])

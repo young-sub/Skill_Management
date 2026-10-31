@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/probe_check.py
-# Source-SHA256: 7ae79d958b7044bd05495e6ba378f2554da4cf4a60d407e3834ba049090817e5
+# Source-SHA256: 45459c80076221fc36cc37b07630d92c88c14ff627555345efc9492f216e6ce4
 
 """Exercise checks against synthetic faults in disposable Git worktrees.
 
@@ -302,9 +302,31 @@ def jest_counts(data):
     return counts
 
 
+LIVE_STATUSES = {'passed', 'failed', 'error', 'skipped'}
+
+
+def live_counts(data):
+    """Counts from a live drive script's result (`setup-project-verification`): {"checks": [{"name",
+    "status": passed|failed|error|skipped, "message"}]}. `failed` is an expectation about the running
+    product that did not hold (an assertion); `error` is the app or the script breaking before one."""
+    counts = new_counts()
+    for check in data['checks']:
+        status = check.get('status') if isinstance(check, dict) else None
+        if status not in LIVE_STATUSES:
+            raise ValueError(f'live check status must be one of {sorted(LIVE_STATUSES)}: {check!r}')
+        counts['tests'] += 1
+        counts['skipped'] += status == 'skipped'
+        counts['assertions'] += status == 'failed'
+        counts['errors'] += status == 'error'
+    return counts
+
+
 def report_counts(path):
     if path.suffix.lower() == '.json':
-        return jest_counts(json.loads(path.read_text(encoding='utf-8')))
+        data = json.loads(path.read_text(encoding='utf-8'))
+        if isinstance(data, dict) and isinstance(data.get('checks'), list) and 'testResults' not in data:
+            return live_counts(data)
+        return jest_counts(data)
     return junit_counts(path)
 
 
@@ -325,7 +347,7 @@ def unittest_counts(output):
 def run_outcome(copy, run, report=None):
     """Classify one run as pass, assertion_failure, error, timeout or unclassified.
 
-    `report` is the JUnit XML or Jest-format JSON file the command writes, relative to the
+    `report` is the JUnit XML, Jest-format JSON or live drive-script JSON the command writes, relative to the
     checkout; without it only Python unittest's own summary is read. A pass needs at least one
     executed test, and a proof needs every failure to be a failed assertion."""
     if run['timeout']:
@@ -456,7 +478,7 @@ def main(argv=None):
     prove.add_argument('--tests', nargs='+', required=True,
                        help='NAME (repository file) or SOURCE=NAME (SOURCE may be outside the repository)')
     prove.add_argument('--command', required=True)
-    prove.add_argument('--report', help='JUnit XML or Jest-format JSON the command writes, relative to the checkout')
+    prove.add_argument('--report', help='JUnit XML, Jest-format JSON or live {"checks": [...]} JSON the command writes, relative to the checkout')
     prove.add_argument('--preserve', action='store_true',
                        help='behavior-preserving change: the tests must pass on the base and now')
     prove.add_argument('--skip-current', action='store_true')

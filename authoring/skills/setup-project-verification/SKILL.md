@@ -29,8 +29,17 @@ with a drive script that must fail, and commit it in the product repository. A c
 plugin-side adapter is evidence, not a connection. Example: labeler
 `node tests/live.mjs --report {report_dir}/live.json` over its `tests/isolatedWorker.mjs`.
 
-Acceptance authors (`agent-workflow`) then write UI and API acceptance tests as drive scripts for
-this command. Keeping it working when the environment changes is the remaining human cost.
+The drive script's result is `{"checks": [{"name": "...", "status": "passed|failed|error|skipped",
+"message": "..."}]}`: `failed` means an expectation about the running product did not hold, `error`
+that the app or the script broke before one could be checked. The acceptance gate reads this file
+as a report (`--report <report dir>/live.json`), so acceptance authors (`agent-workflow`) write UI
+and API acceptance tests as drive scripts for this command and seal them like unit tests: they must
+fail on the base by a `failed` check, never an `error`. Keeping the command working when the
+environment changes is the remaining human cost.
+
+The `.harness/project.yaml` template keeps `commands.live` disabled until this command exists and
+has run in the product repository: an example argv there would make an unconnected project look
+connected.
 
 When the person asks for a full verification map, a Feature map or a missing execution path
 beyond this command, follow [full verification mapping](references/full-verification-mapping.md).

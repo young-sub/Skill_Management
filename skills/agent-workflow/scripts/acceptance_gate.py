@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/acceptance_gate.py
-# Source-SHA256: 873b12e9a0efaf2e1a0a4e56a695d296dc7dc2ac5293646332cf3f5e9c6f84c2
+# Source-SHA256: 8665b1d9ab6b77c09b56fe42ad90a22095563c17e2959420e788cad26dbaa6ab
 
 """Judge delegated work with acceptance tests sealed before implementation.
 
@@ -496,7 +496,7 @@ def main(argv=None):
     sealing.add_argument('--base', default='HEAD')
     sealing.add_argument('--tests', nargs='+', required=True, help='SOURCE=NAME; keep SOURCE outside the worktree')
     sealing.add_argument('--command', required=True)
-    sealing.add_argument('--report', help='JUnit XML or Jest-format JSON the command writes')
+    sealing.add_argument('--report', help='JUnit XML, Jest-format JSON or live {"checks": [...]} JSON the command writes')
     sealing.add_argument('--preserve', action='store_true', help='behavior-preserving work: tests pass on the base')
     sealing.add_argument('--scenarios', type=Path, help='JSON list of {"scenario": text, "covered_by": [test names]}')
     sealing.add_argument('--link', nargs='+', action='extend', default=[])
