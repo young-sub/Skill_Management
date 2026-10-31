@@ -3332,8 +3332,10 @@ REQUIRED_COHORT_RESOURCES = frozenset({
     "design-goal/schemas/contract.schema.json",
     "design-goal/scripts/core_harness.py",
     "diagnose/SKILL.md",
+    "diagnose/agents/openai.yaml",
     "diagnose/references/feedback-and-success.md",
     "diagnose/references/goal-execution-policy.md",
+    "diagnose/references/independent-check.md",
     "diagnose/references/repair-and-reuse.md",
     "diagnose/scripts/probe_check.py",
     "diagnose/templates/reusable-procedure.md",
@@ -3364,11 +3366,15 @@ REQUIRED_COHORT_RESOURCES = frozenset({
     "setup-agent-harness/agents/openai.yaml",
     "setup-agent-harness/references/documentation-policy.md",
     "setup-agent-harness/schemas/project.schema.json",
+    "setup-agent-harness/scripts/blast_radius_check.py",
     "setup-agent-harness/scripts/core_harness.py",
     "setup-agent-harness/templates/project/AGENTS.md",
     "setup-agent-harness/templates/project/CLAUDE.md",
     "setup-agent-harness/templates/project/TESTING.md",
+    "setup-agent-harness/templates/project/claude-delegation-settings.json",
+    "setup-agent-harness/templates/project/codex-delegation-profile.toml",
     "setup-agent-harness/templates/project/project.yaml",
+    "setup-agent-harness/templates/project/risk.yaml",
 })
 
 
