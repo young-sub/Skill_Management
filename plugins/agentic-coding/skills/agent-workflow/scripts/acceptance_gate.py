@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/acceptance_gate.py
-# Source-SHA256: 528315eb4d1d470f00ed2319cd7449926ecc3d8fbab36125c95b297f07b2cfb2
+# Source-SHA256: 1c053cfed9a31d37f4bea038ad7aab52b044595fa5b017a0850ea4d03202a057
 
 """Judge delegated work with acceptance tests sealed before implementation.
 
@@ -44,6 +44,7 @@ STATE = 'agentic-acceptance'
 MAX_FAILURES = 3
 INTEGRITY = 'tamper-detection-only'
 DOC_SUFFIXES = {'.md', '.markdown', '.mdx', '.rst', '.adoc'}
+EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
 DEV_NULL = '/'.join(('', 'dev', 'null'))  # what Git prints for the missing side of an added or deleted file
 TEST_PATH = re.compile(r'(^|/)(tests?|__tests__|spec|e2e)/|(^|/)test_[^/]*$|_test\.\w+$|\.(test|spec)\.\w+$', re.IGNORECASE)
 
@@ -62,16 +63,31 @@ def state_dir(root):
     return (directory if directory.is_absolute() else root / directory).resolve() / STATE
 
 
+def has_head(root):
+    return subprocess.run(['git', '-C', str(root), 'rev-parse', '--verify', '--quiet', 'HEAD'],
+                          capture_output=True).returncode == 0
+
+
+def staged_new_files(root):
+    """Files the real index adds over HEAD, including force-added ones .gitignore hides from `add -A`."""
+    against = 'HEAD' if has_head(root) else EMPTY_TREE
+    return [name for name in git(root, 'diff', '--cached', '--name-only', '-z', '--diff-filter=A', against).split('\0')
+            if name]
+
+
 def tree_id(root):
-    """Tree of the index plus every tracked and unignored change, without touching the real index."""
+    """Tree of HEAD plus every unignored change and every staged new file, without touching the real index.
+
+    The temporary index starts from HEAD rather than a copy of the real one, whose stat data could
+    make a same-size edit look unchanged."""
     with tempfile.TemporaryDirectory(prefix='acceptance-index-') as temporary:
-        index = Path(temporary) / 'index'
-        real = Path(git(root, 'rev-parse', '--git-path', 'index').strip())
-        real = real if real.is_absolute() else root / real
-        if real.is_file():
-            shutil.copyfile(real, index)  # keeps force-added files the next `add -A` would skip
-        env = dict(os.environ, GIT_INDEX_FILE=str(index))
+        env = dict(os.environ, GIT_INDEX_FILE=str(Path(temporary) / 'index'))
+        if has_head(root):
+            git(root, 'read-tree', 'HEAD', env=env)
         git(root, 'add', '-A', env=env)
+        forced = [name for name in staged_new_files(root) if (root / name).is_file()]
+        if forced:
+            git(root, 'add', '-f', '--', *forced, env=env)
         return git(root, 'write-tree', env=env).strip()
 
 
@@ -175,8 +191,7 @@ def sealed_tests(contract, directory):
 def snapshot(root, copy):
     """Make the copy's index hold exactly the tested state and return its tree."""
     git(copy, 'add', '-A')
-    staged = git(root, 'diff', '--cached', '--name-only', '-z', '--diff-filter=A', 'HEAD').split('\0')
-    forced = [name for name in staged if name and (copy / name).is_file()]
+    forced = [name for name in staged_new_files(root) if (copy / name).is_file()]
     if forced:  # force-added files that .gitignore hides from `add -A`
         git(copy, 'add', '-f', '--', *forced)
     return git(copy, 'write-tree').strip()

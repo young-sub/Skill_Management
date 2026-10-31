@@ -5,7 +5,7 @@ disable-model-invocation: true
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: 0d42146a60124e7de2e2fc266520e0cbafdca514127de68e8e510187a98ee604 -->
+<!-- Source-SHA256: 2505a19aa8411565339542502d0b45b7a184485f22524147a0b7c5300a08935a -->
 
 
 # Agent Workflow
@@ -34,9 +34,17 @@ the person is there to judge them.
 5. **Check.** `acceptance_gate.py check --root <worktree>`; the Claude Code Stop hook runs it,
    in Codex run it before finishing. Fix the implementation, never the sealed tests;
    after three failed checks the contract is `STOPPED` until a person re-seals it.
-6. **Independent check.** For behavior changes, also dispatch the
-   [verifier](references/independent-check.md) with only the verbatim request and diff.
-7. **Report the result card.**
+6. **Tier.** `python <this Skill's directory>/scripts/risk_gate.py classify --root <worktree>
+   --base <integration ref>` reads `.harness/risk.yaml` from that ref (none: copy
+   [the template](templates/risk.yaml) and let the person commit it) and prints LOW, MED or HIGH.
+   - LOW: commit with the `risk_gate.py trailers` lines, then `risk_gate.py recheck --root <worktree>
+     --onto <integration ref> --regression "<affected check>"` must pass; integrate only while the
+     integration tip still equals the `onto` it reports. No card unless asked.
+   - MED: commit with trailers; the person reviews MED work in a daily batch from the cards.
+   - HIGH: dispatch the [verifier](references/independent-check.md) with only the verbatim
+     request and diff; the person approves before integration.
+   Without a sealed contract, every behavior change gets the verifier.
+7. **Report** the result card for MED, HIGH or on request.
 
 Without a sub-agent or a runnable test command, say so on the card and fall back to the
 [playbooks](playbooks/feature.md) ([bug fix](playbooks/bug-fix.md),
@@ -50,6 +58,7 @@ Separate facts, inference and unverified claims (about 15 lines).
 가정/Assumptions: <answered questions, defaults taken, or none>
 Request → changed behavior: <one line>
 Acceptance: <PASS (stated checks, contract hash) | FAIL | TAMPERED | STOPPED: reason | not sealed: reason>
+Risk: <LOW | MED | HIGH: reasons from risk_gate.py>
 Untested changes: <file hunk ... | none>
 Uncovered requirements: <scenario ... | none>
 Checks after the final edit: <check> ✓/✗ (command, raw location)
