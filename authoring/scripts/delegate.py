@@ -147,18 +147,25 @@ def lock(root, wait=60.0):
         try:
             handle = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
         except FileExistsError:
-            pid, _ = lock_owner(path)
+            pid, seen = lock_owner(path)
             try:
                 old = time.time() - path.stat().st_mtime > LOCK_STALE
             except OSError:
                 continue  # released meanwhile
-            if old and pid is not None and not pid_alive(pid):
+            # An old lock whose process is gone, or an old empty one (its writer died before writing).
+            if old and (pid is None or not pid_alive(pid)):
                 aside = path.with_name(f'lock.stale-{token}')
                 try:
                     os.replace(path, aside)  # one waiter wins the rename; the others retry
-                    aside.unlink(missing_ok=True)
                 except OSError:
-                    pass
+                    continue
+                if lock_owner(aside)[1] != seen:
+                    # A live owner replaced the dead lock between the check and the rename: give it back.
+                    try:
+                        os.link(aside, path)
+                    except OSError:
+                        pass
+                aside.unlink(missing_ok=True)
                 continue
             if time.monotonic() > deadline:
                 raise ValueError(f'the delegation state is busy ({path}, pid {pid}); try again')

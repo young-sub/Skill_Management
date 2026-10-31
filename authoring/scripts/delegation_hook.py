@@ -47,11 +47,11 @@ READ_ONLY = re.compile(r'^\s*(?:'
                        r'|$)', re.IGNORECASE)
 # What changes files from a shell: a redirect other than to a stream or the null device, Git's
 # `--output`, deleting `find`, and the usual writing commands.
-HARMLESS_REDIRECT = re.compile(r'\d*>&\d|\d*>\s*(?:/dev/null|nul\b|\$null)', re.IGNORECASE)
-WRITES = re.compile(r'>|--output\b|\s-delete\b|-exec\s+rm\b|\btee\b|Set-Content|Add-Content|Out-File|New-Item|'
-                    r'Remove-Item|Copy-Item|Move-Item|Rename-Item|\bsed\s+-i|\bmv\b|\bcp\b|\brm\b|\brmdir\b|\bmkdir\b|'
-                    r'\btouch\b|\btruncate\b|\bln\b|\bchmod\b|\bdd\b|\binstall\b|\bgit\s+(?:apply|checkout|restore|reset|'
-                    r'clean|stash|commit|add|rm|mv)\b', re.IGNORECASE)
+HARMLESS_REDIRECT = re.compile(r'\d*>&\d|\d*>\s*(?:/dev/null|nul|\$null)(?![\w.\-/\\])', re.IGNORECASE)
+# Writes a read-only command can still make through its arguments. Writing commands themselves (cp, rm,
+# Set-Content, git commit ...) never start a segment READ_ONLY accepts, so argument words such as
+# `rg install` or `git show HEAD:chmod.md` are not writes.
+WRITES = re.compile(r'>|--output\b|\s-delete\b|-exec(?:dir)?\s', re.IGNORECASE)
 PATCH_FILE = re.compile(r'^\*\*\* (?:Add|Update|Delete) File: (.+?)\s*$', re.MULTILINE)
 
 
@@ -249,11 +249,15 @@ def pre_tool(payload, common):
             tree = trees[task['id']]
             if not (inside(here, tree) or spelled(command, tree)):
                 continue
-            if author and any(spelled(command, canon(delegate.author_dir(root, t['id']), cwd)) for t in running) \
-                    and not spelled(command, tree):
-                continue  # the author writing its own output from a shell that happens to run in the worktree
-            segments = [part for part in SEGMENT.split(command) if part.strip()]
-            if WRITES.search(HARMLESS_REDIRECT.sub(' ', command)) or not all(READ_ONLY.match(part) for part in segments):
+            own = [canon(delegate.author_dir(root, t['id']), cwd) for t in running
+                   if t['stage'] == 'authoring' and (not mine or mine['task'] == t['id'])] if author else []
+
+            def harmless(part):
+                # The author may write its own output from a shell in the worktree; that segment only.
+                if any(spelled(part, directory) for directory in own) and not spelled(part, tree):
+                    return True
+                return bool(READ_ONLY.match(part)) and not WRITES.search(HARMLESS_REDIRECT.sub(' ', part))
+            if not all(harmless(part) for part in SEGMENT.split(command) if part.strip()):
                 return refuse(f'task {task["id"]} is {task["stage"]}: only read-only commands and test runners may '
                               f'touch its worktree until `delegate.py implement`. Next: {delegate.next_step(task)}.',
                               task['id'])

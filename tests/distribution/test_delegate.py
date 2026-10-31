@@ -449,6 +449,34 @@ class DelegationTests(unittest.TestCase):
         self.assertEqual(delegate.denials(self.root, 'T2')['total'], 1)
         self.assertEqual(delegate.denials(self.root, 'T1')['total'], 0)
 
+    def test_an_old_empty_lock_is_recovered(self):
+        lock = delegate.state(self.root) / 'lock'
+        lock.parent.mkdir(parents=True, exist_ok=True)
+        lock.write_text('', encoding='utf-8')  # the writer died between creating and writing it
+        old = delegate.time.time() - delegate.LOCK_STALE - 10
+        os.utime(lock, (old, old))
+        with delegate.lock(self.root, wait=2):
+            pass
+        self.assertFalse(lock.exists())
+
+    def test_naming_the_author_output_does_not_excuse_other_writes(self):
+        started = self.started()
+        tree, output = Path(started['worktree']), delegate.author_dir(self.root, 'T1')
+        author = 'agentic-coding:acceptance-author'
+        self.assertEqual(self.tool('Bash', agent=author, command=f'cd "{tree}" && echo ok > "{output}/note.txt"'), {})
+        self.assertTrue(self.denied(self.tool('Bash', agent=author,
+                                              command=f'cd "{tree}" && echo ok > "{output}/note.txt" && echo x > rule.py')))
+
+    def test_searches_with_writing_words_and_null_like_file_names_are_judged_correctly(self):
+        started = self.started()
+        tree = Path(started['worktree'])
+        for command in (f'cd "{tree}" && rg "install" .', f'git -C "{tree}" show HEAD:chmod.md',
+                        f'git -C "{tree}" diff 2>nul'):
+            with self.subTest(command=command[-25:]):
+                self.assertEqual(self.tool('Bash', command=command), {})
+        self.assertTrue(self.denied(self.tool('Bash', command=f'cd "{tree}" && git diff >nul-output.txt')))
+        self.assertEqual(delegate.load(self.root, 'T1')['stage'], 'authoring', 'harmless searches never stop a task')
+
     def test_without_an_active_task_the_hooks_return_at_once(self):
         self.assertEqual(self.tool('Bash', command='git push origin main'), {})
         self.assertEqual(self.hook(HOOK, {'hook_event_name': 'SubagentStop', 'agent_type': 'implementer'}), {})
