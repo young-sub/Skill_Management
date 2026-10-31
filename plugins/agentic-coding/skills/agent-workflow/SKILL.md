@@ -1,51 +1,72 @@
 ---
 name: agent-workflow
-description: Deliver delegated coding work across FE, API/backend and business logic with acceptance checks derived from the request, proof that new tests catch the defect, affected existing checks, an independent verifier and a result card. Also shows what is verified, reuses UI standards, builds guardrails and opens explicit-only capabilities. Trivial edits stay direct.
+description: Delegate a coding task so it can be accepted without reading the diff. Acceptance tests are written apart from the implementation and sealed before it; a check outside the session runs them, reverts each changed hunk and reports untested changes and uncovered requirements. Also shows what is verified, reuses UI standards, builds guardrails and opens explicit-only capabilities.
+disable-model-invocation: true
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: a32075c5ad9ba312a66877f254e1551d2af5b59221b80e1266bf01838221692c -->
+<!-- Source-SHA256: c5d88a278f398ad5d7254c9e63ef04fe736dddf26b73e2df3b1c0f3509465123 -->
 
 
 # Agent Workflow
 
-Trivial edits stay direct. Invoke the prompt context's `route` Skill first.
+For delegated behavior changes. Trivial edits and conversational work stay direct:
+the person is there to judge them.
 
-## Delivery loop
+## Delegation loop
 
-1. **Acceptance first.** Derive checks from the request and recorded
-   `.harness/decisions.md`, not new-code output. List the 1-3 points whose behavior
-   admits multiple readings (or none). In interactive sessions ask; in delegated/headless
-   work choose a reading and put it on the first `가정/Assumptions` card line.
-2. **Fix at the owner.** Enforce a rule on stored data at one boundary every writer crosses
-   (DB constraint or single owner). Confirm: a search for table/column writes bypassing it (SQL, ORM,
-   import/restore jobs; `LSP findReferences` if available) finds none, and a probe removing the
-   boundary is killed by a check through another write path. Otherwise list each writer's status.
-3. **Verify.** Run acceptance and affected existing checks after the final edit.
-   Use `probe_check.py prove` optionally, when a new test's ability to catch the
-   defect is in doubt; pass ignored dependencies with `--link node_modules`.
-4. **Independent check.** For behavior changes, dispatch a fresh verifier with only
-   the verbatim request and diff using [the template](references/independent-check.md).
-   Fix demonstrated violations and register each as a probe; undecided readings go
-   to *User decisions*. Run `probe_check.py probes` for registered faults.
-5. **Report the result card.**
+1. **Author.** Before implementing, launch a fresh sub-agent with the
+   [author template](references/acceptance-author.md). It sees the verbatim request,
+   `.harness/decisions.md` and the base commit, never the implementation, and returns
+   acceptance tests outside the worktree, scenarios, questions and every write path the
+   rule applies to.
+2. **Questions.** Correctness questions are answered before sealing (headless: stop and
+   list them under *User decisions*). Preference questions take their default and go to
+   the `## Pending` section of `.harness/decisions.md`.
+3. **Seal.** `python <this Skill's directory>/scripts/acceptance_gate.py seal --root <worktree>
+   --base <base> --tests <outside>/<path>=<path> ... --command "<runner>"
+   [--report <junit.xml|vitest.json>] --scenarios <file> [--link node_modules] [--preserve]`.
+   It refuses tests that do not fail on the base by assertion (with `--preserve`, that
+   do not pass on it). Re-author a refused test; never weaken it.
+4. **Implement** from the scenario text only: the tests and the author's write-path list
+   stay with the gate, so the implementer's own search for paths is checked, not copied.
+   Fix at the owner. Enforce a rule on stored data at one boundary every writer crosses
+   (DB constraint or single owner) and confirm a search for writes bypassing it (SQL, ORM,
+   import/restore jobs; `LSP findReferences` if available) finds none; otherwise list each
+   writer's status. Run the affected existing checks after the final edit.
+5. **Check.** `acceptance_gate.py check --root <worktree>`; the Claude Code Stop hook runs it,
+   in Codex run it before finishing. Fix the implementation, never the sealed tests;
+   after three failed checks the contract is `STOPPED` until a person re-seals it.
+6. **Tier.** `python <this Skill's directory>/scripts/risk_gate.py classify --root <worktree>
+   --base <integration ref>` reads `.harness/risk.yaml` from that ref (none: copy
+   [the template](templates/risk.yaml) and let the person commit it) and prints LOW, MED or HIGH.
+   - LOW: commit with the `risk_gate.py trailers` lines, then `risk_gate.py recheck --root <worktree>
+     --onto <integration ref> --regression "<affected check>"` must pass; integrate only while the
+     integration tip still equals the `onto` it reports. No card unless asked.
+   - MED: commit with trailers; the person reviews MED work in a daily batch from the cards.
+   - HIGH: dispatch the [verifier](references/independent-check.md) with only the verbatim
+     request and diff; the person approves before integration.
+   Without a sealed contract, every behavior change gets the verifier.
+7. **Report** the result card for MED, HIGH or on request.
 
-Playbooks: [feature](playbooks/feature.md), [bug fix](playbooks/bug-fix.md),
-[refactoring](playbooks/refactoring.md).
+Without a sub-agent or a runnable test command, say so on the card and fall back to the
+[playbooks](playbooks/feature.md) ([bug fix](playbooks/bug-fix.md),
+[refactoring](playbooks/refactoring.md)) with `probe_check.py prove`.
 
 ## Result card
 
 Separate facts, inference and unverified claims (about 15 lines).
-Distinguish fixture, product, package and native-host evidence.
 
 ```
-가정/Assumptions: <chosen readings, confirmed answers, or none>
+가정/Assumptions: <answered questions, defaults taken, or none>
 Request → changed behavior: <one line>
-Affected: <Feature / rule IDs> | business: <FE/API/Domain> | architecture: <owner>
+Acceptance: <PASS (stated checks, contract hash) | FAIL | TAMPERED | STOPPED: reason | not sealed: reason>
+Risk: <LOW | MED | HIGH: reasons from risk_gate.py>
+Untested changes: <file hunk ... | none>
+Uncovered requirements: <scenario ... | none>
 Checks after the final edit: <check> ✓/✗ (command, raw location)
-Proof: <tests fail without change | probe killed | not run: reason>
-Paths covered: <boundary: bypass search empty, probe killed | each writer's status>
-Independent check: <complete | N violations → M fixed (probes: ids), K for user decision (tests: paths) | not run: reason>
+Paths covered: <boundary: bypass search empty | each writer's status>
+Independent check: <complete | N violations → M fixed, K for user decision | not run: reason>
 Unverified: <what and why>
 User decisions: <decision, recommendation, default> or none
 ```

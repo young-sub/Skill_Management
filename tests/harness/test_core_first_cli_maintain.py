@@ -111,6 +111,21 @@ class CoreFirstCliMaintainTests(unittest.TestCase):
             self.assertIn("transaction_in_progress:live", recovered["errors"])
             self.assertEqual(json.loads(journal.read_text(encoding="utf-8"))["status"], "applying")
 
+    def test_every_text_cohort_resource_hashes_the_same_with_crlf_checkout(self) -> None:
+        # A Windows checkout (core.autocrlf) writes CRLF; the manifest holds LF hashes.
+        core = load_core()
+        manifest = json.loads((ROOT / "authoring/public-resource-manifest.json").read_text(encoding="utf-8"))
+        cohort = [name for name in manifest["files"] if name.split("/", 1)[0] in core.HARNESS_INSTALL_SKILLS]
+        suffixes = {Path(name).suffix.casefold() for name in cohort}
+        self.assertIn(".toml", suffixes)
+        with tempfile.TemporaryDirectory() as temporary:
+            for suffix in sorted(suffixes):
+                with self.subTest(suffix=suffix):
+                    lf, crlf = Path(temporary) / f"lf{suffix}", Path(temporary) / f"crlf{suffix}"
+                    lf.write_bytes(b"a = 1\nb = 2\n")
+                    crlf.write_bytes(b"a = 1\r\nb = 2\r\n")
+                    self.assertEqual(core._manifest_file_hash(crlf, None), core._manifest_file_hash(lf, None))
+
     @unittest.skipUnless(os.name == "nt", "Windows process liveness semantics")
     def test_windows_process_liveness_fails_safe_on_access_denied(self) -> None:
         import ctypes

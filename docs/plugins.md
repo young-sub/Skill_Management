@@ -19,7 +19,167 @@ execution selection, freshness checks or task acceptance. There is no fixed byte
 ceiling: capture a detailed lookup and select relevant fields instead of printing
 an entire report into the model context.
 
+## Version 0.2.1
+
+Less hook work per turn; the behavior of the checks is unchanged.
+
+- No prompt hook. The `UserPromptSubmit` hook injected context only when `AGENT_WORKFLOW_CONTEXT`
+  was set, but the documented way to set it is inside the agent's own shell, which never reaches the
+  host process that runs hooks. It therefore printed `{}` on every prompt while costing a Python start
+  (about 0.4 s measured on Windows). `hooks/workflow_context.py` is no longer packaged; the projection
+  stays in `authoring/scripts/workflow_context.py` for the CLI and its tests, and `lookup`/`resume`
+  give the same read-only view on request.
+- One Stop process. `completion_guard.py` now runs the sealed acceptance gate first and then the
+  independent-check rule, so the guard reads the verdict the gate just recorded instead of racing a
+  parallel hook. A blocking gate verdict wins; otherwise the guard decides and the gate's note rides
+  along as `systemMessage`. The hook loads `acceptance_gate.py` and `risk_gate.py` from the
+  `agent-workflow` Skill, so the package carries one copy of each instead of three. Two Stop
+  processes took about 1.3 s on Windows with no contract; the one process takes about 0.44 s.
+- A contract that no longer applies is not checked. When its base is not in `HEAD`, or committed work
+  is already in `origin/HEAD` (else `origin/main`, `origin/master`), by ancestry or, after a squash or
+  rebase, by identical bytes for every committed file, the gate prints a note naming `acceptance_gate.py clear` instead of
+  rerunning the full check (up to 1000 s) on every later stop in that worktree, and the guard falls
+  back to the size rule. Uncommitted or unmerged work on the sealed base is still judged.
+- On Windows (`OS=Windows_NT`) `run-hook.sh` probes `python` before `python3`, skipping the Microsoft
+  Store `python3` stub (about 0.17 s per hook measured).
+- The parallel 0.1.97 from `main` (PR #8) is merged; see [below](#version-0197-on-main-pr-8).
+- Not changed: each public Skill still carries its own runtime copies (about 3 MB of the package),
+  because `validate_self_containment.py` requires every Skill to work when installed alone; they
+  add no context or hook time.
+
+## Version 0.2.0
+
+The rest of the [design](research/direction-research-20261031.md#3-실행-순서와-설계) ships with the risk tiers:
+
+- Step 1: `setup-project-verification` is now about one committed run-and-observe command per
+  product (launch, doctor, drive, evidence, cleanup) registered as `commands.live`; the earlier
+  mapping procedure moved unchanged to `references/full-verification-mapping.md`. The labeler
+  example is `node tests/live.mjs --report {report_dir}/live.json`.
+- Step 4: `setup-agent-harness` runs the read-only `blast_radius_check.py`: a linked worktree,
+  `Bash(...)` deny rules that actually match sample force pushes, remote deletions (`--delete`,
+  `:branch`) and the given deploys, writes blocked outside the working directories, and
+  credential-like environment variables by name. The Claude template denies `git push` entirely; the
+  Codex profile is `workspace-write` with the automatic approval reviewer. Applying either needs the
+  person's approval; deny rules back up branch protection and absent credentials.
+- Step 5: `risk_gate.py events` turns reverts (found by `This reverts commit`, merge reverts keep
+  their `Agent-Task`) into regression tasks through the sealed loop; integration-check failures,
+  repeated findings and user corrections are not detected automatically. A LOW class can be
+  `additive_only` and require `sealed-additions`, so the template's `additive-regression` class is
+  LOW only for new test files byte-identical to sealed tests; editing existing tests, probes, lint
+  configuration or rules is HIGH.
+- Step 6: `swarm` runs tasks in parallel in their own worktrees and starts one only when
+  `risk_gate.py capacity` finds open correctness questions (top-level unchecked items under
+  `## Open questions`) and branches with a `Risk: HIGH`/`MED` trailer on any unmerged commit below
+  their limits; an unknown ref is an error. Its earlier handoff procedure moved unchanged to
+  `references/parallel-handoff.md`.
+- An independent Codex review of these steps reproduced twelve defects (deny rules counted by
+  string, prefix-only templates, missed `TOKEN` suffixes, a non-additive additive class, lint configs
+  at MED, tip-only trailers, list-format question counts, invalid refs failing open, subject-based
+  revert detection, lost merge-revert tasks, unimplemented event sources claimed, no auto reviewer);
+  each is fixed or, for the event sources, stated as a limit, with regression tests.
+
+
+Risk tiers: finished delegated work is sorted by risk, so a person reviews by tier instead of reading every
+result ([design step 3](research/direction-research-20261031.md#단계-3-위험-등급-통합과-질문-정책)).
+`risk_gate.py classify --base <integration ref>` reads `.harness/risk.yaml` from that ref, so a
+branch cannot loosen its own table, and prints LOW, MED or HIGH (exit 0/10/20):
+
+- HIGH: a sensitive path from the table, a modified, deleted or renamed existing test, fixture or
+  expectation, a changed function referenced from a sensitive file (text search, over-inclusion
+  accepted), or a rename out of a sensitive path.
+- LOW, only positively: every changed file belongs to a registered LOW class and that class's
+  evidence holds (`acceptance-pass`, `no-untested`, `no-uncovered` from a full sealed check of the
+  current tree).
+- MED: everything else, including unknown paths and a missing table.
+
+Changed symbols are declarations at any indent and module-level assignments; sensitive files are
+searched in the base and in the work tree with symlinks followed. A class may require no evidence
+(the template's documentation class); the project's table decides that. An independent Codex
+review reproduced ten false LOW/PASS paths in the first version (cached evidence after tampering,
+missed constants and arrow functions, symlinked sensitive files, retyped tests, root-only template
+patterns, an exemption without a passing check, one-line HIGH edits, recheck of a commit while the
+work tree differed, a frozen base, and no reclassification or regression run on the merged tree);
+each has a regression test that fails on that version.
+- A path a `Revert …` commit touched in the last 30 days moves up one tier.
+
+`risk_gate.py recheck --onto <integration ref> [--regression <command>]` refuses a work tree
+that differs from the candidate commit, merges it onto the integration tip in a disposable
+worktree, classifies the merged change again (a sensitive caller added on the tip makes it HIGH)
+and reruns the sealed tests and the given regression commands there; LOW integrates only when it
+passes and only while the tip still equals the `onto` it reports. `risk_gate.py trailers` prints `Agent-Task`, `Risk` and `Acceptance` lines for traceability;
+they do not measure human time or silent failures. The template table is
+`templates/project/risk.yaml` (setup-agent-harness and agent-workflow copies); the person commits
+the project's table once. With a sealed contract and a passing full check of the current tree,
+the Stop guard's independent-check rule applies only to HIGH changes (against the contract base and
+the branch's upstream), and to them even for a one-line edit, the Skill gives a result card for MED, HIGH or on request, and
+preference questions wait in the `## Pending` section of `.harness/decisions.md`.
+
+## Version 0.1.99
+
+Delegated work is judged by acceptance tests sealed before the implementation, outside the
+worker's reach ([design step 2](research/direction-research-20261031.md#단계-2-구현-전-수락-계약과-강도-검사)).
+`agent-workflow` is now explicit-only (`/agentic-coding:agent-workflow`; Codex
+`allow_implicit_invocation: false`), so no Skill description is loaded into ordinary sessions.
+Its loop is: a fresh sub-agent writes acceptance tests, scenarios, questions and the write
+paths a rule applies to from the verbatim request alone ([author template](../authoring/references/acceptance-author.md));
+correctness questions are answered before sealing and preference questions take their
+default into the `## Pending` section of `.harness/decisions.md`; `acceptance_gate.py seal`
+refuses tests that do not fail on the base by assertion (`--preserve`: that do not pass)
+and stores them with their hashes in the worktree's Git directory; the worker implements
+from the scenarios; `acceptance_gate.py check` runs the sealed tests in a disposable
+checkout of the current state, then reverts each changed code hunk alone and reports a hunk
+no sealed test notices as an untested change, and scenarios without a test as uncovered
+requirements. The verdict is bound to the tree it judged.
+
+In Claude Code a second `Stop` hook runs the check when the worktree has a sealed contract
+and the current tree has no verdict yet. It is silent without a contract or on a clean pass,
+shows untested or uncovered items without blocking, and blocks a failing, tampered or erroring
+gate at most three times per contract; after three failed checks the contract is `STOPPED` until a
+person clears and re-seals it. `AGENT_ACCEPTANCE_GATE=off` disables it. Each reversal starts from
+a clean copy (generated caches removed), binary changes are listed as not judged, a check without
+ablation never satisfies the hook, and one deadline (1000 s by default, under the hook's 1200 s)
+bounds the whole check. The implementer gets the scenario text only; the author's tests and
+write-path list stay with the gate. Codex has no plugin Stop hook, so the Skill runs `check`
+before finishing. Without OS-level isolation the seal detects changed sealed files (TAMPERED)
+but cannot prevent a worker from reading them or replacing the whole contract; every verdict
+says `tamper-detection-only`, and the card records the contract hash `seal` printed. An
+independent Codex review reproduced eleven defects in the first version (stale tree binding,
+unbounded blocks, cache-masked reversals, space-containing paths and others); each has a
+regression test that fails on that version. The independent-check rule
+of the first Stop hook stays until risk tiers exist (design step 3).
+
+## Version 0.1.98
+
+`probe_check.py prove` counts a new test as proven only when it fails on the base by a failed
+assertion. Before, any nonzero exit counted, so a test that could not import a function the
+base lacks was PROVEN without exercising any behavior. The verdict reads Python unittest's
+summary or a `--report` file (JUnit XML, or Jest-format JSON such as vitest `--reporter=json`).
+A failure counts as an assertion when the first exception type it names is `AssertionError`, or,
+without a type, when it is a pytest `assert`, node `ERR_ASSERTION` or an `expect(`/`expected … to`
+message. Every failure must be one: an import, setup, collection or hook error beside an assertion
+failure, a timeout, a missing or unreadable report, or a run with no executed test is NOT_PROVEN, and
+a pass also needs an executed test and the requested report. `--tests SOURCE=NAME` copies a test kept
+outside the project into the base and current checkouts without touching the user tree, and
+`--preserve` requires a behavior-preserving change's tests to pass on both (it refuses
+`--skip-current`). An independent Codex review reproduced seven misclassifications with real
+unittest, pytest, vitest and node:test runs; all now classify as stated. These are the inputs the planned sealed
+acceptance check needs ([design step 2](research/direction-research-20261031.md#단계-2-구현-전-수락-계약과-강도-검사)).
+
 ## Version 0.1.97
+
+The prompt hook no longer routes. On replayed real prompts the regex router chose the right
+Skill 90/162 times against 127/162 with no router, and it attached a route to 130/145
+background-task notifications ([direction research](research/direction-research-20261031.md#4-걷어낼-것)).
+Without a task selected through `AGENT_WORKFLOW_CONTEXT` the hook now prints `{}` and runs
+neither Git nor the runtime; the selected-task handoff is unchanged. The Stop guard keeps only
+the independent-check rule. It no longer blocks on a code edit after the last executed command
+(0/112 eval cells and 1/280 real runs blocked, no file changed after a block) or asks for a
+probe after verifier violations. Nothing replaces them yet: a sealed acceptance check run outside
+the session is the planned replacement (design step 2), and `hooks.json` still runs this guard.
+The route regression fixtures are removed, and the scenario gate no longer expects a route.
+
+## Version 0.1.97 on main (PR #8)
+
 
 Deductive rules over stored data move from enumeration to structure: the workflow and feature
 playbook enforce the rule at one boundary every writer crosses and confirm it with an empty
@@ -34,6 +194,11 @@ adopted by default: their own ON/OFF found the same bugs at about twice the cost
 failure was an interleaving defect. The Harness cohort installer rolled back every install since
 `diagnose` gained `agents/openai.yaml` and `references/independent-check.md`, because its required
 resource list lacked them (22 CI failures on main); the list now includes both.
+
+Merged in 0.2.1: the boundary rule, probe baselines with `ERROR`/`expect`, verdict arrival and
+task notifications that stay in the turn carry over. The violations-to-probe Stop rule does not (the
+0.1.97 above removed it by measurement), and `prove --expect` only narrows assertion failures, since
+0.1.98 never counts an import error as proof.
 
 ## Version 0.1.96
 
@@ -286,8 +451,8 @@ publication remain separate authorized actions.
 
 ## Read-only request handoff
 
-Version 0.1.90 launches both hooks through `hooks/run-hook.sh` on POSIX shells:
-it probes `python3`, then `python`, for Python 3 before executing the hook once.
+Version 0.1.90 launches the hooks through `hooks/run-hook.sh` on POSIX shells:
+it probes `python3`, then `python` (`python` first on Windows since 0.2.1), for Python 3 before executing the hook once.
 No interpreter yields exit 127 with a diagnostic; a hook failure keeps its exit
 code without retrying. Plugin roots containing spaces and either host root
 variable are supported. Windows Codex uses the existing `python` command via
@@ -296,21 +461,18 @@ Windows hosts that do not honor that override need a POSIX shell (such as Git
 Bash) and a working Python 3 on PATH. Package-command tests exercise these paths;
 actual macOS message submission and response completion remain native-host checks.
 
-The package includes `hooks/hooks.json` and `hooks/workflow_context.py`, with an
-explicit compatibility-manifest hook path. `UserPromptSubmit` resolves the Git
-project from the supplied working directory. An explicit `AGENT_WORKFLOW_CONTEXT`
-is validated before auditing its task; selected sources still use the existing
-impact and freshness checks. Without a selector it lists bounded candidates and
-marks the project `NOT_AUDITED`, without inventory or active-work detail audits.
-The output reserves room for task blockers, next actions and an exact lookup
-pointer before optional detail. It never starts tasks, reads transcripts, runs
-project checks or writes state. An unconfigured development prompt receives a
-short existing-guide/caller/test fallback; the prompt is only a discovery hint,
-never a task selector or authorization. Other fresh unconfigured requests stay
-silent. Full inspection remains available through explicit `audit`/`resume`.
-This handoff does not implement protected completion.
+Since 0.2.1 the package installs only the Stop hook (`hooks/completion_guard.py`, which runs the
+acceptance gate and then the independent-check rule) with an explicit compatibility-manifest hook
+path. The selected-task projection (`authoring/scripts/workflow_context.py`) is no longer a
+`UserPromptSubmit` hook: its `AGENT_WORKFLOW_CONTEXT` selector is set in the agent's shell and never
+reaches the host process that runs hooks. The same read-only view comes from explicit
+`lookup`/`resume`/`audit`; the projection never starts tasks, reads transcripts, runs project checks
+or writes state, and prompt text is never a task selector or authorization.
 
 ## Final-edit completion guard
+
+Since 0.1.97 only the independent-check rule (0.1.91, sized as in 0.1.94) remains; the
+final-edit rule and the probe-registration rule described below were removed.
 
 `hooks/completion_guard.py` is a `Stop` hook. It reads only the host transcript
 supplied in the payload and considers the turn since the latest human prompt.

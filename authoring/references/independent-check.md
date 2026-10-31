@@ -10,9 +10,12 @@ a verdict to obey.
 
 ## When
 
-After the affected checks pass (delivery step 3), for every change to behavior: code,
-schema, query or configuration that changes what users get. Skip only trivial edits
-(copy, typo, one config value) and say so on the card.
+After the affected checks pass, for every HIGH-risk change (`risk_gate.py classify`), and
+for every change to behavior (code, schema, query or configuration that changes what users
+get) that has no sealed acceptance contract. With a contract, LOW and MED work is judged by
+the sealed check, untested-change report and risk tier instead; the Claude Code Stop guard
+asks for the verifier only for HIGH there. Skip only trivial edits (copy, typo, one config
+value) and say so on the card.
 
 ## Dispatch
 
@@ -79,8 +82,7 @@ End with one JSON line:
    `"independent-check <date>"`. Run `probe_check.py probes --root <project>`; the probe
    must be killed. The next change that reopens the same path then fails an existing
    check instead of waiting for another verifier. The Claude Code Stop guard counts the
-   verifier only once its final JSON line arrives, and asks once while no later
-   `probe_check.py probes` run shows as many killed independent-check probes as violations.
+   verifier only once its final JSON line arrives.
 5. Do not relaunch the verifier after fixing; its failing tests are the check. Relaunch
    only when a fix changed a different path than the one reported.
 
@@ -102,6 +104,11 @@ answer to the same question replaces the line instead of adding one. Then:
   the delivery loop with a regression for it (the verifier's removed test is a starting
   point) and its probe.
 - If the answer rejects it, the line alone stops the next verifier from asking again.
+
+Preference questions an acceptance author resolved with a default go under a `## Pending`
+heading in the same file, one line each with the default taken. The person answers them in a
+batch; an answer moves the line out of Pending, and an answer that overturns the default is a
+new task, not an edit to finished work.
 
 Read the file in acceptance step 1: a decision there is part of the
 expected behavior for every later change in that area.

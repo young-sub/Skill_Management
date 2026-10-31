@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/feedback-and-success.md -->
-<!-- Source-SHA256: d44778d0ec24db152a223b547dafa38a5259250a15acf7c6e38ee9b427cb349a -->
+<!-- Source-SHA256: 67cecc18fc60385624e84274890a6748a6cf9301c5920f26920544e2707a71c4 -->
 
 # Feedback and successful procedure reuse
 
@@ -8,6 +8,21 @@ Use this small entrypoint for a correction, a useful successful judgment or a re
 to repeat a satisfactory turn/artifact. Ordinary work needs no reflection record,
 new task or contract. Use the existing task/report if a record helps; preserve open
 connected feedback obligations. This is not automatic personal memory collection.
+
+## Failure events become checks
+
+A revert, a failing check on the integration branch, the same review finding a third time, or a
+user correction is an event, not a request to remember something. `risk_gate.py events --base
+<integration ref>` lists reverts (commits whose message says `This reverts commit <sha>`, including
+merge reverts) with the reverted work's `Agent-Task` values and paths; the other events are not
+detected automatically and enter the same loop by hand. Each event
+becomes a delegated task through the sealed loop: the acceptance author reproduces the defect and
+its alternate path as a new test that fails on the reverted change, plus the nearest valid case;
+after the fix a probe that restores the defect is registered and must be killed. A new test file
+byte-identical to a sealed test is LOW (`additive-regression` in the risk template:
+`additive_only` plus `sealed-additions`); editing existing tests, probes, lint configuration,
+`risk.yaml` or agent rule files is HIGH and waits for the person. Add a line to instructions only when no
+executable check can express the rule, with the incident date.
 
 ## Choose the signal and owner
 

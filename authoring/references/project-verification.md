@@ -160,11 +160,18 @@ ignore a state flag, hard-code a token value, add a forbidden import). The bundl
 runs its command, restores the bytes and prints a Feature × perspective × layer
 matrix of killed/total. `perspective` is `business`, `architecture` or `ui`. A
 probe that still passes is a coverage gap: add a discriminating regression before
-the Feature's matrix claims that rule. A command must pass without the fault (else
-`INVALID`); one that crashes on a syntax, import or collection error reports `ERROR`,
-not a kill, unless the probe's optional `"expect": "<regex>"` matches its output.
-`probe_check.py prove --base <ref> --tests <files> --command <cmd> [--expect <regex>]`
-shows new tests fail without the source change. Never leave
+the Feature's matrix claims that rule. A probe command must pass without the fault (else `INVALID`); one that crashes on a
+syntax, import or collection error reports `ERROR`, not a kill, unless the probe's
+optional `"expect": "<regex>"` matches its output.
+`probe_check.py prove --base <ref> --tests
+<files> --command <cmd> [--expect <regex>]` shows new tests fail without the source change, by a failed
+assertion: every failure must be one, so an import, setup, collection or hook error, a
+timeout or an unreadable result is NOT_PROVEN; test the behavior through an entrypoint the
+base already has. Python
+unittest output is read directly; for other runners have the command write JUnit XML
+or Jest-format JSON (vitest `--reporter=json`) and pass `--report <path>`.
+`--tests SOURCE=NAME` copies a test kept outside the project into both checkouts, and
+`--preserve` (refactoring) requires at least one executed test to pass on the base and now. Never leave
 a probe in the product tree; probe results are synthetic-fault evidence, not proof
 of correctness. Re-run the probes when the rule's owner or its checks change.
 

@@ -1,4 +1,4 @@
-"""The Stop guard blocks once on an unobserved final code edit and otherwise stays silent."""
+"""The Stop guard blocks once on a behavior change no independent verifier saw and otherwise stays silent."""
 import json
 import os
 from pathlib import Path
@@ -44,45 +44,23 @@ class CompletionGuardTests(unittest.TestCase):
     def code_edit(self, name='src/app.py'):
         return tool('Edit', file_path=str(self.root / name), old_string='a', new_string='b')
 
-    def test_blocks_code_edited_after_last_execution(self):
-        decision = self.stop([prompt('fix it'), tool('Bash', command='python -m unittest'), result(),
-                              self.code_edit(), result(), tool('Write', file_path='src/new.py', content='x'), result()])
-        self.assertEqual(decision['decision'], 'block')
-        self.assertIn('2 code file(s)', decision['reason'])
-        self.assertIn('src/app.py, src/new.py', decision['reason'])
-
-    def test_execution_after_final_edit_allows_stop(self):
-        for command in ('python -m unittest tests.test_app', 'cd web && npm test', 'git status; pytest -q'):
-            with self.subTest(command=command):
-                self.assertEqual(self.stop([prompt('fix'), self.code_edit(), result(),
-                                            tool('PowerShell', command=command), result()]), {})
-
-    def test_inspection_only_commands_do_not_count_as_verification(self):
-        decision = self.stop([prompt('fix'), self.code_edit(), result(),
-                              tool('Bash', command='git diff --check && git add -A && git commit -m x'), result(),
-                              tool('Bash', command='cat src/app.py | head -5'), result()])
-        self.assertEqual(decision['decision'], 'block')
-
-    def test_shell_file_writes_are_edits_not_verification(self):
-        for command in ("sed -i 's/a - b/a + b/' src/app.py",
-                        "cat > src/app.py <<'EOF'\nimport os\nprint(os.getcwd())\nEOF",
-                        "cd repo && printf 'x' > src/app.py",
-                        'Set-Content -Path src/app.py -Value x'):
-            with self.subTest(command=command):
-                decision = self.stop([prompt('fix'), tool('Bash', command='python -m unittest'), result(),
-                                      tool('Bash', command=command), result()])
-                self.assertEqual(decision.get('decision'), 'block', decision)
-                self.assertIn('src/app.py', decision['reason'])
-        self.assertEqual(self.stop([prompt('fix'), tool('Bash', command="sed -i 's/a/b/' src/app.py && npm test"),
-                                    result()]), {})
-        self.assertEqual(self.stop([prompt('fix'), self.code_edit(), result(),
-                                    tool('Bash', command='npm test > .work/test.log'), result()]), {})
+    def test_small_edits_after_the_last_execution_and_shell_writes_do_not_block(self):
+        # Removed rule: a final edit after the last command no longer blocks (0/112 eval, 1/280 real blocks).
+        run = tool('Bash', command='python -m unittest')
+        for entries in ([run, result(), self.code_edit(), result(), tool('Write', file_path='src/new.py', content='x'), result()],
+                        [self.code_edit(), result(), tool('Bash', command='git diff --check && git add -A'), result()],
+                        [run, result(), tool('Bash', command="sed -i 's/a - b/a + b/' src/app.py"), result()]):
+            with self.subTest(entries=len(entries)):
+                self.assertEqual(self.stop([prompt('fix'), *entries]), {})
 
     def test_documentation_outside_project_and_previous_turn_edits_are_ignored(self):
         self.assertEqual(self.stop([prompt('docs'), self.code_edit('docs/guide.md'), result()]), {})
         outside = tool('Write', file_path=str(Path(tempfile.gettempdir()) / 'scratch.py'), content='x')
         self.assertEqual(self.stop([prompt('scratch'), outside, result()]), {})
-        self.assertEqual(self.stop([prompt('fix'), self.code_edit(), result(), prompt('thanks, what changed?')]), {})
+        # The same large edit blocks in its own turn and is forgotten once the next human prompt arrives.
+        edited = [prompt('fix'), self.large_edit(), result()]
+        self.assertEqual(self.stop(edited)['decision'], 'block')
+        self.assertEqual(self.stop([*edited, prompt('thanks, what changed?')]), {})
 
     def large_edit(self, name='src/app.py', lines=5):
         return tool('Edit', file_path=str(self.root / name), old_string='a', new_string='\n'.join(['b'] * lines))
@@ -120,9 +98,9 @@ class CompletionGuardTests(unittest.TestCase):
                       self.stop([*before, launch, self.notification('other', 'done')])['reason'])
 
     def test_a_task_notification_does_not_start_a_new_turn(self):
-        decision = self.stop([prompt('fix'), self.code_edit(), result(), self.notification('other', 'done')])
-        self.assertEqual(decision['decision'], 'block')
-        self.assertIn('src/app.py', decision['reason'])
+        decision = self.stop([prompt('fix'), self.large_edit(), result(), self.notification('other', 'done')])
+        self.assertEqual(decision['decision'], 'block', 'the edit before the notification still belongs to the turn')
+        self.assertIn('not handed to an independent verifier', decision['reason'])
 
     def notification(self, tool_use_id, text):
         return {'type': 'user', 'origin': {'kind': 'task-notification'}, 'message': {'role': 'user', 'content':
@@ -222,38 +200,16 @@ class CompletionGuardTests(unittest.TestCase):
             {'type': 'text', 'text': 'Import skips the check.\n' + json.dumps(report)}]}]}}
         return [launch, reply]
 
-    def probe_run(self, origins):
-        launch = tool('Bash', command='python probe_check.py probes --root .')
-        launch['message']['content'][1]['id'] = 'p'
-        reply = {'type': 'user', 'message': {'role': 'user', 'content': [{'type': 'tool_result', 'tool_use_id': 'p',
-                 'content': f'# Probe checks\n\n| business | 1/2 |\n\nOrigins: {origins}\n'}]}}
-        return [launch, reply]
-
-    def test_reported_violations_clear_only_when_their_probes_are_killed(self):
-        run = tool('Bash', command='python -m unittest')
-        incomplete = {'verdict': 'incomplete', 'violations': [{'path': 'import', 'test': 't.py:3', 'observed': 'saved'}] * 2,
+    def test_reported_violations_without_a_probe_do_not_block(self):
+        # Removed rule: probe registration after verifier violations is left to the event loop.
+        incomplete = {'verdict': 'incomplete', 'violations': [{'path': 'import', 'test': 't.py:3', 'observed': 'saved'}],
                       'questions': []}
-        before = [prompt('fix'), self.large_edit(), result(), run, result()]
-        report = self.verifier_report(incomplete)
-        decision = self.stop([*before, *report, self.code_edit(), result(), run, result()])
-        self.assertEqual(decision['decision'], 'block')
-        self.assertIn('reported 2 violation(s)', decision['reason'])
-        self.assertNotIn('not handed to an independent verifier', decision['reason'])
-        registry = tool('Write', file_path=str(self.root / '.harness/probes.json'), content='{}')
-        # Editing the registry is not evidence; a probe run that kills the registered faults is.
-        for after in ([registry, result()], [registry, result(), *self.probe_run('independent-check 1/2')],
-                      [registry, result(), *self.probe_run('feedback 2/2')]):
-            with self.subTest(after=len(after)):
-                self.assertIn('violation(s)', self.stop([*before, *report, *after])['reason'])
-        self.assertEqual(self.stop([*before, *report, registry, result(),
-                                    *self.probe_run('independent-check 2/2, unrecorded 0/1')]), {})
-        self.assertIn('violation(s)', self.stop([*before, *self.probe_run('independent-check 2/2'),
-                                                 *report, run, result()])['reason'])
-        self.assertEqual(self.stop([*before, *self.verifier_report(
-            {'verdict': 'complete', 'violations': [], 'questions': ['import?']})]), {})
+        self.assertEqual(self.stop([prompt('fix'), self.large_edit(), result(), *self.verifier_report(incomplete),
+                                    self.code_edit(), result(), tool('Bash', command='python -m unittest'), result()]), {})
 
     def test_blocks_only_once_and_honors_opt_out_and_unreadable_input(self):
-        entries = [prompt('fix'), self.code_edit(), result()]
+        entries = [prompt('fix'), self.large_edit(), result()]
+        self.assertEqual(self.stop(entries)['decision'], 'block')
         self.assertEqual(self.stop(entries, stop_hook_active=True), {})
         self.assertEqual(self.stop(entries, transcript_path=str(self.root / 'missing.jsonl')), {})
         process = subprocess.run([sys.executable, str(GUARD)], input='not json',

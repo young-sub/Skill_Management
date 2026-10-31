@@ -1,0 +1,11 @@
+# Codex profile for delegated work inside a task worktree: writes stay in the workspace, the network
+# is closed unless the task needs it, and requests to leave the sandbox go to the automatic reviewer
+# instead of waiting for a person. Add to ~/.codex/config.toml only with the person's approval, then
+# run delegated tasks with `codex --profile delegate`. Pushing and deploying stay with the person or CI.
+[profiles.delegate]
+sandbox_mode = "workspace-write"
+approval_policy = "on-request"
+approvals_reviewer = "auto_review"
+
+[profiles.delegate.sandbox_workspace_write]
+network_access = false

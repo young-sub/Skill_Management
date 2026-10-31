@@ -1,23 +1,17 @@
 {
   "hooks": {
-    "UserPromptSubmit": [{
-      "hooks": [{
-        "type": "command",
-        "command": "sh \"${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}/hooks/run-hook.sh\" workflow_context.py",
-        "commandWindows": "python -c \"import os,runpy; runpy.run_path(os.path.join(os.environ.get('CLAUDE_PLUGIN_ROOT') or os.environ['PLUGIN_ROOT'],'hooks','workflow_context.py'),run_name='__main__')\"",
-        "timeout": 30,
-        "additionalContextLimit": 6000,
-        "statusMessage": "Reading project workflow obligations"
-      }]
-    }],
-    "Stop": [{
-      "hooks": [{
-        "type": "command",
-        "command": "sh \"${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}/hooks/run-hook.sh\" completion_guard.py",
-        "commandWindows": "python -c \"import os,runpy; runpy.run_path(os.path.join(os.environ.get('CLAUDE_PLUGIN_ROOT') or os.environ['PLUGIN_ROOT'],'hooks','completion_guard.py'),run_name='__main__')\"",
-        "timeout": 15,
-        "statusMessage": "Checking final edits were exercised and independently checked"
-      }]
-    }]
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}/hooks/run-hook.sh\" completion_guard.py",
+            "commandWindows": "python -c \"import os,runpy; runpy.run_path(os.path.join(os.environ.get('CLAUDE_PLUGIN_ROOT') or os.environ['PLUGIN_ROOT'],'hooks','completion_guard.py'),run_name='__main__')\"",
+            "timeout": 1200,
+            "statusMessage": "Checking sealed acceptance and independent verification"
+          }
+        ]
+      }
+    ]
   }
 }

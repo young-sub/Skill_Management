@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "low": [
+    {"id": "documentation", "paths": ["docs/*", "*.md"], "requires": []},
+    {"id": "additive-regression", "paths": ["tests/*", "*/tests/*", "*.test.*", "*_test.*", "*/test_*"], "additive_only": true, "requires": ["acceptance-pass", "sealed-additions"]},
+    {"id": "sealed-logic", "paths": ["src/*"], "requires": ["acceptance-pass", "no-untested", "no-uncovered"]}
+  ],
+  "high": {
+    "paths": [
+      "*auth*", "*permission*", "*secret*", "*credential*", "*payment*", "*billing*", "*.env*",
+      "*migrations/*", "*schema*", "*api/public/*",
+      "*.github/*", "*.harness/*", "*AGENTS.md", "*CLAUDE.md", "*skills/*",
+      "package.json", "package-lock.json", "pyproject.toml", "requirements*.txt",
+      "*eslint*", "*stylelint*", "*prettier*", "*biome.json*", "*ruff.toml", "*.flake8", "*setup.cfg", "*tox.ini",
+      "*tsconfig*.json", "*.golangci*", "*probes.json"
+    ]
+  }
+}

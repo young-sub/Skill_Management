@@ -23,14 +23,14 @@ class PluginPackageTests(unittest.TestCase):
             root = Path(temporary)
             package = root / 'plugin with spaces'
             (package / 'hooks').mkdir(parents=True)
-            for name in ('workflow_context.py', 'completion_guard.py'):
-                shutil.copyfile(ROOT / 'authoring/scripts' / name, package / 'hooks' / name)
+            shutil.copyfile(ROOT / 'authoring/scripts/completion_guard.py', package / 'hooks/completion_guard.py')
+            self.assertEqual(set(hooks), {'Stop'}, 'a shell-scoped task selector never reaches a prompt hook')
             launcher = ROOT / 'distribution/run-hook.sh'
             if launcher.exists():
                 shutil.copyfile(launcher, package / 'hooks/run-hook.sh')
             transcript = root / 'turn.jsonl'
             transcript.write_text(json.dumps({'type': 'assistant', 'message': {'content': [
-                {'type': 'tool_use', 'name': 'Edit', 'input': {'file_path': str(root / 'app.py')}}]}}))
+                {'type': 'tool_use', 'name': 'Edit', 'input': {'file_path': str(root / 'app.py'), 'new_string': 'x' + chr(10) * 5}}]}}))
             for runtime in ('python3', 'python', 'broken-python3', 'missing'):
                 bin_dir = root / runtime
                 bin_dir.mkdir()
@@ -62,15 +62,44 @@ class PluginPackageTests(unittest.TestCase):
                             else:
                                 self.assertEqual(result.returncode, 0, result.stderr)
                                 output = json.loads(result.stdout)
-                                if event == 'Stop':
-                                    self.assertEqual(output['decision'], 'block')
-                                else:
-                                    self.assertIn('diagnose', output['hookSpecificOutput']['additionalContext'])
+                                self.assertEqual(output['decision'], 'block')
                     if runtime != 'missing':
                         (package / 'hooks/failure.py').write_text('raise SystemExit(23)\n')
                         failed = subprocess.run([SH, str(package / 'hooks/run-hook.sh'), 'failure.py'],
                             env=env, capture_output=True, timeout=30)
                         self.assertEqual(failed.returncode, 23, 'Keep the hook failure, never retry it')
+
+    @unittest.skipUnless(SH, 'POSIX shell required for hook commands')
+    def test_windows_launcher_skips_the_python3_store_stub(self):
+        with tempfile.TemporaryDirectory(prefix='hook order ') as temporary:
+            root = Path(temporary)
+            package = root / 'plugin'
+            (package / 'hooks').mkdir(parents=True)
+            shutil.copyfile(ROOT / 'distribution/run-hook.sh', package / 'hooks/run-hook.sh')
+            (package / 'hooks/probe.py').write_text('print("ran")\n')
+            bin_dir = root / 'bin'
+            bin_dir.mkdir()
+            shutil.copy2(SH, bin_dir / ('sh.exe' if os.name == 'nt' else 'sh'))
+            if os.name == 'nt':
+                for dll in Path(SH).parent.glob('msys-*.dll'):
+                    shutil.copyfile(dll, bin_dir / dll.name)
+            marker = root / 'stub-called'
+            (bin_dir / 'python3').write_text('#!/bin/sh\necho x >> "' + marker.as_posix() + '"\nexit 49\n', newline='')
+            (bin_dir / 'python').write_text('#!/bin/sh\nexec "' + Path(sys.executable).as_posix() + '" "$@"\n', newline='')
+            for shim in ('python3', 'python'):
+                (bin_dir / shim).chmod(0o755)
+            for system, stub_calls in (('Windows_NT', 0), ('', 1)):
+                with self.subTest(OS=system):
+                    marker.unlink(missing_ok=True)
+                    env = {k: v for k, v in os.environ.items() if k not in ('PLUGIN_ROOT', 'OS')}
+                    env.update(PATH=str(bin_dir), CLAUDE_PLUGIN_ROOT=str(package))
+                    if system:
+                        env['OS'] = system
+                    result = subprocess.run([SH, str(package / 'hooks/run-hook.sh'), 'probe.py'],
+                                            env=env, capture_output=True, text=True, timeout=30)
+                    self.assertEqual((result.returncode, result.stdout.strip()), (0, 'ran'), result.stderr)
+                    calls = marker.read_text().count('x') if marker.exists() else 0
+                    self.assertEqual(calls, stub_calls)
 
     def test_package_runs_without_checkout_and_refuses_overwrite(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -116,12 +145,18 @@ class PluginPackageTests(unittest.TestCase):
             self.assertEqual(observed['exit_code'], 0)
             self.assertIsNone(observed['behavior_verdict'])
             hook = json.loads((package / 'hooks/hooks.json').read_text())['hooks']
-            self.assertEqual(set(hook), {'UserPromptSubmit', 'Stop'})
+            self.assertEqual(set(hook), {'Stop'})
+            self.assertEqual(len(hook['Stop'][0]['hooks']), 1, 'one Stop process runs the acceptance gate and the guard')
+            for removed in ('workflow_context.py', 'acceptance_gate.py', 'risk_gate.py'):
+                self.assertFalse((package / 'hooks' / removed).exists(), removed)
+            for gate_script in ('acceptance_gate.py', 'risk_gate.py'):
+                self.assertEqual([p.relative_to(package).as_posix() for p in package.rglob(gate_script)],
+                                 ['skills/agent-workflow/scripts/' + gate_script], 'one copy, loaded by the Stop hook')
             transcript = root / 'transcript.jsonl'
             transcript.write_text('\n'.join(json.dumps(entry) for entry in (
                 {'type': 'user', 'message': {'content': 'fix'}},
                 {'type': 'assistant', 'message': {'content': [{'type': 'tool_use', 'name': 'Edit',
-                    'input': {'file_path': str(root / 'app.py')}}]}})), encoding='utf-8')
+                    'input': {'file_path': str(root / 'app.py'), 'new_string': 'x' + chr(10) * 5}}]}})), encoding='utf-8')
             stop_command = hook['Stop'][0]['hooks'][0]['commandWindows']
             stop_environment = {k: v for k, v in os.environ.items() if k != 'PLUGIN_ROOT'}
             stop_environment['CLAUDE_PLUGIN_ROOT'] = str(package)
@@ -132,17 +167,12 @@ class PluginPackageTests(unittest.TestCase):
                     env=stop_environment, capture_output=True, text=True, timeout=30)
                 self.assertEqual(stopped.returncode, 0, stopped.stderr)
                 self.assertEqual(json.loads(stopped.stdout).get('decision'), expected)
-            hook_command = hook['UserPromptSubmit'][0]['hooks'][0]['commandWindows']
-            # Exercise the distributed shell command with the host-provided root.
-            for root_variable in ('PLUGIN_ROOT', 'CLAUDE_PLUGIN_ROOT'):
-                environment = {k: v for k, v in os.environ.items()
-                               if k not in ('PLUGIN_ROOT', 'CLAUDE_PLUGIN_ROOT')}
-                environment[root_variable] = str(package)
-                hooked = subprocess.run(['powershell', '-NoProfile', '-Command', hook_command],
-                    input=json.dumps({'hook_event_name': 'UserPromptSubmit', 'cwd': str(root)}),
-                    env=environment, capture_output=True, text=True, timeout=30)
-                self.assertEqual(hooked.returncode, 0, root_variable + hooked.stdout + hooked.stderr)
-                self.assertEqual(json.loads(hooked.stdout), {})
+            # The packaged Stop hook finds the gates in the package's scripts/ and is silent in a checkout
+            # without a sealed contract or a changed turn.
+            gated = subprocess.run(['powershell', '-NoProfile', '-Command', stop_command],
+                input=json.dumps({'hook_event_name': 'Stop', 'cwd': str(ROOT)}),
+                env=stop_environment, capture_output=True, text=True, timeout=60)
+            self.assertEqual((gated.returncode, json.loads(gated.stdout)), (0, {}), gated.stderr)
             for script in ('project_workflow.py', 'verification_results.py'):
                 help_result = subprocess.run([
                     sys.executable, str(package / 'skills/agent-workflow/scripts' / script),
@@ -165,21 +195,12 @@ class PluginPackageTests(unittest.TestCase):
                 environment = {k: v for k, v in os.environ.items()
                                if k not in ('PLUGIN_ROOT', 'CLAUDE_PLUGIN_ROOT', 'AGENT_WORKFLOW_CONTEXT')}
                 environment[root_variable] = str(package)
-                for prompt, expected in [('The probe output is broken, fix it', 'agent-workflow'),
-                                         ('Translate hello into Korean', None)]:
-                    delivered = subprocess.run(['powershell', '-NoProfile', '-Command', hook_command],
-                        input=json.dumps({'hook_event_name': 'UserPromptSubmit', 'cwd': str(consumer),
-                                          'prompt': prompt}),
-                        env=environment, capture_output=True, text=True, timeout=30)
-                    self.assertEqual(delivered.returncode, 0, delivered.stderr)
-                    output = json.loads(delivered.stdout)
-                    if expected:
-                        context = output['hookSpecificOutput']['additionalContext']
-                        routed = json.loads(context.split('\n', 1)[1])['route']
-                        self.assertEqual(routed['skill'], expected)
-                        self.assertIn('read the sibling diagnose SKILL.md', routed['reason'])
-                    else:
-                        self.assertEqual(output, {})
+                # The packaged Stop hook runs under either host root variable and writes nothing.
+                delivered = subprocess.run(['powershell', '-NoProfile', '-Command', stop_command],
+                    input=json.dumps({'hook_event_name': 'Stop', 'cwd': str(consumer)}),
+                    env=environment, capture_output=True, text=True, timeout=30)
+                self.assertEqual(delivered.returncode, 0, delivered.stderr)
+                self.assertEqual(json.loads(delivered.stdout), {})
             self.assertEqual(before_hook, {str(p): p.read_bytes() for p in consumer.rglob('*') if p.is_file()})
             revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=consumer, text=True).strip()
             viewer = package / 'skills/agent-workflow/scripts/verification_results.py'

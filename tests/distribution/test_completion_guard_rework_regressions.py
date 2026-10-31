@@ -30,7 +30,6 @@ def result(content='ok', tool_use_id='x'):
 
 RUN = tool('Bash', command='python -m unittest')
 UNCHECKED = 'not handed to an independent verifier'
-UNOBSERVED = 'after the last executed command'
 
 
 class ReworkRegressions(unittest.TestCase):
@@ -67,27 +66,6 @@ class ReworkRegressions(unittest.TestCase):
                                  text=True, encoding='utf-8', timeout=60)
         self.assertEqual(process.returncode, 0, process.stderr)
         return json.loads(process.stdout)
-
-    def edit(self, name='src/app.py'):
-        return tool('Edit', file_path=str(self.root / name), old_string='a', new_string='b')
-
-    # --- executed commands must still clear the unobserved-edit check ---------------------------
-
-    def test_running_an_interpreter_script_and_capturing_its_output_is_an_execution(self):
-        self.repo({'src/app.py': 'x = 1\n'})
-        for command in ("python - <<'EOF' > .work/run.log\nimport app\nprint(app.main())\nEOF",
-                        'python -c "import app; print(app.main())" > .work/out.log',
-                        'npm test > .work/test.log'):
-            with self.subTest(command=command):
-                decision = self.stop([prompt('fix'), self.edit(), result(), tool('Bash', command=command), result()])
-                self.assertNotIn(UNOBSERVED, decision.get('reason', ''), decision)
-
-    def test_inspection_only_commands_after_an_edit_still_block(self):
-        self.repo({'src/app.py': 'x = 1\n'})
-        decision = self.stop([prompt('fix'), self.edit(), result(),
-                              tool('Bash', command='git diff --check && git add -A && git commit -m x'), result(),
-                              tool('Bash', command="cat <<'EOF'\nnotes\nEOF"), result()])
-        self.assertIn(UNOBSERVED, decision.get('reason', ''))
 
     # --- earlier-turn changes, scratch-only writes and binaries do not count ---------------------
 
@@ -134,30 +112,6 @@ class ReworkRegressions(unittest.TestCase):
         entries = [prompt('fix', timestamp=started), tool('Bash', command="sed -i 's/x/line/' src/app.py"), result(),
                    RUN, result(), tool('Bash', command='git add -A && git commit -m fix'), result()]
         self.assertIn(UNCHECKED, self.stop(entries).get('reason', ''))
-
-    # --- the 0.1.92 verifier-violation / probe rule ----------------------------------------------
-
-    def test_probe_rule_still_applies(self):
-        self.repo({'src/app.py': 'x = 1\n', '.harness/probes.json': '{}\n'})
-        launch = {'type': 'assistant', 'message': {'role': 'assistant', 'content': [
-            {'type': 'tool_use', 'id': 'v', 'name': 'Agent',
-             'input': {'prompt': 'INDEPENDENT VERIFIER. A colleague implemented the request below.'}}]}}
-        report = result('done\n{"verdict": "incomplete", "violations": [{"path": "a"}, {"path": "b"}], '
-                        '"questions": []}', tool_use_id='v')
-        base = [prompt('fix'), tool('Edit', file_path=str(self.root / 'src/app.py'), old_string='a',
-                                    new_string='\n'.join('b' * 6)), result(), launch, report]
-        self.assertIn('reported 2 violation(s)', self.stop(base + [RUN, result()]).get('reason', ''))
-        probes = {'type': 'assistant', 'message': {'role': 'assistant', 'content': [
-            {'type': 'tool_use', 'id': 'p', 'name': 'Bash',
-             'input': {'command': 'python probe_check.py probes --root .'}}]}}
-        killed = result('# Probe checks\n\nOrigins: independent-check 2/2\n', tool_use_id='p')
-        # Since 0.1.97 a registry edit alone is not evidence; a probe run that kills the probes is.
-        for update in (tool('Edit', file_path=str(self.root / '.harness/probes.json'), old_string='{', new_string='{ '),
-                       tool('Bash', command="cat > .harness/probes.json <<'EOF'\n{\"probes\": []}\nEOF")):
-            with self.subTest(update=update['message']['content'][0]['name']):
-                self.assertIn('reported 2 violation(s)',
-                              self.stop(base + [update, result(), RUN, result()]).get('reason', ''))
-                self.assertEqual(self.stop(base + [update, result(), probes, killed]), {})
 
 
 if __name__ == '__main__':

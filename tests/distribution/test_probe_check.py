@@ -309,7 +309,8 @@ class ProbeCheckTests(unittest.TestCase):
         stdout = self.invoke(*args, expected=1)
         self.assertIn('NOT_PROVEN', stdout)
         self.assertIn('ImportError', stdout)
-        self.assertIn('Base exit 1: PROVEN', self.invoke(*args, '--expect', 'cannot import name'))
+        # prove counts only assertion failures; --expect narrows that and never turns a crash into proof.
+        self.assertIn('NOT_PROVEN', self.invoke(*args, '--expect', 'cannot import name', expected=1))
         self.assertIn('NOT_PROVEN', self.invoke(*args, '--expect', 'AssertionError', expected=1))
 
     def test_prove_current_failure_and_skip(self):
@@ -323,6 +324,142 @@ class ProbeCheckTests(unittest.TestCase):
         self.invoke('prove', '--base', 'HEAD', '--tests', 'absent.py', '--command', 'unused', expected=2)
         self.invoke('prove', '--base', 'no-such-ref', '--tests', 'test_rule.py',
                     '--command', 'unused', expected=2)
+
+    def test_prove_rejects_a_base_failure_that_is_an_import_error(self):
+        # The new test imports a function the base does not have: an error, not a failed assertion.
+        self.write('규칙.py', 'def allowed(amount):\n    return amount >= 10\n\ndef blocked(amount):\n    return amount < 10\n')
+        self.write('new/test_new.py', 'import unittest\nfrom 규칙 import blocked\n'
+                   'class BlockedTest(unittest.TestCase):\n    def test_blocked(self):\n'
+                   '        self.assertTrue(blocked(5))\n')
+        command = self.shell_command([sys.executable, '-m', 'unittest', 'discover', '-s', 'new'])
+        stdout = self.invoke('prove', '--base', 'HEAD', '--tests', 'new/test_new.py', '--command', command, expected=1)
+        self.assertIn('NOT_PROVEN (error: 1 error(s)', stdout)
+        self.assertIn('Current exit 0: PASS', stdout)
+
+    def test_prove_without_a_readable_report_is_not_proven(self):
+        command = self.shell_command([sys.executable, '-c', 'raise SystemExit(1)'])
+        stdout = self.invoke('prove', '--base', 'HEAD', '--tests', 'test_rule.py', '--command', command,
+                             '--skip-current', expected=1)
+        self.assertIn('NOT_PROVEN (unclassified: exit 1 without a test report', stdout)
+
+    def junit_writer(self, body, code):
+        """A command that writes a JUnit report with `body` inside one testcase and exits with `code`."""
+        self.write('report_case.py', 'import pathlib, sys\n'
+                   'pathlib.Path("out").mkdir(exist_ok=True)\n'
+                   f'pathlib.Path("out/junit.xml").write_text({self.junit(body)!r})\n'
+                   f'sys.exit({code})\n')
+        return self.shell_command([sys.executable, 'report_case.py'])
+
+    def junit(self, body):
+        return f'<testsuites><testsuite name="s" tests="1"><testcase name="t">{body}</testcase></testsuite></testsuites>'
+
+    def test_prove_reads_assertion_failures_and_errors_from_a_junit_report(self):
+        cases = [('<failure type="AssertionError" message="expected 10 to be 20"/>', 1, 0, 'PROVEN (assertion_failure'),
+                 ('<failure message="assert allowed(10) is False"/>', 1, 0, 'PROVEN (assertion_failure'),
+                 ('<failure message="AttributeError: module has no attribute blocked"/>', 1, 1, 'NOT_PROVEN (error'),
+                 ('<error message="ModuleNotFoundError: No module named app"/>', 1, 1, 'NOT_PROVEN (error'),
+                 ('', 0, 1, 'NOT_PROVEN (pass')]
+        for body, code, expected, label in cases:
+            with self.subTest(body=body):
+                command = self.junit_writer(body, code)
+                stdout = self.invoke('prove', '--base', 'HEAD', '--tests', 'report_case.py', '--command', command,
+                                     '--report', 'out/junit.xml', '--skip-current', expected=expected)
+                self.assertIn(label, stdout)
+        # A suite that records an import error without any testcase is an error too.
+        self.assertEqual(probe_check.junit_counts(io.StringIO(
+            '<testsuite name="file" tests="0" failures="0" errors="1"></testsuite>'))['errors'], 1)
+        # Exit 1 with no report written means setup or collection failed before any test ran.
+        stdout = self.invoke('prove', '--base', 'HEAD', '--tests', 'test_rule.py', '--command',
+                             self.shell_command([sys.executable, '-c', 'raise SystemExit(1)']),
+                             '--report', 'out/junit.xml', '--skip-current', expected=1)
+        self.assertIn('NOT_PROVEN (error: exit 1 and no report out/junit.xml', stdout)
+
+    def test_prove_copies_a_test_from_outside_the_repository_into_both_checkouts(self):
+        self.write('규칙.py', 'def allowed(amount):\n    return amount >= 20\n')
+        sealed = Path(self.temporary.name) / 'sealed' / 'test_sealed.py'
+        sealed.parent.mkdir()
+        sealed.write_text(self.check_source('self.assertFalse(allowed(10))'), encoding='utf-8')
+        command = self.shell_command([sys.executable, '-m', 'unittest', 'discover', '-s', 'acceptance'])
+        stdout = self.invoke('prove', '--base', 'HEAD', '--tests', f'{sealed}=acceptance/test_sealed.py',
+                             '--command', command)
+        self.assertIn('PROVEN (assertion_failure', stdout)
+        self.assertIn('Current exit 0: PASS', stdout)
+        self.assertFalse((self.root / 'acceptance').exists(), 'The sealed test never enters the user tree')
+        self.invoke('prove', '--base', 'HEAD', '--tests', f'{sealed}=../escape.py', '--command', command, expected=2)
+
+    def test_prove_preserve_requires_passing_on_base_and_now(self):
+        command = self.shell_command(self.command)
+        self.write('규칙.py', 'def allowed(amount):\n    minimum = 10\n    return amount >= minimum\n')
+        stdout = self.invoke('prove', '--base', 'HEAD', '--tests', 'test_rule.py', '--command', command, '--preserve')
+        self.assertIn('PRESERVED (pass', stdout)
+        self.assertIn('Current exit 0: PASS', stdout)
+        self.write('규칙.py', 'def allowed(amount):\n    return amount > 10\n')
+        self.assertIn('FAIL (assertion_failure', self.invoke('prove', '--base', 'HEAD', '--tests', 'test_rule.py',
+                                                              '--command', command, '--preserve', expected=1))
+        self.write('test_rule.py', self.check_source('self.assertFalse(allowed(10))'))
+        self.assertIn('NOT_PRESERVED (assertion_failure', self.invoke(
+            'prove', '--base', 'HEAD', '--tests', 'test_rule.py', '--command', command, '--preserve', expected=1))
+
+    def test_jest_format_reports_separate_assertion_failures_from_file_errors(self):
+        report = {'numRuntimeErrorTestSuites': 0, 'testResults': [
+            {'status': 'failed', 'assertionResults': [
+                {'status': 'failed', 'failureMessages': ['AssertionError: expected 10 to be 20\n    at test.ts:4']},
+                {'status': 'passed', 'failureMessages': []}]},
+            {'status': 'failed', 'message': 'Failed to load url ./missing', 'assertionResults': []},
+            {'status': 'failed', 'assertionResults': [
+                {'status': 'failed', 'failureMessages': ['TypeError: blocked is not a function\n    expect(x)']}]}]}
+        self.assertEqual(probe_check.jest_counts(report),
+                         {'tests': 3, 'skipped': 0, 'assertions': 1, 'other_failures': 1, 'errors': 1})
+        self.assertEqual(probe_check.jest_counts({'numRuntimeErrorTestSuites': 2, 'testResults': []})['errors'], 2)
+
+    def test_failure_kind_comes_from_the_exception_type_not_a_substring(self):
+        # Review findings: "unexpected" and module names containing "expected" were read as assertions.
+        for text, expected in (
+                ("ModuleNotFoundError: No module named 'expected_missing_xyz'", False),
+                ('Error: unexpected', False),
+                ('testCodeFailure unexpected\nError: unexpected token', False),
+                ('E       AttributeError: module has no attribute blocked\n>   assert blocked(5)', False),
+                ('assert allowed(10) is False', True),
+                ('AssertionError: expected 10 to be 20', True),
+                ('testCodeFailure threshold is wrong\n[Error [ERR_TEST_FAILURE]: threshold is wrong] '
+                 '{ cause: AssertionError [ERR_ASSERTION]: threshold is wrong }', True),
+                ('Error: expect(received).toBe(expected)\n\nExpected: 2\nReceived: 1', True)):
+            with self.subTest(text=text[:40]):
+                self.assertEqual(probe_check.is_assertion(text), expected)
+
+    def test_a_suite_error_or_non_assertion_failure_beside_an_assertion_is_not_proof(self):
+        assertion = {'status': 'failed', 'failureMessages': ['AssertionError: expected 1 to be 2']}
+        after_all = {'testResults': [{'status': 'failed', 'message': 'Error: missing configuration',
+                                      'assertionResults': [assertion]}]}
+        hook = {'testResults': [{'status': 'failed', 'message': '', 'assertionResults': [
+            assertion, {'status': 'failed', 'failureMessages': ['Error: missing configuration']}]}]}
+        self.assertEqual(probe_check.jest_counts(after_all)['errors'], 1)
+        self.assertEqual(probe_check.jest_counts(hook)['other_failures'], 1)
+        run = {'timeout': False, 'exit': 1, 'tail': ''}
+        for data in (after_all, hook):
+            report = self.root / 'r.json'
+            report.write_text(json.dumps(data), encoding='utf-8')
+            self.assertEqual(probe_check.run_outcome(self.root, run, 'r.json')['verdict'], 'error')
+
+    def test_passing_needs_an_executed_test_and_the_requested_report(self):
+        run = {'timeout': False, 'exit': 0, 'tail': ''}
+        self.assertEqual(probe_check.run_outcome(self.root, run, 'missing.xml')['verdict'], 'unclassified')
+        self.assertEqual(probe_check.run_outcome(self.root, run)['verdict'], 'unclassified')
+        skipped = dict(run, tail='Ran 1 test in 0.001s\n\nOK (skipped=1)\n')
+        self.assertEqual(probe_check.run_outcome(self.root, skipped)['reason'], 'no test executed')
+        (self.root / 'skip.xml').write_text('<testsuite><testcase name="t"><skipped/></testcase></testsuite>',
+                                            encoding='utf-8')
+        self.assertEqual(probe_check.run_outcome(self.root, run, 'skip.xml')['verdict'], 'unclassified')
+
+    def test_unittest_summary_is_found_before_later_buffered_output(self):
+        output = 'F\n' + '=' * 70 + '\nRan 1 test in 0.002s\n\nFAILED (failures=1)\n' + 'x' * 1200
+        run = {'timeout': False, 'exit': 1, 'tail': output[-800:], 'output': output}
+        self.assertEqual(probe_check.run_outcome(self.root, run)['verdict'], 'assertion_failure')
+
+    def test_preserve_cannot_skip_the_current_run(self):
+        command = self.shell_command(self.command)
+        self.invoke('prove', '--base', 'HEAD', '--tests', 'test_rule.py', '--command', command,
+                    '--preserve', '--skip-current', expected=2)
 
 
 if __name__ == '__main__':

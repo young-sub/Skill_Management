@@ -47,7 +47,7 @@ def build(output):
     selected['scripts/unittest_evidence.py'] = 'authoring/scripts/unittest_evidence.py'
     selected['hooks/hooks.json'] = 'distribution/hooks.json'
     selected['hooks/run-hook.sh'] = 'distribution/run-hook.sh'
-    selected['hooks/workflow_context.py'] = 'authoring/scripts/workflow_context.py'
+    # One Stop hook; it loads the acceptance and risk gates from the agent-workflow Skill.
     selected['hooks/completion_guard.py'] = 'authoring/scripts/completion_guard.py'
     selected['README.md'] = 'distribution/README.md'
     files = {}

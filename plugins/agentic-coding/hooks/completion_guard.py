@@ -1,10 +1,10 @@
-"""Stop hook: block one completion when code was edited after the turn's last executed command,
-when a behavior change was never handed to an independent verifier, or when the verifier
-reported violations and none became a probe.
+"""Stop hook: block one completion when a behavior change was never handed to an independent verifier.
+
+When a sealed acceptance contract judges the worktree, only HIGH-risk changes still need the verifier.
 
 It reads the host transcript and, for the size of a change, read-only `git diff --numstat`;
 it never runs project commands. Passing it is not verification; it only prevents finishing on
-an unobserved final edit, or on an unchecked change, without a stated reason.
+an unchecked change without a stated reason.
 """
 from datetime import datetime
 import json
@@ -21,15 +21,12 @@ AGENT_TOOLS = {'Agent', 'Task'}
 VERIFIER_MARKER = 'INDEPENDENT VERIFIER'  # first words of the independent-check template
 # Below this many changed code lines in a turn, the edit counts as trivial for the independent check.
 CHECK_MIN_LINES = 5
-PROBE_RUN = re.compile(r'probe_check\.py\b.*\bprobes\b')
-# The probe report's origin summary: killed/total independent-check probes.
-KILLED_FINDINGS = re.compile(r'Origins:.*?\bindependent-check (\d+)/\d+')
+VERDICT = re.compile(r'\{\s*"verdict".*\}')
 # A background agent's answer arrives as a user message that is not a human prompt.
 NOTIFIED_TOOL = re.compile(r'<tool-use-id>([^<]+)</tool-use-id>')
 # The packaged hook lives in <plugin>/hooks/; name the template by its installed path when it exists.
 _installed = Path(__file__).resolve().parent.parent / 'skills/agent-workflow/references/independent-check.md'
 REFERENCE = str(_installed) if _installed.is_file() else 'agent-workflow references/independent-check.md'
-VERDICT = re.compile(r'\{\s*"verdict".*\}')
 DOC_SUFFIXES = {'.md', '.markdown', '.mdx', '.txt', '.rst', '.adoc'}
 OUTPUT_SUFFIXES = {'.log', '.out'}  # captured command output, not code
 EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
@@ -170,36 +167,28 @@ def text_of(content):
     return str(content or '')
 
 
-def reported_violations(content):
-    """Violation count in the verifier's final JSON line (an incomplete verdict counts at least one),
-    or None when no verdict arrived, so the verifier's work is not observed."""
+def verdict_arrived(content):
+    """True when the content carries the verifier's final JSON verdict line (complete or incomplete)."""
     for match in reversed(VERDICT.findall(text_of(content))):
         try:
             report = json.loads(match)
         except ValueError:
             continue
-        if isinstance(report, dict) and report.get('verdict') == 'incomplete':
-            violations = report.get('violations')
-            return max(len(violations) if isinstance(violations, list) else 0, 1)
-        if isinstance(report, dict) and report.get('verdict') == 'complete':
-            return 0
-    return None
+        if isinstance(report, dict) and report.get('verdict') in ('complete', 'incomplete'):
+            return True
+    return False
 
 
 def turn_events(transcript):
-    """Edits (with changed line counts), executions, writing scripts, verifier verdicts with their
-    reported violations, and probe runs with their killed independent-check probes, after the latest
-    human prompt, which opens with a ('start', timestamp) event."""
-    events, verifiers, probe_runs = [], set(), set()
+    """Edits (with changed line counts), executions, writing scripts and arrived verifier verdicts after
+    the latest human prompt, which opens with a ('start', timestamp) event. A launched verifier counts
+    only once its verdict arrives, in its tool result or a background task notification; a notification
+    does not start a new turn."""
+    events, verifiers = [], set()
 
     def answered(tool_use_id, content):
-        if tool_use_id in verifiers:
-            count = reported_violations(content)
-            if count is not None:
-                events.extend([('verify', '', 0), ('violations', '', count)])
-        elif tool_use_id in probe_runs:
-            killed = KILLED_FINDINGS.search(text_of(content))
-            events.append(('probes', '', int(killed.group(1)) if killed else 0))
+        if tool_use_id in verifiers and verdict_arrived(content):
+            events.append(('verify', '', 0))
 
     for line in transcript.read_text(encoding='utf-8', errors='replace').splitlines():
         try:
@@ -220,7 +209,7 @@ def turn_events(transcript):
         if entry.get('type') == 'user' and not entry.get('isMeta') and (
                 isinstance(content, str) or isinstance(content, list) and any(
                     isinstance(block, dict) and block.get('type') == 'text' for block in content)):
-            events, verifiers, probe_runs = [('start', str(entry.get('timestamp') or ''), 0)], set(), set()
+            events, verifiers = [('start', str(entry.get('timestamp') or ''), 0)], set()
             continue
         if entry.get('type') == 'user' and isinstance(content, list):
             for block in content:
@@ -237,17 +226,10 @@ def turn_events(transcript):
                 events.append(('edit', str(arguments.get('file_path') or arguments.get('notebook_path') or ''),
                                changed_lines(block['name'], arguments)))
             elif block.get('name') in EXEC_TOOLS:
-                command = str(arguments.get('command') or '')
-                events.extend(shell_events(command))
-                if PROBE_RUN.search(command):
-                    probe_runs.add(block.get('id'))
+                events.extend(shell_events(str(arguments.get('command') or '')))
             elif block.get('name') in AGENT_TOOLS and VERIFIER_MARKER in str(arguments.get('prompt') or ''):
                 verifiers.add(block.get('id'))
     return events
-
-
-def exercises_behavior(command):
-    return any(kind == 'exec' for kind, _, _ in shell_events(command))
 
 
 def code_file(value, root):
@@ -261,16 +243,6 @@ def code_file(value, root):
     except ValueError:
         return None  # Scratch or other-project files are outside this guard.
     return None if path.suffix.lower() in DOC_SUFFIXES | OUTPUT_SUFFIXES else relative.as_posix()
-
-
-def unobserved_edits(events, root):
-    pending = []
-    for kind, value, _ in events:
-        if kind == 'exec':
-            pending = []
-        elif kind == 'edit' and code_file(value, root) and code_file(value, root) not in pending:
-            pending.append(code_file(value, root))
-    return pending
 
 
 def git_changed_lines(root, files, scripts, since):
@@ -354,16 +326,45 @@ def unchecked_lines(events, root):
     return max(lines, git_changed_lines(root, files, scripts, since))
 
 
-def unresolved_violations(events):
-    """Reported verifier violations not yet matched by killed independent-check probes in a later
-    probe_check.py probes run; editing the registry alone shows nothing."""
-    count = 0
-    for kind, _, n in events:
-        if kind == 'violations':
-            count += n
-        elif kind == 'probes':
-            count = max(count - n, 0)
-    return count
+def gate_modules():
+    """(acceptance_gate, risk_gate) from beside this file or, in the package, the agent-workflow Skill, or None."""
+    here = Path(__file__).resolve().parent
+    for directory in (here, here.parent / 'skills/agent-workflow/scripts'):
+        if (directory / 'acceptance_gate.py').is_file() and (directory / 'risk_gate.py').is_file():
+            if str(directory) not in sys.path:
+                sys.path.insert(0, str(directory))
+            try:
+                import acceptance_gate
+                import risk_gate
+            except Exception:  # noqa: BLE001 - a missing gate keeps the size rule, never traps the session
+                return None
+            return acceptance_gate, risk_gate
+    return None
+
+
+def sealed_tier(root):
+    """'HIGH', 'BELOW_HIGH' or None (no sealed contract or no judgement). BELOW_HIGH needs a passing full
+    sealed check of the current tree with intact tests and a tier below HIGH against both the contract
+    base and the branch's upstream, so a sensitive caller added upstream still counts. Any doubt is None."""
+    gates = gate_modules()
+    if gates is None:
+        return None
+    try:
+        acceptance_gate, risk_gate = gates
+        top = Path(acceptance_gate.git(root, 'rev-parse', '--show-toplevel').strip()).resolve()
+        contract, _, _ = acceptance_gate.load_contract(top)
+        if contract is None or acceptance_gate.stale_reason(top, contract):
+            return None
+        bases = [contract['base']]
+        upstream = subprocess.run(['git', '-C', str(top), 'rev-parse', '--verify', '--quiet', '@{upstream}'],
+                                  capture_output=True, text=True)
+        if upstream.returncode == 0 and upstream.stdout.strip():
+            bases.append(upstream.stdout.strip())
+        if any(risk_gate.classify(top, base)['tier'] == 'HIGH' for base in bases):
+            return 'HIGH'
+        return 'BELOW_HIGH' if 'acceptance-pass' in risk_gate.evidence(top)[0] else None
+    except Exception:  # noqa: BLE001 - a guard failure must keep the stricter rule, never trap the session
+        return None
 
 
 def guard(payload):
@@ -373,35 +374,52 @@ def guard(payload):
     if not transcript or not cwd or not Path(transcript).is_file():
         return {}
     events, root = turn_events(Path(transcript)), Path(cwd).resolve()
-    pending, lines = unobserved_edits(events, root), unchecked_lines(events, root)
-    violations = unresolved_violations(events)
-    reasons = []
-    if pending:
-        shown = ', '.join(pending[:5]) + (f' (+{len(pending) - 5} more)' if len(pending) > 5 else '')
-        reasons.append(f'{len(pending)} code file(s) changed after the last executed command in this turn: {shown}. '
-                       'Run the affected check or flow against the final edit and report the observation, or state '
-                       'explicitly why no execution applies (for example descriptive-only change or unavailable runner).')
-    if lines >= CHECK_MIN_LINES:
-        reasons.append(f'{lines} changed code line(s) were not handed to an independent verifier. Launch one with only '
-                       f"the user's request verbatim and the diff, using the template in {REFERENCE}, "
-                       'or state on the card why the change is trivial.')
-    if violations:
-        reasons.append(f'The independent verifier reported {violations} violation(s) that no later probe_check.py '
-                       'probes run shows as killed independent-check probes. Register each violation you fixed as a '
-                       'probe (origin "independent-check") and run probe_check.py probes, or state on the card why '
-                       'none was a requested-behavior defect.')
-    if not reasons:
+    lines = unchecked_lines(events, root)
+    if not lines:
         return {}
-    return {'decision': 'block', 'reason': 'Completion guard: ' + ' '.join(reasons) + ' This guard blocks once.'}
+    tier = sealed_tier(root)
+    # A sealed pass decides below HIGH; a HIGH change needs the verifier however small; otherwise the size rule.
+    if tier == 'BELOW_HIGH' or (tier != 'HIGH' and lines < CHECK_MIN_LINES):
+        return {}
+    return {'decision': 'block', 'reason': (
+        f'Completion guard: {lines} changed code line(s) were not handed to an independent verifier. Launch one '
+        f"with only the user's request verbatim and the diff, using the template in {REFERENCE}, "
+        'or state on the card why the change is trivial. This guard blocks once.')}
+
+
+def acceptance(payload):
+    """The sealed acceptance gate's Stop result, run first in the same process so the guard reads its verdict."""
+    gates = gate_modules()
+    if gates is None:
+        return {}
+    try:
+        return gates[0].hook(payload)
+    except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:
+        return {'systemMessage': f'Acceptance gate unavailable; completion is unchecked: {error}'}
+
+
+def stop(payload):
+    """The one packaged Stop hook: a blocking acceptance verdict wins; otherwise the guard decides
+    and any acceptance note rides along."""
+    gate = acceptance(payload)
+    if gate.get('decision') == 'block':
+        return gate
+    result = guard(payload)
+    if gate.get('systemMessage'):
+        result = dict(result, systemMessage=gate['systemMessage'])
+    return result
 
 
 def main():
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
     try:
         # Hosts send UTF-8 JSON; the Windows locale codec would garble non-ASCII paths.
-        result = guard(json.loads(sys.stdin.buffer.read().decode('utf-8-sig')))
+        payload = json.loads(sys.stdin.buffer.read().decode('utf-8-sig'))
+        result = stop(payload) if isinstance(payload, dict) else {}
     except (OSError, ValueError, TypeError, AttributeError):
         result = {}  # A guard failure must not trap the session.
-    print(json.dumps(result))
+    print(json.dumps(result, ensure_ascii=False))
     return 0
 
 
