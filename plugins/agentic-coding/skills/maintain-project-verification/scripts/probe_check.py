@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/probe_check.py
-# Source-SHA256: 45459c80076221fc36cc37b07630d92c88c14ff627555345efc9492f216e6ce4
+# Source-SHA256: 7ac71f388308bf11d5cb3637afbcc32f6dee241be0b9063a3486ad76bcca90d6
 
 """Exercise checks against synthetic faults in disposable Git worktrees.
 
@@ -241,9 +241,9 @@ def is_assertion(text):
 
     The first exception type decides (AssertionError); without one, an assertion phrase must appear
     (pytest `assert`, node ERR_ASSERTION, jest `expect(`, `expected ... to`)."""
-    text = text[:8000]
     if any(kind != 'AssertionError' for kind in THROWN.findall(text)):
-        return False  # another error was thrown beside or after the assertion
+        return False  # another error was thrown beside or after the assertion, anywhere in the text
+    text = text[:8000]
     kinds = EXCEPTION_TYPE.findall(text)
     if kinds:
         return kinds[0] == 'AssertionError'
