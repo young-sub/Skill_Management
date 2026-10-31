@@ -1,5 +1,7 @@
 # Agent Documentation Index
 
+- [0.2.0 risk tiers and the rest of the design](plugins.md#version-020): one run-and-observe command per product, a read-only delegation boundary check, reverts as regression tasks and capacity-gated parallel tasks; `risk_gate.py` reads the risk table from the integration ref and sorts finished work into HIGH (sensitive paths, changed existing tests, references from sensitive files), LOW (registered classes with full sealed-check evidence) and MED (the rest); reverted paths move up a tier, LOW is re-checked on the integration tip, and with a sealed contract only HIGH still needs the independent verifier.
+
 - [0.1.99 sealed acceptance](plugins.md#version-0199): `agent-workflow` is explicit-only; an author sub-agent writes acceptance tests from the verbatim request before implementation, `acceptance_gate.py` seals them in the Git directory, and a Stop hook (Codex: the Skill) checks the current tree in a disposable checkout, reports hunks no sealed test notices and uncovered scenarios, and blocks a failing tree at most three times.
 
 - [0.1.98 assertion-only proof](plugins.md#version-0198): `probe_check.py prove` accepts only a base failure by assertion (unittest summary, JUnit XML or vitest/jest JSON); import and collection errors no longer count. It also takes tests from outside the project and has a preservation mode for refactoring.

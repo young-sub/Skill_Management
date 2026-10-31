@@ -176,6 +176,14 @@ class AcceptanceGateTests(unittest.TestCase):
         self.write('local_rule.py', 'THRESHOLD = 10\n')
         self.assertEqual(self.hook()['decision'], 'block', 'the edited force-added file changes the tree')
 
+    def test_a_same_size_edit_right_after_a_pass_needs_a_new_check(self):
+        self.seal()
+        self.git('add', '-A')  # a fresh real index whose stat data must not hide the next edit
+        self.write('rule.py', RULE.replace('>= 10', '>= 20'))
+        self.assertEqual(self.hook(), {})
+        self.write('rule.py', RULE.replace('>= 10', '>= 30'))
+        self.assertEqual(self.hook()['decision'], 'block')
+
     def test_a_cached_pass_does_not_hide_a_changed_sealed_test(self):
         self.seal()
         self.write('rule.py', RULE.replace('>= 10', '>= 20'))

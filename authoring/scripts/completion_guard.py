@@ -1,5 +1,7 @@
 """Stop hook: block one completion when a behavior change was never handed to an independent verifier.
 
+When a sealed acceptance contract judges the worktree, only HIGH-risk changes still need the verifier.
+
 It reads the host transcript and, for the size of a change, read-only `git diff --numstat`;
 it never runs project commands. Passing it is not verification; it only prevents finishing on
 an unchecked change without a stated reason.
@@ -283,6 +285,33 @@ def unchecked_lines(events, root):
     return max(lines, git_changed_lines(root, files, scripts, since))
 
 
+def sealed_tier(root):
+    """'HIGH', 'BELOW_HIGH' or None (no sealed contract or no judgement). BELOW_HIGH needs a passing full
+    sealed check of the current tree with intact tests and a tier below HIGH against both the contract
+    base and the branch's upstream, so a sensitive caller added upstream still counts. Any doubt is None."""
+    hooks = Path(__file__).resolve().parent
+    if not (hooks / 'risk_gate.py').is_file():
+        return None
+    try:
+        sys.path.insert(0, str(hooks))
+        import acceptance_gate
+        import risk_gate
+        top = Path(acceptance_gate.git(root, 'rev-parse', '--show-toplevel').strip()).resolve()
+        contract, _, _ = acceptance_gate.load_contract(top)
+        if contract is None:
+            return None
+        bases = [contract['base']]
+        upstream = subprocess.run(['git', '-C', str(top), 'rev-parse', '--verify', '--quiet', '@{upstream}'],
+                                  capture_output=True, text=True)
+        if upstream.returncode == 0 and upstream.stdout.strip():
+            bases.append(upstream.stdout.strip())
+        if any(risk_gate.classify(top, base)['tier'] == 'HIGH' for base in bases):
+            return 'HIGH'
+        return 'BELOW_HIGH' if 'acceptance-pass' in risk_gate.evidence(top)[0] else None
+    except Exception:  # noqa: BLE001 - a guard failure must keep the stricter rule, never trap the session
+        return None
+
+
 def guard(payload):
     if payload.get('stop_hook_active') or os.environ.get('AGENT_COMPLETION_GUARD', '').lower() == 'off':
         return {}
@@ -291,7 +320,11 @@ def guard(payload):
         return {}
     events, root = turn_events(Path(transcript)), Path(cwd).resolve()
     lines = unchecked_lines(events, root)
-    if lines < CHECK_MIN_LINES:
+    if not lines:
+        return {}
+    tier = sealed_tier(root)
+    # A sealed pass decides below HIGH; a HIGH change needs the verifier however small; otherwise the size rule.
+    if tier == 'BELOW_HIGH' or (tier != 'HIGH' and lines < CHECK_MIN_LINES):
         return {}
     return {'decision': 'block', 'reason': (
         f'Completion guard: {lines} changed code line(s) were not handed to an independent verifier. Launch one '

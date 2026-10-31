@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/independent-check.md -->
-<!-- Source-SHA256: f5cee00d495d84e9ec89a745fbc91b6754bab7832e8820e9c8745d8fa0461728 -->
+<!-- Source-SHA256: 61f2c2a1971264aff2164a25605b0fe4f4607917f0896fcc94dc2ce5cdb852a5 -->
 
 # Independent check
 
@@ -14,9 +14,12 @@ a verdict to obey.
 
 ## When
 
-After the affected checks pass (delivery step 3), for every change to behavior: code,
-schema, query or configuration that changes what users get. Skip only trivial edits
-(copy, typo, one config value) and say so on the card.
+After the affected checks pass, for every HIGH-risk change (`risk_gate.py classify`), and
+for every change to behavior (code, schema, query or configuration that changes what users
+get) that has no sealed acceptance contract. With a contract, LOW and MED work is judged by
+the sealed check, untested-change report and risk tier instead; the Claude Code Stop guard
+asks for the verifier only for HIGH there. Skip only trivial edits (copy, typo, one config
+value) and say so on the card.
 
 ## Dispatch
 
@@ -104,6 +107,11 @@ answer to the same question replaces the line instead of adding one. Then:
   the delivery loop with a regression for it (the verifier's removed test is a starting
   point) and its probe.
 - If the answer rejects it, the line alone stops the next verifier from asking again.
+
+Preference questions an acceptance author resolved with a default go under a `## Pending`
+heading in the same file, one line each with the default taken. The person answers them in a
+batch; an answer moves the line out of Pending, and an answer that overturns the default is a
+new task, not an edit to finished work.
 
 Read the file in acceptance step 1: a decision there is part of the
 expected behavior for every later change in that area.

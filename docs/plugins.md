@@ -19,6 +19,73 @@ execution selection, freshness checks or task acceptance. There is no fixed byte
 ceiling: capture a detailed lookup and select relevant fields instead of printing
 an entire report into the model context.
 
+## Version 0.2.0
+
+The rest of the [design](research/direction-research-20261031.md#3-실행-순서와-설계) ships with the risk tiers:
+
+- Step 1: `setup-project-verification` is now about one committed run-and-observe command per
+  product (launch, doctor, drive, evidence, cleanup) registered as `commands.live`; the earlier
+  mapping procedure moved unchanged to `references/full-verification-mapping.md`. The labeler
+  example is `node tests/live.mjs --report {report_dir}/live.json`.
+- Step 4: `setup-agent-harness` runs the read-only `blast_radius_check.py`: a linked worktree,
+  `Bash(...)` deny rules that actually match sample force pushes, remote deletions (`--delete`,
+  `:branch`) and the given deploys, writes blocked outside the working directories, and
+  credential-like environment variables by name. The Claude template denies `git push` entirely; the
+  Codex profile is `workspace-write` with the automatic approval reviewer. Applying either needs the
+  person's approval; deny rules back up branch protection and absent credentials.
+- Step 5: `risk_gate.py events` turns reverts (found by `This reverts commit`, merge reverts keep
+  their `Agent-Task`) into regression tasks through the sealed loop; integration-check failures,
+  repeated findings and user corrections are not detected automatically. A LOW class can be
+  `additive_only` and require `sealed-additions`, so the template's `additive-regression` class is
+  LOW only for new test files byte-identical to sealed tests; editing existing tests, probes, lint
+  configuration or rules is HIGH.
+- Step 6: `swarm` runs tasks in parallel in their own worktrees and starts one only when
+  `risk_gate.py capacity` finds open correctness questions (top-level unchecked items under
+  `## Open questions`) and branches with a `Risk: HIGH`/`MED` trailer on any unmerged commit below
+  their limits; an unknown ref is an error. Its earlier handoff procedure moved unchanged to
+  `references/parallel-handoff.md`.
+- An independent Codex review of these steps reproduced twelve defects (deny rules counted by
+  string, prefix-only templates, missed `TOKEN` suffixes, a non-additive additive class, lint configs
+  at MED, tip-only trailers, list-format question counts, invalid refs failing open, subject-based
+  revert detection, lost merge-revert tasks, unimplemented event sources claimed, no auto reviewer);
+  each is fixed or, for the event sources, stated as a limit, with regression tests.
+
+
+Risk tiers: finished delegated work is sorted by risk, so a person reviews by tier instead of reading every
+result ([design step 3](research/direction-research-20261031.md#단계-3-위험-등급-통합과-질문-정책)).
+`risk_gate.py classify --base <integration ref>` reads `.harness/risk.yaml` from that ref, so a
+branch cannot loosen its own table, and prints LOW, MED or HIGH (exit 0/10/20):
+
+- HIGH: a sensitive path from the table, a modified, deleted or renamed existing test, fixture or
+  expectation, a changed function referenced from a sensitive file (text search, over-inclusion
+  accepted), or a rename out of a sensitive path.
+- LOW, only positively: every changed file belongs to a registered LOW class and that class's
+  evidence holds (`acceptance-pass`, `no-untested`, `no-uncovered` from a full sealed check of the
+  current tree).
+- MED: everything else, including unknown paths and a missing table.
+
+Changed symbols are declarations at any indent and module-level assignments; sensitive files are
+searched in the base and in the work tree with symlinks followed. A class may require no evidence
+(the template's documentation class); the project's table decides that. An independent Codex
+review reproduced ten false LOW/PASS paths in the first version (cached evidence after tampering,
+missed constants and arrow functions, symlinked sensitive files, retyped tests, root-only template
+patterns, an exemption without a passing check, one-line HIGH edits, recheck of a commit while the
+work tree differed, a frozen base, and no reclassification or regression run on the merged tree);
+each has a regression test that fails on that version.
+- A path a `Revert …` commit touched in the last 30 days moves up one tier.
+
+`risk_gate.py recheck --onto <integration ref> [--regression <command>]` refuses a work tree
+that differs from the candidate commit, merges it onto the integration tip in a disposable
+worktree, classifies the merged change again (a sensitive caller added on the tip makes it HIGH)
+and reruns the sealed tests and the given regression commands there; LOW integrates only when it
+passes and only while the tip still equals the `onto` it reports. `risk_gate.py trailers` prints `Agent-Task`, `Risk` and `Acceptance` lines for traceability;
+they do not measure human time or silent failures. The template table is
+`templates/project/risk.yaml` (setup-agent-harness and agent-workflow copies); the person commits
+the project's table once. With a sealed contract and a passing full check of the current tree,
+the Stop guard's independent-check rule applies only to HIGH changes (against the contract base and
+the branch's upstream), and to them even for a one-line edit, the Skill gives a result card for MED, HIGH or on request, and
+preference questions wait in the `## Pending` section of `.harness/decisions.md`.
+
 ## Version 0.1.99
 
 Delegated work is judged by acceptance tests sealed before the implementation, outside the

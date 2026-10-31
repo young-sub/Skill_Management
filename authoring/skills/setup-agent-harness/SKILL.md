@@ -17,4 +17,15 @@ Resolve this installed Skill directory as `<skill-root>` and run `<skill-root>/s
 5. If cleanup is needed, prepare an exact plan and use its internal digest for application. Reuse authorization that already covers the displayed scope; obtain any missing approval for broad moves/removals or consequential CI/discovery changes. Routine setup configuration within the request does not need another approval ceremony.
 6. Use the runtime transaction under `.work/transactions/` for cleanup/migration. Keep mapping, byte-preserving moves, reconciliation, and test reorganization separate when they need different verification. On failure, verify rollback to the captured state. Test-only moves preserve semantic identities and working selectors.
 
+7. Delegation boundary: run `<skill-root>/scripts/blast_radius_check.py --root <task worktree> --deploy <deploy commands>`.
+   It reports whether delegated work runs in a linked worktree, whether the project's `Bash(...)` deny
+   rules actually stop sample force pushes, remote branch deletions and the given deploys while writes
+   outside the working directories are blocked ([Claude settings template](templates/project/claude-delegation-settings.json)
+   denies `git push` entirely; pushing stays with the person or CI), and which credential-like
+   environment variables are set (names only). Deny rules are a backstop for server-side branch
+   protection and absent credentials, not a replacement. Inside that boundary agents run without per-action
+   approval (Claude auto mode; Codex [workspace-write profile](templates/project/codex-delegation-profile.toml)).
+   Applying settings, profiles or credential removal is a security change: show the exact change and
+   apply it only with the person's approval.
+
 Report actual configuration changes, baseline results, and remaining mapping gaps. Repository setup does not authorize global provider or installed-Skill changes.
