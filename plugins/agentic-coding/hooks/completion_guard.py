@@ -21,6 +21,9 @@ AGENT_TOOLS = {'Agent', 'Task'}
 VERIFIER_MARKER = 'INDEPENDENT VERIFIER'  # first words of the independent-check template
 # Below this many changed code lines in a turn, the edit counts as trivial for the independent check.
 CHECK_MIN_LINES = 5
+VERDICT = re.compile(r'\{\s*"verdict".*\}')
+# A background agent's answer arrives as a user message that is not a human prompt.
+NOTIFIED_TOOL = re.compile(r'<tool-use-id>([^<]+)</tool-use-id>')
 # The packaged hook lives in <plugin>/hooks/; name the template by its installed path when it exists.
 _installed = Path(__file__).resolve().parent.parent / 'skills/agent-workflow/references/independent-check.md'
 REFERENCE = str(_installed) if _installed.is_file() else 'agent-workflow references/independent-check.md'
@@ -157,10 +160,36 @@ def changed_lines(name, arguments):
     return str(text or '').count('\n') + 1
 
 
+def text_of(content):
+    if isinstance(content, list):
+        return '\n'.join(str(block.get('text') or block.get('content') or '')
+                         for block in content if isinstance(block, dict))
+    return str(content or '')
+
+
+def verdict_arrived(content):
+    """True when the content carries the verifier's final JSON verdict line (complete or incomplete)."""
+    for match in reversed(VERDICT.findall(text_of(content))):
+        try:
+            report = json.loads(match)
+        except ValueError:
+            continue
+        if isinstance(report, dict) and report.get('verdict') in ('complete', 'incomplete'):
+            return True
+    return False
+
+
 def turn_events(transcript):
-    """Edits (with changed line counts), executions, writing scripts and verifier launches after the
-    latest human prompt, which opens with a ('start', timestamp) event."""
-    events = []
+    """Edits (with changed line counts), executions, writing scripts and arrived verifier verdicts after
+    the latest human prompt, which opens with a ('start', timestamp) event. A launched verifier counts
+    only once its verdict arrives, in its tool result or a background task notification; a notification
+    does not start a new turn."""
+    events, verifiers = [], set()
+
+    def answered(tool_use_id, content):
+        if tool_use_id in verifiers and verdict_arrived(content):
+            events.append(('verify', '', 0))
+
     for line in transcript.read_text(encoding='utf-8', errors='replace').splitlines():
         try:
             entry = json.loads(line)
@@ -170,10 +199,22 @@ def turn_events(transcript):
         if not isinstance(message, dict):
             continue
         content = message.get('content')
+        origin = entry.get('origin')
+        if entry.get('type') == 'user' and (isinstance(origin, dict) and origin.get('kind') == 'task-notification'
+                                            or text_of(content).startswith('<task-notification>')):
+            notified = NOTIFIED_TOOL.search(text_of(content))
+            if notified:
+                answered(notified.group(1).strip(), content)
+            continue
         if entry.get('type') == 'user' and not entry.get('isMeta') and (
                 isinstance(content, str) or isinstance(content, list) and any(
                     isinstance(block, dict) and block.get('type') == 'text' for block in content)):
-            events = [('start', str(entry.get('timestamp') or ''), 0)]
+            events, verifiers = [('start', str(entry.get('timestamp') or ''), 0)], set()
+            continue
+        if entry.get('type') == 'user' and isinstance(content, list):
+            for block in content:
+                if isinstance(block, dict) and block.get('type') == 'tool_result':
+                    answered(block.get('tool_use_id'), block.get('content'))
             continue
         if entry.get('type') != 'assistant' or not isinstance(content, list):
             continue
@@ -187,7 +228,7 @@ def turn_events(transcript):
             elif block.get('name') in EXEC_TOOLS:
                 events.extend(shell_events(str(arguments.get('command') or '')))
             elif block.get('name') in AGENT_TOOLS and VERIFIER_MARKER in str(arguments.get('prompt') or ''):
-                events.append(('verify', '', 0))
+                verifiers.add(block.get('id'))
     return events
 
 
@@ -285,20 +326,34 @@ def unchecked_lines(events, root):
     return max(lines, git_changed_lines(root, files, scripts, since))
 
 
+def gate_modules():
+    """(acceptance_gate, risk_gate) from beside this file or, in the package, the agent-workflow Skill, or None."""
+    here = Path(__file__).resolve().parent
+    for directory in (here, here.parent / 'skills/agent-workflow/scripts'):
+        if (directory / 'acceptance_gate.py').is_file() and (directory / 'risk_gate.py').is_file():
+            if str(directory) not in sys.path:
+                sys.path.insert(0, str(directory))
+            try:
+                import acceptance_gate
+                import risk_gate
+            except Exception:  # noqa: BLE001 - a missing gate keeps the size rule, never traps the session
+                return None
+            return acceptance_gate, risk_gate
+    return None
+
+
 def sealed_tier(root):
     """'HIGH', 'BELOW_HIGH' or None (no sealed contract or no judgement). BELOW_HIGH needs a passing full
     sealed check of the current tree with intact tests and a tier below HIGH against both the contract
     base and the branch's upstream, so a sensitive caller added upstream still counts. Any doubt is None."""
-    hooks = Path(__file__).resolve().parent
-    if not (hooks / 'risk_gate.py').is_file():
+    gates = gate_modules()
+    if gates is None:
         return None
     try:
-        sys.path.insert(0, str(hooks))
-        import acceptance_gate
-        import risk_gate
+        acceptance_gate, risk_gate = gates
         top = Path(acceptance_gate.git(root, 'rev-parse', '--show-toplevel').strip()).resolve()
         contract, _, _ = acceptance_gate.load_contract(top)
-        if contract is None:
+        if contract is None or acceptance_gate.stale_reason(top, contract):
             return None
         bases = [contract['base']]
         upstream = subprocess.run(['git', '-C', str(top), 'rev-parse', '--verify', '--quiet', '@{upstream}'],
@@ -332,13 +387,39 @@ def guard(payload):
         'or state on the card why the change is trivial. This guard blocks once.')}
 
 
+def acceptance(payload):
+    """The sealed acceptance gate's Stop result, run first in the same process so the guard reads its verdict."""
+    gates = gate_modules()
+    if gates is None:
+        return {}
+    try:
+        return gates[0].hook(payload)
+    except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:
+        return {'systemMessage': f'Acceptance gate unavailable; completion is unchecked: {error}'}
+
+
+def stop(payload):
+    """The one packaged Stop hook: a blocking acceptance verdict wins; otherwise the guard decides
+    and any acceptance note rides along."""
+    gate = acceptance(payload)
+    if gate.get('decision') == 'block':
+        return gate
+    result = guard(payload)
+    if gate.get('systemMessage'):
+        result = dict(result, systemMessage=gate['systemMessage'])
+    return result
+
+
 def main():
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
     try:
         # Hosts send UTF-8 JSON; the Windows locale codec would garble non-ASCII paths.
-        result = guard(json.loads(sys.stdin.buffer.read().decode('utf-8-sig')))
+        payload = json.loads(sys.stdin.buffer.read().decode('utf-8-sig'))
+        result = stop(payload) if isinstance(payload, dict) else {}
     except (OSError, ValueError, TypeError, AttributeError):
         result = {}  # A guard failure must not trap the session.
-    print(json.dumps(result))
+    print(json.dumps(result, ensure_ascii=False))
     return 0
 
 

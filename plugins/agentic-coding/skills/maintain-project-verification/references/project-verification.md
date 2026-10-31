@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/project-verification.md -->
-<!-- Source-SHA256: 3e4463a5dbfa33a2d59d537eb4958b28dca67d57f7e133d4f0429cb46c9bb069 -->
+<!-- Source-SHA256: 428769510fc167d255da38fbc5eaf9d2eb369709e1aad99e948bcf12c36bc6d0 -->
 
 # Project verification responsibilities
 
@@ -164,8 +164,11 @@ ignore a state flag, hard-code a token value, add a forbidden import). The bundl
 runs its command, restores the bytes and prints a Feature × perspective × layer
 matrix of killed/total. `perspective` is `business`, `architecture` or `ui`. A
 probe that still passes is a coverage gap: add a discriminating regression before
-the Feature's matrix claims that rule. `probe_check.py prove --base <ref> --tests
-<files> --command <cmd>` shows new tests fail without the source change, by a failed
+the Feature's matrix claims that rule. A probe command must pass without the fault (else `INVALID`); one that crashes on a
+syntax, import or collection error reports `ERROR`, not a kill, unless the probe's
+optional `"expect": "<regex>"` matches its output.
+`probe_check.py prove --base <ref> --tests
+<files> --command <cmd> [--expect <regex>]` shows new tests fail without the source change, by a failed
 assertion: every failure must be one, so an import, setup, collection or hook error, a
 timeout or an unreadable result is NOT_PROVEN; test the behavior through an entrypoint the
 base already has. Python
