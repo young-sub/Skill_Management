@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/core_harness.py
-# Source-SHA256: 3df69b1b005af1178c1c718564c8227b523dd2bc345cdb91c47686b8dfa86bb4
+# Source-SHA256: 2163c82cb2712f328d23e964da367c66c69b5e6d7125fdc5e7056b71c7d8b9eb
 
 #!/usr/bin/env python3
 """Deterministic Core-First Agent Harness contracts and compatibility checks."""
@@ -3300,7 +3300,7 @@ def inspect_legacy_graph(root: Path) -> dict[str, Any]:
 def _manifest_file_hash(path: Path, hash_mode: str | None) -> str:
     if hash_mode == "bytes":
         content = path.read_bytes()
-    elif path.suffix.casefold() in {".json", ".md", ".html", ".py", ".ps1", ".txt", ".yaml", ".yml"}:
+    elif path.suffix.casefold() in {".json", ".md", ".html", ".py", ".ps1", ".txt", ".yaml", ".yml", ".toml"}:
         content = path.read_text(encoding="utf-8").replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
     else:
         content = path.read_bytes()
