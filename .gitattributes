@@ -1,0 +1,2 @@
+# Preserve release bytes covered by package-files.json across clones.
+plugins/agentic-coding/** -text whitespace=trailing-space,space-before-tab,cr-at-eol

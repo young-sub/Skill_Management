@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-harness.local/schemas/v3/project.schema.json",
+  "title": "Agent Harness project configuration",
+  "type": "object",
+  "required": ["schema_version", "project", "paths", "impact", "commands", "documents", "work", "git"],
+  "properties": {
+    "schema_version": {"const": 3},
+    "project": {
+      "type": "object",
+      "required": ["name", "classification"],
+      "properties": {"name": {"type": "string", "minLength": 1}, "classification": {"type": "string", "minLength": 1}},
+      "additionalProperties": false
+    },
+    "paths": {
+      "type": "object",
+      "required": ["source_roots", "test_roots", "fixture_roots", "generated_roots", "durable_document_roots", "human_guide_roots", "ephemeral_work_root", "documentation_entrypoint"],
+      "properties": {
+        "source_roots": {"$ref": "#/$defs/pathList"}, "test_roots": {"$ref": "#/$defs/pathList"},
+        "fixture_roots": {"$ref": "#/$defs/pathList"}, "generated_roots": {"$ref": "#/$defs/pathList"},
+        "durable_document_roots": {"$ref": "#/$defs/pathList"}, "human_guide_roots": {"$ref": "#/$defs/pathList"},
+        "ephemeral_work_root": {"type": "string", "minLength": 1}, "documentation_entrypoint": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "impact": {
+      "type": "object",
+      "required": ["rules", "feature_selectors", "full_triggers"],
+      "properties": {
+        "rules": {"type": "array", "items": {"$ref": "#/$defs/impactRule"}},
+        "feature_selectors": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string"}}},
+        "full_triggers": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      },
+      "additionalProperties": false
+    },
+    "commands": {
+      "type": "object",
+      "required": ["targeted", "feature", "lint", "type", "build", "full", "live", "eval"],
+      "properties": {
+        "targeted": {"$ref": "#/$defs/command"}, "feature": {"$ref": "#/$defs/command"},
+        "lint": {"$ref": "#/$defs/command"}, "type": {"$ref": "#/$defs/command"},
+        "build": {"$ref": "#/$defs/command"}, "full": {"$ref": "#/$defs/command"},
+        "live": {"$ref": "#/$defs/command"}, "eval": {"$ref": "#/$defs/command"}
+      },
+      "additionalProperties": {"$ref": "#/$defs/command"}
+    },
+    "documents": {
+      "type": "object", "required": ["boundaries"],
+      "properties": {"boundaries": {"type": "array", "items": {"$ref": "#/$defs/documentBoundary"}}},
+      "additionalProperties": false
+    },
+    "work": {
+      "type": "object", "required": ["retention", "states"],
+      "properties": {
+        "retention": {"type": "object", "required": ["completed_days", "trash_days"], "properties": {"completed_days": {"type": "integer", "minimum": 0}, "trash_days": {"type": "integer", "minimum": 0}}, "additionalProperties": false},
+        "states": {"type": "array", "items": {"enum": ["active", "completed", "trash", "deleted"]}, "uniqueItems": true},
+        "legacy_state": {"const": "legacy-unclassified"}
+      },
+      "additionalProperties": false
+    },
+    "git": {
+      "type": "object", "required": ["capture_current_base", "protected_branches", "branch_pattern", "commit_per_item", "worktrees_for_independent_items"],
+      "properties": {
+        "capture_current_base": {"type": "boolean"}, "protected_branches": {"type": "array", "items": {"type": "string"}},
+        "branch_pattern": {"type": "string", "minLength": 1}, "commit_per_item": {"type": "boolean"},
+        "worktrees_for_independent_items": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "baseline": {
+      "type": "object", "required": ["findings"],
+      "properties": {"findings": {"type": "array", "items": {"$ref": "#/$defs/finding"}}},
+      "additionalProperties": false
+    },
+    "extensions": {"type": "object"}
+  },
+  "$defs": {
+    "pathList": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "command": {
+      "type": "object", "required": ["id", "argv", "working_directory", "platform", "runtime", "capability"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "argv": {"type": "array", "items": {"type": "string"}}, "working_directory": {"type": "string", "minLength": 1},
+        "platform": {"type": "string", "minLength": 1}, "runtime": {"type": "string", "minLength": 1},
+        "capability": {"type": "string", "minLength": 1},
+        "source_revision": {"type": "string"}, "inherit_env": {"type": "boolean"},
+        "env": {"type": "object", "additionalProperties": {"type": "string"}},
+        "timeout_seconds": {"type": "number", "exclusiveMinimum": 0},
+        "evidence_inputs": {"$ref": "#/$defs/pathList"}
+      },
+      "additionalProperties": false
+    },
+    "impactRule": {
+      "type": "object", "required": ["id", "source_prefixes", "tests", "feature", "triggers"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1}, "source_prefixes": {"$ref": "#/$defs/pathList"},
+        "tests": {"$ref": "#/$defs/pathList"}, "feature": {"type": "string", "minLength": 1},
+        "triggers": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+      },
+      "additionalProperties": false
+    },
+    "documentBoundary": {"type": "object", "required": ["paths", "documents"], "properties": {"paths": {"$ref": "#/$defs/pathList"}, "documents": {"$ref": "#/$defs/pathList"}}, "additionalProperties": false},
+    "finding": {
+      "type": "object", "required": ["rule_id", "location", "severity", "fingerprint", "review_until"],
+      "properties": {"rule_id": {"type": "string"}, "location": {"type": "string"}, "severity": {"enum": ["low", "medium", "high"]}, "fingerprint": {"type": "string"}, "review_until": {"type": "string"}},
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

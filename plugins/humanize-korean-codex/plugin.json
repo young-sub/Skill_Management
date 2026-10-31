@@ -1,0 +1,7 @@
+{
+  "name": "humanize-korean",
+  "version": "0.1.0",
+  "description": "Codex launcher for the upstream im-not-ai humanize-korean skill: fetches it on first use and keeps it current.",
+  "homepage": "https://github.com/epoko77-ai/im-not-ai",
+  "skills": "./skills/"
+}

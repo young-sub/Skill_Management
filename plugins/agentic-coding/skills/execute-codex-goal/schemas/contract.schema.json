@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-harness.local/schemas/v3/contract.schema.json",
+  "title": "Agent Harness Item contract v3",
+  "type": "object",
+  "required": ["schema_version", "work_id", "goal", "scope", "non_goals", "items"],
+  "properties": {
+    "schema_version": {"const": 3}, "work_id": {"type": "string", "minLength": 1},
+    "goal": {"type": "string", "minLength": 1}, "scope": {"type": "string", "minLength": 1},
+    "non_goals": {"$ref": "#/$defs/stringList"},
+    "items": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/item"}},
+    "authorization": {"$ref": "#/$defs/authorization"},
+    "amendments": {"type": "array", "items": {"$ref": "#/$defs/amendment"}},
+    "extensions": {"type": "object"}
+  },
+  "$defs": {
+    "stringList": {"type": "array", "items": {"type": "string"}},
+    "riskList": {"type": "array", "uniqueItems": true, "items": {"enum": ["destructive", "security_privacy", "secret_handling", "irreversible_migration", "external_cost", "push", "publish", "global_configuration"]}},
+    "term": {"type": "object", "required": ["term", "explanation"], "properties": {"term": {"type": "string", "minLength": 1}, "explanation": {"type": "string", "minLength": 1}}, "additionalProperties": false},
+    "testCase": {
+      "type": "object",
+      "required": ["id", "target", "method", "expected", "selector"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "target": {"type": "string", "minLength": 1},
+        "method": {"type": "string", "minLength": 1},
+        "expected": {"type": "string", "minLength": 1},
+        "selector": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "decision": {"type": "object", "required": ["state"], "properties": {"state": {"enum": ["resolved", "unresolved"]}}, "additionalProperties": false},
+    "item": {
+      "type": "object",
+      "required": ["id", "title", "behavior_type", "what", "steps", "terms", "tests", "done", "depends_on", "non_goals", "decision", "material_risks", "priority"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1}, "title": {"type": "string", "minLength": 1},
+        "behavior_type": {"enum": ["tool", "api", "ui", "bugfix", "migration"]}, "what": {"type": "string", "minLength": 1},
+        "steps": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "terms": {"type": "array", "items": {"$ref": "#/$defs/term"}},
+        "tests": {"type": "array", "items": {"$ref": "#/$defs/testCase"}},
+        "done": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/doneCriterion"}},
+        "depends_on": {"$ref": "#/$defs/stringList"}, "non_goals": {"$ref": "#/$defs/stringList"},
+        "decision": {"$ref": "#/$defs/decision"}, "material_risks": {"$ref": "#/$defs/riskList"},
+        "priority": {"enum": ["core", "optional"]}
+      },
+      "additionalProperties": false
+    },
+    "doneCriterion": {
+      "type": "object", "required": ["id", "criterion"],
+      "properties": {"id": {"type": "string", "minLength": 1}, "criterion": {"type": "string", "minLength": 1}},
+      "additionalProperties": false
+    },
+    "authorization": {
+      "type": "object", "required": ["schema_version", "mode", "contract_digest", "item_ids", "actor", "authorized_at"],
+      "properties": {
+        "schema_version": {"const": 3}, "contract_digest": {"type": "string"}, "review_digest": {"type": "string"},
+        "mode": {"enum": ["default", "explicit", "vetoed"]},
+        "item_ids": {"$ref": "#/$defs/stringList"}, "actor": {"type": "string"}, "authorized_at": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "amendment": {
+      "type": "object", "required": ["kind", "message_id", "item_id", "field", "actor", "approved_at", "old_contract_digest", "new_contract_digest"],
+      "properties": {
+        "kind": {"const": "approved_amendment"}, "message_id": {"type": "string"}, "item_id": {"type": "string"},
+        "field": {"type": "string"}, "actor": {"type": "string"}, "approved_at": {"type": "string"},
+        "old_contract_digest": {"type": "string"}, "new_contract_digest": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,36 @@
+{
+  "name": "agentic-coding",
+  "plugins": [
+    {
+      "name": "agentic-coding",
+      "source": {
+        "source": "local",
+        "path": "./plugins/agentic-coding"
+      }
+    },
+    {
+      "name": "diagram-design",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/cathrynlavery/diagram-design.git"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Creativity"
+    },
+    {
+      "name": "humanize-korean",
+      "source": {
+        "source": "local",
+        "path": "./plugins/humanize-korean-codex"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
