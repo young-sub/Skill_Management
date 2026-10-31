@@ -160,8 +160,11 @@ ignore a state flag, hard-code a token value, add a forbidden import). The bundl
 runs its command, restores the bytes and prints a Feature × perspective × layer
 matrix of killed/total. `perspective` is `business`, `architecture` or `ui`. A
 probe that still passes is a coverage gap: add a discriminating regression before
-the Feature's matrix claims that rule. `probe_check.py prove --base <ref> --tests
-<files> --command <cmd>` shows new tests fail without the source change. Never leave
+the Feature's matrix claims that rule. A command must pass without the fault (else
+`INVALID`); one that crashes on a syntax, import or collection error reports `ERROR`,
+not a kill, unless the probe's optional `"expect": "<regex>"` matches its output.
+`probe_check.py prove --base <ref> --tests <files> --command <cmd> [--expect <regex>]`
+shows new tests fail without the source change. Never leave
 a probe in the product tree; probe results are synthetic-fault evidence, not proof
 of correctness. Re-run the probes when the rule's owner or its checks change.
 

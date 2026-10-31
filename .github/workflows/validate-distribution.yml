@@ -91,6 +91,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # the L5 runner reads its pinned plugin commit
       - name: Provide PowerShell command on Ubuntu
         if: runner.os != 'Windows'
         shell: bash

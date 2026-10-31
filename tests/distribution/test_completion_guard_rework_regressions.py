@@ -147,10 +147,17 @@ class ReworkRegressions(unittest.TestCase):
         base = [prompt('fix'), tool('Edit', file_path=str(self.root / 'src/app.py'), old_string='a',
                                     new_string='\n'.join('b' * 6)), result(), launch, report]
         self.assertIn('reported 2 violation(s)', self.stop(base + [RUN, result()]).get('reason', ''))
+        probes = {'type': 'assistant', 'message': {'role': 'assistant', 'content': [
+            {'type': 'tool_use', 'id': 'p', 'name': 'Bash',
+             'input': {'command': 'python probe_check.py probes --root .'}}]}}
+        killed = result('# Probe checks\n\nOrigins: independent-check 2/2\n', tool_use_id='p')
+        # Since 0.1.97 a registry edit alone is not evidence; a probe run that kills the probes is.
         for update in (tool('Edit', file_path=str(self.root / '.harness/probes.json'), old_string='{', new_string='{ '),
                        tool('Bash', command="cat > .harness/probes.json <<'EOF'\n{\"probes\": []}\nEOF")):
             with self.subTest(update=update['message']['content'][0]['name']):
-                self.assertEqual(self.stop(base + [update, result(), RUN, result()]), {})
+                self.assertIn('reported 2 violation(s)',
+                              self.stop(base + [update, result(), RUN, result()]).get('reason', ''))
+                self.assertEqual(self.stop(base + [update, result(), probes, killed]), {})
 
 
 if __name__ == '__main__':

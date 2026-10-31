@@ -26,11 +26,13 @@ def session(tokens, spawned=0, verifier=False):
 
 
 class AblationTests(unittest.TestCase):
-    def test_every_removal_matches_the_committed_plugin_exactly_once(self):
-        for name, edits in l5.REMOVALS.items():
-            text = (l5.PLUGIN / name).read_bytes().decode('utf-8').replace('\r\n', '\n')
-            for old, _ in edits:
-                self.assertEqual(text.count(old), 1, name)
+    def test_every_removal_matches_the_pinned_plugin_exactly_once(self):
+        with tempfile.TemporaryDirectory() as folder:
+            plugin = l5.pinned_plugin(Path(folder))
+            for name, edits in l5.REMOVALS.items():
+                text = (plugin / name).read_bytes().decode('utf-8').replace('\r\n', '\n')
+                for old, _ in edits:
+                    self.assertEqual(text.count(old), 1, name)
 
     def test_build_removes_only_the_listed_text(self):
         with tempfile.TemporaryDirectory() as folder:

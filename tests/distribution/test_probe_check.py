@@ -18,6 +18,10 @@ probe_check = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(probe_check)
 
 
+# True only while the probe's fault is applied, so a command fails for the fault, not unconditionally.
+FAULT = "any('amount > 10' in p.read_text(encoding='utf-8') for p in Path('.').glob('*.py'))"
+
+
 class ProbeCheckTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix='probe-tests-')
@@ -167,6 +171,47 @@ class ProbeCheckTests(unittest.TestCase):
         self.write('test_rule.py', self.check_source('self.assertFalse(allowed(1))'))
         self.invoke('probes')
 
+    def test_crashing_fault_is_an_error_not_a_kill(self):
+        # A fault that breaks syntax or an import never reaches the assertion under test.
+        self.registry_write([self.probe(id='syntax', replace='amount >= ('),
+                             self.probe(id='import', find='def allowed', replace='def renamed'),
+                             self.probe(id='control', expect_detected=False, replace='amount >= (')])
+        stdout = self.invoke('probes', '--output', str(self.output), expected=1)
+        results = {p['id']: p for p in self.results()}
+        for name in results:
+            self.assertEqual(results[name]['status'], 'ERROR', name)
+            self.assertFalse(results[name]['detected'], name)
+        self.assertIn('SyntaxError', results['syntax']['reason'])
+        self.assertIn('ImportError', results['import']['reason'])
+        self.assertIn('| business | 0/3 |', stdout)
+
+    def test_a_command_that_fails_without_the_fault_is_invalid(self):
+        # Without a passing baseline, a failure after the fault says nothing about the fault.
+        broken = [sys.executable, '-c', 'import sys; sys.exit(1)']
+        self.registry_write([self.probe(id='broken', command=broken), self.probe()])
+        self.invoke('probes', '--output', str(self.output), expected=1)
+        results = {p['id']: p for p in self.results()}
+        self.assertEqual(results['broken']['status'], 'INVALID')
+        self.assertFalse(results['broken']['detected'])
+        self.assertIn('without the fault', results['broken']['reason'])
+        self.assertEqual(results['threshold']['status'], 'KILLED')
+
+    def test_expect_requires_the_named_failure(self):
+        self.registry_write([self.probe(expect='AssertionError'),
+                             self.probe(id='counterexample', expect='Falsifying example'),
+                             self.probe(id='intended-import', find='def allowed', replace='def renamed',
+                                        expect='cannot import name')])
+        self.invoke('probes', '--output', str(self.output), expected=1)
+        results = {p['id']: p for p in self.results()}
+        self.assertEqual(results['threshold']['status'], 'KILLED')
+        self.assertEqual(results['intended-import']['status'], 'KILLED')
+        self.assertEqual(results['counterexample']['status'], 'ERROR')
+        self.assertIn('Falsifying example', results['counterexample']['reason'])
+        for bad in ('', '(unclosed', 3):
+            with self.subTest(expect=bad):
+                self.registry_write([self.probe(expect=bad)])
+                self.invoke('probes', expected=2)
+
     def test_only_and_existing_output_rejected(self):
         self.registry_write([self.probe(), self.probe(id='unselected', find='missing')])
         self.invoke('probes', '--only', 'threshold', '--output', str(self.output))
@@ -182,10 +227,11 @@ class ProbeCheckTests(unittest.TestCase):
         outside = Path(self.temporary.name) / 'outside-deps'
         (outside / 'pkg').mkdir(parents=True)
         (outside / 'pkg' / 'index.js').write_text('keep', encoding='utf-8')
-        maker = ('import os, subprocess, sys; target = sys.argv[1]; '
-                 "subprocess.run(['cmd', '/c', 'mklink', '/J', 'deps', target], check=True, capture_output=True) "
-                 "if os.name == 'nt' else os.symlink(target, 'deps', target_is_directory=True); sys.exit(1)")
-        self.registry_write([self.probe(command=[sys.executable, '-c', maker, str(outside)])])
+        maker = ('import os, subprocess, sys; from pathlib import Path; target = sys.argv[1]; '
+                 "os.path.lexists('deps') or (subprocess.run(['cmd', '/c', 'mklink', '/J', 'deps', target], "
+                 "check=True, capture_output=True) if os.name == 'nt' else os.symlink(target, 'deps', "
+                 "target_is_directory=True)); sys.exit(FAULT)")
+        self.registry_write([self.probe(command=[sys.executable, '-c', maker.replace('FAULT', FAULT), str(outside)])])
         self.invoke('probes')
         self.assertEqual((outside / 'pkg' / 'index.js').read_text(encoding='utf-8'), 'keep')
 
@@ -201,7 +247,7 @@ class ProbeCheckTests(unittest.TestCase):
             (self.root / 'node_modules').symlink_to(outside, target_is_directory=True)
         command = [sys.executable, '-c',
                    'from pathlib import Path; import sys; '
-                   'sys.exit(1 if Path("node_modules/marker.txt").read_text() == "dependency" else 0)']
+                   'sys.exit(1 if Path("node_modules/marker.txt").read_text() == "dependency" and ' + FAULT + ' else 0)']
         self.registry_write([self.probe(command=command)])
         self.invoke('probes', '--link', 'node_modules', '--output', str(self.output))
         self.assertTrue(self.results()[0]['detected'])
@@ -211,7 +257,7 @@ class ProbeCheckTests(unittest.TestCase):
         self.write('node_modules/marker.txt', 'dependency')
         command = [sys.executable, '-c',
                    'from pathlib import Path; import sys; '
-                   'sys.exit(1 if Path("node_modules/marker.txt").read_text() == "dependency" else 0)']
+                   'sys.exit(1 if Path("node_modules/marker.txt").read_text() == "dependency" and ' + FAULT + ' else 0)']
         self.registry_write([self.probe(command=self.shell_command(command))])
         self.invoke('probes', '--link', 'node_modules', '--output', str(self.output))
         self.assertTrue(self.results()[0]['detected'])
@@ -250,6 +296,21 @@ class ProbeCheckTests(unittest.TestCase):
         stdout = self.invoke('prove', '--base', 'HEAD', '--tests', 'test_rule.py',
                              '--command', self.shell_command(self.command), expected=1)
         self.assertIn('NOT_PROVEN', stdout)
+
+    def test_prove_rejects_a_base_that_only_crashes(self):
+        # The base lacks the new function, so the test fails on import, not on the rule.
+        self.write('규칙.py', 'def allowed(amount):\n    return amount >= 10\n\n'
+                              'def doubled(amount):\n    return amount * 2\n')
+        self.write('new/test_new.py', 'import unittest\nfrom 규칙 import doubled\n'
+                                      'class T(unittest.TestCase):\n'
+                                      '    def test_it(self):\n        self.assertEqual(doubled(2), 4)\n')
+        args = ('prove', '--base', 'HEAD', '--tests', 'new/test_new.py', '--command',
+                self.shell_command([sys.executable, '-m', 'unittest', 'discover', '-s', 'new']))
+        stdout = self.invoke(*args, expected=1)
+        self.assertIn('NOT_PROVEN', stdout)
+        self.assertIn('ImportError', stdout)
+        self.assertIn('Base exit 1: PROVEN', self.invoke(*args, '--expect', 'cannot import name'))
+        self.assertIn('NOT_PROVEN', self.invoke(*args, '--expect', 'AssertionError', expected=1))
 
     def test_prove_current_failure_and_skip(self):
         self.write('test_rule.py', self.check_source('self.assertFalse(allowed(10))'))

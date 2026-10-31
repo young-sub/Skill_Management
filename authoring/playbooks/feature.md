@@ -9,9 +9,10 @@ stays direct; this is a decision aid, not a required plan, task or contract.
    current code for the intended reason. Find the current owner and affected callers.
 2. Implement the smallest complete change, including affected inputs, outputs,
    tests, config and docs. Use existing tools and validation at trust boundaries.
-   When enforcing a rule on stored data, find every writer: run `LSP findReferences`
-   on the writing function (text search if no `LSP` tool), and text-search table/column writes too
-   (SQL INSERT/UPDATE, ORM calls, import/restore jobs). Cover each writer with a check.
+   Enforce a rule on stored data at one boundary every writer crosses (DB constraint or
+   single owner); a search for table/column writes bypassing it (SQL, ORM, import/restore
+   jobs) must find none, and a probe removing the boundary must be killed by a check
+   through another write path. Otherwise list each writer's status.
 3. When a new test's ability to catch the defect is in doubt, optionally use
    `probe_check.py prove --skip-current`. After the final edit, run them once with
    the existing checks that exercise the changed modules. For changed

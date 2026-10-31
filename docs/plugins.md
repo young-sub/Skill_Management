@@ -19,6 +19,22 @@ execution selection, freshness checks or task acceptance. There is no fixed byte
 ceiling: capture a detailed lookup and select relevant fields instead of printing
 an entire report into the model context.
 
+## Version 0.1.97
+
+Deductive rules over stored data move from enumeration to structure: the workflow and feature
+playbook enforce the rule at one boundary every writer crosses and confirm it with an empty
+bypass-write search plus a killed boundary-removal probe, replacing "cover each writer with a
+check" (the recorded path misses happened with that instruction loaded). Two sensors stop trusting
+traces: `probe_check.py probes` runs each command without the fault first (`INVALID` when it
+fails) and reports syntax/import/collection crashes as `ERROR` (optional `expect` regex); the Stop
+guard counts a verifier only when its verdict line arrives, treats task notifications as part of
+the turn, and clears violations only after a probe run kills as many independent-check probes.
+External formal-verification skills (proof-skills, agent-formal-verify) were reviewed and not
+adopted by default: their own ON/OFF found the same bugs at about twice the cost, and no recorded
+failure was an interleaving defect. The Harness cohort installer rolled back every install since
+`diagnose` gained `agents/openai.yaml` and `references/independent-check.md`, because its required
+resource list lacked them (22 CI failures on main); the list now includes both.
+
 ## Version 0.1.96
 
 Only `agent-workflow` stays model-invocable. `diagnose`, `recall`,

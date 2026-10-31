@@ -4,7 +4,7 @@ description: Deliver delegated coding work across FE, API/backend and business l
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: 4a9fc282ba1fdce1836657e6f90d8d75230af85163bc5db5d604b48fea4fca00 -->
+<!-- Source-SHA256: a32075c5ad9ba312a66877f254e1551d2af5b59221b80e1266bf01838221692c -->
 
 
 # Agent Workflow
@@ -17,9 +17,10 @@ Trivial edits stay direct. Invoke the prompt context's `route` Skill first.
    `.harness/decisions.md`, not new-code output. List the 1-3 points whose behavior
    admits multiple readings (or none). In interactive sessions ask; in delegated/headless
    work choose a reading and put it on the first `가정/Assumptions` card line.
-2. **Fix at the owner.** When enforcing a rule on stored data, find every writer: run `LSP findReferences`
-   on the writing function (text search if no `LSP` tool), and text-search table/column writes too
-   (SQL INSERT/UPDATE, ORM calls, import/restore jobs). Cover each writer with a check.
+2. **Fix at the owner.** Enforce a rule on stored data at one boundary every writer crosses
+   (DB constraint or single owner). Confirm: a search for table/column writes bypassing it (SQL, ORM,
+   import/restore jobs; `LSP findReferences` if available) finds none, and a probe removing the
+   boundary is killed by a check through another write path. Otherwise list each writer's status.
 3. **Verify.** Run acceptance and affected existing checks after the final edit.
    Use `probe_check.py prove` optionally, when a new test's ability to catch the
    defect is in doubt; pass ignored dependencies with `--link node_modules`.
@@ -43,7 +44,7 @@ Request → changed behavior: <one line>
 Affected: <Feature / rule IDs> | business: <FE/API/Domain> | architecture: <owner>
 Checks after the final edit: <check> ✓/✗ (command, raw location)
 Proof: <tests fail without change | probe killed | not run: reason>
-Paths covered: <writers/enforcers checked, or uncovered>
+Paths covered: <boundary: bypass search empty, probe killed | each writer's status>
 Independent check: <complete | N violations → M fixed (probes: ids), K for user decision (tests: paths) | not run: reason>
 Unverified: <what and why>
 User decisions: <decision, recommendation, default> or none

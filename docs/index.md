@@ -1,5 +1,7 @@
 # Agent Documentation Index
 
+- [0.1.97 boundary rule and result-based sensors](plugins.md#version-0197): stored-data rules are enforced at one boundary and confirmed by an empty bypass search plus a killed boundary-removal probe; probes need a passing baseline and report crashes as `ERROR`; the Stop guard needs the verifier's verdict and a probe run that kills the reported violations. External formal-verification skills are not adopted by default. Fixes the Harness cohort install rollback behind the failing `Validate distribution` runs.
+
 - [Lean audit](research/lean-audit-20261030.md): rebuilt from OFF with deterministic counts. Static always-on plugin context is about 600 tokens, but the ON−OFF gap is 377–406k tokens per cell, mostly longer sessions and process artifacts. The prompt router is right on 90/162 real prompts against 127 with no router. The Stop guard blocked 0/112 eval cells and 1/280 real runs. Lean = OFF + the independent check; the [3-arm pre-registration and OFF probes](../evals/lean-audit/README.md) are unrun.
 
 - [0.1.95 workflow](plugins.md#version-0195): Optional TypeScript LSP, writer reference checks plus table/column write searches with text-search fallback, a lean acceptance-first body, stated assumptions and a verifier that treats missed paths under universal rules as violations. Local package validation is separate from installed LSP or model outcome evidence.
