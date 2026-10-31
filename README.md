@@ -36,7 +36,7 @@ claude plugin marketplace add git@github.com:young-sub/Skill_Management.git#plug
 claude plugin install agentic-coding@agentic-coding
 ```
 
-`plugin` 브랜치(Codex `@plugin`, Claude Code `#plugin`)에는 marketplace 목록과 `plugins/`만 있어서, 설치할 때 평가·문서·백업 파일을 받지 않습니다. 브랜치 없이 저장소를 등록했다면 Codex는 `config.toml`의 해당 marketplace를 `ref = "plugin"`으로, Claude Code는 marketplace source에 `"ref": "plugin"`을 넣은 뒤 새로고침합니다.
+`plugin` 브랜치(Codex `@plugin`, Claude Code `#plugin`)에는 marketplace 목록과 `plugins/`만 있어서, 설치할 때 평가·문서·백업 파일을 받지 않습니다. 예전 방식으로 등록했다면 `codex plugin marketplace remove agentic-coding` 또는 `claude plugin marketplace remove agentic-coding`으로 지우고 위 명령을 다시 실행합니다.
 
 GitHub SSH 키가 필요합니다. SSH에 `ys` 별칭을 설정했다면 주소의 `git@github.com:`을 `git@ys:`로 바꿀 수 있습니다. 이미 같은 marketplace를 등록했다면 중복 등록할 필요는 없습니다.
 
