@@ -412,6 +412,30 @@ class ProbeCheckTests(unittest.TestCase):
                          {'tests': 3, 'skipped': 0, 'assertions': 1, 'other_failures': 1, 'errors': 1})
         self.assertEqual(probe_check.jest_counts({'numRuntimeErrorTestSuites': 2, 'testResults': []})['errors'], 2)
 
+    def test_errors_on_a_parent_suite_or_after_an_assertion_are_not_hidden(self):
+        # A parent suite's own setup error beside a child's assertion failure.
+        nested = ('<testsuites><testsuite name="file" tests="1" errors="1">'
+                  '<testsuite name="cases" tests="1" failures="1" errors="0"><testcase name="t">'
+                  '<failure type="AssertionError" message="expected 1 to be 2"/></testcase></testsuite>'
+                  '</testsuite></testsuites>')
+        counts = probe_check.junit_counts(io.StringIO(nested))
+        self.assertEqual((counts['assertions'], counts['errors']), (1, 1))
+        # An aggregate parent whose count only sums its children adds nothing.
+        aggregate = nested.replace('errors="1"', 'errors="0"')
+        self.assertEqual(probe_check.junit_counts(io.StringIO(aggregate))['errors'], 0)
+        # A suite-level <error> element (setUpClass, beforeAll) counts.
+        suite_error = ('<testsuite name="s" tests="1"><error message="setUpClass failed"/><testcase name="t">'
+                       '<failure type="AssertionError" message="x"/></testcase></testsuite>')
+        self.assertEqual(probe_check.junit_counts(io.StringIO(suite_error))['errors'], 1)
+        # A thrown teardown error after an assertion message is not an assertion.
+        mixed = {'testResults': [{'status': 'failed', 'message': 'AssertionError: expected 1 to be 2\n    at t.ts:3\n'
+                                  'TypeError: Cannot read properties of undefined (reading close)',
+                                  'assertionResults': [{'status': 'failed', 'failureMessages': [
+                                      'AssertionError: expected 1 to be 2\nTypeError: teardown failed']}]}]}
+        counts = probe_check.jest_counts(mixed)
+        self.assertEqual((counts['assertions'], counts['other_failures'], counts['errors']), (0, 1, 1))
+        self.assertTrue(probe_check.is_assertion('AssertionError [ERR_ASSERTION]: Expected values to be equal'))
+
     def test_failure_kind_comes_from_the_exception_type_not_a_substring(self):
         # Review findings: "unexpected" and module names containing "expected" were read as assertions.
         for text, expected in (

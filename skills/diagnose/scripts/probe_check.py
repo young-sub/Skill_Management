@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/probe_check.py
-# Source-SHA256: b9229be159b90db1fa277c646522d51a494d233a8fa4d3c68c5e666c6b410a31
+# Source-SHA256: 7ae79d958b7044bd05495e6ba378f2554da4cf4a60d407e3834ba049090817e5
 
 """Exercise checks against synthetic faults in disposable Git worktrees.
 
@@ -31,6 +31,9 @@ from xml.etree import ElementTree
 
 # The first exception type named in a failure decides its kind; `Error` alone names none.
 EXCEPTION_TYPE = re.compile(r'\b([A-Z]\w*(?:Error|Exception))\b')
+# A line that opens with an exception type is a thrown error (`TypeError: ...` from a teardown), not
+# an assertion message that merely names a type (`Expected constructor: TypeError`).
+THROWN = re.compile(r'^\s*(?:E\s+)?(?:[\w.]+\.)?([A-Z]\w*(?:Error|Exception))\b(?::|$)', re.MULTILINE)
 # Without a type: pytest's rewritten `assert`, node's ERR_ASSERTION, jest/vitest expectation text.
 ASSERTION_PHRASE = re.compile(r'(^|\n)\s*(E\s+)?assert\b|ERR_ASSERTION|\bexpect\(|\bexpected\b[^\n]*\b(to|but)\b',
                               re.IGNORECASE)
@@ -43,9 +46,21 @@ CRASH = re.compile(r'^(?:E\s+)?(?:SyntaxError|IndentationError|TabError|ModuleNo
                    re.M)
 
 
-def git(root, *args, data=None):
+# A caller with a whole-run budget (acceptance_gate check) sets this monotonic deadline; Git
+# commands then time out with it instead of outliving the budget. Cleanup gets GRACE seconds.
+DEADLINE = None
+GRACE = 60
+
+
+def git_timeout(cleanup=False):
+    if cleanup or DEADLINE is None:
+        return GRACE if cleanup else None
+    return max(1.0, DEADLINE - time.monotonic())
+
+
+def git(root, *args, data=None, cleanup=False):
     result = subprocess.run(['git', '-C', str(root), *args], input=data,
-                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=git_timeout(cleanup))
     if result.returncode:
         raise ValueError(result.stderr.decode('utf-8', errors='replace').strip())
     return result.stdout
@@ -189,9 +204,9 @@ def worktree(root, ref, current=False, links=()):
                 # including links a checked command created itself.
                 if copy.exists():
                     unlink_all_links(copy)
-                    git(root, 'worktree', 'remove', '--force', str(copy))
+                    git(root, 'worktree', 'remove', '--force', str(copy), cleanup=True)
             finally:
-                git(root, 'worktree', 'prune')
+                git(root, 'worktree', 'prune', cleanup=True)
 
 
 def run_command(copy, command, timeout):
@@ -226,7 +241,9 @@ def is_assertion(text):
 
     The first exception type decides (AssertionError); without one, an assertion phrase must appear
     (pytest `assert`, node ERR_ASSERTION, jest `expect(`, `expected ... to`)."""
-    text = text[:4000]
+    text = text[:8000]
+    if any(kind != 'AssertionError' for kind in THROWN.findall(text)):
+        return False  # another error was thrown beside or after the assertion
     kinds = EXCEPTION_TYPE.findall(text)
     if kinds:
         return kinds[0] == 'AssertionError'
@@ -248,10 +265,21 @@ def junit_counts(path):
             text = f"{failure.get('type') or ''} {failure.get('message') or ''}\n{failure.text or ''}"
             counts['assertions' if is_assertion(text) else 'other_failures'] += 1
         counts['errors'] += len(case.findall('error'))
-    # A file that failed to import can appear only as an error count on its suite.
-    suites = [suite for suite in root.iter('testsuite') if suite.find('testsuite') is None]
-    declared = sum(int(suite.get('errors') or 0) for suite in suites if (suite.get('errors') or '0').isdigit())
-    counts['errors'] = max(counts['errors'], declared)
+    # A file that failed to import, or a suite whose setup or teardown failed, can appear only as an error
+    # count or an <error>/<failure> element on a suite, at any level. A parent's count either sums its
+    # children's or adds its own; only the part beyond its children's is its own.
+    def declared(suite):
+        value = suite.get('errors') or '0'
+        return int(value) if value.isdigit() else 0
+
+    own = 0
+    for suite in root.iter():
+        if suite.tag not in ('testsuite', 'testsuites'):
+            continue
+        children = [child for child in suite if child.tag == 'testsuite']
+        own += max(0, declared(suite) - sum(declared(child) for child in children))
+        own += sum(1 for child in suite if child.tag in ('error', 'failure'))
+    counts['errors'] = max(counts['errors'], own)
     return counts
 
 
