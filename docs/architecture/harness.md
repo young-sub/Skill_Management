@@ -44,7 +44,7 @@ work labels from existing task targets, measured source/reference bases and owne
 links. It joins pending criteria to project commands/assertions and UI guides,
 without another ledger. Existing obligations and undecided scope are preserved.
 CLI lookup/resume/audit validate the same saved plan/effect binding; summaries and
-the prompt hook project these facts. Individual current checks remain separate
+the context projection (`workflow_context.py`) project these facts. Individual current checks remain separate
 from Agent review and task acceptance; a blocked task binding governs handoff.
 
 Workflow 0.1.46 keeps decision revisions, investigation scope and retirement proof
@@ -124,7 +124,7 @@ from mutable review/feedback/result/investigation links; the same record owns th
 Without configured workflow, a diagnosis task uses that same identity/context and
 record, creating no project config or execution workflow. Observations retain stable
 entrypoint/state IDs and source/evidence hashes. Exact-context lookup/resume and the
-bounded prompt hook remain read-only; an unknown or stale observation keeps scope
+bounded context projection remain read-only; an unknown or stale observation keeps scope
 partial. Semantic inventory/cause/retirement judgments remain Agent responsibilities.
 Reason-specific feedback and requirement retirement consume existing native bundles
 and review hashes rather than adding another result store. Task records use `TaskStore`: a loaded `TaskState` binds the path and original byte

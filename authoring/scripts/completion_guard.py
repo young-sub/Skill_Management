@@ -285,20 +285,34 @@ def unchecked_lines(events, root):
     return max(lines, git_changed_lines(root, files, scripts, since))
 
 
+def gate_modules():
+    """(acceptance_gate, risk_gate) from beside this file or the package's scripts/, or None."""
+    here = Path(__file__).resolve().parent
+    for directory in (here, here.parent / 'scripts'):
+        if (directory / 'acceptance_gate.py').is_file() and (directory / 'risk_gate.py').is_file():
+            if str(directory) not in sys.path:
+                sys.path.insert(0, str(directory))
+            try:
+                import acceptance_gate
+                import risk_gate
+            except Exception:  # noqa: BLE001 - a missing gate keeps the size rule, never traps the session
+                return None
+            return acceptance_gate, risk_gate
+    return None
+
+
 def sealed_tier(root):
     """'HIGH', 'BELOW_HIGH' or None (no sealed contract or no judgement). BELOW_HIGH needs a passing full
     sealed check of the current tree with intact tests and a tier below HIGH against both the contract
     base and the branch's upstream, so a sensitive caller added upstream still counts. Any doubt is None."""
-    hooks = Path(__file__).resolve().parent
-    if not (hooks / 'risk_gate.py').is_file():
+    gates = gate_modules()
+    if gates is None:
         return None
     try:
-        sys.path.insert(0, str(hooks))
-        import acceptance_gate
-        import risk_gate
+        acceptance_gate, risk_gate = gates
         top = Path(acceptance_gate.git(root, 'rev-parse', '--show-toplevel').strip()).resolve()
         contract, _, _ = acceptance_gate.load_contract(top)
-        if contract is None:
+        if contract is None or acceptance_gate.stale_reason(top, contract):
             return None
         bases = [contract['base']]
         upstream = subprocess.run(['git', '-C', str(top), 'rev-parse', '--verify', '--quiet', '@{upstream}'],
@@ -332,13 +346,39 @@ def guard(payload):
         'or state on the card why the change is trivial. This guard blocks once.')}
 
 
+def acceptance(payload):
+    """The sealed acceptance gate's Stop result, run first in the same process so the guard reads its verdict."""
+    gates = gate_modules()
+    if gates is None:
+        return {}
+    try:
+        return gates[0].hook(payload)
+    except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:
+        return {'systemMessage': f'Acceptance gate unavailable; completion is unchecked: {error}'}
+
+
+def stop(payload):
+    """The one packaged Stop hook: a blocking acceptance verdict wins; otherwise the guard decides
+    and any acceptance note rides along."""
+    gate = acceptance(payload)
+    if gate.get('decision') == 'block':
+        return gate
+    result = guard(payload)
+    if gate.get('systemMessage'):
+        result = dict(result, systemMessage=gate['systemMessage'])
+    return result
+
+
 def main():
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
     try:
         # Hosts send UTF-8 JSON; the Windows locale codec would garble non-ASCII paths.
-        result = guard(json.loads(sys.stdin.buffer.read().decode('utf-8-sig')))
+        payload = json.loads(sys.stdin.buffer.read().decode('utf-8-sig'))
+        result = stop(payload) if isinstance(payload, dict) else {}
     except (OSError, ValueError, TypeError, AttributeError):
         result = {}  # A guard failure must not trap the session.
-    print(json.dumps(result))
+    print(json.dumps(result, ensure_ascii=False))
     return 0
 
 

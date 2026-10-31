@@ -255,6 +255,37 @@ class RiskGateTests(unittest.TestCase):
         self.write('src/auth/session.py', 'def login(amount):\n    return True\n')
         self.assertEqual(stop('src/auth/session.py').get('decision'), 'block', 'HIGH still needs the verifier')
 
+    def test_one_stop_process_runs_the_gate_first_and_drops_a_contract_that_no_longer_applies(self):
+        def stop(name, old, new):
+            edit = {'type': 'assistant', 'message': {'content': [{'type': 'tool_use', 'id': 'e', 'name': 'Edit', 'input': {
+                'file_path': str(self.root / name), 'old_string': old, 'new_string': new}}]}}
+            transcript = self.outside / 'stale.jsonl'
+            transcript.write_text('\n'.join(json.dumps(e) for e in ({'type': 'user', 'message': {'content': 'fix'}}, edit)),
+                                  encoding='utf-8')
+            result = subprocess.run([sys.executable, str(SCRIPTS / 'completion_guard.py')], capture_output=True, text=True,
+                                    input=json.dumps({'hook_event_name': 'Stop', 'cwd': str(self.root),
+                                                      'transcript_path': str(transcript)}))
+            self.assertEqual(result.returncode, 0, result.stderr)
+            return json.loads(result.stdout)
+
+        sealed = self.outside / 'author' / 'test_acceptance.py'
+        sealed.parent.mkdir(exist_ok=True)
+        sealed.write_text(ACCEPTANCE, encoding='utf-8')
+        command = subprocess.list2cmdline([sys.executable, '-m', 'unittest', 'acceptance.test_acceptance'])
+        subprocess.run([sys.executable, str(GATE), 'seal', '--root', str(self.root), '--base', 'main', '--tests',
+                        f'{sealed}=acceptance/test_acceptance.py', '--command', command], check=True, capture_output=True)
+        blocked = stop('src/rule.py', 'a', 'b')
+        self.assertIn('Fix the implementation, not the sealed tests', blocked['reason'],
+                      'the gate runs in the Stop process before the guard, with no earlier check')
+        self.write('src/rule.py', RULE.replace('>= 10', '>= 20'))
+        self.commit('work')
+        self.git('update-ref', 'refs/remotes/origin/main', 'HEAD')
+        self.git('symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/main')
+        self.write('src/auth/session.py', 'def login(amount):\n    return True\n')
+        later = stop('src/auth/session.py', 'amount > 0', 'True')
+        self.assertNotIn('decision', later, 'an integrated contract no longer makes a one-line edit HIGH')
+        self.assertIn('no longer applies', later['systemMessage'])
+
     def test_a_one_line_high_change_with_a_contract_still_needs_the_verifier(self):
         self.assertEqual(self.seal_and_fix().returncode, 0)
         self.write('src/auth/session.py', 'def login(amount):\n    return True\n')

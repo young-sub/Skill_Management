@@ -1,5 +1,7 @@
 # Agent Documentation Index
 
+- [0.2.1 lighter hooks](plugins.md#version-021): no prompt hook (its shell-scoped selector never reached the host), one Stop process that runs the sealed acceptance gate before the independent-check rule, no repeated check for a contract whose base left `HEAD` or whose work is already in `origin/HEAD`, and Windows hooks that skip the `python3` Store stub.
+
 - [0.2.0 risk tiers and the rest of the design](plugins.md#version-020): one run-and-observe command per product, a read-only delegation boundary check, reverts as regression tasks and capacity-gated parallel tasks; `risk_gate.py` reads the risk table from the integration ref and sorts finished work into HIGH (sensitive paths, changed existing tests, references from sensitive files), LOW (registered classes with full sealed-check evidence) and MED (the rest); reverted paths move up a tier, LOW is re-checked on the integration tip, and with a sealed contract only HIGH still needs the independent verifier.
 
 - [0.1.99 sealed acceptance](plugins.md#version-0199): `agent-workflow` is explicit-only; an author sub-agent writes acceptance tests from the verbatim request before implementation, `acceptance_gate.py` seals them in the Git directory, and a Stop hook (Codex: the Skill) checks the current tree in a disposable checkout, reports hunks no sealed test notices and uncovered scenarios, and blocks a failing tree at most three times.

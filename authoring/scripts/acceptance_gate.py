@@ -53,6 +53,26 @@ def git(root, *args, env=None, data=None):
     return result.stdout.decode('utf-8', errors='replace')
 
 
+def ancestor(root, older, newer):
+    return subprocess.run(['git', '-C', str(root), 'merge-base', '--is-ancestor', older, newer],
+                          capture_output=True).returncode == 0
+
+
+def stale_reason(root, contract):
+    """Why a sealed contract no longer judges this checkout, or None while it does.
+
+    Its base must stay in HEAD, and committed work already in the remote default branch is integrated.
+    Without this, a contract nobody cleared reruns the long check on every later stop in the worktree."""
+    base = contract['base']
+    if not ancestor(root, base, 'HEAD'):
+        return f'its base {base[:12]} is not in HEAD'
+    default = subprocess.run(['git', '-C', str(root), 'rev-parse', '--verify', '--quiet', 'refs/remotes/origin/HEAD'],
+                             capture_output=True, text=True).stdout.strip()
+    if default and git(root, 'rev-parse', 'HEAD').strip() != base and ancestor(root, 'HEAD', default):
+        return 'its work is already in origin/HEAD'
+    return None
+
+
 def state_dir(root):
     """Per-worktree Git directory: outside the work tree, never committed."""
     directory = Path(git(root, 'rev-parse', '--git-dir').strip())
@@ -322,6 +342,10 @@ def hook(payload):
     blocks = directory / 'blocks.json'
     try:
         contract, directory, contract_hash = load_contract(root)
+        stale = stale_reason(root, contract)
+        if stale:
+            return {'systemMessage': f'Sealed acceptance contract from {contract.get("sealed_at")} no longer applies: '
+                    f'{stale}. Not checked. A person clears it with `acceptance_gate.py clear --root {root}`.'}
         tests, changed = sealed_tests(contract, directory)
         tree = tree_id(root)
         previous = next((r for r in reversed(results(directory)) if r.get('contract') == contract_hash

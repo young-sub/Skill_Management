@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/acceptance_gate.py
-# Source-SHA256: 1c053cfed9a31d37f4bea038ad7aab52b044595fa5b017a0850ea4d03202a057
+# Source-SHA256: 81ded414f7f4bdbaf8262ee97c57687a22f1e18560c0221d9363b9aad19e6049
 
 """Judge delegated work with acceptance tests sealed before implementation.
 
@@ -55,6 +55,26 @@ def git(root, *args, env=None, data=None):
     if result.returncode:
         raise ValueError(result.stderr.decode('utf-8', errors='replace').strip())
     return result.stdout.decode('utf-8', errors='replace')
+
+
+def ancestor(root, older, newer):
+    return subprocess.run(['git', '-C', str(root), 'merge-base', '--is-ancestor', older, newer],
+                          capture_output=True).returncode == 0
+
+
+def stale_reason(root, contract):
+    """Why a sealed contract no longer judges this checkout, or None while it does.
+
+    Its base must stay in HEAD, and committed work already in the remote default branch is integrated.
+    Without this, a contract nobody cleared reruns the long check on every later stop in the worktree."""
+    base = contract['base']
+    if not ancestor(root, base, 'HEAD'):
+        return f'its base {base[:12]} is not in HEAD'
+    default = subprocess.run(['git', '-C', str(root), 'rev-parse', '--verify', '--quiet', 'refs/remotes/origin/HEAD'],
+                             capture_output=True, text=True).stdout.strip()
+    if default and git(root, 'rev-parse', 'HEAD').strip() != base and ancestor(root, 'HEAD', default):
+        return 'its work is already in origin/HEAD'
+    return None
 
 
 def state_dir(root):
@@ -326,6 +346,10 @@ def hook(payload):
     blocks = directory / 'blocks.json'
     try:
         contract, directory, contract_hash = load_contract(root)
+        stale = stale_reason(root, contract)
+        if stale:
+            return {'systemMessage': f'Sealed acceptance contract from {contract.get("sealed_at")} no longer applies: '
+                    f'{stale}. Not checked. A person clears it with `acceptance_gate.py clear --root {root}`.'}
         tests, changed = sealed_tests(contract, directory)
         tree = tree_id(root)
         previous = next((r for r in reversed(results(directory)) if r.get('contract') == contract_hash

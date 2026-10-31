@@ -156,6 +156,34 @@ class AcceptanceGateTests(unittest.TestCase):
         self.seal()
         self.assertEqual(self.hook(), {}, 'a passing tree with nothing to report is silent')
 
+    def test_stop_hook_skips_a_contract_whose_work_is_integrated_or_whose_base_left_head(self):
+        self.seal()
+        self.write('rule.py', RULE.replace('>= 10', '>= 30'))  # fails the sealed test: an applying contract blocks
+        self.git('commit', '-qam', 'work')
+        self.assertEqual(self.hook()['decision'], 'block')
+        checks = len(self.history())
+        self.git('update-ref', 'refs/remotes/origin/main', 'HEAD')
+        self.git('symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/main')
+        self.write('later.py', 'VALUE = 1\n')  # later, unrelated work in the same worktree
+        integrated = self.hook()
+        self.assertNotIn('decision', integrated)
+        self.assertIn('already in origin/HEAD', integrated['systemMessage'])
+        self.assertIn('clear', integrated['systemMessage'])
+        self.assertEqual(len(self.history()), checks, 'a contract that no longer applies runs no check')
+        self.git('checkout', '-q', '--orphan', 'elsewhere')
+        self.git('commit', '-qm', 'unrelated root')
+        self.assertIn('is not in HEAD', self.hook()['systemMessage'])
+        self.assertEqual(len(self.history()), checks)
+
+    def test_stop_hook_still_checks_the_base_commit_and_unmerged_work_with_a_remote(self):
+        self.git('update-ref', 'refs/remotes/origin/main', 'HEAD')
+        self.git('symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/main')
+        self.seal()
+        self.write('rule.py', RULE.replace('>= 10', '>= 30'))
+        self.assertEqual(self.hook()['decision'], 'block', 'uncommitted work on the sealed base is judged')
+        self.git('commit', '-qam', 'work')
+        self.assertEqual(self.hook()['decision'], 'block', 'committed work not yet in origin/HEAD is judged')
+
     def test_stop_hook_reports_untested_changes_without_blocking(self):
         self.seal()
         self.write('rule.py', UNRELATED + RULE.replace('>= 10', '>= 20'))

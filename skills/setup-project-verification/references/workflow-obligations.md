@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/workflow-obligations.md -->
-<!-- Source-SHA256: 09cfd424451e74c5f720bcf03df177ca4ee7e769ec224e329ea97e49369c673b -->
+<!-- Source-SHA256: 00e7c884712ec604f007d1d61c3747bf2d3c9ce12accf6a96391db105e799d64 -->
 
 # Project workflow obligations
 
@@ -34,7 +34,9 @@ discovery survives resolved obligations; CONNECTED is linkage, not visual approv
 Follow current guide commands and inspect actual artifacts. Missing owners/guides
 remain NEEDS_REPAIR and must not be replaced by a copied, competing standard.
 
-The prompt hook projects existing project/task obligations; it never chooses a
+The context projection (`workflow_context.py`; since 0.2.1 not installed as a prompt
+hook, because a shell-scoped selector never reaches the host) projects existing
+project/task obligations; it never chooses a
 task, creates configuration or runs project checks. Fresh projects without work
 retain ordinary Skill discovery and project guides without an automatic prompt
 to initialize workflow. Use the existing guides, owners and native runners.
@@ -80,7 +82,7 @@ discovery reads identity metadata only; it does not validate every bundle. No ne
 task registry or automatic batch execution is involved. Use the same exact lookup
 without `--summary` for observed assertion values and complete retained records.
 
-The prompt hook's `scope.gap_count` and `cell_count` cover `in_task` cells;
+The context projection's `scope.gap_count` and `cell_count` cover `in_task` cells;
 `project_gap_count`/`project_cell_count` include the full matrix and
 `out_of_task_count` describes the difference. PASS and reasoned NOT_REQUIRED are
 not gaps; UNDECIDED, NOT_RUN, STALE and unavailable evidence stay visible. Expanded
@@ -239,8 +241,8 @@ and impact action; stale retired aliases do not reopen their replacement.
 state under `.work/tasks/<task-id>/state.json`; no Harness contract is required.
 Use `--request-summary <text>` and repeatable `--outcome-ref <existing-project-file>`
 to bind the ordinary request to this record. Candidates, lookup and the read-only
-prompt hook expose that request; ambiguous candidates are never selected by time.
-The hook uses bounded request previews with an omission marker; exact lookup keeps
+context projection expose that request; ambiguous candidates are never selected by time.
+The projection uses bounded request previews with an omission marker; exact lookup keeps
 the complete request and references. Inventory roots must name explicit files or
 directories without dot segments; `.` is rejected rather than treated as an empty survey.
 References must be safe existing project files. The summary is part of immutable
@@ -296,7 +298,7 @@ discoverable; custom `.work` paths require explicit `--state`. No timestamp pick
 a task. Conflicting selectors, another project, or replaced task identity block
 the operation. If a host does not inherit the environment, the Agent must retain
 and pass the context explicitly; transparent conversation binding is unverified.
-The prompt hook reads this same explicit context when available and remains
+The context projection reads this same explicit context when available and remains
 read-only. Natural-language intent and procedure selection belong to the Agent.
 
 ```json
@@ -495,7 +497,7 @@ The existing work JSON now retains `feedback` by incident ID. `feedback --feedba
 computed OPEN/RESOLVED and `remaining`, not a submitted done flag. The feedback
 playbook selected by agent-workflow supplies fields and native evidence bindings.
 Configured-state begin/Harness start retain it in the next work record and the
-prompt hook exposes pending causes/guardrails. No automatic conversation collection
+context projection exposes pending causes/guardrails. No automatic conversation collection
 or universal host request registration is implied.
 
 A project inspection observes each shared native bundle once, then copies that

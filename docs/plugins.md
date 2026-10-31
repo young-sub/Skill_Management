@@ -19,6 +19,29 @@ execution selection, freshness checks or task acceptance. There is no fixed byte
 ceiling: capture a detailed lookup and select relevant fields instead of printing
 an entire report into the model context.
 
+## Version 0.2.1
+
+Less hook work per turn; the behavior of the checks is unchanged.
+
+- No prompt hook. The `UserPromptSubmit` hook injected context only when `AGENT_WORKFLOW_CONTEXT`
+  was set, but the documented way to set it is inside the agent's own shell, which never reaches the
+  host process that runs hooks. It therefore printed `{}` on every prompt while costing a Python start
+  (about 0.4 s measured on Windows). `hooks/workflow_context.py` is no longer packaged; the projection
+  stays in `authoring/scripts/workflow_context.py` for the CLI and its tests, and `lookup`/`resume`
+  give the same read-only view on request.
+- One Stop process. `completion_guard.py` now runs the sealed acceptance gate first and then the
+  independent-check rule, so the guard reads the verdict the gate just recorded instead of racing a
+  parallel hook. A blocking gate verdict wins; otherwise the guard decides and the gate's note rides
+  along as `systemMessage`. The hook loads `acceptance_gate.py` and `risk_gate.py` from the package's
+  `scripts/`, so the duplicate copies under `hooks/` are gone. Two Stop processes took about 1.3 s
+  on Windows with no contract.
+- A contract that no longer applies is not checked. When its base is not in `HEAD`, or committed work
+  is already in `origin/HEAD`, the gate prints a note naming `acceptance_gate.py clear` instead of
+  rerunning the full check (up to 1000 s) on every later stop in that worktree, and the guard falls
+  back to the size rule. Uncommitted or unmerged work on the sealed base is still judged.
+- On Windows (`OS=Windows_NT`) `run-hook.sh` probes `python` before `python3`, skipping the Microsoft
+  Store `python3` stub (about 0.17 s per hook measured).
+
 ## Version 0.2.0
 
 The rest of the [design](research/direction-research-20261031.md#3-실행-순서와-설계) ships with the risk tiers:
@@ -401,8 +424,8 @@ publication remain separate authorized actions.
 
 ## Read-only request handoff
 
-Version 0.1.90 launches both hooks through `hooks/run-hook.sh` on POSIX shells:
-it probes `python3`, then `python`, for Python 3 before executing the hook once.
+Version 0.1.90 launches the hooks through `hooks/run-hook.sh` on POSIX shells:
+it probes `python3`, then `python` (`python` first on Windows since 0.2.1), for Python 3 before executing the hook once.
 No interpreter yields exit 127 with a diagnostic; a hook failure keeps its exit
 code without retrying. Plugin roots containing spaces and either host root
 variable are supported. Windows Codex uses the existing `python` command via
@@ -411,16 +434,13 @@ Windows hosts that do not honor that override need a POSIX shell (such as Git
 Bash) and a working Python 3 on PATH. Package-command tests exercise these paths;
 actual macOS message submission and response completion remain native-host checks.
 
-The package includes `hooks/hooks.json` and `hooks/workflow_context.py`, with an
-explicit compatibility-manifest hook path. Without a task selected through
-`AGENT_WORKFLOW_CONTEXT` the hook prints `{}` and runs neither Git nor the runtime.
-With one, `UserPromptSubmit` resolves the Git project from the supplied working
-directory and validates the selector before auditing its task; selected sources still
-use the existing impact and freshness checks. The output reserves room for task
-blockers, next actions and an exact lookup pointer before optional detail. It never
-starts tasks, reads transcripts, runs project checks or writes state, and the prompt
-text is never a task selector or authorization. Full inspection remains available through explicit `audit`/`resume`.
-This handoff does not implement protected completion.
+Since 0.2.1 the package installs only the Stop hook (`hooks/completion_guard.py`, which runs the
+acceptance gate and then the independent-check rule) with an explicit compatibility-manifest hook
+path. The selected-task projection (`authoring/scripts/workflow_context.py`) is no longer a
+`UserPromptSubmit` hook: its `AGENT_WORKFLOW_CONTEXT` selector is set in the agent's shell and never
+reaches the host process that runs hooks. The same read-only view comes from explicit
+`lookup`/`resume`/`audit`; the projection never starts tasks, reads transcripts, runs project checks
+or writes state, and prompt text is never a task selector or authorization.
 
 ## Final-edit completion guard
 

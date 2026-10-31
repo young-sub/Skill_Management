@@ -49,10 +49,8 @@ def build(output):
     selected['scripts/unittest_evidence.py'] = 'authoring/scripts/unittest_evidence.py'
     selected['hooks/hooks.json'] = 'distribution/hooks.json'
     selected['hooks/run-hook.sh'] = 'distribution/run-hook.sh'
-    selected['hooks/workflow_context.py'] = 'authoring/scripts/workflow_context.py'
+    # One Stop hook; it loads the acceptance and risk gates from scripts/ above.
     selected['hooks/completion_guard.py'] = 'authoring/scripts/completion_guard.py'
-    selected['hooks/acceptance_gate.py'] = 'authoring/scripts/acceptance_gate.py'
-    selected['hooks/risk_gate.py'] = 'authoring/scripts/risk_gate.py'
     selected['README.md'] = 'distribution/README.md'
     files = {}
     for target, source in sorted(selected.items()):
