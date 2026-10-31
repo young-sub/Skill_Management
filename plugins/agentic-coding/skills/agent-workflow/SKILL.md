@@ -4,7 +4,7 @@ description: Deliver delegated coding work across FE, API/backend and business l
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: 93e8ca6a4b973d77c6eead15a32b5575e48acf5d8df35acca02bccaa38f619fd -->
+<!-- Source-SHA256: 83df551a5de7a4876efa957ba0678db150cc14aacf746fc16214e303146ce2ef -->
 
 
 # Agent Workflow
@@ -22,7 +22,8 @@ Trivial edits stay direct.
    (SQL INSERT/UPDATE, ORM calls, import/restore jobs). Cover each writer with a check.
 3. **Verify.** Run acceptance and affected existing checks after the final edit.
    Use `probe_check.py prove` optionally, when a new test's ability to catch the
-   defect is in doubt; pass ignored dependencies with `--link node_modules`.
+   defect is in doubt; pass ignored dependencies with `--link node_modules`. Only a base
+   failure by assertion counts; non-unittest runners need `--report <junit.xml|vitest.json>`.
 4. **Independent check.** For behavior changes, dispatch a fresh verifier with only
    the verbatim request and diff using [the template](references/independent-check.md).
    Fix demonstrated violations and register each as a probe; undecided readings go
