@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/acceptance_gate.py
-# Source-SHA256: a119622a29b931cba52f61b2e2f5dcefe64ca1e8fc471499adf660999f390114
+# Source-SHA256: 8665b1d9ab6b77c09b56fe42ad90a22095563c17e2959420e788cad26dbaa6ab
 
 """Judge delegated work with acceptance tests sealed before implementation.
 
@@ -9,9 +9,14 @@ seal   Prove the acceptance tests fail on the base by a failed assertion (or pas
        scenario text, not the tests.
 check  In a disposable checkout of the current state, install the sealed tests and run them. Then,
        from a clean copy of that state each time, revert one changed hunk and run them again: a hunk
-       whose reversal fails no test is an untested change. Scenarios without a test are uncovered
-       requirements. The verdict is bound to the tree that was tested; any later change needs a new
-       check. After three failed checks the contract stops accepting checks until a person re-seals.
+       whose reversal fails no test is an untested change. Only a failed assertion counts as
+       detection; a reversal that breaks import or setup proves the hunk is load-bearing, not that a
+       test checks its behavior, and is reported as not judged. When a hunk with several added blocks
+       is detected, each block is also deleted alone, so an untested function written next to a tested
+       line is found. Changes without a text hunk (mode changes, empty files) are reported as not
+       judged. Scenarios without a test are uncovered requirements. The verdict is bound to the tree
+       that was tested; any later change needs a new check. After three failed checks the contract
+       stops accepting checks until a person re-seals. One deadline bounds the check, Git included.
 hook   Claude Code Stop hook. Silent without a sealed contract or when the current tree already has a
        full passing check; otherwise runs check and blocks the stop on failure or gate error, at most
        three blocks per contract.
@@ -51,7 +56,7 @@ TEST_PATH = re.compile(r'(^|/)(tests?|__tests__|spec|e2e)/|(^|/)test_[^/]*$|_tes
 
 def git(root, *args, env=None, data=None):
     result = subprocess.run(['git', '-C', str(root), '-c', 'core.quotePath=false', *args],
-                            capture_output=True, env=env, input=data)
+                            capture_output=True, env=env, input=data, timeout=probe_check.git_timeout())
     if result.returncode:
         raise ValueError(result.stderr.decode('utf-8', errors='replace').strip())
     return result.stdout.decode('utf-8', errors='replace')
@@ -63,6 +68,26 @@ def ancestor(root, older, newer):
 
 
 INTEGRATION_REFS = ('refs/remotes/origin/HEAD', 'refs/remotes/origin/main', 'refs/remotes/origin/master')
+
+
+def default_integration(root):
+    """The remote default branch the work will integrate into, as a ref name (its tip moves), or None."""
+    for ref in INTEGRATION_REFS:
+        found = subprocess.run(['git', '-C', str(root), 'rev-parse', '--verify', '--quiet', '--symbolic-full-name', ref],
+                               capture_output=True, text=True).stdout.strip()
+        if found:
+            return found
+    return None
+
+
+def integration_ref(root, contract):
+    """The contract's integration ref while it still names a commit, else None."""
+    ref = contract.get('integration')
+    if not ref:
+        return None
+    found = subprocess.run(['git', '-C', str(root), 'rev-parse', '--verify', '--quiet', ref + '^{commit}'],
+                           capture_output=True, text=True).stdout.strip()
+    return found or None
 
 
 def stale_reason(root, contract):
@@ -178,7 +203,7 @@ def run(copy, contract, timeout):
     return outcome, probe_check.run_outcome(copy, outcome, contract.get('report'))
 
 
-def seal(root, base, tests, command, report, preserve, scenarios, timeout, links):
+def seal(root, base, tests, command, report, preserve, scenarios, timeout, links, integration=None):
     contract, directory, _ = load_contract(root)
     if contract is not None:
         raise ValueError(f'A contract is already sealed in {directory}; a person runs `clear` first')
@@ -197,14 +222,25 @@ def seal(root, base, tests, command, report, preserve, scenarios, timeout, links
     expected = 'pass' if preserve else 'assertion_failure'
     if verdict['verdict'] != expected:
         return {'sealed': False, 'base': base, 'expected': expected, **verdict, 'tail': outcome['tail']}
-    (directory / 'tests').mkdir(parents=True)
-    for name, raw in tests:
-        (directory / 'tests' / digest(name.encode('utf-8'))).write_bytes(raw)
+    if integration:
+        git(root, 'rev-parse', '--verify', integration + '^{commit}')
     contract = {'schema_version': 1, 'base': base, 'command': command, 'report': report, 'preserve': preserve,
                 'links': links, 'tests': {name: digest(raw) for name, raw in tests},
+                'integration': integration or default_integration(root),
                 'scenarios': scenarios, 'sealed_at': datetime.now(timezone.utc).isoformat(timespec='seconds')}
     raw = (json.dumps(contract, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
-    (directory / 'contract.json').write_bytes(raw)
+    # Write beside the state directory and rename it into place, so an interrupted seal leaves no
+    # half-written contract for the Stop hook to trip over.
+    staging = Path(tempfile.mkdtemp(prefix=STATE + '-', dir=directory.parent))
+    try:
+        (staging / 'tests').mkdir()
+        for name, data in tests:
+            (staging / 'tests' / digest(name.encode('utf-8'))).write_bytes(data)
+        (staging / 'contract.json').write_bytes(raw)
+        os.replace(staging, directory)
+    finally:
+        if staging.exists():
+            shutil.rmtree(staging, ignore_errors=True)
     # Keep this hash outside the worktree's reach (task record, commit trailer): a later contract with
     # another hash was replaced, which the seal alone cannot prevent.
     return {'sealed': True, 'base': base, 'contract': digest(raw), 'integrity': INTEGRITY, 'state': str(directory), **verdict}
@@ -233,8 +269,11 @@ def snapshot(root, copy):
 
 
 def code_hunks(copy, base, exclude):
-    """(file, header lines, hunk lines) for each changed text hunk, and the binary files changed."""
+    """(file, header lines, hunk lines) for each changed text hunk, the binary files changed, and the changed
+    files with neither (mode-only changes, empty files), which no reversal judges."""
     patch = git(copy, 'diff', '--cached', '-U0', '--no-color', '--no-ext-diff', '--no-renames', base, '--')
+    changed = [name for name in git(copy, 'diff', '--cached', '--name-only', '-z', '--no-renames', base, '--').split('\0')
+               if name]
     hunks, binaries, header, name, body = [], [], [], None, None
     for line in patch.splitlines(keepends=True):
         if line.startswith('diff --git '):
@@ -257,7 +296,35 @@ def code_hunks(copy, base, exclude):
 
     def judged(path):
         return path and path not in exclude and Path(path).suffix.lower() not in DOC_SUFFIXES and not TEST_PATH.search(path)
-    return [h for h in hunks if judged(h[0])], [b for b in binaries if judged(b)]
+    represented = {h[0] for h in hunks} | set(binaries)
+    bare = [name for name in changed if name not in represented and judged(name)]
+    # A mode change on a file that also has hunks is judged only by those hunks; name it too.
+    moded = {header[0].split(' b/', 1)[-1].strip() for _, header, _ in hunks if any(l.startswith('old mode') for l in header)}
+    return [h for h in hunks if judged(h[0])], [b for b in binaries if judged(b)], sorted(set(bare) | {m for m in moded if judged(m)})
+
+
+HUNK_RANGE = re.compile(r'^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@')
+
+
+def added_blocks(body, cap=6):
+    """1-based (first, last) new-file line ranges of the hunk's added lines, split at blank lines; only
+    when there are at least two blocks, since deleting a single block is the hunk reversal itself."""
+    match = HUNK_RANGE.match(body[0])
+    if not match:
+        return []
+    line, blocks, current = int(match.group(1)), [], None
+    for text in body[1:]:
+        if not text.startswith('+'):
+            continue
+        if text[1:].strip():
+            current = [line, line] if current is None else [current[0], line]
+        elif current is not None:
+            blocks.append(tuple(current))
+            current = None
+        line += 1
+    if current is not None:
+        blocks.append(tuple(current))
+    return blocks[:cap] if len(blocks) >= 2 else []
 
 
 def reset(copy, links):
@@ -267,16 +334,18 @@ def reset(copy, links):
 
 
 def ablate(copy, contract, hunks, deadline, timeout, limit):
-    """Revert each hunk alone from a clean copy; a hunk whose reversal leaves every sealed test passing is untested."""
+    """Revert each hunk alone from a clean copy; a hunk whose reversal leaves every sealed test passing is
+    untested, and only a failed assertion counts as detecting it. A detected hunk with several added blocks
+    has each block deleted alone too: a block whose deletion fails no test is untested."""
     untested, unknown, judged = [], [], 0
     links = contract.get('links', [])
     for name, header, body in hunks[:limit]:
+        reset(copy, links)
         remaining = deadline - time.monotonic()
         if remaining < 5:
             break
         judged += 1
         label = {'file': name, 'hunk': body[0].strip()}
-        reset(copy, links)
         try:
             git(copy, 'apply', '-R', '--unidiff-zero', '-', data=''.join(header + body).encode('utf-8'))
         except ValueError as error:
@@ -285,14 +354,36 @@ def ablate(copy, contract, hunks, deadline, timeout, limit):
         _, verdict = run(copy, contract, min(timeout, remaining))
         if verdict['verdict'] == 'pass':
             untested.append(label)
-        elif verdict['verdict'] in ('timeout', 'unclassified'):
-            unknown.append(dict(label, reason=verdict['reason']))
+            continue
+        if verdict['verdict'] != 'assertion_failure':
+            unknown.append(dict(label, reason=f'reverting it gave {verdict["verdict"]}, not a failed assertion: '
+                                              f'{verdict["reason"]}'[:200]))
+            continue
+        for first, last in added_blocks(body):
+            reset(copy, links)
+            remaining = deadline - time.monotonic()
+            if remaining < 5:
+                break
+            path = probe_check.relative_file(copy, name)
+            lines = path.read_bytes().splitlines(keepends=True)
+            path.write_bytes(b''.join(lines[:first - 1] + lines[last:]))
+            _, verdict = run(copy, contract, min(timeout, remaining))
+            if verdict['verdict'] == 'pass':  # an error here only shows the block is needed to run
+                untested.append({'file': name, 'hunk': f'{body[0].strip()} lines {first}-{last}'})
     reset(copy, links)
     return untested, unknown, len(hunks) - judged
 
 
 def check(root, timeout=600, ablation=True, limit=40, deadline_seconds=1000):
     deadline = time.monotonic() + deadline_seconds
+    previous, probe_check.DEADLINE = probe_check.DEADLINE, deadline
+    try:
+        return checked(root, timeout, ablation, limit, deadline)
+    finally:
+        probe_check.DEADLINE = previous
+
+
+def checked(root, timeout, ablation, limit, deadline):
     contract, directory, contract_hash = load_contract(root)
     if contract is None:
         raise ValueError('No sealed contract for this worktree; run `seal` first')
@@ -310,7 +401,7 @@ def check(root, timeout=600, ablation=True, limit=40, deadline_seconds=1000):
     links = contract.get('links', [])
     with probe_check.worktree(root, 'HEAD', current=True, links=links) as copy:
         result['tree'] = snapshot(root, copy)  # what the worker left, the tree the hook compares against
-        hunks, binaries = code_hunks(copy, contract['base'], set(contract['tests']))
+        hunks, binaries, bare = code_hunks(copy, contract['base'], set(contract['tests']))
         install(copy, tests)  # the sealed bytes replace any copy the worker left at the same path
         git(copy, 'add', '-f', '--', *[name for name, _ in tests])  # so a reset keeps them
         outcome, verdict = run(copy, contract, min(timeout, max(1, deadline - time.monotonic())))
@@ -319,8 +410,10 @@ def check(root, timeout=600, ablation=True, limit=40, deadline_seconds=1000):
             result.update(verdict='FAIL', reason=f'sealed tests: {verdict["verdict"]}: {verdict["reason"]}')
         else:
             result['verdict'] = 'PASS'
-            result['unknown'] = [{'file': name, 'hunk': 'binary', 'reason': 'binary change is not reverted'}
-                                 for name in binaries]
+            result['unknown'] = ([{'file': name, 'hunk': 'binary', 'reason': 'binary change is not reverted'}
+                                  for name in binaries] +
+                                 [{'file': name, 'hunk': 'no text hunk',
+                                   'reason': 'mode change or empty file: no reversal judges it'} for name in bare])
             result['hunks'] = len(hunks)
             if ablation:
                 untested, unknown, skipped = ablate(copy, contract, hunks, deadline, timeout, limit)
@@ -403,10 +496,12 @@ def main(argv=None):
     sealing.add_argument('--base', default='HEAD')
     sealing.add_argument('--tests', nargs='+', required=True, help='SOURCE=NAME; keep SOURCE outside the worktree')
     sealing.add_argument('--command', required=True)
-    sealing.add_argument('--report', help='JUnit XML or Jest-format JSON the command writes')
+    sealing.add_argument('--report', help='JUnit XML, Jest-format JSON or live {"checks": [...]} JSON the command writes')
     sealing.add_argument('--preserve', action='store_true', help='behavior-preserving work: tests pass on the base')
     sealing.add_argument('--scenarios', type=Path, help='JSON list of {"scenario": text, "covered_by": [test names]}')
     sealing.add_argument('--link', nargs='+', action='extend', default=[])
+    sealing.add_argument('--integration', help='ref the work integrates into, whose risk table governs it '
+                                               '(default: origin/HEAD, origin/main or origin/master)')
     checking = modes.add_parser('check')
     checking.add_argument('--no-ablate', action='store_true')
     checking.add_argument('--max-hunks', type=int, default=40)
@@ -441,7 +536,7 @@ def main(argv=None):
                     for s in scenarios):
                 raise ValueError('--scenarios must be a list of {"scenario": text, "covered_by": [names]}')
             outcome = seal(root, args.base, args.tests, args.command, args.report, args.preserve,
-                           scenarios, args.timeout, args.link)
+                           scenarios, args.timeout, args.link, args.integration)
             print(json.dumps(outcome, ensure_ascii=False, indent=2))
             return 0 if outcome['sealed'] else 1
         if args.mode == 'check':

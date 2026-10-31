@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/blast_radius_check.py
-# Source-SHA256: c3a5843348c74fd394b60de0fd65101888daed601c129ce8f3f63aa8d5f9dba3
+# Source-SHA256: bfc639266c634308cca19a4d6a171222796ea85c8f9a13247e8a9ec67c834d6c
 
 """Read-only check that delegated agents run inside a boundary instead of behind per-action approvals.
 
@@ -47,6 +47,8 @@ def bash_rule(rule):
 
 
 def settings(root):
+    """Project then local settings, as Claude Code merges them: deny lists add up, and a scalar such as
+    blockWritesOutsideWorkingDirectories takes the later (local) file's value when it sets one."""
     merged = {'deny': [], 'block_outside': False, 'files': []}
     for name in ('.claude/settings.json', '.claude/settings.local.json'):
         path = root / name
@@ -59,7 +61,8 @@ def settings(root):
         permissions = data.get('permissions') or {}
         merged['files'].append(name)
         merged['deny'] += [str(rule) for rule in permissions.get('deny') or []]
-        merged['block_outside'] |= permissions.get('blockWritesOutsideWorkingDirectories') is True
+        if 'blockWritesOutsideWorkingDirectories' in permissions:
+            merged['block_outside'] = permissions['blockWritesOutsideWorkingDirectories'] is True
     return merged
 
 

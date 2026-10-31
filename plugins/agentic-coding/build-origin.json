@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "source_commit": "4035d0a00be2586fcab37a121a091f8e2a2c1040",
-  "source_tree": "52f086657d7c794b3ab949c48badd7a0ef3fb724",
+  "source_commit": "5ed1b7d62b00fa73cbc1a0c705fbaa21049ed49c",
+  "source_tree": "600696c7be0d97fdd291ef6ed0c342fb41282222",
   "source_dirty": false,
   "limit": "Build observation, not a signature or task/host verdict. Dirty source bytes are bound by package-files.json.",
-  "version": "0.2.1"
+  "version": "0.2.2"
 }
