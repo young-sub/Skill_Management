@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/independent-check.md -->
-<!-- Source-SHA256: 5ffc33fd033af95394b66c72340ac7091c6c8e0d8f5c6b5a53d7ceca9a51cde3 -->
+<!-- Source-SHA256: f5cee00d495d84e9ec89a745fbc91b6754bab7832e8820e9c8745d8fa0461728 -->
 
 # Independent check
 
@@ -82,8 +82,7 @@ End with one JSON line:
    original), with `command` running the kept test and `origin`
    `"independent-check <date>"`. Run `probe_check.py probes --root <project>`; the probe
    must be killed. The next change that reopens the same path then fails an existing
-   check instead of waiting for another verifier. The Claude Code Stop guard asks once
-   when the verifier reported violations and the registry was not updated afterwards.
+   check instead of waiting for another verifier.
 5. Do not relaunch the verifier after fixing; its failing tests are the check. Relaunch
    only when a fix changed a different path than the one reported.
 
