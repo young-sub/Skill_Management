@@ -96,12 +96,38 @@ class CompletionGuardTests(unittest.TestCase):
         self.assertEqual(decision['decision'], 'block')
         self.assertIn('5 changed code line(s) were not handed to an independent verifier', decision['reason'])
         self.assertNotIn('after the last executed command', decision['reason'])
-        self.assertEqual(self.stop([prompt('fix'), self.large_edit(), result(), self.verifier(), result(),
+        complete = {'verdict': 'complete', 'violations': [], 'questions': []}
+        self.assertEqual(self.stop([prompt('fix'), self.large_edit(), result(), *self.verifier_report(complete),
                                     self.code_edit(), result(), run, result()]), {})
-        for entries in ([self.verifier(), result(), self.large_edit(), result()],
+        for entries in ([*self.verifier_report(complete), self.large_edit(), result()],
                         [self.large_edit(), result(), self.verifier('Review this change'), result()]):
             with self.subTest(entries=entries[0]['message']['content'][1]['name']):
                 self.assertIn('independent verifier', self.stop([prompt('fix'), *entries, run, result()])['reason'])
+
+    def test_a_verifier_counts_only_when_its_verdict_arrives(self):
+        run = tool('Bash', command='python -m unittest')
+        before = [prompt('fix'), self.large_edit(), result(), run, result()]
+        # Launched but its answer never came back with a verdict line: nothing was verified.
+        for answer in ('Async agent launched successfully.', 'Looks fine to me.'):
+            with self.subTest(answer=answer):
+                self.assertIn('not handed to an independent verifier',
+                              self.stop([*before, *self.verifier_report(answer)])['reason'])
+        # A background verifier reports through a task notification, which is not a new human prompt.
+        launch, _ = self.verifier_report('')
+        verdict = json.dumps({'verdict': 'complete', 'violations': [], 'questions': []})
+        self.assertEqual(self.stop([*before, launch, self.notification('v', 'Checked.\n' + verdict)]), {})
+        self.assertIn('not handed to an independent verifier',
+                      self.stop([*before, launch, self.notification('other', 'done')])['reason'])
+
+    def test_a_task_notification_does_not_start_a_new_turn(self):
+        decision = self.stop([prompt('fix'), self.code_edit(), result(), self.notification('other', 'done')])
+        self.assertEqual(decision['decision'], 'block')
+        self.assertIn('src/app.py', decision['reason'])
+
+    def notification(self, tool_use_id, text):
+        return {'type': 'user', 'origin': {'kind': 'task-notification'}, 'message': {'role': 'user', 'content':
+                f'<task-notification>\n<tool-use-id>{tool_use_id}</tool-use-id>\n<result>{text}</result>\n'
+                '</task-notification>'}}
 
     def test_small_documentation_and_outside_changes_skip_the_independent_check(self):
         run = tool('Bash', command='python -m unittest')
@@ -196,24 +222,35 @@ class CompletionGuardTests(unittest.TestCase):
             {'type': 'text', 'text': 'Import skips the check.\n' + json.dumps(report)}]}]}}
         return [launch, reply]
 
-    def test_reported_violations_need_a_probe_registered_after_the_report(self):
+    def probe_run(self, origins):
+        launch = tool('Bash', command='python probe_check.py probes --root .')
+        launch['message']['content'][1]['id'] = 'p'
+        reply = {'type': 'user', 'message': {'role': 'user', 'content': [{'type': 'tool_result', 'tool_use_id': 'p',
+                 'content': f'# Probe checks\n\n| business | 1/2 |\n\nOrigins: {origins}\n'}]}}
+        return [launch, reply]
+
+    def test_reported_violations_clear_only_when_their_probes_are_killed(self):
         run = tool('Bash', command='python -m unittest')
         incomplete = {'verdict': 'incomplete', 'violations': [{'path': 'import', 'test': 't.py:3', 'observed': 'saved'}] * 2,
                       'questions': []}
         before = [prompt('fix'), self.large_edit(), result(), run, result()]
-        decision = self.stop([*before, *self.verifier_report(incomplete), self.code_edit(), result(), run, result()])
+        report = self.verifier_report(incomplete)
+        decision = self.stop([*before, *report, self.code_edit(), result(), run, result()])
         self.assertEqual(decision['decision'], 'block')
-        self.assertIn('reported 2 violation(s) and .harness/probes.json was not updated', decision['reason'])
-        self.assertNotIn('independent verifier.', decision['reason'])
+        self.assertIn('reported 2 violation(s)', decision['reason'])
+        self.assertNotIn('not handed to an independent verifier', decision['reason'])
         registry = tool('Write', file_path=str(self.root / '.harness/probes.json'), content='{}')
-        probes = tool('Bash', command='python probe_check.py probes --root .')
-        self.assertEqual(self.stop([*before, *self.verifier_report(incomplete), self.code_edit(), result(),
-                                    registry, result(), probes, result()]), {})
-        self.assertIn('violation(s)', self.stop([*before, registry, result(), *self.verifier_report(incomplete),
-                                                  run, result()])['reason'])
-        for report in ({'verdict': 'complete', 'violations': [], 'questions': ['import?']}, 'no json'):
-            with self.subTest(report=report):
-                self.assertEqual(self.stop([*before, *self.verifier_report(report)]), {})
+        # Editing the registry is not evidence; a probe run that kills the registered faults is.
+        for after in ([registry, result()], [registry, result(), *self.probe_run('independent-check 1/2')],
+                      [registry, result(), *self.probe_run('feedback 2/2')]):
+            with self.subTest(after=len(after)):
+                self.assertIn('violation(s)', self.stop([*before, *report, *after])['reason'])
+        self.assertEqual(self.stop([*before, *report, registry, result(),
+                                    *self.probe_run('independent-check 2/2, unrecorded 0/1')]), {})
+        self.assertIn('violation(s)', self.stop([*before, *self.probe_run('independent-check 2/2'),
+                                                 *report, run, result()])['reason'])
+        self.assertEqual(self.stop([*before, *self.verifier_report(
+            {'verdict': 'complete', 'violations': [], 'questions': ['import?']})]), {})
 
     def test_blocks_only_once_and_honors_opt_out_and_unreadable_input(self):
         entries = [prompt('fix'), self.code_edit(), result()]

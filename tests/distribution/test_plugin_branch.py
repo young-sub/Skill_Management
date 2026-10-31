@@ -21,6 +21,8 @@ class PluginBranchTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             repo = Path(temporary) / 'r'
             subprocess.run(['git', 'clone', '-q', '--no-checkout', '--no-local', str(ROOT), str(repo)], check=True)
+            for key, value in (('user.name', 'Plugin Branch Test'), ('user.email', 'test@example.invalid')):
+                git(repo, 'config', key, value)  # CI runners have no Git identity for commit-tree
             first = publish_branch.publish(repo=repo, source='HEAD')
             self.assertTrue(first['changed'])
             names = git(repo, 'ls-tree', '-r', '--name-only', 'plugin').split('\n')[:-1]

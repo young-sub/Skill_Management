@@ -78,8 +78,9 @@ End with one JSON line:
    original), with `command` running the kept test and `origin`
    `"independent-check <date>"`. Run `probe_check.py probes --root <project>`; the probe
    must be killed. The next change that reopens the same path then fails an existing
-   check instead of waiting for another verifier. The Claude Code Stop guard asks once
-   when the verifier reported violations and the registry was not updated afterwards.
+   check instead of waiting for another verifier. The Claude Code Stop guard counts the
+   verifier only once its final JSON line arrives, and asks once while no later
+   `probe_check.py probes` run shows as many killed independent-check probes as violations.
 5. Do not relaunch the verifier after fixing; its failing tests are the check. Relaunch
    only when a fix changed a different path than the one reported.
 

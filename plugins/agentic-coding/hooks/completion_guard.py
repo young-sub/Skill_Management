@@ -21,7 +21,11 @@ AGENT_TOOLS = {'Agent', 'Task'}
 VERIFIER_MARKER = 'INDEPENDENT VERIFIER'  # first words of the independent-check template
 # Below this many changed code lines in a turn, the edit counts as trivial for the independent check.
 CHECK_MIN_LINES = 5
-PROBE_REGISTRY = '.harness/probes.json'
+PROBE_RUN = re.compile(r'probe_check\.py\b.*\bprobes\b')
+# The probe report's origin summary: killed/total independent-check probes.
+KILLED_FINDINGS = re.compile(r'Origins:.*?\bindependent-check (\d+)/\d+')
+# A background agent's answer arrives as a user message that is not a human prompt.
+NOTIFIED_TOOL = re.compile(r'<tool-use-id>([^<]+)</tool-use-id>')
 # The packaged hook lives in <plugin>/hooks/; name the template by its installed path when it exists.
 _installed = Path(__file__).resolve().parent.parent / 'skills/agent-workflow/references/independent-check.md'
 REFERENCE = str(_installed) if _installed.is_file() else 'agent-workflow references/independent-check.md'
@@ -159,11 +163,17 @@ def changed_lines(name, arguments):
     return str(text or '').count('\n') + 1
 
 
-def reported_violations(content):
-    """Violation count in the verifier's final JSON line; an incomplete verdict counts at least one."""
+def text_of(content):
     if isinstance(content, list):
-        content = '\n'.join(str(block.get('text') or '') for block in content if isinstance(block, dict))
-    for match in reversed(VERDICT.findall(str(content or ''))):
+        return '\n'.join(str(block.get('text') or block.get('content') or '')
+                         for block in content if isinstance(block, dict))
+    return str(content or '')
+
+
+def reported_violations(content):
+    """Violation count in the verifier's final JSON line (an incomplete verdict counts at least one),
+    or None when no verdict arrived, so the verifier's work is not observed."""
+    for match in reversed(VERDICT.findall(text_of(content))):
         try:
             report = json.loads(match)
         except ValueError:
@@ -171,14 +181,26 @@ def reported_violations(content):
         if isinstance(report, dict) and report.get('verdict') == 'incomplete':
             violations = report.get('violations')
             return max(len(violations) if isinstance(violations, list) else 0, 1)
-        return 0
-    return 0
+        if isinstance(report, dict) and report.get('verdict') == 'complete':
+            return 0
+    return None
 
 
 def turn_events(transcript):
-    """Edits (with changed line counts), executions, writing scripts, verifier launches and their
-    reported violations after the latest human prompt, which opens with a ('start', timestamp) event."""
-    events, verifiers = [], set()
+    """Edits (with changed line counts), executions, writing scripts, verifier verdicts with their
+    reported violations, and probe runs with their killed independent-check probes, after the latest
+    human prompt, which opens with a ('start', timestamp) event."""
+    events, verifiers, probe_runs = [], set(), set()
+
+    def answered(tool_use_id, content):
+        if tool_use_id in verifiers:
+            count = reported_violations(content)
+            if count is not None:
+                events.extend([('verify', '', 0), ('violations', '', count)])
+        elif tool_use_id in probe_runs:
+            killed = KILLED_FINDINGS.search(text_of(content))
+            events.append(('probes', '', int(killed.group(1)) if killed else 0))
+
     for line in transcript.read_text(encoding='utf-8', errors='replace').splitlines():
         try:
             entry = json.loads(line)
@@ -188,15 +210,22 @@ def turn_events(transcript):
         if not isinstance(message, dict):
             continue
         content = message.get('content')
+        origin = entry.get('origin')
+        if entry.get('type') == 'user' and (isinstance(origin, dict) and origin.get('kind') == 'task-notification'
+                                            or text_of(content).startswith('<task-notification>')):
+            notified = NOTIFIED_TOOL.search(text_of(content))
+            if notified:
+                answered(notified.group(1).strip(), content)
+            continue
         if entry.get('type') == 'user' and not entry.get('isMeta') and (
                 isinstance(content, str) or isinstance(content, list) and any(
                     isinstance(block, dict) and block.get('type') == 'text' for block in content)):
-            events, verifiers = [('start', str(entry.get('timestamp') or ''), 0)], set()
+            events, verifiers, probe_runs = [('start', str(entry.get('timestamp') or ''), 0)], set(), set()
             continue
         if entry.get('type') == 'user' and isinstance(content, list):
-            events.extend(('violations', '', reported_violations(block.get('content'))) for block in content
-                          if isinstance(block, dict) and block.get('type') == 'tool_result'
-                          and block.get('tool_use_id') in verifiers)
+            for block in content:
+                if isinstance(block, dict) and block.get('type') == 'tool_result':
+                    answered(block.get('tool_use_id'), block.get('content'))
             continue
         if entry.get('type') != 'assistant' or not isinstance(content, list):
             continue
@@ -208,9 +237,11 @@ def turn_events(transcript):
                 events.append(('edit', str(arguments.get('file_path') or arguments.get('notebook_path') or ''),
                                changed_lines(block['name'], arguments)))
             elif block.get('name') in EXEC_TOOLS:
-                events.extend(shell_events(str(arguments.get('command') or '')))
+                command = str(arguments.get('command') or '')
+                events.extend(shell_events(command))
+                if PROBE_RUN.search(command):
+                    probe_runs.add(block.get('id'))
             elif block.get('name') in AGENT_TOOLS and VERIFIER_MARKER in str(arguments.get('prompt') or ''):
-                events.append(('verify', '', 0))
                 verifiers.add(block.get('id'))
     return events
 
@@ -323,14 +354,15 @@ def unchecked_lines(events, root):
     return max(lines, git_changed_lines(root, files, scripts, since))
 
 
-def unregistered_violations(events, root):
-    """Reported verifier violations with no edit to the probe registry after the report."""
+def unresolved_violations(events):
+    """Reported verifier violations not yet matched by killed independent-check probes in a later
+    probe_check.py probes run; editing the registry alone shows nothing."""
     count = 0
-    for kind, value, n in events:
+    for kind, _, n in events:
         if kind == 'violations':
             count += n
-        elif kind == 'edit' and code_file(value, root) == PROBE_REGISTRY:
-            count = 0
+        elif kind == 'probes':
+            count = max(count - n, 0)
     return count
 
 
@@ -342,7 +374,7 @@ def guard(payload):
         return {}
     events, root = turn_events(Path(transcript)), Path(cwd).resolve()
     pending, lines = unobserved_edits(events, root), unchecked_lines(events, root)
-    violations = unregistered_violations(events, root)
+    violations = unresolved_violations(events)
     reasons = []
     if pending:
         shown = ', '.join(pending[:5]) + (f' (+{len(pending) - 5} more)' if len(pending) > 5 else '')
@@ -354,9 +386,10 @@ def guard(payload):
                        f"the user's request verbatim and the diff, using the template in {REFERENCE}, "
                        'or state on the card why the change is trivial.')
     if violations:
-        reasons.append(f'The independent verifier reported {violations} violation(s) and {PROBE_REGISTRY} was not '
-                       'updated afterwards. Register each violation you fixed as a probe (origin "independent-check") '
-                       'and run probe_check.py probes, or state on the card why none was a requested-behavior defect.')
+        reasons.append(f'The independent verifier reported {violations} violation(s) that no later probe_check.py '
+                       'probes run shows as killed independent-check probes. Register each violation you fixed as a '
+                       'probe (origin "independent-check") and run probe_check.py probes, or state on the card why '
+                       'none was a requested-behavior defect.')
     if not reasons:
         return {}
     return {'decision': 'block', 'reason': 'Completion guard: ' + ' '.join(reasons) + ' This guard blocks once.'}

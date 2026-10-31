@@ -1,11 +1,13 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/probe_check.py
-# Source-SHA256: c859394012fb0b8f319cda8f7f9342aba15ce81accacb795d865ffb0452d7890
+# Source-SHA256: b2e4fc7c0d150ad565d95d437ef700bab3c0650c647718a289e8b9daf7b217f0
 
 """Exercise checks against synthetic faults in disposable Git worktrees.
 
 Passing probes is evidence of detection for those synthetic faults only, not a
-proof of correctness. Commands and explicitly linked dependency directories are trusted.
+proof of correctness. A check that crashes (syntax or import error) did not reach an
+assertion and is an ERROR, not a detection; `expect` names the failure output required
+instead. Commands and explicitly linked dependency directories are trusted.
 """
 import argparse
 from contextlib import contextmanager
@@ -13,12 +15,18 @@ import json
 import math
 import os
 from pathlib import Path, PureWindowsPath
+import re
 import shutil
 import signal
 import subprocess
 import sys
 import tempfile
 import time
+
+# Output of a check that broke before any assertion ran: the fault, not the rule, failed it.
+CRASH = re.compile(r'^(?:E\s+)?(?:SyntaxError|IndentationError|TabError|ModuleNotFoundError|ImportError)\b'
+                   r'|error during collection|^ERROR collecting|Cannot find module|ERR_MODULE_NOT_FOUND',
+                   re.M)
 
 
 def git(root, *args, data=None):
@@ -54,9 +62,9 @@ def load_probes(root, registry):
     for probe in data['probes']:
         if not isinstance(probe, dict) or not required <= probe.keys():
             raise ValueError('Probe missing required fields: ' + ', '.join(sorted(required)))
-        if probe.keys() - (required | {'rule', 'origin', 'expect_detected'}):
+        if probe.keys() - (required | {'rule', 'origin', 'expect_detected', 'expect'}):
             raise ValueError('Unknown probe fields')
-        for key in required - {'command'} | (probe.keys() & {'rule', 'origin'}):
+        for key in required - {'command'} | (probe.keys() & {'rule', 'origin', 'expect'}):
             if not isinstance(probe[key], str) or (key != 'replace' and not probe[key].strip()):
                 raise ValueError(f'Probe {key} must be a nonempty string (replace may be empty)')
         if probe['id'] in seen:
@@ -66,6 +74,7 @@ def load_probes(root, registry):
             raise ValueError(f'Unknown perspective: {probe["perspective"]}')
         if type(probe.get('expect_detected', True)) is not bool:
             raise ValueError('expect_detected must be boolean')
+        compile_expect(probe.get('expect'))
         command = probe['command']
         if not ((isinstance(command, str) and command.strip()) or
                 (isinstance(command, list) and command and
@@ -73,6 +82,28 @@ def load_probes(root, registry):
             raise ValueError('command must be a nonempty string or argv list')
         relative_file(root, probe['file'])
     return data['probes']
+
+
+def compile_expect(expect):
+    try:
+        return expect and re.compile(expect, re.M)
+    except re.error as error:
+        raise ValueError(f'expect is not a valid regular expression: {error}') from None
+
+
+def failure(run, expect):
+    """Return (detected, error): a nonzero exit counts only when it failed for the intended reason."""
+    if run['timeout'] or run['exit'] == 0:
+        return False, None
+    if expect:
+        if compile_expect(expect).search(run['output']):
+            return True, None
+        return False, f'exit {run["exit"]} without output matching expect {expect!r}'
+    crash = CRASH.search(run['output'])
+    if crash:
+        line = run['output'][crash.start():].splitlines()[0].strip()
+        return False, f'exit {run["exit"]} crashed before an assertion: {line[:200]}'
+    return True, None
 
 
 def add_links(root, copy, names, created):
@@ -170,12 +201,14 @@ def run_command(copy, command, timeout):
             if process.poll() is None:
                 process.kill()
         output, _ = process.communicate(timeout=5)
+    text = output.decode('utf-8', errors='replace')
     return {'exit': None if timed_out else process.returncode,
             'seconds': round(time.monotonic() - start, 3),
-            'tail': output.decode('utf-8', errors='replace')[-800:], 'timeout': timed_out}
+            'output': text, 'tail': text[-800:], 'timeout': timed_out}
 
 
-def probe_result(copy, probe, timeout):
+def probe_result(copy, probe, timeout, baseline=None):
+    """Apply one fault and run its command; `baseline(command)` runs the command without the fault first."""
     result = {key: probe.get(key, '') for key in ('id', 'feature', 'rule', 'perspective', 'layer', 'origin')}
     result.update(detected=False, expected=probe.get('expect_detected', True),
                   status='INVALID', exit=None, seconds=0, tail='')
@@ -190,17 +223,24 @@ def probe_result(copy, probe, timeout):
     if count != 1:
         result['reason'] = f'find text occurs {count} times; expected exactly once'
         return result
+    clean = baseline(probe['command']) if baseline else None
+    if clean and (clean['timeout'] or clean['exit'] != 0):
+        result.update({key: clean[key] for key in ('exit', 'seconds', 'tail')})
+        result['status'] = 'TIMEOUT' if clean['timeout'] else 'INVALID'
+        result['reason'] = ('command timed out without the fault' if clean['timeout'] else
+                            f'command fails without the fault (exit {clean["exit"]})')
+        return result
     try:
         path.write_bytes(original.replace(find, probe['replace'].encode('utf-8'), 1))
         run = run_command(copy, probe['command'], timeout)
     finally:
         path.write_bytes(original)
     result.update({key: run[key] for key in ('exit', 'seconds', 'tail')})
-    result['detected'] = not run['timeout'] and run['exit'] != 0
-    result['status'] = ('TIMEOUT' if run['timeout'] else
+    result['detected'], error = failure(run, probe.get('expect'))
+    result['status'] = ('TIMEOUT' if run['timeout'] else 'ERROR' if error else
                         'UNEXPECTED_KILL' if result['detected'] and not result['expected'] else
                         'KILLED' if result['detected'] else 'SURVIVED')
-    result['reason'] = ('command timed out' if run['timeout'] else
+    result['reason'] = ('command timed out' if run['timeout'] else error or
                         f'exit {run["exit"]}; expected detection: {result["expected"]}')
     return result
 
@@ -252,6 +292,7 @@ def main(argv=None):
     prove.add_argument('--tests', nargs='+', required=True)
     prove.add_argument('--command', required=True)
     prove.add_argument('--skip-current', action='store_true')
+    prove.add_argument('--expect', help='regex the base failure output must match')
     for mode in (probes, prove):
         mode.add_argument('--root', type=Path, required=True)
         mode.add_argument('--link', nargs='+', action='extend', default=[])
@@ -275,13 +316,21 @@ def main(argv=None):
         else:
             if not args.command.strip():
                 raise ValueError('--command must not be empty')
+            compile_expect(args.expect)
             tests = [(name, relative_file(root, name).read_bytes()) for name in args.tests]
         actual_root = Path(os.fsdecode(git(root, 'rev-parse', '--show-toplevel')).strip()).resolve()
         if actual_root != root:
             raise ValueError('--root must be the Git repository root')
         if args.mode == 'probes':
             with worktree(root, 'HEAD', current=True, links=args.link) as copy:
-                results = [probe_result(copy, probe, args.timeout) for probe in selected]
+                clean = {}
+
+                def baseline(command):
+                    key = json.dumps(command)
+                    if key not in clean:
+                        clean[key] = run_command(copy, command, args.timeout)
+                    return clean[key]
+                results = [probe_result(copy, probe, args.timeout, baseline) for probe in selected]
             markdown = report(results)
             if args.output:
                 args.output.mkdir(parents=True, exist_ok=False)
@@ -290,7 +339,7 @@ def main(argv=None):
                     encoding='utf-8')
                 (args.output / 'report.md').write_text(markdown, encoding='utf-8')
             print(markdown, end='')
-            return int(any(p['status'] in {'INVALID', 'TIMEOUT'} or
+            return int(any(p['status'] in {'INVALID', 'TIMEOUT', 'ERROR'} or
                            p['detected'] != p['expected'] for p in results))
         with worktree(root, args.base, links=args.link) as copy:
             for name, raw in tests:
@@ -298,9 +347,9 @@ def main(argv=None):
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(raw)
             base = run_command(copy, args.command, args.timeout)
-        proven = not base['timeout'] and base['exit'] != 0
+        proven, error = failure(base, args.expect)
         print(f'# Test change proof\n\n- Base exit {base["exit"]}: ' +
-              ('PROVEN' if proven else 'NOT_PROVEN'))
+              ('PROVEN' if proven else 'NOT_PROVEN' + (f' ({cell(error)})' if error else '')))
         if not proven:
             print(cell(base['tail']))
         passed = True
