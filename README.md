@@ -9,14 +9,14 @@
 **Codex — 터미널에서:**
 
 ```powershell
-codex plugin marketplace add young-sub/Skill_Management --sparse .agents --sparse plugins
+codex plugin marketplace add young-sub/Skill_Management@plugin
 codex plugin add agentic-coding@agentic-coding
 ```
 
 **Claude Code — 터미널에서:**
 
 ```powershell
-claude plugin marketplace add young-sub/Skill_Management --sparse .claude-plugin plugins
+claude plugin marketplace add young-sub/Skill_Management#plugin
 claude plugin install agentic-coding@agentic-coding
 ```
 
@@ -25,18 +25,18 @@ claude plugin install agentic-coding@agentic-coding
 Codex:
 
 ```powershell
-codex plugin marketplace add git@github.com:young-sub/Skill_Management.git --sparse .agents --sparse plugins
+codex plugin marketplace add git@github.com:young-sub/Skill_Management.git --ref plugin
 codex plugin add agentic-coding@agentic-coding
 ```
 
 Claude Code:
 
 ```powershell
-claude plugin marketplace add git@github.com:young-sub/Skill_Management.git --sparse .claude-plugin plugins
+claude plugin marketplace add git@github.com:young-sub/Skill_Management.git#plugin
 claude plugin install agentic-coding@agentic-coding
 ```
 
-`--sparse`는 설치에 필요한 marketplace 목록과 `plugins/`만 받습니다. 평가·문서·백업 파일은 설치 경로에 내려받지 않습니다. 이미 sparse 없이 등록했다면 같은 이름을 지운 뒤 다시 등록하거나, Codex는 `config.toml`의 해당 marketplace에 `sparse_paths = [".agents", "plugins"]`를, Claude Code는 marketplace source에 `sparsePaths`를 추가한 뒤 새로고침합니다.
+`plugin` 브랜치(Codex `@plugin`, Claude Code `#plugin`)에는 marketplace 목록과 `plugins/`만 있어서, 설치할 때 평가·문서·백업 파일을 받지 않습니다. 브랜치 없이 저장소를 등록했다면 Codex는 `config.toml`의 해당 marketplace를 `ref = "plugin"`으로, Claude Code는 marketplace source에 `"ref": "plugin"`을 넣은 뒤 새로고침합니다.
 
 GitHub SSH 키가 필요합니다. SSH에 `ys` 별칭을 설정했다면 주소의 `git@github.com:`을 `git@ys:`로 바꿀 수 있습니다. 이미 같은 marketplace를 등록했다면 중복 등록할 필요는 없습니다.
 
