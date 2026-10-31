@@ -470,6 +470,45 @@ class RiskGateTests(unittest.TestCase):
                               '--policy', 'main'], capture_output=True, timeout=120)
         self.assertEqual(json.loads(new.stdout)['tier'], 'HIGH', new.stdout)
 
+    def guard_stop(self, name):
+        edit = {'type': 'assistant', 'message': {'content': [{'type': 'tool_use', 'id': 'e', 'name': 'Edit', 'input': {
+            'file_path': str(self.root / name), 'old_string': 'a', 'new_string': 'b\n' * 6}}]}}
+        transcript = self.outside / 'guard.jsonl'
+        transcript.write_text('\n'.join(json.dumps(e) for e in ({'type': 'user', 'message': {'content': 'fix'}}, edit)),
+                              encoding='utf-8')
+        result = subprocess.run([sys.executable, str(SCRIPTS / 'completion_guard.py')], capture_output=True, text=True,
+                                input=json.dumps({'hook_event_name': 'Stop', 'cwd': str(self.root),
+                                                  'transcript_path': str(transcript)}))
+        return json.loads(result.stdout)
+
+    def test_the_verifier_waiver_needs_nothing_untested_and_a_table(self):
+        self.assertEqual(self.seal_and_fix().returncode, 0)
+        self.assertEqual(self.guard_stop('src/rule.py'), {}, 'a full clean pass below HIGH waives the verifier')
+        self.write('src/rule.py', RULE.replace('>= 10', '>= 20') + '\n\ndef refund(amount):\n    kept = amount\n    return kept\n')
+        stopped = self.guard_stop('src/rule.py')
+        self.assertEqual(stopped.get('decision'), 'block', 'an untested change keeps the verifier')
+        self.assertIn('untested change', stopped.get('systemMessage', ''))
+
+    def test_without_a_table_a_sealed_pass_does_not_waive_the_verifier_for_auth(self):
+        self.git('rm', '-q', '.harness/risk.yaml')
+        self.commit('no table')
+        self.assertEqual(self.seal_and_fix().returncode, 0)
+        self.write('src/auth/session.py', 'def login(amount):\n    # bypass\n    return True\n')
+        self.assertEqual(self.guard_stop('src/auth/session.py').get('decision'), 'block')
+
+    def test_the_guard_reads_the_table_of_the_contract_integration_ref(self):
+        self.git('update-ref', 'refs/remotes/origin/main', 'main')
+        self.git('switch', '-q', '-c', 'work')
+        self.assertEqual(self.seal_and_fix().returncode, 0)
+        self.assertEqual(self.guard_stop('src/rule.py'), {})
+        self.git('switch', '-q', 'main')
+        self.write('.harness/risk.yaml', json.dumps(dict(TABLE, high={'paths': ['src/auth/*', '.harness/*', 'src/rule.py']})))
+        self.commit('rule.py becomes sensitive on the integration branch')
+        self.git('update-ref', 'refs/remotes/origin/main', 'main')
+        self.git('switch', '-q', 'work')
+        self.write('src/rule.py', RULE.replace('>= 10', '>= 20'))
+        self.assertEqual(self.guard_stop('src/rule.py').get('decision'), 'block', 'the tip of origin/main now says HIGH')
+
     def test_trailers_record_tier_and_acceptance(self):
         self.write('docs/guide.md', 'guide v2\n')
         lines = subprocess.run([sys.executable, str(SCRIPT), 'trailers', '--root', str(self.root), '--base', 'main',

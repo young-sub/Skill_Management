@@ -53,6 +53,16 @@ class CompletionGuardTests(unittest.TestCase):
             with self.subTest(entries=len(entries)):
                 self.assertEqual(self.stop([prompt('fix'), *entries]), {})
 
+    def test_a_heredoc_written_to_an_unexpanded_variable_path_is_not_a_project_edit(self):
+        body = '\n'.join(f'line{i} = {i}' for i in range(40))
+        command = f"cat > \"$UNSET_SCRATCH_DIR_FOR_TEST/tmp/repro.py\" <<'EOF'\n{body}\nEOF"
+        self.assertEqual(self.stop([prompt('repro'), tool('Bash', command=command), result()]), {})
+        command = f"cat > \"$GUARD_TEST_PROJECT/src/repro.py\" <<'EOF'\n{body}\nEOF"
+        os.environ['GUARD_TEST_PROJECT'] = str(self.root)
+        self.addCleanup(os.environ.pop, 'GUARD_TEST_PROJECT', None)
+        self.assertEqual(self.stop([prompt('repro'), tool('Bash', command=command), result()]).get('decision'), 'block',
+                         'a variable that expands into the project is still a project edit')
+
     def test_documentation_outside_project_and_previous_turn_edits_are_ignored(self):
         self.assertEqual(self.stop([prompt('docs'), self.code_edit('docs/guide.md'), result()]), {})
         outside = tool('Write', file_path=str(Path(tempfile.gettempdir()) / 'scratch.py'), content='x')
