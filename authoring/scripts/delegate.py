@@ -18,8 +18,11 @@ implement   Print the implementer's prompt: the request and scenario text, never
             or the author's write-path list, which stay where the hooks refuse to read them.
 finish      Run the sealed check, classify the tier under the integration ref's table and commit the
             work with trailers (the SubagentStop hook calls this when the implementer stops).
-integrate   LOW only: recheck on the integration tip, then merge into the local branch named by
-            --into while it is checked out and clean. Nothing is pushed.
+integrate   LOW only: recheck the task's pinned commit on the integration tip, then merge it into the
+            local branch named by --into while that branch is checked out, clean and at the rechecked
+            tip. Nothing is pushed.
+close       A person closes MED or HIGH work after review once its commit is in the integration ref
+            (or --into branch), or drops a task (`--drop`). The PreToolUse hook refuses it to agents.
 status      Every task's stage without tests or write paths. digest: the person's batch (MED and
             HIGH work, open correctness questions, preference defaults taken).
 event       Failure events become queued tasks: `event scan` reads reverts (risk_gate events);
@@ -27,8 +30,10 @@ event       Failure events become queued tasks: `event scan` reads reverts (risk
             counts a review finding and queues a task on its third occurrence.
 resume      A person returns a stopped task to its previous stage.
 
-State lives in the Git common directory (`agentic-delegation/`), outside every work tree. Without
-OS-level isolation the hooks detect and refuse; they cannot prevent a determined process.
+State lives in the Git common directory (`agentic-delegation/`), outside every work tree. Every
+transition holds a lock and checks the task's revision, so a stale writer fails instead of
+overwriting; refusal counters live in their own files. Without OS-level isolation the hooks detect
+and refuse what they inspect; they cannot prevent a process they do not see.
 """
 import argparse
 from datetime import datetime, timezone
@@ -40,6 +45,9 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
+import time
+from contextlib import contextmanager
 
 _here = Path(__file__).resolve().parent
 for _candidate in (_here, _here.parent / 'scripts'):
@@ -58,7 +66,9 @@ MAX_SEAL_ATTEMPTS = 3
 DENY_CONSECUTIVE, DENY_TOTAL = 3, 20
 ROLE_MARK = re.compile(r'DELEGATED TASK (\S+) ROLE (acceptance-author|implementer)')
 TASK_ID = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$')
-DEFAULT_DENY = (r'\bgit\s+push\b',)
+# `git push` however Git is spelled or optioned (`git -C repo push`, `git.exe -c x=y push`).
+DEFAULT_DENY = (r'\bgit(?:\.exe)?(?:\s+(?:-[Cc]\s+(?:"[^"]*"|\'[^\']*\'|\S+)|--?[\w-]+(?:=\S+)?))*\s+push\b',)
+LOCK_STALE = 300
 
 
 def now():
@@ -92,6 +102,34 @@ def task_path(root, task_id):
     return state(root) / 'tasks' / f'{task_id}.json'
 
 
+@contextmanager
+def lock(root, wait=60.0):
+    """One writer at a time for the delegation state; a lock older than LOCK_STALE seconds is taken over."""
+    path = state(root) / 'lock'
+    path.parent.mkdir(parents=True, exist_ok=True)
+    deadline = time.monotonic() + wait
+    while True:
+        try:
+            handle = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(handle, str(os.getpid()).encode())
+            os.close(handle)
+            break
+        except FileExistsError:
+            try:
+                if time.time() - path.stat().st_mtime > LOCK_STALE:
+                    path.unlink(missing_ok=True)
+                    continue
+            except OSError:
+                continue
+            if time.monotonic() > deadline:
+                raise ValueError(f'the delegation state is busy ({path}); try again')
+            time.sleep(0.05)
+    try:
+        yield
+    finally:
+        path.unlink(missing_ok=True)
+
+
 def load(root, task_id):
     path = task_path(root, task_id)
     if not path.is_file():
@@ -99,12 +137,26 @@ def load(root, task_id):
     return json.loads(path.read_text(encoding='utf-8'))
 
 
-def save(root, task):
-    path = task_path(root, task['id'])
+def write_json(path, value):
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix('.tmp')
-    temporary.write_text(json.dumps(task, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    handle, temporary = tempfile.mkstemp(prefix=path.name + '.', suffix='.tmp', dir=path.parent)
+    with os.fdopen(handle, 'w', encoding='utf-8') as stream:
+        stream.write(json.dumps(value, ensure_ascii=False, indent=2) + '\n')
     os.replace(temporary, path)
+
+
+def save(root, task, locked=False):
+    """Write a task whose revision still matches the stored one; a stale copy raises instead of overwriting."""
+    if not locked:
+        with lock(root):
+            return save(root, task, locked=True)
+    path = task_path(root, task['id'])
+    stored = json.loads(path.read_text(encoding='utf-8')).get('rev', 0) if path.is_file() else None
+    if stored is not None and stored != task.get('rev', 0):
+        raise ValueError(f'task {task["id"]} changed while this step ran (revision {stored}, not {task.get("rev", 0)}); '
+                         'rerun the step')
+    task['rev'] = task.get('rev', 0) + 1
+    write_json(path, task)
     refresh_marker(root)
     return task
 
@@ -121,10 +173,17 @@ def refresh_marker(root):
     marker = state(root) / ACTIVE
     live = [t['id'] for t in tasks(root) if t['stage'] not in TERMINAL | {'queued'}]
     if live:
-        marker.parent.mkdir(parents=True, exist_ok=True)
-        marker.write_text('\n'.join(live) + '\n', encoding='utf-8')
+        write_json(marker, live)
     elif marker.exists():
         marker.unlink()
+
+
+def denials(root, task_id):
+    path = state(root) / 'denials' / f'{task_id}.json'
+    try:
+        return json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return {'consecutive': 0, 'total': 0}
 
 
 def advance(task, stage, note=''):
@@ -146,8 +205,7 @@ def queue_add(root, task_id, request, feature=None, paths=(), links=(), preserve
         raise ValueError('the request text is empty')
     task = {'schema_version': 1, 'id': task_id, 'request': request, 'feature': feature, 'paths': list(paths),
             'links': list(links), 'preserve': preserve, 'origin': origin, 'stage': 'queued', 'queued_at': now(),
-            'questions': [], 'answers': [], 'seal_attempts': 0, 'denials': {'consecutive': 0, 'total': 0},
-            'history': []}
+            'questions': [], 'answers': [], 'seal_attempts': 0, 'history': [], 'rev': 0}
     return save(root, task)
 
 
@@ -186,14 +244,13 @@ def blocked_reason(root, candidate, everything, onto, limits):
     for other in everything:
         if candidate.get('feature') and other.get('feature') == candidate['feature'] and open_correctness(other):
             return f'Feature {candidate["feature"]} has open correctness questions (task {other["id"]})'
+    # Finished tasks are committed with Risk trailers on their agent/<id> branches, which capacity already
+    # counts; only the open correctness questions held in task records are added to its count.
     gate = risk_gate.capacity(main_root(root), onto, limits)
     questions = sum(len(open_correctness(t)) for t in everything)
     if questions + gate['counts']['open_questions'] >= limits['open_questions']:
         return f'{questions + gate["counts"]["open_questions"]} open correctness questions reach the limit'
     full = [name for name in gate['full'] if name != 'open_questions']
-    review = {'unmerged_high': sum(t.get('tier') == 'HIGH' and t['stage'] == 'review' for t in everything),
-              'unmerged_med': sum(t.get('tier') == 'MED' and t['stage'] == 'review' for t in everything)}
-    full += [name for name, value in review.items() if value + gate['counts'][name] >= limits[name] and name not in full]
     if full:
         return 'the person\'s queue is full: ' + ', '.join(sorted(set(full)))
     return None
@@ -203,16 +260,17 @@ def next_task(root, onto=None, limits=None, worktrees=None):
     """Start the first queued task that may run now; returns its author prompt, or why none starts."""
     limits = limits or {'open_questions': 3, 'unmerged_high': 2, 'unmerged_med': 5}
     ref, tip = integration(root, onto)
-    everything = tasks(root)
-    waiting = [t for t in everything if t['stage'] == 'queued']
-    reasons = {}
-    for task in waiting:
-        reason = blocked_reason(root, task, everything, ref or tip, limits)
-        if reason:
-            reasons[task['id']] = reason
-            continue
-        return start(root, task, ref, tip, worktrees)
-    return {'started': None, 'waiting': reasons or 'the queue is empty'}
+    with lock(root):  # admission and start are one step, so two `next` calls never start overlapping tasks
+        everything = tasks(root)
+        waiting = [t for t in everything if t['stage'] == 'queued']
+        reasons = {}
+        for task in waiting:
+            reason = blocked_reason(root, task, everything, ref or tip, limits)
+            if reason:
+                reasons[task['id']] = reason
+                continue
+            return start(root, task, ref, tip, worktrees)
+        return {'started': None, 'waiting': reasons or 'the queue is empty'}
 
 
 def start(root, task, ref, tip, worktrees=None):
@@ -221,18 +279,19 @@ def start(root, task, ref, tip, worktrees=None):
     tree = (base / task['id']).resolve()
     branch = f'agent/{task["id"]}'
     git(home, 'worktree', 'add', '-q', '-b', branch, str(tree), tip)
-    exclude = common_dir(root) / 'info' / 'exclude'
-    rule = '/.claude/worktrees/\n'
-    if tree.is_relative_to(home) and rule.strip() not in (exclude.read_text(encoding='utf-8') if exclude.is_file() else ''):
-        exclude.parent.mkdir(parents=True, exist_ok=True)
-        with exclude.open('a', encoding='utf-8') as stream:
-            stream.write(rule)
+    if tree.is_relative_to(home):  # keep the nested worktree out of the main checkout's status and `add -A`
+        exclude = common_dir(root) / 'info' / 'exclude'
+        rule = '/' + tree.relative_to(home).as_posix() + '/'
+        text = exclude.read_text(encoding='utf-8') if exclude.is_file() else ''
+        if rule not in text.splitlines():
+            exclude.parent.mkdir(parents=True, exist_ok=True)
+            exclude.write_text(text + ('' if not text or text.endswith('\n') else '\n') + rule + '\n', encoding='utf-8')
     output = author_dir(root, task['id'])
     if output.exists():
         shutil.rmtree(output)
     (output / 'files').mkdir(parents=True)
     task.update(worktree=str(tree), branch=branch, base=tip, integration=ref, started_at=now())
-    save(root, advance(task, 'authoring', f'worktree {tree} from {ref or tip[:12]}'))
+    save(root, advance(task, 'authoring', f'worktree {tree} from {ref or tip[:12]}'), locked=True)
     return {'started': task['id'], 'worktree': str(tree), 'base': tip, 'stage': 'authoring',
             'launch': {'claude_code': 'Agent tool, subagent_type agentic-coding:acceptance-author',
                        'codex': 'a sub-agent given the prompt verbatim, without forking this conversation'},
@@ -461,7 +520,10 @@ def integrate(root, task_id, into=None, timeout=600, regressions=()):
         raise ValueError(f'task {task_id} is {task["stage"]} ({task.get("tier")}): only LOW work integrates without a person')
     tree = Path(task['worktree'])
     onto = task.get('integration') or task['base']
-    outcome = risk_gate.recheck(tree, 'HEAD', onto, timeout, regressions)
+    if git(tree, 'rev-parse', 'HEAD').strip() != task.get('commit') or git(tree, 'status', '--porcelain').strip():
+        raise ValueError(f'the worktree of {task_id} moved from the checked commit {str(task.get("commit"))[:12]}; '
+                         'it needs a new check (`delegate.py resume` is the person\'s)')
+    outcome = risk_gate.recheck(tree, task['commit'], onto, timeout, regressions)
     task['recheck'] = {key: outcome.get(key) for key in ('verdict', 'reason', 'onto', 'tests_pass')}
     if outcome['verdict'] != 'PASS':
         save(root, advance(task, 'review', f'recheck {outcome["verdict"]}: {outcome.get("reason", "")}'))
@@ -471,15 +533,36 @@ def integrate(root, task_id, into=None, timeout=600, regressions=()):
         return {'integrated': False, 'stage': 'ready', 'recheck': task['recheck'],
                 'next': f'merge {task["branch"]} into the integration branch while its tip is {outcome["onto"][:12]}'}
     home = main_root(root)
-    current = git(home, 'rev-parse', '--abbrev-ref', 'HEAD').strip()
-    if current != into or git(home, 'status', '--porcelain', '--untracked-files=no').strip():
-        raise ValueError(f'--into {into} must be checked out and clean in {home} (it has {current})')
-    if git(home, 'rev-parse', 'HEAD').strip() != outcome['onto'] and git(home, 'rev-parse', onto).strip() != outcome['onto']:
-        raise ValueError('the integration tip moved since the recheck; run integrate again')
-    git(home, 'merge', '--no-ff', '--no-edit', task['branch'])
-    task['integrated_commit'] = git(home, 'rev-parse', 'HEAD').strip()
-    save(root, advance(task, 'integrated', f'merged into {into}'))
+    with lock(root):
+        current = git(home, 'rev-parse', '--abbrev-ref', 'HEAD').strip()
+        if current != into or git(home, 'status', '--porcelain', '--untracked-files=no').strip():
+            raise ValueError(f'--into {into} must be checked out and clean in {home} (it has {current})')
+        if git(home, 'rev-parse', 'HEAD').strip() != outcome['onto']:
+            raise ValueError(f'{into} is not at the rechecked tip {outcome["onto"][:12]}: the merge would land on a tree '
+                             'nobody tested; update it to that tip or run integrate again')
+        git(home, 'merge', '--no-ff', '--no-edit', task['commit'])
+        task = load(root, task_id)
+        task['integrated_commit'] = git(home, 'rev-parse', 'HEAD').strip()
+        save(root, advance(task, 'integrated', f'merged into {into}'), locked=True)
     return {'integrated': True, 'stage': 'integrated', 'commit': task['integrated_commit']}
+
+
+def close(root, task_id, into=None, drop=False):
+    """A person's step: reviewed MED or HIGH work whose commit is already in the integration ref (or the
+    --into branch) is closed; `drop` abandons a task at any stage."""
+    with lock(root):
+        task = load(root, task_id)
+        if drop:
+            save(root, advance(task, 'closed', 'dropped by a person'), locked=True)
+            return {'stage': 'closed'}
+        if task['stage'] not in ('review', 'ready') or not task.get('commit'):
+            raise ValueError(f'task {task_id} is {task["stage"]}: only finished work closes (or pass --drop)')
+        target = into or task.get('integration')
+        if not target or subprocess.run(['git', '-C', str(main_root(root)), 'merge-base', '--is-ancestor', task['commit'],
+                                         target], capture_output=True).returncode:
+            raise ValueError(f'commit {task["commit"][:12]} is not in {target}; merge it after review, then close')
+        save(root, advance(task, 'integrated', f'reviewed and merged into {target}'), locked=True)
+    return {'stage': 'integrated'}
 
 
 def resume(root, task_id):
@@ -487,7 +570,7 @@ def resume(root, task_id):
     if task['stage'] != 'stopped':
         raise ValueError(f'task {task_id} is {task["stage"]}, not stopped')
     previous = task.get('previous_stage') or 'authoring'
-    task['denials'] = {'consecutive': 0, 'total': 0}
+    (state(root) / 'denials' / f'{task_id}.json').unlink(missing_ok=True)
     task['seal_attempts'] = 0
     if previous == 'implementing':
         directory = acceptance_gate.state_dir(Path(task['worktree']))
@@ -548,7 +631,7 @@ def event_finding(root, key, detail):
 def public(task):
     """A task without the author's test bytes or write paths."""
     return {key: task.get(key) for key in ('id', 'stage', 'feature', 'paths', 'worktree', 'branch', 'base', 'integration',
-                                           'tier', 'contract', 'commit', 'refused', 'seal_attempts', 'denials', 'origin')} | {
+                                           'tier', 'contract', 'commit', 'refused', 'seal_attempts', 'origin')} | {
         'open_questions': open_correctness(task), 'scenarios': len(task.get('scenarios') or []),
         'write_paths': task.get('write_paths')}
 
@@ -557,8 +640,9 @@ def next_step(task):
     return {'queued': 'delegate.py next', 'authoring': 'launch the acceptance author with the printed prompt '
             '(`delegate.py status --id` shows it again via `prompt`)', 'questions': 'a person answers: delegate.py answer',
             'sealed': 'delegate.py implement, then launch the implementer', 'implementing': 'the implementer works; '
-            'its stop runs `finish`', 'ready': 'delegate.py integrate (LOW)', 'review': 'the person reviews the card '
-            '(HIGH also needs the independent verifier)', 'stopped': 'a person decides: delegate.py resume',
+            'its stop runs `finish` (without that hook, run `delegate.py finish`)', 'ready': 'delegate.py integrate (LOW)',
+            'review': 'the person reviews the card (HIGH also needs the independent verifier), merges, then '
+            '`delegate.py close`', 'stopped': 'a person decides: delegate.py resume',
             'integrated': 'none', 'closed': 'none'}[task['stage']]
 
 
@@ -588,21 +672,47 @@ def find_task(root, path=None, task_id=None):
     return None
 
 
-def record_denial(root, task):
-    task['denials']['consecutive'] += 1
-    task['denials']['total'] += 1
-    if task['stage'] not in ('stopped',) and (task['denials']['consecutive'] >= DENY_CONSECUTIVE
-                                              or task['denials']['total'] >= DENY_TOTAL):
-        advance(task, 'stopped', f'{task["denials"]["consecutive"]} consecutive or {task["denials"]["total"]} '
-                                 'refused tool calls')
-    save(root, task)
-    return task
+def record_denial(root, task_id, wait=5.0):
+    """Count a refused tool call against the task it was for; at the limit the task stops. Returns its stage."""
+    with lock(root, wait):
+        counts = denials(root, task_id)
+        counts = {'consecutive': counts['consecutive'] + 1, 'total': counts['total'] + 1}
+        write_json(state(root) / 'denials' / f'{task_id}.json', counts)
+        task = load(root, task_id)
+        if task['stage'] not in ('stopped', *TERMINAL) and (counts['consecutive'] >= DENY_CONSECUTIVE
+                                                            or counts['total'] >= DENY_TOTAL):
+            save(root, advance(task, 'stopped', f'{counts["consecutive"]} consecutive or {counts["total"]} '
+                                                'refused tool calls'), locked=True)
+        return task['stage']
 
 
-def clear_denials(root, task):
-    if task['denials']['consecutive']:
-        task['denials']['consecutive'] = 0
-        save(root, task)
+def clear_denials(root, task_id, wait=1.0):
+    """An allowed call ends a run of refusals. It touches only the counter file, never the task's stage."""
+    counts = denials(root, task_id)
+    if counts['consecutive']:
+        with lock(root, wait):
+            write_json(state(root) / 'denials' / f'{task_id}.json', dict(denials(root, task_id), consecutive=0))
+
+
+def assign(root, agent_id, task_id, role):
+    """Remember which task a host sub-agent works for, so its later tool calls are charged to it."""
+    if not agent_id:
+        return
+    with lock(root, 5.0):
+        path = state(root) / 'agents.json'
+        try:
+            agents = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            agents = {}
+        agents[str(agent_id)] = {'task': task_id, 'role': role}
+        write_json(path, agents)
+
+
+def assigned(root, agent_id):
+    try:
+        return json.loads((state(root) / 'agents.json').read_text(encoding='utf-8')).get(str(agent_id))
+    except (OSError, ValueError):
+        return None
 
 
 def main(argv=None):
@@ -636,6 +746,10 @@ def main(argv=None):
     integrating.add_argument('--id', required=True)
     integrating.add_argument('--into')
     integrating.add_argument('--regression', action='append', default=[])
+    closing = modes.add_parser('close')
+    closing.add_argument('--id', required=True)
+    closing.add_argument('--into')
+    closing.add_argument('--drop', action='store_true')
     showing = modes.add_parser('status')
     showing.add_argument('--id')
     digesting = modes.add_parser('digest')
@@ -650,7 +764,7 @@ def main(argv=None):
     finding = events.add_parser('finding')
     finding.add_argument('--key', required=True)
     finding.add_argument('--detail', required=True)
-    for mode in (queue, starting, *simple, answering, integrating, showing, digesting, scanning, adding, finding):
+    for mode in (queue, starting, *simple, answering, integrating, closing, showing, digesting, scanning, adding, finding):
         mode.add_argument('--root', type=Path, required=True)
     args = parser.parse_args(argv)
     try:
@@ -673,6 +787,8 @@ def main(argv=None):
             out = integrate(root, args.id, args.into, regressions=args.regression)
         elif args.mode == 'resume':
             out = resume(root, args.id)
+        elif args.mode == 'close':
+            out = close(root, args.id, args.into, args.drop)
         elif args.mode == 'status':
             if args.id:
                 task = load(root, args.id)

@@ -43,6 +43,11 @@ refuse tool calls the current stage does not allow. `D` below is
      request and diff; the person approves before integration.
 7. **Report** the card from `D status --id <task>` for MED, HIGH or on request.
 
+Where the host does not run the plugin hooks (an untrusted Codex hook, a host without
+SubagentStop), run the step the hook would have: `D author-done --id <task>` after the author
+replies, `D finish --id <task>` after the implementer stops. Reviewed MED or HIGH work leaves the
+queue when the person merges it and runs `D close --id <task>`.
+
 Failure events enter the same queue: `D event scan --base <integration ref>` (reverts),
 `D event add --kind check-failure|correction --detail "..."`, and `D event finding --key <k>`
 (a third occurrence queues a task to turn the finding into an executable check). Stopped

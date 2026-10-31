@@ -5,7 +5,7 @@ disable-model-invocation: true
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: 2efd771dabd49457e05bc046c2f4f6c462373e08acb4a61c449b938043bd2818 -->
+<!-- Source-SHA256: 120e0447877eb4927fa56a67db4f3cd02e40a673e565ae46a3ec78889d82bbd9 -->
 
 
 # Agent Workflow
@@ -46,6 +46,11 @@ refuse tool calls the current stage does not allow. `D` below is
    - HIGH: dispatch the [verifier](references/independent-check.md) with only the verbatim
      request and diff; the person approves before integration.
 7. **Report** the card from `D status --id <task>` for MED, HIGH or on request.
+
+Where the host does not run the plugin hooks (an untrusted Codex hook, a host without
+SubagentStop), run the step the hook would have: `D author-done --id <task>` after the author
+replies, `D finish --id <task>` after the implementer stops. Reviewed MED or HIGH work leaves the
+queue when the person merges it and runs `D close --id <task>`.
 
 Failure events enter the same queue: `D event scan --base <integration ref>` (reverts),
 `D event add --kind check-failure|correction --detail "..."`, and `D event finding --key <k>`

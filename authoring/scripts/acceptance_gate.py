@@ -60,7 +60,7 @@ def git(root, *args, env=None, data=None):
 
 def ancestor(root, older, newer):
     return subprocess.run(['git', '-C', str(root), 'merge-base', '--is-ancestor', older, newer],
-                          capture_output=True).returncode == 0
+                          capture_output=True, timeout=probe_check.git_timeout()).returncode == 0
 
 
 INTEGRATION_REFS = ('refs/remotes/origin/HEAD', 'refs/remotes/origin/main', 'refs/remotes/origin/master')
@@ -70,7 +70,7 @@ def default_integration(root):
     """The remote default branch the work will integrate into, as a ref name (its tip moves), or None."""
     for ref in INTEGRATION_REFS:
         found = subprocess.run(['git', '-C', str(root), 'rev-parse', '--verify', '--quiet', '--symbolic-full-name', ref],
-                               capture_output=True, text=True).stdout.strip()
+                               capture_output=True, text=True, timeout=probe_check.git_timeout()).stdout.strip()
         if found:
             return found
     return None
@@ -82,7 +82,7 @@ def integration_ref(root, contract):
     if not ref:
         return None
     found = subprocess.run(['git', '-C', str(root), 'rev-parse', '--verify', '--quiet', ref + '^{commit}'],
-                           capture_output=True, text=True).stdout.strip()
+                           capture_output=True, text=True, timeout=probe_check.git_timeout()).stdout.strip()
     return found or None
 
 
@@ -101,14 +101,14 @@ def stale_reason(root, contract):
     committed = [name for name in git(root, 'diff', '--name-only', '-z', base, 'HEAD', '--').split(chr(0)) if name]
     for ref in INTEGRATION_REFS:
         target = subprocess.run(['git', '-C', str(root), 'rev-parse', '--verify', '--quiet', ref + '^{commit}'],
-                                capture_output=True, text=True).stdout.strip()
+                                capture_output=True, text=True, timeout=probe_check.git_timeout()).stdout.strip()
         if not target:
             continue
         label = ref.removeprefix('refs/remotes/')
         if ancestor(root, 'HEAD', target):
             return f'its work is already in {label}'
         if committed and subprocess.run(['git', '-C', str(root), 'diff', '--quiet', target, 'HEAD', '--', *committed],
-                                        capture_output=True).returncode == 0:
+                                        capture_output=True, timeout=probe_check.git_timeout()).returncode == 0:
             return f'its committed files already match {label}'
     return None
 
@@ -121,7 +121,7 @@ def state_dir(root):
 
 def has_head(root):
     return subprocess.run(['git', '-C', str(root), 'rev-parse', '--verify', '--quiet', 'HEAD'],
-                          capture_output=True).returncode == 0
+                          capture_output=True, timeout=probe_check.git_timeout()).returncode == 0
 
 
 def staged_new_files(root):
@@ -302,7 +302,7 @@ def code_hunks(copy, base, exclude):
 HUNK_RANGE = re.compile(r'^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@')
 
 
-def added_blocks(body, cap=6):
+def added_blocks(body):
     """1-based (first, last) new-file line ranges of the hunk's added lines, split at blank lines; only
     when there are at least two blocks, since deleting a single block is the hunk reversal itself."""
     match = HUNK_RANGE.match(body[0])
@@ -320,13 +320,16 @@ def added_blocks(body, cap=6):
         line += 1
     if current is not None:
         blocks.append(tuple(current))
-    return blocks[:cap] if len(blocks) >= 2 else []
+    return blocks if len(blocks) >= 2 else []
 
 
 def reset(copy, links):
     """Return the copy's work tree to its index (the tested state), dropping generated files and caches."""
     git(copy, 'checkout', '--', '.')
     git(copy, 'clean', '-fdxq', *[arg for link in links for arg in ('-e', link)])
+
+
+BLOCK_LIMIT = 6  # blocks deleted per detected hunk; the rest are reported as not judged
 
 
 def ablate(copy, contract, hunks, deadline, timeout, limit):
@@ -355,17 +358,24 @@ def ablate(copy, contract, hunks, deadline, timeout, limit):
             unknown.append(dict(label, reason=f'reverting it gave {verdict["verdict"]}, not a failed assertion: '
                                               f'{verdict["reason"]}'[:200]))
             continue
-        for first, last in added_blocks(body):
+        blocks = added_blocks(body)
+        for index, (first, last) in enumerate(blocks):
+            block = {'file': name, 'hunk': f'{body[0].strip()} lines {first}-{last}'}
             reset(copy, links)
             remaining = deadline - time.monotonic()
-            if remaining < 5:
+            if index >= BLOCK_LIMIT or remaining < 5:
+                unknown.extend(dict({'file': name, 'hunk': f'{body[0].strip()} lines {a}-{b}'},
+                                    reason='beyond the block limit or the deadline') for a, b in blocks[index:])
                 break
             path = probe_check.relative_file(copy, name)
             lines = path.read_bytes().splitlines(keepends=True)
             path.write_bytes(b''.join(lines[:first - 1] + lines[last:]))
             _, verdict = run(copy, contract, min(timeout, remaining))
-            if verdict['verdict'] == 'pass':  # an error here only shows the block is needed to run
-                untested.append({'file': name, 'hunk': f'{body[0].strip()} lines {first}-{last}'})
+            if verdict['verdict'] == 'pass':
+                untested.append(block)
+            elif verdict['verdict'] != 'assertion_failure':
+                # Deleting it broke import, setup or the run: needed to run, not shown to be checked.
+                unknown.append(dict(block, reason=f'deleting it gave {verdict["verdict"]}, not a failed assertion'))
     reset(copy, links)
     return untested, unknown, len(hunks) - judged
 
@@ -437,6 +447,15 @@ def summary(result):
 def hook(payload):
     if os.environ.get('AGENT_ACCEPTANCE_GATE', '').lower() == 'off':
         return {}
+    deadline = time.monotonic() + float(os.environ.get('AGENT_ACCEPTANCE_DEADLINE', 1000))
+    previous, probe_check.DEADLINE = probe_check.DEADLINE, deadline
+    try:
+        return hooked(payload, deadline)
+    finally:
+        probe_check.DEADLINE = previous
+
+
+def hooked(payload, deadline):
     cwd = payload.get('cwd')
     if not cwd:
         return {}
@@ -463,7 +482,7 @@ def hook(payload):
                                         'integrity': INTEGRITY, 'reason': 'sealed tests changed: ' + ', '.join(changed)})
         else:
             result = previous or check(root, float(os.environ.get('AGENT_ACCEPTANCE_TIMEOUT', 600)),
-                                       deadline_seconds=float(os.environ.get('AGENT_ACCEPTANCE_DEADLINE', 1000)))
+                                       deadline_seconds=max(1.0, deadline - time.monotonic()))
     except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:
         contract_hash, result = None, {'verdict': 'ERROR', 'reason': f'acceptance gate error: {error}'}
     if result['verdict'] == 'PASS':

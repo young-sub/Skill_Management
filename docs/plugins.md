@@ -43,11 +43,15 @@ the same prompts, whose `DELEGATED TASK <id> ROLE <role>` line tells the hooks t
 hooks hold the stages (`hooks/delegation_hook.py`):
 
 - `PreToolUse` (Edit/Write/Read/Grep/Glob/Bash/PowerShell and Codex shell and patch tools) refuses
-  edits to a task worktree before its tests are sealed and the implementer starts; reads of the
-  author's output, the sealed tests and the delegation state by anyone but the author (so the
-  write-path list never reaches the implementer); `git push`, deploy commands listed in
-  `agentic-delegation/config.json` (`deny_commands`), and the person's own `clear`/`resume`. Three
-  refusals in a row or twenty in all stop the task. Without an active task it reads the file
+  edits to a task worktree before its tests are sealed and the implementer starts, by edit tools
+  and by shell commands that name the worktree or run in it (only read-only commands and test
+  runners pass); reads and searches of the author's output, the sealed tests and the delegation
+  state by anyone but the author (a search scoped to the Git directory included); `git push`
+  however optioned (`git -C repo push`), deploy commands listed in `agentic-delegation/config.json`
+  (`deny_commands`), and the person's own `clear`/`resume`/`close`. Paths are compared after
+  resolving `..`, symlinks, case and `\\?\` prefixes. A refusal is charged to the task it concerns
+  (by path, by the worktree a command names, or by the sub-agent's earlier assignment); three in a
+  row or twenty in all stop that task. Without an active task it reads the file
   system, finds no marker and returns: about 0.07 s per matched tool call on Windows, of which
   0.04 s is the Python start.
 - `SubagentStop` seals the author's result (a test that does not fail on the base by assertion
@@ -56,8 +60,12 @@ hooks hold the stages (`hooks/delegation_hook.py`):
 - The one `Stop` process also blocks once while a task waits on the orchestrator (sealed but not
   implemented, LOW but not integrated); tasks waiting on the person ride along as a note.
 
-Refusal is detection with a reason, not isolation: a process the hooks do not see can still read
-the files. The Codex hook documentation lists `PreToolUse`, `SubagentStop` and `Stop` with this
+Refusal is detection with a reason, not isolation. The hooks inspect tool inputs: a shell command
+that reaches a protected file without naming it (a script that computes the path, an interpreter
+started elsewhere) is not seen, and neither is a process outside the host. Transitions hold a lock
+and check the task's revision, so a stale writer fails instead of overwriting; refusal counters
+live in their own files. MED and HIGH work leaves the queue when a person merges it and runs
+`delegate.py close` (`--drop` abandons a task). The Codex hook documentation lists `PreToolUse`, `SubagentStop` and `Stop` with this
 format, but installed Codex 0.165.0 was not observed running them, and Codex asks the person to
 trust plugin hooks before they run.
 
@@ -72,23 +80,26 @@ trust plugin hooks before they run.
 - The Stop guard waives the independent verifier only when the current tree's full sealed check
   passed with nothing untested, not judged or uncovered, and the change is below HIGH.
 - Ablation counts a reversal as detected only on a failed assertion; an import or setup error
-  makes the hunk "not judged". A detected hunk with several added blocks has each block deleted
-  alone, so an untested function written next to a tested line is reported. Mode-only changes and
+  makes the hunk "not judged". A detected hunk with several added blocks has up to six blocks
+  deleted alone, so an untested function written next to a tested line is reported; a block whose
+  deletion errors, and blocks beyond the six or the deadline, are reported as not judged. Mode-only changes and
   empty-file additions or deletions are reported as not judged.
 - `recheck` classifies the candidate from its merge base under the tip's table; a MED candidate
   whose checks pass is `NOT_LOW` (exit 1, `tests_pass: true`), not `PASS`.
 - JUnit errors declared on parent suites and suite-level `<error>` elements count, and a thrown
-  error line after an assertion message is not an assertion, so neither becomes a proof.
+  error line anywhere after an assertion message is not an assertion, so neither becomes a proof.
 - Paths match the risk table case-insensitively on every platform (`src/Auth/` evaded `*auth*` on
   POSIX); indented `const`/`let`/`var` no longer count as changed symbols; revert promotion and
   `events` share one reading (`This reverts commit` in the message).
-- The check's deadline now bounds Git and worktree commands too, with a grace period for cleanup;
-  `seal` writes its state in a staging directory and renames it into place.
+- The check's deadline now bounds Git and worktree commands too, including the Stop hook's
+  preflight, with a grace period for cleanup; `seal` writes its state in a staging directory and
+  renames it into place.
 - `blast_radius_check.py` resolves `blockWritesOutsideWorkingDirectories` with local settings over
   shared ones instead of OR-ing them.
 - A shell write to a path with an unexpanded variable (`$VAR`, `%VAR%`) is not a project edit for
   the Stop guard; Git still sizes real changes.
-- The builder packages Git's staged bytes. Since the 0.1.97 freeze, 199 package files had carried
+- The builder packages Git's line endings: a file that differs from its staged blob only by line
+  endings ships the staged bytes, and a dirty edit keeps its content with the staged line ending. Since the 0.1.97 freeze, 199 package files had carried
   CRLF from an autocrlf checkout, and the POSIX `impeccable` launcher failed with
   `/bin/sh^M: not found`.
 

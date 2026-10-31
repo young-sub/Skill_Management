@@ -237,9 +237,9 @@ def is_assertion(text):
 
     The first exception type decides (AssertionError); without one, an assertion phrase must appear
     (pytest `assert`, node ERR_ASSERTION, jest `expect(`, `expected ... to`)."""
-    text = text[:8000]
     if any(kind != 'AssertionError' for kind in THROWN.findall(text)):
-        return False  # another error was thrown beside or after the assertion
+        return False  # another error was thrown beside or after the assertion, anywhere in the text
+    text = text[:8000]
     kinds = EXCEPTION_TYPE.findall(text)
     if kinds:
         return kinds[0] == 'AssertionError'

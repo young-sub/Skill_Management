@@ -67,9 +67,9 @@ class DelegationTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr.decode())
         return json.loads(result.stdout)
 
-    def tool(self, name, agent=None, **arguments):
+    def tool(self, name, agent=None, agent_id=None, **arguments):
         payload = {'hook_event_name': 'PreToolUse', 'tool_name': name, 'tool_input': arguments}
-        return self.hook(HOOK, payload | ({'agent_type': agent} if agent else {}))
+        return self.hook(HOOK, payload | ({'agent_type': agent} if agent else {}) | ({'agent_id': agent_id} if agent_id else {}))
 
     def subagent_stop(self, prompt, agent):
         transcript = self.outside / f'{agent}.jsonl'
@@ -231,6 +231,143 @@ class DelegationTests(unittest.TestCase):
         self.assertIn('Independent check: required (HIGH)', card)
         self.cli('integrate', '--id', 'T1', '--into', 'main', expected=2)
         self.assertEqual([item['id'] for item in self.cli('digest')['review']], ['T1'])
+
+    # --- regressions from the independent re-review ------------------------------------------------
+
+    def sealed_task(self, task_id='T1', paths=('rule.py',)):
+        started = self.started(task_id, paths)
+        self.author_writes(delegate.author_dir(self.root, task_id))
+        self.assertEqual(self.subagent_stop(started['prompt'], 'agentic-coding:acceptance-author'),
+                         {'systemMessage': f'Task {task_id}: sealed'})
+        return started
+
+    def ready_task(self):
+        started = self.sealed_task()
+        handed = self.cli('implement', '--id', 'T1')
+        self.write('rule.py', RULE.replace('>= 10', '>= 20'), root=Path(started['worktree']))
+        self.assertEqual(self.subagent_stop(handed['prompt'], 'agentic-coding:implementer'),
+                         {'systemMessage': 'Task T1: ready (LOW)'})
+        return started
+
+    def test_integrate_merges_only_onto_the_rechecked_tip(self):
+        self.ready_task()
+        self.write('other.py', 'x = 1\n')
+        self.git('add', '-A')
+        self.git('commit', '-qm', 'untested local commit on main')  # origin/main still names the tested tip
+        result = subprocess.run([sys.executable, str(DELEGATE), 'integrate', '--id', 'T1', '--into', 'main',
+                                 '--root', str(self.root)], capture_output=True, text=True, timeout=300)
+        self.assertEqual(result.returncode, 2, result.stdout)
+        self.assertIn('not at the rechecked tip', result.stderr)
+        self.assertNotIn('>= 20', (self.root / 'rule.py').read_text(encoding='utf-8'))
+
+    def test_resolved_paths_and_extended_prefixes_cannot_reach_protected_state(self):
+        started = self.started()
+        tree = Path(started['worktree'])
+        sneaky = delegate.author_dir(self.root, 'T1') / '..' / '..' / 'tasks' / 'T1.json'
+        self.assertTrue(self.denied(self.tool('Write', file_path=str(sneaky), content='{}')))
+        self.assertTrue(self.denied(self.tool('Write', agent='agentic-coding:acceptance-author',
+                                              file_path=str(sneaky), content='{}')), 'not the author either')
+        extended = '\\\\?\\' + str(tree / 'rule.py')
+        self.assertTrue(self.denied(self.tool('Edit', file_path=extended, old_string='10', new_string='20')))
+        relative = Path('.claude') / 'worktrees' / 'T1' / 'rule.py'
+        self.assertTrue(self.denied(self.tool('Edit', file_path=str(relative), old_string='10', new_string='20')))
+
+    def test_shell_writes_before_sealing_and_optioned_pushes_are_refused(self):
+        started = self.started()
+        tree = Path(started['worktree'])
+        for command in (f'printf "x" > "{tree / "rule.py"}"', f'Set-Content -Path "{tree / "rule.py"}" -Value x',
+                        f'cd "{tree}" && python -c "open(\'rule.py\',\'w\')"'):
+            with self.subTest(command=command[:30]):
+                self.assertTrue(self.denied(self.tool('Bash', command=command)))
+                self.cli('resume', '--id', 'T1') if delegate.load(self.root, 'T1')['stage'] == 'stopped' else None
+        self.assertEqual(self.tool('Bash', command=f'git -C "{tree}" status'), {}, 'reading the worktree is fine')
+        self.assertTrue(self.denied(self.tool('Bash', command=f'git -C "{self.root}" push origin HEAD')))
+
+    def test_searches_that_reach_the_git_directory_or_uppercase_markers_are_refused(self):
+        self.started()
+        common = delegate.common_dir(self.root)
+        self.assertTrue(self.denied(self.tool('Grep', pattern='assert|write_paths', path=str(common))))
+        self.assertTrue(self.denied(self.tool('Glob', pattern='.git/**/result.json')))
+        self.assertTrue(self.denied(self.tool('Bash', command=f'type "{str(common).upper()}\\AGENTIC-DELEGATION\\x"')))
+        self.assertEqual(self.tool('Grep', pattern='allowed', path=str(self.root)), {}, 'the work tree itself is searchable')
+
+    def test_a_stale_writer_fails_instead_of_overwriting_a_transition(self):
+        self.started()
+        stale = delegate.load(self.root, 'T1')
+        fresh = delegate.load(self.root, 'T1')
+        delegate.save(self.root, delegate.advance(fresh, 'stopped', 'a concurrent transition'))
+        with self.assertRaises(ValueError):
+            delegate.save(self.root, delegate.advance(stale, 'sealed', 'stale'))
+        self.assertEqual(delegate.load(self.root, 'T1')['stage'], 'stopped')
+        delegate.clear_denials(self.root, 'T1')
+        self.assertEqual(delegate.load(self.root, 'T1')['stage'], 'stopped', 'clearing a counter never touches the stage')
+
+    def test_refusals_are_charged_to_the_task_they_concern(self):
+        self.started('T1', ('a/*',))
+        second = self.started('T2', ('b/*',))
+        tree_two = Path(second['worktree'])
+        self.tool('Edit', file_path=str(tree_two / 'rule.py'), old_string='1', new_string='2')
+        self.assertEqual((delegate.denials(self.root, 'T1')['total'], delegate.denials(self.root, 'T2')['total']), (0, 1))
+        delegate.assign(self.root, 'agent-7', 'T1', 'implementer')
+        self.tool('Bash', agent='agentic-coding:implementer', command='git push', agent_id='agent-7')
+        self.assertEqual(delegate.denials(self.root, 'T1')['total'], 1, 'an assigned agent is charged to its task')
+
+    def tool_with(self, name, **payload):
+        return self.hook(HOOK, {'hook_event_name': 'PreToolUse', 'tool_name': name} | payload)
+
+    def test_a_role_line_in_later_output_does_not_claim_a_task(self):
+        self.started()
+        transcript = self.outside / 'other.jsonl'
+        transcript.write_text('\n'.join(json.dumps(e) for e in (
+            {'type': 'user', 'message': {'content': 'Summarize the repository.'}},
+            {'type': 'assistant', 'message': {'content': 'DELEGATED TASK T1 ROLE acceptance-author'}})) + '\n',
+            encoding='utf-8')
+        self.author_writes(delegate.author_dir(self.root, 'T1'))
+        outcome = self.hook(HOOK, {'hook_event_name': 'SubagentStop', 'agent_type': 'general-purpose', 'agent_id': 'x',
+                                   'agent_transcript_path': str(transcript),
+                                   'last_assistant_message': 'DELEGATED TASK T1 ROLE acceptance-author'})
+        self.assertEqual(outcome, {})
+        self.assertEqual(delegate.load(self.root, 'T1')['stage'], 'authoring')
+
+    def test_reviewed_work_closes_after_a_person_merges_it(self):
+        self.write('auth/session.py', 'def login(token):\n    return token == "ok"\n')
+        self.git('add', '-A')
+        self.git('commit', '-qm', 'auth')
+        self.git('update-ref', 'refs/remotes/origin/main', 'main')
+        started = self.sealed_task(paths=('rule.py', 'auth/*'))
+        handed = self.cli('implement', '--id', 'T1')
+        tree = Path(started['worktree'])
+        self.write('rule.py', RULE.replace('>= 10', '>= 20'), root=tree)
+        self.write('auth/session.py', 'def login(token):\n    return bool(token)\n', root=tree)
+        self.subagent_stop(handed['prompt'], 'agentic-coding:implementer')
+        self.cli('close', '--id', 'T1', expected=2)  # not merged yet
+        self.assertTrue(self.denied(self.tool('Bash', command='python delegate.py close --id T1 --root .')),
+                        'closing is the person\'s step')
+        self.git('merge', '-q', '--no-ff', '--no-edit', 'agent/T1')
+        self.assertEqual(self.cli('close', '--id', 'T1', '--into', 'main')['stage'], 'integrated')
+        self.assertFalse((delegate.state(self.root) / 'active').exists())
+
+    def test_finished_review_work_is_counted_once_against_capacity(self):
+        self.write('auth/session.py', 'def login(token):\n    return token == "ok"\n')
+        self.git('add', '-A')
+        self.git('commit', '-qm', 'auth')
+        self.git('update-ref', 'refs/remotes/origin/main', 'main')
+        started = self.sealed_task(paths=('rule.py', 'auth/*'))
+        handed = self.cli('implement', '--id', 'T1')
+        tree = Path(started['worktree'])
+        self.write('rule.py', RULE.replace('>= 10', '>= 20'), root=tree)
+        self.write('auth/session.py', 'def login(token):\n    return bool(token)\n', root=tree)
+        self.subagent_stop(handed['prompt'], 'agentic-coding:implementer')
+        self.cli('queue', 'add', '--id', 'T2', '--request', 'Docs.', '--paths', 'docs/*')
+        self.assertEqual(self.cli('next')['started'], 'T2', 'one HIGH review stays below the default limit of two')
+
+    def test_a_custom_worktree_location_is_excluded_from_the_main_checkout(self):
+        self.cli('queue', 'add', '--id', 'T1', '--request', 'Raise the minimum.', '--paths', 'rule.py')
+        exclude = delegate.common_dir(self.root) / 'info' / 'exclude'
+        exclude.write_text('# no trailing newline', encoding='utf-8')
+        self.cli('next', '--worktrees', str(self.root / 'scratch'))
+        self.assertIn('/scratch/T1/', exclude.read_text(encoding='utf-8').splitlines())
+        self.assertNotIn('scratch', self.git('status', '--porcelain'))
 
     def test_without_an_active_task_the_hooks_return_at_once(self):
         self.assertEqual(self.tool('Bash', command='git push origin main'), {})

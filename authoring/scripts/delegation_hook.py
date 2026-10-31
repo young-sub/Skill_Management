@@ -1,10 +1,13 @@
 """Hooks that hold delegated work to its stages; `delegate.py` owns the state.
 
 PreToolUse    While a delegated task is active: refuse edits to a task worktree before its tests are
-              sealed and the implementer starts; refuse reading the author's output, the sealed tests or
-              the delegation state (only the acceptance author may write its own output); refuse
-              `git push`, configured deploy commands and the person's own commands (`clear`, `resume`).
-              Three refusals in a row, or twenty in all, stop the task for a person.
+              sealed and the implementer starts, by edit tools and by shell commands that name the
+              worktree or run in it (only read-only commands and test runners pass); refuse reading or
+              searching the author's output, the sealed tests or the delegation state (only the
+              acceptance author writes its own task's output); refuse `git push` however optioned,
+              configured deploy commands and the person's own commands (`clear`, `resume`, `close`).
+              Paths are compared after resolving `..`, symlinks, case and extended (`//?/`) prefixes. A refusal
+              is charged to the task it concerns; three in a row, or twenty in all, stop that task.
 SubagentStop  The acceptance author's stop reads and seals its result; the implementer's stop runs the
               sealed check and classifies the tier. A refusal or a failing check keeps that sub-agent
               working with the reason. Roles come from the `DELEGATED TASK <id> ROLE <role>` line the
@@ -26,7 +29,14 @@ EDIT_TOOLS = {'Edit', 'Write', 'MultiEdit', 'NotebookEdit', 'apply_patch'}
 READ_TOOLS = {'Read', 'Grep', 'Glob', 'NotebookRead'}
 SHELL_TOOLS = {'Bash', 'PowerShell', 'shell', 'exec_command', 'local_shell'}
 PROTECTED = ('agentic-delegation', 'agentic-acceptance')
-PERSON_ONLY = re.compile(r'acceptance_gate\.py["\']?\s+clear\b|delegate\.py["\']?\s+resume\b')
+PERSON_ONLY = re.compile(r'acceptance_gate\.py["\']?\s+clear\b|delegate\.py["\']?\s+(?:resume|close)\b', re.IGNORECASE)
+SEGMENT = re.compile(r'&&|\|\||;|\||\n')
+# Shell segments that read or run tests without changing the tree they name.
+READ_ONLY = re.compile(r'^\s*(?:(?:git(?:\.exe)?(?:\s+-[Cc]\s+\S+)*\s+(?:status|diff|log|show|rev-parse|ls-files|grep|blame|'
+                       r'cat-file|branch\s+--show-current)\b)|(?:ls|dir|cat|type|head|tail|grep|rg|find|wc|pwd|cd|'
+                       r'Get-Content|Get-ChildItem|Select-String|Test-Path|Set-Location)\b|(?:python3?|py)(?:\.exe)?\s+-m\s+'
+                       r'(?:unittest|pytest)\b|(?:pytest|npx\s+vitest\s+run|npm\s+test|node\s+--test)\b|$)', re.IGNORECASE)
+REDIRECT = re.compile(r'(?<![0-9&])>|\btee\b|Set-Content|Add-Content|Out-File|\bsed\s+-i|\bmv\b|\bcp\b|\brm\b', re.IGNORECASE)
 PATCH_FILE = re.compile(r'^\*\*\* (?:Add|Update|Delete) File: (.+?)\s*$', re.MULTILINE)
 
 
@@ -70,6 +80,43 @@ def load_delegate():
     raise ImportError('delegate.py not found beside the hook or in the agent-workflow Skill')
 
 
+def canon(path, cwd):
+    """A comparable absolute path: `\\\\?\\` and `//?/` prefixes dropped, relative paths joined to cwd, `..`
+    and symlinks resolved, case folded where the file system folds it."""
+    text = str(path).strip().strip('"\'')
+    for prefix in ('\\\\?\\UNC\\', '//?/UNC/'):
+        if text.upper().startswith(prefix.upper()):
+            text = '\\\\' + text[len(prefix):]
+    for prefix in ('\\\\?\\', '//?/', '\\\\.\\'):
+        if text.startswith(prefix):
+            text = text[len(prefix):]
+    candidate = Path(os.path.expanduser(text))
+    if not candidate.is_absolute():
+        candidate = Path(cwd) / candidate
+    try:
+        candidate = candidate.resolve()
+    except (OSError, RuntimeError):
+        candidate = Path(os.path.abspath(candidate))
+    return Path(os.path.normcase(str(candidate)))
+
+
+def inside(path, root):
+    try:
+        return path == root or path.is_relative_to(root)
+    except ValueError:
+        return False
+
+
+def spelled(command, path):
+    """Whether a shell command names the path, in any slash direction or case."""
+    text = command.replace('\\', '/').lower()
+    target = str(path).replace('\\', '/').lower()
+    spellings = {target}
+    if re.match(r'^[a-z]:/', target):
+        spellings.add('/' + target[0] + target[2:])  # MSYS and Git Bash: /c/...
+    return any(spelling in text for spelling in spellings)
+
+
 def deny(reason):
     return {'hookSpecificOutput': {'hookEventName': 'PreToolUse', 'permissionDecision': 'deny',
                                    'permissionDecisionReason': reason}}
@@ -105,72 +152,137 @@ def pre_tool(payload, common):
     delegate = load_delegate()
     root = common.parent
     tool, data = str(payload.get('tool_name') or ''), payload.get('tool_input') or {}
-    agent = str(payload.get('agent_type') or '')
+    agent, agent_id = str(payload.get('agent_type') or ''), payload.get('agent_id')
+    cwd = payload.get('cwd') or os.getcwd()
     author = agent.endswith('acceptance-author')
-    paths, command = tool_paths(data), command_text(data)
     running = [t for t in delegate.tasks(root) if t['stage'] not in delegate.TERMINAL | {'queued'}]
     if not running:
         return {}
-    owner = next((t for p in paths for t in [delegate.find_task(root, path=p)] if t), None)
-    owner = owner or (running[0] if len(running) == 1 else None)
+    command = command_text(data)
+    paths = [canon(path, cwd) for path in tool_paths(data) if path]
+    base = canon(common, cwd)
+    state = canon(common / STATE, cwd)
+    trees = {t['id']: canon(t['worktree'], cwd) for t in running if t.get('worktree')}
+    here = canon(cwd, cwd)
+    mine = delegate.assigned(root, agent_id) if agent_id else None
 
-    def refuse(reason):
-        if owner:
-            stopped = delegate.record_denial(root, delegate.load(root, owner['id']))
-            if stopped['stage'] == 'stopped':
-                reason += f' Task {owner["id"]} is now stopped for a person (`delegate.py resume`).'
+    def responsible(path=None):
+        for task in running:
+            if path is not None and task['id'] in trees and inside(path, trees[task['id']]):
+                return task['id']
+        for task in running:
+            if task['id'] in trees and (inside(here, trees[task['id']]) or (command and spelled(command, trees[task['id']]))):
+                return task['id']
+        if mine and any(t['id'] == mine['task'] for t in running):
+            return mine['task']
+        return running[0]['id'] if len(running) == 1 else None
+
+    def refuse(reason, task_id):
+        if task_id:
+            try:
+                if delegate.record_denial(root, task_id) == 'stopped':
+                    reason += f' Task {task_id} is now stopped for a person (`delegate.py resume`).'
+            except ValueError:
+                pass  # the state is busy: refuse without counting rather than wait
         return deny(reason)
 
-    state = str(common / STATE).replace('\\', '/').lower()
+    def protected(path):
+        return inside(path, base) and (inside(path, state) or 'agentic-acceptance' in path.parts)
+
+    def own_output(path):
+        return any(t['stage'] == 'authoring' and inside(path, canon(delegate.author_dir(root, t['id']), cwd))
+                   and (not mine or mine['task'] == t['id']) for t in running)
+
     for path in paths:
-        normalized = str(Path(path)).replace('\\', '/').lower() if path else ''
-        if not any(marker in normalized for marker in PROTECTED):
+        if tool in READ_TOOLS and inside(path, base) and (inside(state, path) or protected(path)) and not author:
+            return refuse(f'{path} contains sealed acceptance or delegation state; searching or reading it is refused '
+                          '(the author reads only its own output).', responsible())
+        if not protected(path):
             continue
-        writing_own_output = (tool in EDIT_TOOLS and normalized.startswith(f'{state}/authors/') and any(
-            t['stage'] == 'authoring' and normalized.startswith(f'{state}/authors/{t["id"].lower()}/') for t in running))
-        if writing_own_output and (author or not agent):
-            continue
-        if author and tool in READ_TOOLS and normalized.startswith(f'{state}/authors/'):
+        if own_output(path) and (tool in EDIT_TOOLS and (author or not agent) or tool in READ_TOOLS and author):
             continue
         return refuse(f'{path} holds sealed acceptance or delegation state; the implementer and orchestrator do not '
-                      'read or change it (the author writes only its own output).')
+                      'read or change it (the author writes only its own task\'s output).', responsible())
+    if tool == 'Glob':
+        pattern = str(data.get('pattern') or '').replace('\\', '/').lower()
+        if any(marker in pattern for marker in (*PROTECTED, '.git/')) and not author:
+            return refuse('the glob reaches sealed acceptance or delegation state.', responsible())
     if command:
+        lowered = command.replace('\\', '/').lower()
         if PERSON_ONLY.search(command):
-            return refuse('clearing a sealed contract or resuming a stopped task is the person\'s decision.')
-        if any(marker in command.replace('\\', '/') for marker in PROTECTED) and not author:
-            return refuse('the command touches sealed acceptance or delegation state, which stays with the gate.')
+            return refuse('clearing a sealed contract, resuming a stopped task or closing reviewed work is the '
+                          'person\'s decision.', responsible())
+        if any(marker in lowered for marker in PROTECTED) and not author:
+            return refuse('the command touches sealed acceptance or delegation state, which stays with the gate.',
+                          responsible())
         for pattern in deny_patterns(delegate, root):
             if pattern.search(command):
                 return refuse(f'`{pattern.pattern}` is refused during delegated work: pushing and deploying stay '
-                              'with the person or CI.')
+                              'with the person or CI.', responsible())
+        for task in running:
+            if task['stage'] in delegate.EDITABLE or task['id'] not in trees:
+                continue
+            tree = trees[task['id']]
+            if not (inside(here, tree) or spelled(command, tree)):
+                continue
+            segments = [part for part in SEGMENT.split(command) if part.strip()]
+            if REDIRECT.search(command) or not all(READ_ONLY.match(part) for part in segments):
+                return refuse(f'task {task["id"]} is {task["stage"]}: only read-only commands and test runners may '
+                              f'touch its worktree until `delegate.py implement`. Next: {delegate.next_step(task)}.',
+                              task['id'])
     if tool in EDIT_TOOLS:
         for path in paths:
-            task = delegate.find_task(root, path=path)
+            task = next((t for t in running if t['id'] in trees and inside(path, trees[t['id']])), None)
             if task is None:
                 continue
             if task['stage'] == 'stopped':
-                return refuse(f'task {task["id"]} is stopped; a person resumes it.')
+                return refuse(f'task {task["id"]} is stopped; a person resumes it.', task['id'])
             if task['stage'] not in delegate.EDITABLE:
                 return refuse(f'task {task["id"]} is {task["stage"]}: its worktree is edited only after the tests '
-                              f'are sealed and `delegate.py implement` starts the implementer. Next: {delegate.next_step(task)}.')
-    if owner and owner['denials']['consecutive']:
-        delegate.clear_denials(root, delegate.load(root, owner['id']))  # an allowed call ends a run of refusals
+                              f'are sealed and `delegate.py implement` starts the implementer. Next: {delegate.next_step(task)}.',
+                              task['id'])
+    owner = responsible(paths[0] if paths else None)
+    if owner:
+        try:
+            delegate.clear_denials(root, owner)  # an allowed call ends a run of refusals
+        except ValueError:
+            pass
     return {}
 
 
+def first_prompt(transcript):
+    """The text of the first user message in a sub-agent transcript (its prompt), or ''."""
+    try:
+        with open(os.path.expanduser(transcript), encoding='utf-8', errors='replace') as stream:
+            for line in stream:
+                try:
+                    entry = json.loads(line)
+                except ValueError:
+                    continue
+                message = entry.get('message') if isinstance(entry, dict) else None
+                if entry.get('type') == 'user' and isinstance(message, dict):
+                    content = message.get('content')
+                    if isinstance(content, list):
+                        content = '\n'.join(str(b.get('text') or '') for b in content if isinstance(b, dict))
+                    return str(content or '')
+    except (OSError, TypeError):
+        pass
+    return ''
+
+
 def role_of(payload, delegate, root):
-    """(task id, role) from the sub-agent's prompt marker, or from its plugin agent type."""
-    text = str(payload.get('last_assistant_message') or '')
+    """(task id, role) from the `DELEGATED TASK` line that opens the sub-agent's own prompt (never from its
+    later output), from an earlier assignment of its agent id, or from its plugin agent type."""
     transcript = payload.get('agent_transcript_path')
-    if transcript:
-        try:
-            with open(os.path.expanduser(transcript), encoding='utf-8', errors='replace') as stream:
-                text = stream.read(400_000) + text
-        except OSError:
-            pass
-    found = delegate.ROLE_MARK.search(text)
+    found = delegate.ROLE_MARK.match(first_prompt(transcript).lstrip()) if transcript else None
+    if found is None and transcript:
+        head = first_prompt(transcript).lstrip().splitlines()
+        found = delegate.ROLE_MARK.search(head[0]) if head else None
     if found:
         return found.group(1), found.group(2)
+    known = delegate.assigned(root, payload.get('agent_id')) if payload.get('agent_id') else None
+    if known:
+        return known['task'], known['role']
     agent = str(payload.get('agent_type') or '')
     for role, stage in (('acceptance-author', 'authoring'), ('implementer', 'implementing')):
         if agent.endswith(role):
@@ -188,6 +300,7 @@ def subagent_stop(payload, common):
         return {}
     try:
         task = delegate.load(root, task_id)
+        delegate.assign(root, payload.get('agent_id'), task_id, role)
     except ValueError:
         return {}
     if role == 'acceptance-author' and task['stage'] == 'authoring':

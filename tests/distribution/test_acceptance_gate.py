@@ -130,6 +130,30 @@ class AcceptanceGateTests(unittest.TestCase):
         self.assertEqual([u['file'] for u in result['untested']], ['rule.py'], result)
         self.assertIn('lines 5-7', result['untested'][0]['hunk'])
 
+    def test_every_added_block_is_judged_or_reported(self):
+        # The tested line plus seven blocks: six are deleted one by one (the tested line's deletion empties the
+        # function, an error, not judged), and the two beyond the limit are reported, never dropped.
+        extra = ''.join(f'\n\nVALUE_{i} = {i}\n' for i in range(7))
+        body = ['@@ -2 +2,22 @@'] + ['+x'] * 22
+        self.assertEqual(len(gate.added_blocks(['@@ -1 +1,3 @@', '+a', '+', '+b'])), 2)
+        self.assertEqual(len(gate.added_blocks(body)), 0, 'one block is the hunk itself')
+        self.seal()
+        self.write('rule.py', RULE.replace('>= 10', '>= 20') + extra)
+        self.cli('check')
+        result = self.history()[-1]
+        self.assertEqual(len(result['untested']), 5, result)
+        reasons = [u['reason'] for u in result['unknown']]
+        self.assertEqual(reasons.count('beyond the block limit or the deadline'), 2, reasons)
+        self.assertEqual(sum('deleting it gave error' in r for r in reasons), 1, reasons)
+
+    def test_a_block_whose_deletion_breaks_the_run_is_not_judged(self):
+        self.seal()
+        self.write('rule.py', 'import json\n\ndef allowed(amount):\n    return amount >= 20\n\n\nDUMPS = json.dumps\n')
+        self.cli('check')
+        result = self.history()[-1]
+        reasons = [u.get('reason', '') for u in result['unknown']]
+        self.assertTrue(any('deleting it gave error' in r for r in reasons), result)
+
     def test_a_reversal_that_breaks_the_import_is_not_judged_as_detected(self):
         self.seal()
         self.write('limits.py', 'MINIMUM = 20\n')

@@ -451,6 +451,8 @@ class ProbeCheckTests(unittest.TestCase):
         counts = probe_check.jest_counts(mixed)
         self.assertEqual((counts['assertions'], counts['other_failures'], counts['errors']), (0, 1, 1))
         self.assertTrue(probe_check.is_assertion('AssertionError [ERR_ASSERTION]: Expected values to be equal'))
+        # A teardown error after a long assertion message is still found.
+        self.assertFalse(probe_check.is_assertion('AssertionError: expected\n' + 'x' * 8100 + '\nTypeError: teardown failed'))
 
     def test_failure_kind_comes_from_the_exception_type_not_a_substring(self):
         # Review findings: "unexpected" and module names containing "expected" were read as assertions.
