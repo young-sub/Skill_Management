@@ -1,6 +1,7 @@
 """The delegation state machine and its hooks on real Git fixtures, with scripted sub-agents and no model calls."""
 import importlib.util
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -368,6 +369,85 @@ class DelegationTests(unittest.TestCase):
         self.cli('next', '--worktrees', str(self.root / 'scratch'))
         self.assertIn('/scratch/T1/', exclude.read_text(encoding='utf-8').splitlines())
         self.assertNotIn('scratch', self.git('status', '--porcelain'))
+
+    # --- regressions from the verification of the hardening ----------------------------------------
+
+    def test_lifecycle_commands_and_quoted_runners_pass_where_writes_do_not(self):
+        started = self.sealed_task()
+        tree = Path(started['worktree'])
+        allowed = (f'cd "{tree}" && python "{DELEGATE}" implement --id T1 --root "{self.root}"',
+                   f'cd "{tree}" && "{sys.executable}" -m unittest discover -s acceptance',
+                   f'git -C "{tree}" diff')
+        for command in allowed:
+            with self.subTest(command=command[:40]):
+                self.assertEqual(self.tool('Bash', command=command), {})
+        refused = (f'git -C "{tree}" diff --output=rule.py', f'cd "{tree}" && git diff 1>rule.py',
+                   f'find "{tree}" -name "*.py" -delete')
+        for command in refused:
+            with self.subTest(command=command[:40]):
+                self.assertTrue(self.denied(self.tool('Bash', command=command)))
+                self.cli('resume', '--id', 'T1') if delegate.load(self.root, 'T1')['stage'] == 'stopped' else None
+        self.assertTrue(self.denied(self.tool('Bash', command=f'"C:/Program Files/Git/bin/git.exe" -C "{self.root}" push')))
+
+    def test_the_lock_is_released_only_by_its_owner_and_a_dead_owner_is_taken_over(self):
+        lock = delegate.state(self.root) / 'lock'
+        with delegate.lock(self.root):
+            self.assertTrue(lock.is_file())
+            lock.write_text('999999999 someone-else', encoding='utf-8')  # another owner's lock
+        self.assertTrue(lock.is_file(), 'a lock that is not ours stays')
+        old = delegate.time.time() - delegate.LOCK_STALE - 10
+        os.utime(lock, (old, old))  # stale, and pid 999999999 is not running
+        with delegate.lock(self.root, wait=2):
+            self.assertIn(str(os.getpid()), lock.read_text(encoding='utf-8'))
+        self.assertFalse(lock.exists())
+        lock.write_text(f'{os.getpid()} live-owner', encoding='utf-8')
+        os.utime(lock, (old, old))
+        with self.assertRaises(ValueError):  # old but its owner still runs: never taken over
+            with delegate.lock(self.root, wait=0.3):
+                pass
+        lock.unlink()
+
+    def test_a_failed_lock_write_leaves_no_lock_behind(self):
+        real = delegate.os.write
+
+        def broken(handle, data):
+            raise OSError('disk full')
+        delegate.os.write = broken
+        try:
+            with self.assertRaises(OSError):
+                with delegate.lock(self.root, wait=1):
+                    pass
+        finally:
+            delegate.os.write = real
+        self.assertFalse((delegate.state(self.root) / 'lock').exists())
+
+    def test_ready_work_with_a_new_commit_reopens_through_implement(self):
+        started = self.ready_task()
+        tree = Path(started['worktree'])
+        self.write('extra.py', 'X = 1\n', root=tree)
+        self.git('add', '-A', cwd=tree)
+        self.git('commit', '-qm', 'more work', cwd=tree)
+        result = subprocess.run([sys.executable, str(DELEGATE), 'integrate', '--id', 'T1', '--root', str(self.root)],
+                                capture_output=True, text=True, timeout=300)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('delegate.py implement --id T1', result.stderr)
+        self.assertEqual(self.cli('implement', '--id', 'T1')['stage'], 'implementing')
+        self.assertNotIn('commit', delegate.load(self.root, 'T1'))
+        self.assertEqual(self.cli('finish', '--id', 'T1')['stage'], 'review', 'extra.py is not in a LOW class here')
+
+    def test_a_glob_into_a_directory_named_like_git_is_ordinary(self):
+        self.started()
+        self.assertEqual(self.tool('Glob', pattern='fixtures/project.git/*.py'), {})
+        self.assertTrue(self.denied(self.tool('Glob', pattern='.git/**/*.json')))
+
+    def test_a_plugin_agent_is_assigned_to_the_one_task_in_its_stage_on_its_first_call(self):
+        self.started('T1', ('a/*',))
+        self.started('T2', ('b/*',))
+        delegate.save(self.root, delegate.advance(delegate.load(self.root, 'T2'), 'implementing'))
+        self.tool('Bash', agent='agentic-coding:implementer', agent_id='impl-1', command='git push')
+        self.assertEqual(delegate.assigned(self.root, 'impl-1')['task'], 'T2')
+        self.assertEqual(delegate.denials(self.root, 'T2')['total'], 1)
+        self.assertEqual(delegate.denials(self.root, 'T1')['total'], 0)
 
     def test_without_an_active_task_the_hooks_return_at_once(self):
         self.assertEqual(self.tool('Bash', command='git push origin main'), {})

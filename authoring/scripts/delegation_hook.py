@@ -31,12 +31,27 @@ SHELL_TOOLS = {'Bash', 'PowerShell', 'shell', 'exec_command', 'local_shell'}
 PROTECTED = ('agentic-delegation', 'agentic-acceptance')
 PERSON_ONLY = re.compile(r'acceptance_gate\.py["\']?\s+clear\b|delegate\.py["\']?\s+(?:resume|close)\b', re.IGNORECASE)
 SEGMENT = re.compile(r'&&|\|\||;|\||\n')
-# Shell segments that read or run tests without changing the tree they name.
-READ_ONLY = re.compile(r'^\s*(?:(?:git(?:\.exe)?(?:\s+-[Cc]\s+\S+)*\s+(?:status|diff|log|show|rev-parse|ls-files|grep|blame|'
-                       r'cat-file|branch\s+--show-current)\b)|(?:ls|dir|cat|type|head|tail|grep|rg|find|wc|pwd|cd|'
-                       r'Get-Content|Get-ChildItem|Select-String|Test-Path|Set-Location)\b|(?:python3?|py)(?:\.exe)?\s+-m\s+'
-                       r'(?:unittest|pytest)\b|(?:pytest|npx\s+vitest\s+run|npm\s+test|node\s+--test)\b|$)', re.IGNORECASE)
-REDIRECT = re.compile(r'(?<![0-9&])>|\btee\b|Set-Content|Add-Content|Out-File|\bsed\s+-i|\bmv\b|\bcp\b|\brm\b', re.IGNORECASE)
+ARGUMENT =r'(?:"[^"]*"|\'[^\']*\'|\S+)'
+PYTHON = r'(?:"[^"]*python[^"]*"|\'[^\']*python[^\']*\'|\S*python3?(?:\.exe)?|py(?:\.exe)?)'
+# Shell segments that read, run tests or drive the delegation without changing the tree they name. The
+# lifecycle scripts are allowed by name; their person-only subcommands are refused earlier.
+READ_ONLY = re.compile(r'^\s*(?:'
+                       r'["\']?\S*git(?:\.exe)?["\']?(?:\s+-[Cc]\s+' + ARGUMENT + r')*\s+(?:status|diff|log|show|rev-parse|'
+                       r'ls-files|grep|blame|cat-file|branch\s+--show-current)\b'
+                       r'|(?:ls|dir|cat|type|head|tail|grep|rg|find|wc|pwd|cd|echo|Get-Content|Get-ChildItem|'
+                       r'Select-String|Test-Path|Set-Location)\b'
+                       r'|' + PYTHON + r'\s+(?:-\w+\s+)*-m\s+(?:unittest|pytest)\b'
+                       r'|' + PYTHON + r'\s+(?:"[^"]*?|\'[^\']*?|\S*?)(?:delegate|acceptance_gate|risk_gate|probe_check|run_check|'
+                       r'blast_radius_check|project_workflow)\.py\b'
+                       r'|(?:pytest|npx\s+vitest\s+run|npm\s+test|node\s+--test)\b'
+                       r'|$)', re.IGNORECASE)
+# What changes files from a shell: a redirect other than to a stream or the null device, Git's
+# `--output`, deleting `find`, and the usual writing commands.
+HARMLESS_REDIRECT = re.compile(r'\d*>&\d|\d*>\s*(?:/dev/null|nul\b|\$null)', re.IGNORECASE)
+WRITES = re.compile(r'>|--output\b|\s-delete\b|-exec\s+rm\b|\btee\b|Set-Content|Add-Content|Out-File|New-Item|'
+                    r'Remove-Item|Copy-Item|Move-Item|Rename-Item|\bsed\s+-i|\bmv\b|\bcp\b|\brm\b|\brmdir\b|\bmkdir\b|'
+                    r'\btouch\b|\btruncate\b|\bln\b|\bchmod\b|\bdd\b|\binstall\b|\bgit\s+(?:apply|checkout|restore|reset|'
+                    r'clean|stash|commit|add|rm|mv)\b', re.IGNORECASE)
 PATCH_FILE = re.compile(r'^\*\*\* (?:Add|Update|Delete) File: (.+?)\s*$', re.MULTILINE)
 
 
@@ -165,6 +180,15 @@ def pre_tool(payload, common):
     trees = {t['id']: canon(t['worktree'], cwd) for t in running if t.get('worktree')}
     here = canon(cwd, cwd)
     mine = delegate.assigned(root, agent_id) if agent_id else None
+    if agent_id and not mine:  # a plugin agent's first call: its role names the one task in that stage
+        for role, stage in (('acceptance-author', 'authoring'), ('implementer', 'implementing')):
+            candidates = [t for t in running if t['stage'] == stage]
+            if agent.endswith(role) and len(candidates) == 1:
+                try:
+                    delegate.assign(root, agent_id, candidates[0]['id'], role)
+                    mine = {'task': candidates[0]['id'], 'role': role}
+                except ValueError:
+                    pass
 
     def responsible(path=None):
         for task in running:
@@ -205,7 +229,7 @@ def pre_tool(payload, common):
                       'read or change it (the author writes only its own task\'s output).', responsible())
     if tool == 'Glob':
         pattern = str(data.get('pattern') or '').replace('\\', '/').lower()
-        if any(marker in pattern for marker in (*PROTECTED, '.git/')) and not author:
+        if (any(marker in pattern for marker in PROTECTED) or re.search(r'(^|/)\.git(/|$)', pattern)) and not author:
             return refuse('the glob reaches sealed acceptance or delegation state.', responsible())
     if command:
         lowered = command.replace('\\', '/').lower()
@@ -225,8 +249,11 @@ def pre_tool(payload, common):
             tree = trees[task['id']]
             if not (inside(here, tree) or spelled(command, tree)):
                 continue
+            if author and any(spelled(command, canon(delegate.author_dir(root, t['id']), cwd)) for t in running) \
+                    and not spelled(command, tree):
+                continue  # the author writing its own output from a shell that happens to run in the worktree
             segments = [part for part in SEGMENT.split(command) if part.strip()]
-            if REDIRECT.search(command) or not all(READ_ONLY.match(part) for part in segments):
+            if WRITES.search(HARMLESS_REDIRECT.sub(' ', command)) or not all(READ_ONLY.match(part) for part in segments):
                 return refuse(f'task {task["id"]} is {task["stage"]}: only read-only commands and test runners may '
                               f'touch its worktree until `delegate.py implement`. Next: {delegate.next_step(task)}.',
                               task['id'])

@@ -44,14 +44,17 @@ hooks hold the stages (`hooks/delegation_hook.py`):
 
 - `PreToolUse` (Edit/Write/Read/Grep/Glob/Bash/PowerShell and Codex shell and patch tools) refuses
   edits to a task worktree before its tests are sealed and the implementer starts, by edit tools
-  and by shell commands that name the worktree or run in it (only read-only commands and test
-  runners pass); reads and searches of the author's output, the sealed tests and the delegation
+  and by shell commands that name the worktree or run in it (read-only commands, test runners and
+  the lifecycle scripts pass; a redirect to a file, `--output`, `find -delete` and writing commands do
+  not); reads and searches of the author's output, the sealed tests and the delegation
   state by anyone but the author (a search scoped to the Git directory included); `git push`
   however optioned (`git -C repo push`), deploy commands listed in `agentic-delegation/config.json`
   (`deny_commands`), and the person's own `clear`/`resume`/`close`. Paths are compared after
   resolving `..`, symlinks, case and `\\?\` prefixes. A refusal is charged to the task it concerns
-  (by path, by the worktree a command names, or by the sub-agent's earlier assignment); three in a
-  row or twenty in all stop that task. Without an active task it reads the file
+  (by path, by the worktree a command names, or by the sub-agent's assignment, made on its first call
+  when its plugin agent type names the one task in that stage); a refusal no task can be attributed
+  to, such as the orchestrator's own push with two tasks running, is refused without counting. Three
+  in a row or twenty in all stop that task. Without an active task it reads the file
   system, finds no marker and returns: about 0.07 s per matched tool call on Windows, of which
   0.04 s is the Python start.
 - `SubagentStop` seals the author's result (a test that does not fail on the base by assertion
@@ -63,8 +66,10 @@ hooks hold the stages (`hooks/delegation_hook.py`):
 Refusal is detection with a reason, not isolation. The hooks inspect tool inputs: a shell command
 that reaches a protected file without naming it (a script that computes the path, an interpreter
 started elsewhere) is not seen, and neither is a process outside the host. Transitions hold a lock
-and check the task's revision, so a stale writer fails instead of overwriting; refusal counters
-live in their own files. MED and HIGH work leaves the queue when a person merges it and runs
+that names its owner (only the owner releases it; a lock older than five minutes is taken over only
+when its process no longer runs) and check the task's revision, so a stale writer fails instead of
+overwriting; refusal counters live in their own files. `implement` reopens ready or reviewed work
+that changed, and `finish` checks it again. MED and HIGH work leaves the queue when a person merges it and runs
 `delegate.py close` (`--drop` abandons a task). The Codex hook documentation lists `PreToolUse`, `SubagentStop` and `Stop` with this
 format, but installed Codex 0.165.0 was not observed running them, and Codex asks the person to
 trust plugin hooks before they run.

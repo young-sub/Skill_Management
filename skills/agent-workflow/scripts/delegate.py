@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/delegate.py
-# Source-SHA256: a62a82a0ca684590dfc3071a105acdaaa768e9c65c74236b1894521e178e44d3
+# Source-SHA256: 57476c39f6e31395734215dbd9af3cf79a3b096de65ff9b43213a4dd075f132d
 
 """Run delegated work as a deterministic state machine; the models run inside the host session.
 
@@ -71,7 +71,7 @@ DENY_CONSECUTIVE, DENY_TOTAL = 3, 20
 ROLE_MARK = re.compile(r'DELEGATED TASK (\S+) ROLE (acceptance-author|implementer)')
 TASK_ID = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$')
 # `git push` however Git is spelled or optioned (`git -C repo push`, `git.exe -c x=y push`).
-DEFAULT_DENY = (r'\bgit(?:\.exe)?(?:\s+(?:-[Cc]\s+(?:"[^"]*"|\'[^\']*\'|\S+)|--?[\w-]+(?:=\S+)?))*\s+push\b',)
+DEFAULT_DENY = (r'\bgit(?:\.exe)?["\']?(?:\s+(?:-[Cc]\s+(?:"[^"]*"|\'[^\']*\'|\S+)|--?[\w-]+(?:=\S+)?))*\s+push\b',)
 LOCK_STALE = 300
 
 
@@ -106,32 +106,81 @@ def task_path(root, task_id):
     return state(root) / 'tasks' / f'{task_id}.json'
 
 
+def pid_alive(pid):
+    """Whether a process with this id still runs (an unknown answer counts as alive)."""
+    if pid <= 0:
+        return False
+    if os.name == 'nt':
+        import ctypes
+        kernel = ctypes.windll.kernel32
+        handle = kernel.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
+            return kernel.GetLastError() == 5  # access denied: it exists
+        try:
+            code = ctypes.c_ulong()
+            return not kernel.GetExitCodeProcess(handle, ctypes.byref(code)) or code.value == 259  # STILL_ACTIVE
+        finally:
+            kernel.CloseHandle(handle)
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except OSError:
+        return True
+    return True
+
+
+def lock_owner(path):
+    try:
+        pid, _, token = path.read_text(encoding='utf-8').partition(' ')
+        return int(pid), token.strip()
+    except (OSError, ValueError):
+        return None, None
+
+
 @contextmanager
 def lock(root, wait=60.0):
-    """One writer at a time for the delegation state; a lock older than LOCK_STALE seconds is taken over."""
+    """One writer at a time for the delegation state. The lock file names its owner (pid and a random token);
+    only that owner releases it, and it is taken over only when it is older than LOCK_STALE seconds and its
+    owner no longer runs, by renaming it aside first so two waiters never both take it."""
     path = state(root) / 'lock'
     path.parent.mkdir(parents=True, exist_ok=True)
+    token = os.urandom(8).hex()
     deadline = time.monotonic() + wait
     while True:
         try:
             handle = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            os.write(handle, str(os.getpid()).encode())
-            os.close(handle)
-            break
         except FileExistsError:
+            pid, _ = lock_owner(path)
             try:
-                if time.time() - path.stat().st_mtime > LOCK_STALE:
-                    path.unlink(missing_ok=True)
-                    continue
+                old = time.time() - path.stat().st_mtime > LOCK_STALE
             except OSError:
+                continue  # released meanwhile
+            if old and pid is not None and not pid_alive(pid):
+                aside = path.with_name(f'lock.stale-{token}')
+                try:
+                    os.replace(path, aside)  # one waiter wins the rename; the others retry
+                    aside.unlink(missing_ok=True)
+                except OSError:
+                    pass
                 continue
             if time.monotonic() > deadline:
-                raise ValueError(f'the delegation state is busy ({path}); try again')
+                raise ValueError(f'the delegation state is busy ({path}, pid {pid}); try again')
             time.sleep(0.05)
+            continue
+        try:
+            os.write(handle, f'{os.getpid()} {token}'.encode())
+        except BaseException:
+            os.close(handle)
+            path.unlink(missing_ok=True)
+            raise
+        os.close(handle)
+        break
     try:
         yield
     finally:
-        path.unlink(missing_ok=True)
+        if lock_owner(path)[1] == token:
+            path.unlink(missing_ok=True)
 
 
 def load(root, task_id):
@@ -460,9 +509,13 @@ def answer(root, task_id, question_id, text):
 
 def implement(root, task_id):
     task = load(root, task_id)
-    if task['stage'] not in ('sealed', 'implementing'):
+    if task['stage'] not in ('sealed', 'implementing', 'ready', 'review'):
         raise ValueError(f'task {task_id} is {task["stage"]}: it implements only after sealing')
-    if task['stage'] == 'sealed':
+    if task['stage'] != 'implementing':
+        # From ready or review this reopens finished work (a new commit, a reviewer's change): its tier and
+        # commit are dropped and `finish` checks it again.
+        for key in ('tier', 'tier_reasons', 'commit', 'recheck'):
+            task.pop(key, None)
         save(root, advance(task, 'implementing'))
     return {'stage': 'implementing', 'worktree': task['worktree'],
             'launch': {'claude_code': 'Agent tool, subagent_type agentic-coding:implementer',
@@ -526,7 +579,7 @@ def integrate(root, task_id, into=None, timeout=600, regressions=()):
     onto = task.get('integration') or task['base']
     if git(tree, 'rev-parse', 'HEAD').strip() != task.get('commit') or git(tree, 'status', '--porcelain').strip():
         raise ValueError(f'the worktree of {task_id} moved from the checked commit {str(task.get("commit"))[:12]}; '
-                         'it needs a new check (`delegate.py resume` is the person\'s)')
+                         f'it needs a new check: `delegate.py implement --id {task_id}`, then `finish`')
     outcome = risk_gate.recheck(tree, task['commit'], onto, timeout, regressions)
     task['recheck'] = {key: outcome.get(key) for key in ('verdict', 'reason', 'onto', 'tests_pass')}
     if outcome['verdict'] != 'PASS':
@@ -538,6 +591,9 @@ def integrate(root, task_id, into=None, timeout=600, regressions=()):
                 'next': f'merge {task["branch"]} into the integration branch while its tip is {outcome["onto"][:12]}'}
     home = main_root(root)
     with lock(root):
+        fresh = load(root, task_id)
+        if fresh.get('rev') != task.get('rev') or fresh['stage'] != 'ready' or fresh.get('commit') != task['commit']:
+            raise ValueError(f'task {task_id} changed during the recheck (now {fresh["stage"]}); run integrate again')
         current = git(home, 'rev-parse', '--abbrev-ref', 'HEAD').strip()
         if current != into or git(home, 'status', '--porcelain', '--untracked-files=no').strip():
             raise ValueError(f'--into {into} must be checked out and clean in {home} (it has {current})')
@@ -545,7 +601,7 @@ def integrate(root, task_id, into=None, timeout=600, regressions=()):
             raise ValueError(f'{into} is not at the rechecked tip {outcome["onto"][:12]}: the merge would land on a tree '
                              'nobody tested; update it to that tip or run integrate again')
         git(home, 'merge', '--no-ff', '--no-edit', task['commit'])
-        task = load(root, task_id)
+        task = dict(fresh, recheck=task['recheck'])
         task['integrated_commit'] = git(home, 'rev-parse', 'HEAD').strip()
         save(root, advance(task, 'integrated', f'merged into {into}'), locked=True)
     return {'integrated': True, 'stage': 'integrated', 'commit': task['integrated_commit']}
