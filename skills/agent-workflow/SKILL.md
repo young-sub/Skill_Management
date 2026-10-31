@@ -1,11 +1,11 @@
 ---
 name: agent-workflow
-description: Delegate a coding task so it can be accepted without reading the diff. Acceptance tests are written apart from the implementation and sealed before it; a check outside the session runs them, reverts each changed hunk and reports untested changes and uncovered requirements. Also shows what is verified, reuses UI standards, builds guardrails and opens explicit-only capabilities.
+description: Delegate a coding task so it can be accepted without reading the diff. A deterministic state machine orders the work and hooks enforce it; acceptance tests are written apart from the implementation and sealed before it; a check outside the session runs them, reverts each changed hunk and reports untested changes and uncovered requirements; risk tiers decide what a person reviews. Also shows what is verified, reuses UI standards, builds guardrails and opens explicit-only capabilities.
 disable-model-invocation: true
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: c5d88a278f398ad5d7254c9e63ef04fe736dddf26b73e2df3b1c0f3509465123 -->
+<!-- Source-SHA256: 2efd771dabd49457e05bc046c2f4f6c462373e08acb4a61c449b938043bd2818 -->
 
 
 # Agent Workflow
@@ -15,43 +15,48 @@ the person is there to judge them.
 
 ## Delegation loop
 
-1. **Author.** Before implementing, launch a fresh sub-agent with the
-   [author template](references/acceptance-author.md). It sees the verbatim request,
-   `.harness/decisions.md` and the base commit, never the implementation, and returns
-   acceptance tests outside the worktree, scenarios, questions and every write path the
-   rule applies to.
-2. **Questions.** Correctness questions are answered before sealing (headless: stop and
-   list them under *User decisions*). Preference questions take their default and go to
-   the `## Pending` section of `.harness/decisions.md`.
-3. **Seal.** `python <this Skill's directory>/scripts/acceptance_gate.py seal --root <worktree>
-   --base <base> --tests <outside>/<path>=<path> ... --command "<runner>"
-   [--report <junit.xml|vitest.json>] --scenarios <file> [--link node_modules] [--preserve]`.
-   It refuses tests that do not fail on the base by assertion (with `--preserve`, that
-   do not pass on it). Re-author a refused test; never weaken it.
-4. **Implement** from the scenario text only: the tests and the author's write-path list
-   stay with the gate, so the implementer's own search for paths is checked, not copied.
-   Fix at the owner. Enforce a rule on stored data at one boundary every writer crosses
-   (DB constraint or single owner) and confirm a search for writes bypassing it (SQL, ORM,
-   import/restore jobs; `LSP findReferences` if available) finds none; otherwise list each
-   writer's status. Run the affected existing checks after the final edit.
-5. **Check.** `acceptance_gate.py check --root <worktree>`; the Claude Code Stop hook runs it,
-   in Codex run it before finishing. Fix the implementation, never the sealed tests;
-   after three failed checks the contract is `STOPPED` until a person re-seals it.
-6. **Tier.** `python <this Skill's directory>/scripts/risk_gate.py classify --root <worktree>
-   --base <integration ref>` reads `.harness/risk.yaml` from that ref (none: copy
-   [the template](templates/risk.yaml) and let the person commit it) and prints LOW, MED or HIGH.
-   - LOW: commit with the `risk_gate.py trailers` lines, then `risk_gate.py recheck --root <worktree>
-     --onto <integration ref> --regression "<affected check>"` must pass; integrate only while the
-     integration tip still equals the `onto` it reports. No card unless asked.
-   - MED: commit with trailers; the person reviews MED work in a daily batch from the cards.
+[`scripts/delegate.py`](scripts/delegate.py) holds the order; it calls no model. You launch
+the sub-agents it prints prompts for, and the plugin's hooks advance it when they stop and
+refuse tool calls the current stage does not allow. `D` below is
+`python <this Skill's directory>/scripts/delegate.py`, always with `--root <repository>`.
+
+1. **Queue.** `D queue add --id <task> --request-file <verbatim request> [--feature F]
+   [--paths <globs>] [--link node_modules] [--preserve]` (`--preserve` for refactoring).
+2. **Start.** `D next [--onto <integration ref>]` starts the first task that capacity allows
+   (open correctness questions and unreviewed HIGH/MED below their limits, no running task on
+   the same Feature or overlapping paths) in its own worktree, and prints the author's prompt.
+3. **Author.** Launch it verbatim: Claude Code `Agent` with `subagent_type`
+   `agentic-coding:acceptance-author`; Codex a sub-agent given the prompt, not a fork. The
+   author writes tests and `result.json` where you cannot read them and replies `done`
+   ([why](references/acceptance-author.md)). Its stop seals the tests; a test that does not
+   fail on the base by assertion goes back to it.
+4. **Questions.** Correctness questions wait for the person (`D status`, `D digest`); record
+   each answer with `D answer --id <task> --question Q1 --text "..."` and relaunch the author
+   with the prompt it prints. Preference questions take their default and appear in `D digest`.
+5. **Implement.** `D implement --id <task>` prints the implementer's prompt (request and
+   scenario text, never the tests or write paths); launch `agentic-coding:implementer` (Codex:
+   a sub-agent). Its stop runs the sealed check; a failure goes back to it, and three failures
+   stop the task for a person.
+6. **Tier.** A passing check is classified under the integration ref's `.harness/risk.yaml`
+   (none: the built-in HIGH list and nothing LOW; copy [the template](templates/risk.yaml) for
+   the person to commit) and committed with `Agent-Task`, `Risk` and `Acceptance` trailers.
+   - LOW: `D integrate --id <task> [--into <checked-out branch>] [--regression "<check>"]`
+     rechecks on the integration tip and merges locally; nothing is pushed. No card unless asked.
+   - MED: the person reviews the cards in `D digest` as a daily batch.
    - HIGH: dispatch the [verifier](references/independent-check.md) with only the verbatim
      request and diff; the person approves before integration.
-   Without a sealed contract, every behavior change gets the verifier.
-7. **Report** the result card for MED, HIGH or on request.
+7. **Report** the card from `D status --id <task>` for MED, HIGH or on request.
 
-Without a sub-agent or a runnable test command, say so on the card and fall back to the
+Failure events enter the same queue: `D event scan --base <integration ref>` (reverts),
+`D event add --kind check-failure|correction --detail "..."`, and `D event finding --key <k>`
+(a third occurrence queues a task to turn the finding into an executable check). Stopped
+tasks wait for the person's `D resume`.
+
+Without sub-agents or a runnable test command, say so on the card and fall back to the
 [playbooks](playbooks/feature.md) ([bug fix](playbooks/bug-fix.md),
-[refactoring](playbooks/refactoring.md)) with `probe_check.py prove`.
+[refactoring](playbooks/refactoring.md)) with `probe_check.py prove`; sealing by hand is
+`scripts/acceptance_gate.py seal`/`check`. Without a sealed contract, every behavior change
+gets the verifier.
 
 ## Result card
 

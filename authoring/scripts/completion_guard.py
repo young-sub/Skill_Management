@@ -409,16 +409,32 @@ def acceptance(payload):
         return {'systemMessage': f'Acceptance gate unavailable; completion is unchecked: {error}'}
 
 
+def delegation(payload):
+    """The delegation state machine's Stop result (a task waiting on the orchestrator), or {}."""
+    here = Path(__file__).resolve().parent
+    if not (here / 'delegation_hook.py').is_file():
+        return {}
+    if str(here) not in sys.path:
+        sys.path.insert(0, str(here))
+    try:
+        import delegation_hook
+        return delegation_hook.stop(payload)
+    except Exception as error:  # noqa: BLE001 - a delegation failure must not trap the session
+        return {'systemMessage': f'Delegation state unavailable: {error}'}
+
+
 def stop(payload):
-    """The one packaged Stop hook: a blocking acceptance verdict wins; otherwise the guard decides
-    and any acceptance note rides along."""
+    """The one packaged Stop hook: a blocking acceptance verdict wins, then a delegated task waiting on the
+    orchestrator; otherwise the guard decides. Notes from each ride along."""
     gate = acceptance(payload)
     if gate.get('decision') == 'block':
         return gate
+    waiting = delegation(payload)
+    notes = [note for note in (gate.get('systemMessage'), waiting.get('systemMessage')) if note]
+    if waiting.get('decision') == 'block':
+        return dict(waiting, systemMessage='\n'.join(notes)) if notes else waiting
     result = guard(payload)
-    if gate.get('systemMessage'):
-        result = dict(result, systemMessage=gate['systemMessage'])
-    return result
+    return dict(result, systemMessage='\n'.join(notes)) if notes else result
 
 
 def main():

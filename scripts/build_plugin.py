@@ -82,6 +82,10 @@ def build(output):
     selected['hooks/run-hook.sh'] = 'distribution/run-hook.sh'
     # One Stop hook; it loads the acceptance and risk gates from the agent-workflow Skill.
     selected['hooks/completion_guard.py'] = 'authoring/scripts/completion_guard.py'
+    # PreToolUse and SubagentStop hold delegated work to its stages; delegate.py lives in the Skill.
+    selected['hooks/delegation_hook.py'] = 'authoring/scripts/delegation_hook.py'
+    selected['agents/acceptance-author.md'] = 'distribution/agents/acceptance-author.md'
+    selected['agents/implementer.md'] = 'distribution/agents/implementer.md'
     selected['README.md'] = 'distribution/README.md'
     files = {}
     staged = index_blobs(sorted(set(selected.values())))
