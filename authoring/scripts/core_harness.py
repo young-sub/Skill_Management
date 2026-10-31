@@ -3296,7 +3296,7 @@ def inspect_legacy_graph(root: Path) -> dict[str, Any]:
 def _manifest_file_hash(path: Path, hash_mode: str | None) -> str:
     if hash_mode == "bytes":
         content = path.read_bytes()
-    elif path.suffix.casefold() in {".json", ".md", ".html", ".py", ".ps1", ".txt", ".yaml", ".yml"}:
+    elif path.suffix.casefold() in {".json", ".md", ".html", ".py", ".ps1", ".txt", ".yaml", ".yml", ".toml"}:
         content = path.read_text(encoding="utf-8").replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
     else:
         content = path.read_bytes()
