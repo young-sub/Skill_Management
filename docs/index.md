@@ -1,5 +1,7 @@
 # Agent Documentation Index
 
+- [0.1.98 assertion-only proof](plugins.md#version-0198): `probe_check.py prove` accepts only a base failure by assertion (unittest summary, JUnit XML or vitest/jest JSON); import and collection errors no longer count. It also takes tests from outside the project and has a preservation mode for refactoring.
+
 - [0.1.97 router and guard removal](plugins.md#version-0197): the prompt hook stops routing (90/162 right against 127 with no router) and the Stop guard keeps only the independent-check rule; the final-edit and probe-registration rules that blocked 0/112 eval cells are gone.
 
 - [Direction research](research/direction-research-20261031.md): 2026-02+ sources (187, verified and red-teamed by Codex) on removing the human bottleneck. Teams that cut human gates invested in judgment the agent cannot edit and in blast-radius limits, not in-session instructions. Design in dependency order: a per-product run-and-observe command, a sealed pre-implementation acceptance contract with deterministic strength checks, risk-tiered integration, a blast-radius profile, an event-driven failure-to-asset loop; remove the prompt router now.

@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/project-verification.md -->
-<!-- Source-SHA256: 02d5207c6757f74cada7ddbee28cf2664c8c6a20a5a2c20d77f9359d192e1cd7 -->
+<!-- Source-SHA256: 3e4463a5dbfa33a2d59d537eb4958b28dca67d57f7e133d4f0429cb46c9bb069 -->
 
 # Project verification responsibilities
 
@@ -165,7 +165,14 @@ runs its command, restores the bytes and prints a Feature × perspective × laye
 matrix of killed/total. `perspective` is `business`, `architecture` or `ui`. A
 probe that still passes is a coverage gap: add a discriminating regression before
 the Feature's matrix claims that rule. `probe_check.py prove --base <ref> --tests
-<files> --command <cmd>` shows new tests fail without the source change. Never leave
+<files> --command <cmd>` shows new tests fail without the source change, by a failed
+assertion: every failure must be one, so an import, setup, collection or hook error, a
+timeout or an unreadable result is NOT_PROVEN; test the behavior through an entrypoint the
+base already has. Python
+unittest output is read directly; for other runners have the command write JUnit XML
+or Jest-format JSON (vitest `--reporter=json`) and pass `--report <path>`.
+`--tests SOURCE=NAME` copies a test kept outside the project into both checkouts, and
+`--preserve` (refactoring) requires at least one executed test to pass on the base and now. Never leave
 a probe in the product tree; probe results are synthetic-fault evidence, not proof
 of correctness. Re-run the probes when the rule's owner or its checks change.
 

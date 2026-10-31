@@ -19,6 +19,23 @@ execution selection, freshness checks or task acceptance. There is no fixed byte
 ceiling: capture a detailed lookup and select relevant fields instead of printing
 an entire report into the model context.
 
+## Version 0.1.98
+
+`probe_check.py prove` counts a new test as proven only when it fails on the base by a failed
+assertion. Before, any nonzero exit counted, so a test that could not import a function the
+base lacks was PROVEN without exercising any behavior. The verdict reads Python unittest's
+summary or a `--report` file (JUnit XML, or Jest-format JSON such as vitest `--reporter=json`).
+A failure counts as an assertion when the first exception type it names is `AssertionError`, or,
+without a type, when it is a pytest `assert`, node `ERR_ASSERTION` or an `expect(`/`expected … to`
+message. Every failure must be one: an import, setup, collection or hook error beside an assertion
+failure, a timeout, a missing or unreadable report, or a run with no executed test is NOT_PROVEN, and
+a pass also needs an executed test and the requested report. `--tests SOURCE=NAME` copies a test kept
+outside the project into the base and current checkouts without touching the user tree, and
+`--preserve` requires a behavior-preserving change's tests to pass on both (it refuses
+`--skip-current`). An independent Codex review reproduced seven misclassifications with real
+unittest, pytest, vitest and node:test runs; all now classify as stated. These are the inputs the planned sealed
+acceptance check needs ([design step 2](research/direction-research-20261031.md#단계-2-구현-전-수락-계약과-강도-검사)).
+
 ## Version 0.1.97
 
 The prompt hook no longer routes. On replayed real prompts the regex router chose the right
