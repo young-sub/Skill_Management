@@ -149,6 +149,9 @@ class PluginPackageTests(unittest.TestCase):
             self.assertEqual(len(hook['Stop'][0]['hooks']), 1, 'one Stop process runs the acceptance gate and the guard')
             for removed in ('workflow_context.py', 'acceptance_gate.py', 'risk_gate.py'):
                 self.assertFalse((package / 'hooks' / removed).exists(), removed)
+            for gate_script in ('acceptance_gate.py', 'risk_gate.py'):
+                self.assertEqual([p.relative_to(package).as_posix() for p in package.rglob(gate_script)],
+                                 ['skills/agent-workflow/scripts/' + gate_script], 'one copy, loaded by the Stop hook')
             transcript = root / 'transcript.jsonl'
             transcript.write_text('\n'.join(json.dumps(entry) for entry in (
                 {'type': 'user', 'message': {'content': 'fix'}},

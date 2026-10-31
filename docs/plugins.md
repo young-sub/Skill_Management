@@ -32,15 +32,20 @@ Less hook work per turn; the behavior of the checks is unchanged.
 - One Stop process. `completion_guard.py` now runs the sealed acceptance gate first and then the
   independent-check rule, so the guard reads the verdict the gate just recorded instead of racing a
   parallel hook. A blocking gate verdict wins; otherwise the guard decides and the gate's note rides
-  along as `systemMessage`. The hook loads `acceptance_gate.py` and `risk_gate.py` from the package's
-  `scripts/`, so the duplicate copies under `hooks/` are gone. Two Stop processes took about 1.3 s
-  on Windows with no contract.
+  along as `systemMessage`. The hook loads `acceptance_gate.py` and `risk_gate.py` from the
+  `agent-workflow` Skill, so the package carries one copy of each instead of three. Two Stop
+  processes took about 1.3 s on Windows with no contract; the one process takes about 0.44 s.
 - A contract that no longer applies is not checked. When its base is not in `HEAD`, or committed work
-  is already in `origin/HEAD`, the gate prints a note naming `acceptance_gate.py clear` instead of
+  is already in `origin/HEAD` (else `origin/main`, `origin/master`), by ancestry or, after a squash or
+  rebase, by identical bytes for every committed file, the gate prints a note naming `acceptance_gate.py clear` instead of
   rerunning the full check (up to 1000 s) on every later stop in that worktree, and the guard falls
   back to the size rule. Uncommitted or unmerged work on the sealed base is still judged.
 - On Windows (`OS=Windows_NT`) `run-hook.sh` probes `python` before `python3`, skipping the Microsoft
   Store `python3` stub (about 0.17 s per hook measured).
+- The parallel 0.1.97 from `main` (PR #8) is merged; see [below](#version-0197-on-main-pr-8).
+- Not changed: each public Skill still carries its own runtime copies (about 3 MB of the package),
+  because `validate_self_containment.py` requires every Skill to work when installed alone; they
+  add no context or hook time.
 
 ## Version 0.2.0
 
@@ -172,6 +177,28 @@ the independent-check rule. It no longer blocks on a code edit after the last ex
 probe after verifier violations. Nothing replaces them yet: a sealed acceptance check run outside
 the session is the planned replacement (design step 2), and `hooks.json` still runs this guard.
 The route regression fixtures are removed, and the scenario gate no longer expects a route.
+
+## Version 0.1.97 on main (PR #8)
+
+
+Deductive rules over stored data move from enumeration to structure: the workflow and feature
+playbook enforce the rule at one boundary every writer crosses and confirm it with an empty
+bypass-write search plus a killed boundary-removal probe, replacing "cover each writer with a
+check" (the recorded path misses happened with that instruction loaded). Two sensors stop trusting
+traces: `probe_check.py probes` runs each command without the fault first (`INVALID` when it
+fails) and reports syntax/import/collection crashes as `ERROR` (optional `expect` regex); the Stop
+guard counts a verifier only when its verdict line arrives, treats task notifications as part of
+the turn, and clears violations only after a probe run kills as many independent-check probes.
+External formal-verification skills (proof-skills, agent-formal-verify) were reviewed and not
+adopted by default: their own ON/OFF found the same bugs at about twice the cost, and no recorded
+failure was an interleaving defect. The Harness cohort installer rolled back every install since
+`diagnose` gained `agents/openai.yaml` and `references/independent-check.md`, because its required
+resource list lacked them (22 CI failures on main); the list now includes both.
+
+Merged in 0.2.1: the boundary rule, probe baselines with `ERROR`/`expect`, verdict arrival and
+task notifications that stay in the turn carry over. The violations-to-probe Stop rule does not (the
+0.1.97 above removed it by measurement), and `prove --expect` only narrows assertion failures, since
+0.1.98 never counts an import error as proof.
 
 ## Version 0.1.96
 

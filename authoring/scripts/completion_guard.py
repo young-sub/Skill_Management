@@ -21,6 +21,9 @@ AGENT_TOOLS = {'Agent', 'Task'}
 VERIFIER_MARKER = 'INDEPENDENT VERIFIER'  # first words of the independent-check template
 # Below this many changed code lines in a turn, the edit counts as trivial for the independent check.
 CHECK_MIN_LINES = 5
+VERDICT = re.compile(r'\{\s*"verdict".*\}')
+# A background agent's answer arrives as a user message that is not a human prompt.
+NOTIFIED_TOOL = re.compile(r'<tool-use-id>([^<]+)</tool-use-id>')
 # The packaged hook lives in <plugin>/hooks/; name the template by its installed path when it exists.
 _installed = Path(__file__).resolve().parent.parent / 'skills/agent-workflow/references/independent-check.md'
 REFERENCE = str(_installed) if _installed.is_file() else 'agent-workflow references/independent-check.md'
@@ -157,10 +160,36 @@ def changed_lines(name, arguments):
     return str(text or '').count('\n') + 1
 
 
+def text_of(content):
+    if isinstance(content, list):
+        return '\n'.join(str(block.get('text') or block.get('content') or '')
+                         for block in content if isinstance(block, dict))
+    return str(content or '')
+
+
+def verdict_arrived(content):
+    """True when the content carries the verifier's final JSON verdict line (complete or incomplete)."""
+    for match in reversed(VERDICT.findall(text_of(content))):
+        try:
+            report = json.loads(match)
+        except ValueError:
+            continue
+        if isinstance(report, dict) and report.get('verdict') in ('complete', 'incomplete'):
+            return True
+    return False
+
+
 def turn_events(transcript):
-    """Edits (with changed line counts), executions, writing scripts and verifier launches after the
-    latest human prompt, which opens with a ('start', timestamp) event."""
-    events = []
+    """Edits (with changed line counts), executions, writing scripts and arrived verifier verdicts after
+    the latest human prompt, which opens with a ('start', timestamp) event. A launched verifier counts
+    only once its verdict arrives, in its tool result or a background task notification; a notification
+    does not start a new turn."""
+    events, verifiers = [], set()
+
+    def answered(tool_use_id, content):
+        if tool_use_id in verifiers and verdict_arrived(content):
+            events.append(('verify', '', 0))
+
     for line in transcript.read_text(encoding='utf-8', errors='replace').splitlines():
         try:
             entry = json.loads(line)
@@ -170,10 +199,22 @@ def turn_events(transcript):
         if not isinstance(message, dict):
             continue
         content = message.get('content')
+        origin = entry.get('origin')
+        if entry.get('type') == 'user' and (isinstance(origin, dict) and origin.get('kind') == 'task-notification'
+                                            or text_of(content).startswith('<task-notification>')):
+            notified = NOTIFIED_TOOL.search(text_of(content))
+            if notified:
+                answered(notified.group(1).strip(), content)
+            continue
         if entry.get('type') == 'user' and not entry.get('isMeta') and (
                 isinstance(content, str) or isinstance(content, list) and any(
                     isinstance(block, dict) and block.get('type') == 'text' for block in content)):
-            events = [('start', str(entry.get('timestamp') or ''), 0)]
+            events, verifiers = [('start', str(entry.get('timestamp') or ''), 0)], set()
+            continue
+        if entry.get('type') == 'user' and isinstance(content, list):
+            for block in content:
+                if isinstance(block, dict) and block.get('type') == 'tool_result':
+                    answered(block.get('tool_use_id'), block.get('content'))
             continue
         if entry.get('type') != 'assistant' or not isinstance(content, list):
             continue
@@ -187,7 +228,7 @@ def turn_events(transcript):
             elif block.get('name') in EXEC_TOOLS:
                 events.extend(shell_events(str(arguments.get('command') or '')))
             elif block.get('name') in AGENT_TOOLS and VERIFIER_MARKER in str(arguments.get('prompt') or ''):
-                events.append(('verify', '', 0))
+                verifiers.add(block.get('id'))
     return events
 
 
@@ -286,9 +327,9 @@ def unchecked_lines(events, root):
 
 
 def gate_modules():
-    """(acceptance_gate, risk_gate) from beside this file or the package's scripts/, or None."""
+    """(acceptance_gate, risk_gate) from beside this file or, in the package, the agent-workflow Skill, or None."""
     here = Path(__file__).resolve().parent
-    for directory in (here, here.parent / 'scripts'):
+    for directory in (here, here.parent / 'skills/agent-workflow/scripts'):
         if (directory / 'acceptance_gate.py').is_file() and (directory / 'risk_gate.py').is_file():
             if str(directory) not in sys.path:
                 sys.path.insert(0, str(directory))

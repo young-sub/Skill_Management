@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/acceptance_gate.py
-# Source-SHA256: 81ded414f7f4bdbaf8262ee97c57687a22f1e18560c0221d9363b9aad19e6049
+# Source-SHA256: a119622a29b931cba52f61b2e2f5dcefe64ca1e8fc471499adf660999f390114
 
 """Judge delegated work with acceptance tests sealed before implementation.
 
@@ -62,18 +62,33 @@ def ancestor(root, older, newer):
                           capture_output=True).returncode == 0
 
 
+INTEGRATION_REFS = ('refs/remotes/origin/HEAD', 'refs/remotes/origin/main', 'refs/remotes/origin/master')
+
+
 def stale_reason(root, contract):
     """Why a sealed contract no longer judges this checkout, or None while it does.
 
-    Its base must stay in HEAD, and committed work already in the remote default branch is integrated.
-    Without this, a contract nobody cleared reruns the long check on every later stop in the worktree."""
+    Its base must stay in HEAD, and committed work already in the remote default branch is integrated:
+    HEAD is in that branch (merge or fast-forward) or the branch holds the same bytes for every file the
+    work committed (squash or rebase). Without this, a contract nobody cleared reruns the long check on
+    every later stop in the worktree."""
     base = contract['base']
     if not ancestor(root, base, 'HEAD'):
         return f'its base {base[:12]} is not in HEAD'
-    default = subprocess.run(['git', '-C', str(root), 'rev-parse', '--verify', '--quiet', 'refs/remotes/origin/HEAD'],
-                             capture_output=True, text=True).stdout.strip()
-    if default and git(root, 'rev-parse', 'HEAD').strip() != base and ancestor(root, 'HEAD', default):
-        return 'its work is already in origin/HEAD'
+    if git(root, 'rev-parse', 'HEAD').strip() == base:
+        return None  # nothing committed yet: the work in progress is what the contract judges
+    committed = [name for name in git(root, 'diff', '--name-only', '-z', base, 'HEAD', '--').split(chr(0)) if name]
+    for ref in INTEGRATION_REFS:
+        target = subprocess.run(['git', '-C', str(root), 'rev-parse', '--verify', '--quiet', ref + '^{commit}'],
+                                capture_output=True, text=True).stdout.strip()
+        if not target:
+            continue
+        label = ref.removeprefix('refs/remotes/')
+        if ancestor(root, 'HEAD', target):
+            return f'its work is already in {label}'
+        if committed and subprocess.run(['git', '-C', str(root), 'diff', '--quiet', target, 'HEAD', '--', *committed],
+                                        capture_output=True).returncode == 0:
+            return f'its committed files already match {label}'
     return None
 
 

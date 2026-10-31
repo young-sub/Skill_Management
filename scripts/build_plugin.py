@@ -43,13 +43,11 @@ def build(output):
                 Path(name).parts[1] in catalog['public_skills']}
     selected['scripts/run_check.py'] = 'authoring/scripts/run_check.py'
     selected['scripts/probe_check.py'] = 'authoring/scripts/probe_check.py'
-    selected['scripts/acceptance_gate.py'] = 'authoring/scripts/acceptance_gate.py'
-    selected['scripts/risk_gate.py'] = 'authoring/scripts/risk_gate.py'
     selected['scripts/update_plugin.py'] = 'scripts/update_plugin.py'
     selected['scripts/unittest_evidence.py'] = 'authoring/scripts/unittest_evidence.py'
     selected['hooks/hooks.json'] = 'distribution/hooks.json'
     selected['hooks/run-hook.sh'] = 'distribution/run-hook.sh'
-    # One Stop hook; it loads the acceptance and risk gates from scripts/ above.
+    # One Stop hook; it loads the acceptance and risk gates from the agent-workflow Skill.
     selected['hooks/completion_guard.py'] = 'authoring/scripts/completion_guard.py'
     selected['README.md'] = 'distribution/README.md'
     files = {}

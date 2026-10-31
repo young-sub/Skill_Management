@@ -1,6 +1,6 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/independent-check.md -->
-<!-- Source-SHA256: 61f2c2a1971264aff2164a25605b0fe4f4607917f0896fcc94dc2ce5cdb852a5 -->
+<!-- Source-SHA256: 8769484cc4c3f30c736924cd659d5b7b850cacc664c901ab9067d91efdc10670 -->
 
 # Independent check
 
@@ -85,7 +85,8 @@ End with one JSON line:
    original), with `command` running the kept test and `origin`
    `"independent-check <date>"`. Run `probe_check.py probes --root <project>`; the probe
    must be killed. The next change that reopens the same path then fails an existing
-   check instead of waiting for another verifier.
+   check instead of waiting for another verifier. The Claude Code Stop guard counts the
+   verifier only once its final JSON line arrives.
 5. Do not relaunch the verifier after fixing; its failing tests are the check. Relaunch
    only when a fix changed a different path than the one reported.
 

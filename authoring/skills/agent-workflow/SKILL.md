@@ -26,7 +26,10 @@ the person is there to judge them.
    do not pass on it). Re-author a refused test; never weaken it.
 4. **Implement** from the scenario text only: the tests and the author's write-path list
    stay with the gate, so the implementer's own search for paths is checked, not copied.
-   Fix at the owner; run the affected existing checks after the final edit.
+   Fix at the owner. Enforce a rule on stored data at one boundary every writer crosses
+   (DB constraint or single owner) and confirm a search for writes bypassing it (SQL, ORM,
+   import/restore jobs; `LSP findReferences` if available) finds none; otherwise list each
+   writer's status. Run the affected existing checks after the final edit.
 5. **Check.** `acceptance_gate.py check --root <worktree>`; the Claude Code Stop hook runs it,
    in Codex run it before finishing. Fix the implementation, never the sealed tests;
    after three failed checks the contract is `STOPPED` until a person re-seals it.
@@ -58,6 +61,7 @@ Risk: <LOW | MED | HIGH: reasons from risk_gate.py>
 Untested changes: <file hunk ... | none>
 Uncovered requirements: <scenario ... | none>
 Checks after the final edit: <check> ✓/✗ (command, raw location)
+Paths covered: <boundary: bypass search empty | each writer's status>
 Independent check: <complete | N violations → M fixed, K for user decision | not run: reason>
 Unverified: <what and why>
 User decisions: <decision, recommendation, default> or none

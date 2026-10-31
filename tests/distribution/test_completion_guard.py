@@ -74,12 +74,38 @@ class CompletionGuardTests(unittest.TestCase):
         self.assertEqual(decision['decision'], 'block')
         self.assertIn('5 changed code line(s) were not handed to an independent verifier', decision['reason'])
         self.assertNotIn('after the last executed command', decision['reason'])
-        self.assertEqual(self.stop([prompt('fix'), self.large_edit(), result(), self.verifier(), result(),
+        complete = {'verdict': 'complete', 'violations': [], 'questions': []}
+        self.assertEqual(self.stop([prompt('fix'), self.large_edit(), result(), *self.verifier_report(complete),
                                     self.code_edit(), result(), run, result()]), {})
-        for entries in ([self.verifier(), result(), self.large_edit(), result()],
+        for entries in ([*self.verifier_report(complete), self.large_edit(), result()],
                         [self.large_edit(), result(), self.verifier('Review this change'), result()]):
             with self.subTest(entries=entries[0]['message']['content'][1]['name']):
                 self.assertIn('independent verifier', self.stop([prompt('fix'), *entries, run, result()])['reason'])
+
+    def test_a_verifier_counts_only_when_its_verdict_arrives(self):
+        run = tool('Bash', command='python -m unittest')
+        before = [prompt('fix'), self.large_edit(), result(), run, result()]
+        # Launched but its answer never came back with a verdict line: nothing was verified.
+        for answer in ('Async agent launched successfully.', 'Looks fine to me.'):
+            with self.subTest(answer=answer):
+                self.assertIn('not handed to an independent verifier',
+                              self.stop([*before, *self.verifier_report(answer)])['reason'])
+        # A background verifier reports through a task notification, which is not a new human prompt.
+        launch, _ = self.verifier_report('')
+        verdict = json.dumps({'verdict': 'complete', 'violations': [], 'questions': []})
+        self.assertEqual(self.stop([*before, launch, self.notification('v', 'Checked.\n' + verdict)]), {})
+        self.assertIn('not handed to an independent verifier',
+                      self.stop([*before, launch, self.notification('other', 'done')])['reason'])
+
+    def test_a_task_notification_does_not_start_a_new_turn(self):
+        decision = self.stop([prompt('fix'), self.large_edit(), result(), self.notification('other', 'done')])
+        self.assertEqual(decision['decision'], 'block', 'the edit before the notification still belongs to the turn')
+        self.assertIn('not handed to an independent verifier', decision['reason'])
+
+    def notification(self, tool_use_id, text):
+        return {'type': 'user', 'origin': {'kind': 'task-notification'}, 'message': {'role': 'user', 'content':
+                f'<task-notification>\n<tool-use-id>{tool_use_id}</tool-use-id>\n<result>{text}</result>\n'
+                '</task-notification>'}}
 
     def test_small_documentation_and_outside_changes_skip_the_independent_check(self):
         run = tool('Bash', command='python -m unittest')

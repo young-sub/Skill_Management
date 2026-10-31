@@ -175,6 +175,26 @@ class AcceptanceGateTests(unittest.TestCase):
         self.assertIn('is not in HEAD', self.hook()['systemMessage'])
         self.assertEqual(len(self.history()), checks)
 
+    def test_stop_hook_finds_integration_without_origin_head_and_after_a_squash(self):
+        self.seal()
+        self.write('rule.py', RULE.replace('>= 10', '>= 30'))
+        self.git('commit', '-qam', 'work')
+        work = self.git('rev-parse', 'HEAD').decode().strip()
+        self.git('update-ref', 'refs/remotes/origin/main', work)  # pushed and merged, no origin/HEAD
+        self.write('later.py', 'VALUE = 1\n')
+        self.assertIn('already in origin/main', self.hook()['systemMessage'])
+        # A squash merge: origin/main holds the same bytes in another commit that HEAD does not contain.
+        self.git('checkout', '-q', '--detach', 'HEAD~1')
+        self.git('checkout', '-q', work, '--', 'rule.py')
+        self.git('commit', '-qm', 'squashed')
+        self.git('update-ref', 'refs/remotes/origin/main', 'HEAD')
+        self.git('checkout', '-q', work)
+        self.write('later.py', 'VALUE = 2\n')
+        squashed = self.hook()
+        self.assertNotIn('decision', squashed)
+        self.assertIn('already match origin/main', squashed['systemMessage'])
+        self.assertEqual(len(self.history()), 0, 'no check ran for integrated work')
+
     def test_stop_hook_still_checks_the_base_commit_and_unmerged_work_with_a_remote(self):
         self.git('update-ref', 'refs/remotes/origin/main', 'HEAD')
         self.git('symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/main')
