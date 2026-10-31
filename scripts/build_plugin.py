@@ -43,12 +43,14 @@ def build(output):
                 Path(name).parts[1] in catalog['public_skills']}
     selected['scripts/run_check.py'] = 'authoring/scripts/run_check.py'
     selected['scripts/probe_check.py'] = 'authoring/scripts/probe_check.py'
+    selected['scripts/acceptance_gate.py'] = 'authoring/scripts/acceptance_gate.py'
     selected['scripts/update_plugin.py'] = 'scripts/update_plugin.py'
     selected['scripts/unittest_evidence.py'] = 'authoring/scripts/unittest_evidence.py'
     selected['hooks/hooks.json'] = 'distribution/hooks.json'
     selected['hooks/run-hook.sh'] = 'distribution/run-hook.sh'
     selected['hooks/workflow_context.py'] = 'authoring/scripts/workflow_context.py'
     selected['hooks/completion_guard.py'] = 'authoring/scripts/completion_guard.py'
+    selected['hooks/acceptance_gate.py'] = 'authoring/scripts/acceptance_gate.py'
     selected['README.md'] = 'distribution/README.md'
     files = {}
     for target, source in sorted(selected.items()):

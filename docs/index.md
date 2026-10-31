@@ -1,5 +1,7 @@
 # Agent Documentation Index
 
+- [0.1.99 sealed acceptance](plugins.md#version-0199): `agent-workflow` is explicit-only; an author sub-agent writes acceptance tests from the verbatim request before implementation, `acceptance_gate.py` seals them in the Git directory, and a Stop hook (Codex: the Skill) checks the current tree in a disposable checkout, reports hunks no sealed test notices and uncovered scenarios, and blocks a failing tree at most three times.
+
 - [0.1.98 assertion-only proof](plugins.md#version-0198): `probe_check.py prove` accepts only a base failure by assertion (unittest summary, JUnit XML or vitest/jest JSON); import and collection errors no longer count. It also takes tests from outside the project and has a preservation mode for refactoring.
 
 - [0.1.97 router and guard removal](plugins.md#version-0197): the prompt hook stops routing (90/162 right against 127 with no router) and the Stop guard keeps only the independent-check rule; the final-edit and probe-registration rules that blocked 0/112 eval cells are gone.

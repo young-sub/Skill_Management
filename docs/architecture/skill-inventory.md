@@ -9,7 +9,9 @@ reuse extend `agent-workflow` and `diagnose`, with a mapped shared reference and
 procedure template. No separate `reflect` or authoring Skill is distributed;
 independent new procedures use an available host authoring tool only when needed.
 
-Invocation policy (0.1.96): only `agent-workflow` is model-invocable. The other 21
+Invocation policy (0.1.99): no Skill is model-invocable. `agent-workflow` became
+explicit-only in 0.1.99 (real use called it 2 times in 30 sessions, and the installed
+router chose worse than no router); the other 21 had already been. All 22
 declare `disable-model-invocation: true` (Claude Code) and
 `policy.allow_implicit_invocation: false` in `agents/openai.yaml` (Codex), so their
 descriptions stay out of the session context. Users invoke them directly, and

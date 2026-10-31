@@ -132,6 +132,14 @@ class PluginPackageTests(unittest.TestCase):
                     env=stop_environment, capture_output=True, text=True, timeout=30)
                 self.assertEqual(stopped.returncode, 0, stopped.stderr)
                 self.assertEqual(json.loads(stopped.stdout).get('decision'), expected)
+            # The packaged acceptance hook finds probe_check beside it in the package and is silent
+            # in a checkout without a sealed contract.
+            acceptance = hook['Stop'][0]['hooks'][1]
+            self.assertIn('acceptance_gate.py', acceptance['commandWindows'])
+            gated = subprocess.run(['powershell', '-NoProfile', '-Command', acceptance['commandWindows']],
+                input=json.dumps({'hook_event_name': 'Stop', 'cwd': str(ROOT)}),
+                env=stop_environment, capture_output=True, text=True, timeout=60)
+            self.assertEqual((gated.returncode, json.loads(gated.stdout)), (0, {}), gated.stderr)
             hook_command = hook['UserPromptSubmit'][0]['hooks'][0]['commandWindows']
             # Exercise the distributed shell command with the host-provided root.
             for root_variable in ('PLUGIN_ROOT', 'CLAUDE_PLUGIN_ROOT'):

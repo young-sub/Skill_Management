@@ -19,6 +19,40 @@ execution selection, freshness checks or task acceptance. There is no fixed byte
 ceiling: capture a detailed lookup and select relevant fields instead of printing
 an entire report into the model context.
 
+## Version 0.1.99
+
+Delegated work is judged by acceptance tests sealed before the implementation, outside the
+worker's reach ([design step 2](research/direction-research-20261031.md#단계-2-구현-전-수락-계약과-강도-검사)).
+`agent-workflow` is now explicit-only (`/agentic-coding:agent-workflow`; Codex
+`allow_implicit_invocation: false`), so no Skill description is loaded into ordinary sessions.
+Its loop is: a fresh sub-agent writes acceptance tests, scenarios, questions and the write
+paths a rule applies to from the verbatim request alone ([author template](../authoring/references/acceptance-author.md));
+correctness questions are answered before sealing and preference questions take their
+default into the `## Pending` section of `.harness/decisions.md`; `acceptance_gate.py seal`
+refuses tests that do not fail on the base by assertion (`--preserve`: that do not pass)
+and stores them with their hashes in the worktree's Git directory; the worker implements
+from the scenarios; `acceptance_gate.py check` runs the sealed tests in a disposable
+checkout of the current state, then reverts each changed code hunk alone and reports a hunk
+no sealed test notices as an untested change, and scenarios without a test as uncovered
+requirements. The verdict is bound to the tree it judged.
+
+In Claude Code a second `Stop` hook runs the check when the worktree has a sealed contract
+and the current tree has no verdict yet. It is silent without a contract or on a clean pass,
+shows untested or uncovered items without blocking, and blocks a failing, tampered or erroring
+gate at most three times per contract; after three failed checks the contract is `STOPPED` until a
+person clears and re-seals it. `AGENT_ACCEPTANCE_GATE=off` disables it. Each reversal starts from
+a clean copy (generated caches removed), binary changes are listed as not judged, a check without
+ablation never satisfies the hook, and one deadline (1000 s by default, under the hook's 1200 s)
+bounds the whole check. The implementer gets the scenario text only; the author's tests and
+write-path list stay with the gate. Codex has no plugin Stop hook, so the Skill runs `check`
+before finishing. Without OS-level isolation the seal detects changed sealed files (TAMPERED)
+but cannot prevent a worker from reading them or replacing the whole contract; every verdict
+says `tamper-detection-only`, and the card records the contract hash `seal` printed. An
+independent Codex review reproduced eleven defects in the first version (stale tree binding,
+unbounded blocks, cache-masked reversals, space-containing paths and others); each has a
+regression test that fails on that version. The independent-check rule
+of the first Stop hook stays until risk tiers exist (design step 3).
+
 ## Version 0.1.98
 
 `probe_check.py prove` counts a new test as proven only when it fails on the base by a failed

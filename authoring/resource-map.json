@@ -3,6 +3,7 @@
   "resources": [
     {"source": "scripts/run_check.py", "targets": ["agent-workflow/scripts/run_check.py", "setup-project-verification/scripts/run_check.py", "maintain-project-verification/scripts/run_check.py", "close-goal/scripts/run_check.py", "maintain-agent-harness/scripts/run_check.py", "execute-codex-goal/scripts/run_check.py"]},
     {"source": "scripts/probe_check.py", "targets": ["agent-workflow/scripts/probe_check.py", "setup-project-verification/scripts/probe_check.py", "maintain-project-verification/scripts/probe_check.py", "diagnose/scripts/probe_check.py"]},
+    {"source": "scripts/acceptance_gate.py", "targets": ["agent-workflow/scripts/acceptance_gate.py"]},
     {"source": "skills/swarm/SKILL.md", "targets": ["swarm/SKILL.md"]},
     {"source": "playbooks/feature.md", "targets": ["agent-workflow/playbooks/feature.md", "setup-project-verification/playbooks/feature.md", "maintain-project-verification/playbooks/feature.md"]},
     {"source": "playbooks/bug-fix.md", "targets": ["agent-workflow/playbooks/bug-fix.md", "setup-project-verification/playbooks/bug-fix.md", "maintain-project-verification/playbooks/bug-fix.md"]},
@@ -21,6 +22,7 @@
     {"source": "references/project-verification.md", "targets": ["agent-workflow/references/project-verification.md", "setup-project-verification/references/project-verification.md", "maintain-project-verification/references/project-verification.md"]},
     {"source": "references/repair-and-reuse.md", "targets": ["agent-workflow/references/repair-and-reuse.md", "setup-project-verification/references/repair-and-reuse.md", "maintain-project-verification/references/repair-and-reuse.md", "impeccable/reference/project-reuse.md", "diagnose/references/repair-and-reuse.md"]},
     {"source": "references/feedback-and-success.md", "targets": ["agent-workflow/references/feedback-and-success.md", "diagnose/references/feedback-and-success.md"]},
+    {"source": "references/acceptance-author.md", "targets": ["agent-workflow/references/acceptance-author.md"]},
     {"source": "references/independent-check.md", "targets": ["agent-workflow/references/independent-check.md", "diagnose/references/independent-check.md"]},
     {"source": "templates/reusable-procedure.md", "targets": ["agent-workflow/templates/reusable-procedure.md", "diagnose/templates/reusable-procedure.md"]},
     {"source": "skills/setup-agent-harness/SKILL.md", "targets": ["setup-agent-harness/SKILL.md"]},
