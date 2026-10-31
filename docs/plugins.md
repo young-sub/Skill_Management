@@ -19,6 +19,88 @@ execution selection, freshness checks or task acceptance. There is no fixed byte
 ceiling: capture a detailed lookup and select relevant fields instead of printing
 an entire report into the model context.
 
+## Version 0.2.2
+
+A review of 0.1.97–0.2.1 against the [design](research/direction-research-20261031.md) (Claude
+reproductions and an independent Codex review) found ways to over-report and parts that were
+still only instructions. This version fixes the first and builds the second.
+
+**Delegation is ordered by code, not by the model.** `skills/agent-workflow/scripts/delegate.py`
+is a state machine with no model calls: `queue add` → `next` (starts a task only while the person's
+queue has room, with no running task on the same Feature or overlapping paths, in its own worktree
+on `agent/<id>`) → the acceptance author → `author-done` (correctness questions wait for the
+person, or the tests are sealed) → `implement` → the implementer → `finish` (sealed check, tier
+under the integration ref's table, commit with trailers) → `integrate` (LOW only: recheck, then a
+local merge into a checked-out branch; nothing is pushed). `status` and `digest` give the person's
+batch: MED and HIGH cards, open correctness questions and the preference defaults taken. `event`
+turns reverts, integration-check failures, user corrections and a third repeated review finding
+into queued tasks; `resume` is the person's command for a stopped task. State lives in the Git
+common directory (`agentic-delegation/`).
+
+The models run inside the host session: Claude Code launches the plugin agents
+`agentic-coding:acceptance-author` and `agentic-coding:implementer`; Codex launches sub-agents with
+the same prompts, whose `DELEGATED TASK <id> ROLE <role>` line tells the hooks the role. Two new
+hooks hold the stages (`hooks/delegation_hook.py`):
+
+- `PreToolUse` (Edit/Write/Read/Grep/Glob/Bash/PowerShell and Codex shell and patch tools) refuses
+  edits to a task worktree before its tests are sealed and the implementer starts; reads of the
+  author's output, the sealed tests and the delegation state by anyone but the author (so the
+  write-path list never reaches the implementer); `git push`, deploy commands listed in
+  `agentic-delegation/config.json` (`deny_commands`), and the person's own `clear`/`resume`. Three
+  refusals in a row or twenty in all stop the task. Without an active task it reads the file
+  system, finds no marker and returns: about 0.07 s per matched tool call on Windows, of which
+  0.04 s is the Python start.
+- `SubagentStop` seals the author's result (a test that does not fail on the base by assertion
+  goes back to the author with the reason; three refusals stop the task) and runs the sealed check
+  when the implementer stops (a failure goes back to it; three failures stop the contract).
+- The one `Stop` process also blocks once while a task waits on the orchestrator (sealed but not
+  implemented, LOW but not integrated); tasks waiting on the person ride along as a note.
+
+Refusal is detection with a reason, not isolation: a process the hooks do not see can still read
+the files. The Codex hook documentation lists `PreToolUse`, `SubagentStop` and `Stop` with this
+format, but installed Codex 0.165.0 was not observed running them, and Codex asks the person to
+trust plugin hooks before they run.
+
+**Fixes found by the review** (each has a regression test that fails on 0.2.1):
+
+- Without `.harness/risk.yaml` on the policy ref, the built-in HIGH list (the template's) applies
+  and nothing is LOW. Before, an auth change with a sealed pass skipped the verifier.
+- The risk table, sensitive callers and reverts are read from the contract's integration ref
+  (`seal --integration`, default `origin/HEAD`, `origin/main`, `origin/master`), whose current tip
+  the feature branch cannot edit, instead of the branch's own upstream. `classify --policy`
+  separates the policy ref from the comparison base.
+- The Stop guard waives the independent verifier only when the current tree's full sealed check
+  passed with nothing untested, not judged or uncovered, and the change is below HIGH.
+- Ablation counts a reversal as detected only on a failed assertion; an import or setup error
+  makes the hunk "not judged". A detected hunk with several added blocks has each block deleted
+  alone, so an untested function written next to a tested line is reported. Mode-only changes and
+  empty-file additions or deletions are reported as not judged.
+- `recheck` classifies the candidate from its merge base under the tip's table; a MED candidate
+  whose checks pass is `NOT_LOW` (exit 1, `tests_pass: true`), not `PASS`.
+- JUnit errors declared on parent suites and suite-level `<error>` elements count, and a thrown
+  error line after an assertion message is not an assertion, so neither becomes a proof.
+- Paths match the risk table case-insensitively on every platform (`src/Auth/` evaded `*auth*` on
+  POSIX); indented `const`/`let`/`var` no longer count as changed symbols; revert promotion and
+  `events` share one reading (`This reverts commit` in the message).
+- The check's deadline now bounds Git and worktree commands too, with a grace period for cleanup;
+  `seal` writes its state in a staging directory and renames it into place.
+- `blast_radius_check.py` resolves `blockWritesOutsideWorkingDirectories` with local settings over
+  shared ones instead of OR-ing them.
+- A shell write to a path with an unexpanded variable (`$VAR`, `%VAR%`) is not a project edit for
+  the Stop guard; Git still sizes real changes.
+- The builder packages Git's staged bytes. Since the 0.1.97 freeze, 199 package files had carried
+  CRLF from an autocrlf checkout, and the POSIX `impeccable` launcher failed with
+  `/bin/sh^M: not found`.
+
+**Step 1.** A live drive script's result `{"checks": [{name, status: passed|failed|error|skipped}]}`
+is now an acceptance report (`failed` is an assertion about the running product, `error` the app
+breaking first), so UI and API acceptance tests seal like unit tests. The project template keeps
+`commands.live` disabled until the command exists, so an unconnected project never looks connected.
+
+Still outside the package: applying the Claude settings and Codex profile templates (a security
+change for the person), OS-level isolation (none on Windows), scheduling `event scan` (routines or a
+local scheduler), and paid model runs of the whole loop, which only the release scenarios exercise.
+
 ## Version 0.2.1
 
 Less hook work per turn; the behavior of the checks is unchanged.
@@ -49,7 +131,8 @@ Less hook work per turn; the behavior of the checks is unchanged.
 
 ## Version 0.2.0
 
-The rest of the [design](research/direction-research-20261031.md#3-실행-순서와-설계) ships with the risk tiers:
+The rest of the [design](research/direction-research-20261031.md#3-실행-순서와-설계) ships with the risk tiers, steps 4–6
+largely as instructions and read-only checks until [0.2.2](#version-022) built the state machine:
 
 - Step 1: `setup-project-verification` is now about one committed run-and-observe command per
   product (launch, doctor, drive, evidence, cleanup) registered as `commands.live`; the earlier
@@ -111,7 +194,7 @@ they do not measure human time or silent failures. The template table is
 `templates/project/risk.yaml` (setup-agent-harness and agent-workflow copies); the person commits
 the project's table once. With a sealed contract and a passing full check of the current tree,
 the Stop guard's independent-check rule applies only to HIGH changes (against the contract base and
-the branch's upstream), and to them even for a one-line edit, the Skill gives a result card for MED, HIGH or on request, and
+the branch's upstream; since 0.2.2 the integration ref, and only after a clean sealed pass), and to them even for a one-line edit, the Skill gives a result card for MED, HIGH or on request, and
 preference questions wait in the `## Pending` section of `.harness/decisions.md`.
 
 ## Version 0.1.99
@@ -138,7 +221,7 @@ gate at most three times per contract; after three failed checks the contract is
 person clears and re-seals it. `AGENT_ACCEPTANCE_GATE=off` disables it. Each reversal starts from
 a clean copy (generated caches removed), binary changes are listed as not judged, a check without
 ablation never satisfies the hook, and one deadline (1000 s by default, under the hook's 1200 s)
-bounds the whole check. The implementer gets the scenario text only; the author's tests and
+bounds the test runs (since 0.2.2 Git and worktree commands too). The implementer gets the scenario text only; the author's tests and
 write-path list stay with the gate. Codex has no plugin Stop hook, so the Skill runs `check`
 before finishing. Without OS-level isolation the seal detects changed sealed files (TAMPERED)
 but cannot prevent a worker from reading them or replacing the whole contract; every verdict
@@ -463,7 +546,8 @@ actual macOS message submission and response completion remain native-host check
 
 Since 0.2.1 the package installs only the Stop hook (`hooks/completion_guard.py`, which runs the
 acceptance gate and then the independent-check rule) with an explicit compatibility-manifest hook
-path. The selected-task projection (`authoring/scripts/workflow_context.py`) is no longer a
+path. Since 0.2.2 it adds `PreToolUse` and `SubagentStop` for delegated tasks
+(`hooks/delegation_hook.py`, [0.2.2](#version-022)); both return at once without an active task. The selected-task projection (`authoring/scripts/workflow_context.py`) is no longer a
 `UserPromptSubmit` hook: its `AGENT_WORKFLOW_CONTEXT` selector is set in the agent's shell and never
 reaches the host process that runs hooks. The same read-only view comes from explicit
 `lookup`/`resume`/`audit`; the projection never starts tasks, reads transcripts, runs project checks
