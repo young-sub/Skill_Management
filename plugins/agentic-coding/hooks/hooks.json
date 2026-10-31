@@ -17,6 +17,12 @@
         "commandWindows": "python -c \"import os,runpy; runpy.run_path(os.path.join(os.environ.get('CLAUDE_PLUGIN_ROOT') or os.environ['PLUGIN_ROOT'],'hooks','completion_guard.py'),run_name='__main__')\"",
         "timeout": 15,
         "statusMessage": "Checking the change was independently checked"
+      }, {
+        "type": "command",
+        "command": "sh \"${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}/hooks/run-hook.sh\" acceptance_gate.py",
+        "commandWindows": "python -c \"import os,runpy; runpy.run_path(os.path.join(os.environ.get('CLAUDE_PLUGIN_ROOT') or os.environ['PLUGIN_ROOT'],'hooks','acceptance_gate.py'),run_name='__main__')\"",
+        "timeout": 1200,
+        "statusMessage": "Running sealed acceptance checks"
       }]
     }]
   }
