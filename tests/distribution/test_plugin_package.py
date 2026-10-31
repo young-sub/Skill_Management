@@ -109,6 +109,13 @@ class PluginPackageTests(unittest.TestCase):
                        '--output', str(package)]
             built = subprocess.run(command, cwd=root, capture_output=True, text=True)
             self.assertEqual(built.returncode, 0, built.stderr + built.stdout)
+            # A checkout with core.autocrlf holds CRLF copies; the package keeps Git's bytes, so a
+            # POSIX launcher's shebang never ends in CR (`/bin/sh^M: bad interpreter`).
+            carriage = [p.relative_to(package).as_posix() for p in package.rglob('*')
+                        if p.is_file() and b'\r\n' in p.read_bytes()]
+            self.assertEqual(carriage, [], 'package files must keep the LF bytes Git stores')
+            launcher = (package / 'skills/impeccable/scripts/impeccable').read_bytes()
+            self.assertTrue(launcher.startswith(b'#!/bin/sh\n'), launcher[:20])
             guide = package / 'README.md'
             self.assertTrue(guide.is_file(), 'Portable plugin needs its own entrypoint guide')
             for link in re.findall(r'\[[^]]+\]\(([^)]+)\)', guide.read_text(encoding='utf-8')):

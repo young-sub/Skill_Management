@@ -15,6 +15,39 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def index_blobs(sources):
+    """The staged bytes of each tracked source (None when untracked), read in one `git cat-file` batch."""
+    request = ''.join(f':{source}\n' for source in sources).encode('utf-8')
+    output = subprocess.run(['git', '-C', str(ROOT), 'cat-file', '--batch'], input=request,
+                            capture_output=True, check=True).stdout
+    blobs, offset = {}, 0
+    for source in sources:
+        end = output.index(b'\n', offset)
+        header = output[offset:end].split()
+        offset = end + 1
+        if len(header) == 2 and header[1] == b'missing':
+            blobs[source] = None
+            continue
+        size = int(header[2])
+        blobs[source] = output[offset:offset + size]
+        offset += size + 1
+    return blobs
+
+
+def source_bytes(path, staged):
+    """Package bytes for one source: its Git line endings, never the checkout's.
+
+    With core.autocrlf the work tree holds CRLF copies of LF files, and a POSIX launcher
+    whose shebang ends in CR cannot start. A file identical to its staged blob up to line
+    endings uses the staged bytes; a dirty edit keeps its content with the staged line ending."""
+    data = path.read_bytes()
+    if staged is None or data == staged:
+        return data
+    if data.replace(b'\r\n', b'\n') == staged.replace(b'\r\n', b'\n') and b'\r' not in staged:
+        return staged
+    return data.replace(b'\r\n', b'\n') if b'\r' not in staged else data
+
+
 def build(output):
     output = output.resolve()
     if output.exists():
@@ -51,6 +84,7 @@ def build(output):
     selected['hooks/completion_guard.py'] = 'authoring/scripts/completion_guard.py'
     selected['README.md'] = 'distribution/README.md'
     files = {}
+    staged = index_blobs(sorted(set(selected.values())))
     for target, source in sorted(selected.items()):
         path = ROOT / source
         if (not path.resolve().is_relative_to(ROOT) or
@@ -59,7 +93,7 @@ def build(output):
                 any(p.lower().startswith(('.env', '.dev.vars')) or p.lower() in
                     {'auth.json', 'credentials', 'secrets'} for p in Path(source).parts)):
             raise ValueError(f'Unsafe package source: {source}')
-        files[target] = path.read_bytes()
+        files[target] = source_bytes(path, staged[source])
     for skill in catalog['public_skills']:
         if f'skills/{skill}/SKILL.md' not in files:
             raise ValueError(f'Missing public Skill: {skill}')
