@@ -5,7 +5,7 @@ disable-model-invocation: true
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/agent-workflow/SKILL.md -->
-<!-- Source-SHA256: 120e0447877eb4927fa56a67db4f3cd02e40a673e565ae46a3ec78889d82bbd9 -->
+<!-- Source-SHA256: 7f92c3b4662376cfc8aedb864e53242b0af523ef59e2d2a039226392f9db0c9f -->
 
 
 # Agent Workflow
@@ -50,7 +50,8 @@ refuse tool calls the current stage does not allow. `D` below is
 Where the host does not run the plugin hooks (an untrusted Codex hook, a host without
 SubagentStop), run the step the hook would have: `D author-done --id <task>` after the author
 replies, `D finish --id <task>` after the implementer stops. Reviewed MED or HIGH work leaves the
-queue when the person merges it and runs `D close --id <task>`.
+queue when the person merges it and runs `D close --id <task>`; work that changed after its check
+reopens with `D implement --id <task>` and is checked again by `finish`.
 
 Failure events enter the same queue: `D event scan --base <integration ref>` (reverts),
 `D event add --kind check-failure|correction --detail "..."`, and `D event finding --key <k>`
