@@ -64,6 +64,17 @@ class BlastRadiusCheckTests(unittest.TestCase):
         template = json.loads(TEMPLATE.read_text(encoding='utf-8'))['permissions']['deny']
         self.assertEqual(deny(template + ['Bash(wrangler deploy:*)'])['status'], 'OK')
 
+    def test_a_local_setting_overrides_the_shared_write_boundary(self):
+        (self.task / '.claude').mkdir()
+        (self.task / '.claude/settings.json').write_bytes(TEMPLATE.read_bytes())
+        (self.task / '.claude/settings.local.json').write_text(json.dumps({'permissions': {
+            'blockWritesOutsideWorkingDirectories': False}}), encoding='utf-8')
+        found = self.statuses(self.task)['deny']
+        self.assertEqual(found['status'], 'MISSING')
+        self.assertIn('blockWritesOutsideWorkingDirectories is not true', found['detail'])
+        (self.task / '.claude/settings.local.json').write_text(json.dumps({'permissions': {'deny': []}}), encoding='utf-8')
+        self.assertEqual(self.statuses(self.task)['deny']['status'], 'OK', 'a local file without the key keeps the shared value')
+
     def test_credential_names_with_suffixes_are_found(self):
         found = self.statuses(self.task, environment={'GH_TOKEN_READONLY': 'x', 'TOKENIZERS_PARALLELISM': 'true'})
         self.assertEqual(found['secrets']['detail'], 'credential-like variables set: GH_TOKEN_READONLY')

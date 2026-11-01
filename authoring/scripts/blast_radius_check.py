@@ -43,6 +43,8 @@ def bash_rule(rule):
 
 
 def settings(root):
+    """Project then local settings, as Claude Code merges them: deny lists add up, and a scalar such as
+    blockWritesOutsideWorkingDirectories takes the later (local) file's value when it sets one."""
     merged = {'deny': [], 'block_outside': False, 'files': []}
     for name in ('.claude/settings.json', '.claude/settings.local.json'):
         path = root / name
@@ -55,7 +57,8 @@ def settings(root):
         permissions = data.get('permissions') or {}
         merged['files'].append(name)
         merged['deny'] += [str(rule) for rule in permissions.get('deny') or []]
-        merged['block_outside'] |= permissions.get('blockWritesOutsideWorkingDirectories') is True
+        if 'blockWritesOutsideWorkingDirectories' in permissions:
+            merged['block_outside'] = permissions['blockWritesOutsideWorkingDirectories'] is True
     return merged
 
 

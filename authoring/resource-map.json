@@ -5,6 +5,7 @@
     {"source": "scripts/probe_check.py", "targets": ["agent-workflow/scripts/probe_check.py", "setup-project-verification/scripts/probe_check.py", "maintain-project-verification/scripts/probe_check.py", "diagnose/scripts/probe_check.py"]},
     {"source": "scripts/acceptance_gate.py", "targets": ["agent-workflow/scripts/acceptance_gate.py"]},
     {"source": "scripts/risk_gate.py", "targets": ["agent-workflow/scripts/risk_gate.py"]},
+    {"source": "scripts/delegate.py", "targets": ["agent-workflow/scripts/delegate.py"]},
     {"source": "skills/swarm/SKILL.md", "targets": ["swarm/SKILL.md"]},
     {"source": "playbooks/feature.md", "targets": ["agent-workflow/playbooks/feature.md", "setup-project-verification/playbooks/feature.md", "maintain-project-verification/playbooks/feature.md"]},
     {"source": "playbooks/bug-fix.md", "targets": ["agent-workflow/playbooks/bug-fix.md", "setup-project-verification/playbooks/bug-fix.md", "maintain-project-verification/playbooks/bug-fix.md"]},

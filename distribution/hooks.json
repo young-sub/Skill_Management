@@ -1,5 +1,31 @@
 {
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Read|Grep|Glob|Bash|PowerShell|apply_patch|shell|exec_command|local_shell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}/hooks/run-hook.sh\" delegation_hook.py",
+            "commandWindows": "python -c \"import os,runpy; runpy.run_path(os.path.join(os.environ.get('CLAUDE_PLUGIN_ROOT') or os.environ['PLUGIN_ROOT'],'hooks','delegation_hook.py'),run_name='__main__')\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}/hooks/run-hook.sh\" delegation_hook.py",
+            "commandWindows": "python -c \"import os,runpy; runpy.run_path(os.path.join(os.environ.get('CLAUDE_PLUGIN_ROOT') or os.environ['PLUGIN_ROOT'],'hooks','delegation_hook.py'),run_name='__main__')\"",
+            "timeout": 1200,
+            "statusMessage": "Sealing or checking delegated work"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [

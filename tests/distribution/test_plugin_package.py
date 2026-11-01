@@ -24,7 +24,9 @@ class PluginPackageTests(unittest.TestCase):
             package = root / 'plugin with spaces'
             (package / 'hooks').mkdir(parents=True)
             shutil.copyfile(ROOT / 'authoring/scripts/completion_guard.py', package / 'hooks/completion_guard.py')
-            self.assertEqual(set(hooks), {'Stop'}, 'a shell-scoped task selector never reaches a prompt hook')
+            shutil.copyfile(ROOT / 'authoring/scripts/delegation_hook.py', package / 'hooks/delegation_hook.py')
+            self.assertEqual(set(hooks), {'Stop', 'PreToolUse', 'SubagentStop'},
+                             'no prompt hook: a shell-scoped task selector never reaches one')
             launcher = ROOT / 'distribution/run-hook.sh'
             if launcher.exists():
                 shutil.copyfile(launcher, package / 'hooks/run-hook.sh')
@@ -62,7 +64,9 @@ class PluginPackageTests(unittest.TestCase):
                             else:
                                 self.assertEqual(result.returncode, 0, result.stderr)
                                 output = json.loads(result.stdout)
-                                self.assertEqual(output['decision'], 'block')
+                                # Stop blocks the unverified edit; without an active delegated task the
+                                # delegation hooks return at once.
+                                self.assertEqual(output.get('decision'), 'block' if event == 'Stop' else None, output)
                     if runtime != 'missing':
                         (package / 'hooks/failure.py').write_text('raise SystemExit(23)\n')
                         failed = subprocess.run([SH, str(package / 'hooks/run-hook.sh'), 'failure.py'],
@@ -109,6 +113,13 @@ class PluginPackageTests(unittest.TestCase):
                        '--output', str(package)]
             built = subprocess.run(command, cwd=root, capture_output=True, text=True)
             self.assertEqual(built.returncode, 0, built.stderr + built.stdout)
+            # A checkout with core.autocrlf holds CRLF copies; the package keeps Git's bytes, so a
+            # POSIX launcher's shebang never ends in CR (`/bin/sh^M: bad interpreter`).
+            carriage = [p.relative_to(package).as_posix() for p in package.rglob('*')
+                        if p.is_file() and b'\r\n' in p.read_bytes()]
+            self.assertEqual(carriage, [], 'package files must keep the LF bytes Git stores')
+            launcher = (package / 'skills/impeccable/scripts/impeccable').read_bytes()
+            self.assertTrue(launcher.startswith(b'#!/bin/sh\n'), launcher[:20])
             guide = package / 'README.md'
             self.assertTrue(guide.is_file(), 'Portable plugin needs its own entrypoint guide')
             for link in re.findall(r'\[[^]]+\]\(([^)]+)\)', guide.read_text(encoding='utf-8')):
@@ -145,11 +156,17 @@ class PluginPackageTests(unittest.TestCase):
             self.assertEqual(observed['exit_code'], 0)
             self.assertIsNone(observed['behavior_verdict'])
             hook = json.loads((package / 'hooks/hooks.json').read_text())['hooks']
-            self.assertEqual(set(hook), {'Stop'})
+            self.assertEqual(set(hook), {'Stop', 'PreToolUse', 'SubagentStop'})
             self.assertEqual(len(hook['Stop'][0]['hooks']), 1, 'one Stop process runs the acceptance gate and the guard')
-            for removed in ('workflow_context.py', 'acceptance_gate.py', 'risk_gate.py'):
+            for event in ('PreToolUse', 'SubagentStop'):
+                self.assertIn('delegation_hook.py', hook[event][0]['hooks'][0]['command'])
+            self.assertTrue((package / 'hooks/delegation_hook.py').is_file())
+            for agent in ('acceptance-author', 'implementer'):
+                text = (package / f'agents/{agent}.md').read_text(encoding='utf-8')
+                self.assertTrue(text.startswith(f'---\nname: {agent}\n'), agent)
+            for removed in ('workflow_context.py', 'acceptance_gate.py', 'risk_gate.py', 'delegate.py'):
                 self.assertFalse((package / 'hooks' / removed).exists(), removed)
-            for gate_script in ('acceptance_gate.py', 'risk_gate.py'):
+            for gate_script in ('acceptance_gate.py', 'risk_gate.py', 'delegate.py'):
                 self.assertEqual([p.relative_to(package).as_posix() for p in package.rglob(gate_script)],
                                  ['skills/agent-workflow/scripts/' + gate_script], 'one copy, loaded by the Stop hook')
             transcript = root / 'transcript.jsonl'

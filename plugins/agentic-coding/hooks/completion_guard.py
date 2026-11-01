@@ -1,6 +1,8 @@
 """Stop hook: block one completion when a behavior change was never handed to an independent verifier.
 
-When a sealed acceptance contract judges the worktree, only HIGH-risk changes still need the verifier.
+When a sealed acceptance contract judges the worktree, the verifier is waived only below HIGH and only
+when the current tree's full sealed check passed with nothing untested and nothing uncovered; the risk
+table comes from the contract's integration ref.
 
 It reads the host transcript and, for the size of a change, read-only `git diff --numstat`;
 it never runs project commands. Passing it is not verification; it only prevents finishing on
@@ -232,10 +234,19 @@ def turn_events(transcript):
     return events
 
 
+UNEXPANDED = re.compile(r'\$\{?\w+|%\w+%')
+
+
 def code_file(value, root):
-    """Project-relative path of a code file, or None for documentation and files outside the project."""
+    """Project-relative path of a code file, or None for documentation and files outside the project.
+    A shell variable in the path is expanded from this process's environment; one that cannot be is not
+    taken for a project path (`$TMPDIR/x.py` is not `<root>/$TMPDIR/x.py`). Git still sizes real changes."""
     if not value:
         return None
+    if UNEXPANDED.search(value):
+        value = os.path.expandvars(value)
+        if UNEXPANDED.search(value):
+            return None
     path = Path(value)
     path = path if path.is_absolute() else root / path
     try:
@@ -342,10 +353,14 @@ def gate_modules():
     return None
 
 
+WAIVER = {'acceptance-pass', 'no-untested', 'no-uncovered'}
+
+
 def sealed_tier(root):
-    """'HIGH', 'BELOW_HIGH' or None (no sealed contract or no judgement). BELOW_HIGH needs a passing full
-    sealed check of the current tree with intact tests and a tier below HIGH against both the contract
-    base and the branch's upstream, so a sensitive caller added upstream still counts. Any doubt is None."""
+    """'HIGH', 'BELOW_HIGH' or None (no sealed contract or no judgement). BELOW_HIGH needs a full sealed
+    check of the current tree that passed with intact tests, nothing untested or not judged and nothing
+    uncovered, and a tier below HIGH under the table of the contract's integration ref (its current tip,
+    which the feature branch cannot edit; the contract base without one). Any doubt is None."""
     gates = gate_modules()
     if gates is None:
         return None
@@ -355,14 +370,10 @@ def sealed_tier(root):
         contract, _, _ = acceptance_gate.load_contract(top)
         if contract is None or acceptance_gate.stale_reason(top, contract):
             return None
-        bases = [contract['base']]
-        upstream = subprocess.run(['git', '-C', str(top), 'rev-parse', '--verify', '--quiet', '@{upstream}'],
-                                  capture_output=True, text=True)
-        if upstream.returncode == 0 and upstream.stdout.strip():
-            bases.append(upstream.stdout.strip())
-        if any(risk_gate.classify(top, base)['tier'] == 'HIGH' for base in bases):
+        policy = acceptance_gate.integration_ref(top, contract) or contract['base']
+        if risk_gate.classify(top, contract['base'], policy=policy)['tier'] == 'HIGH':
             return 'HIGH'
-        return 'BELOW_HIGH' if 'acceptance-pass' in risk_gate.evidence(top)[0] else None
+        return 'BELOW_HIGH' if WAIVER <= risk_gate.evidence(top)[0] else None
     except Exception:  # noqa: BLE001 - a guard failure must keep the stricter rule, never trap the session
         return None
 
@@ -398,16 +409,32 @@ def acceptance(payload):
         return {'systemMessage': f'Acceptance gate unavailable; completion is unchecked: {error}'}
 
 
+def delegation(payload):
+    """The delegation state machine's Stop result (a task waiting on the orchestrator), or {}."""
+    here = Path(__file__).resolve().parent
+    if not (here / 'delegation_hook.py').is_file():
+        return {}
+    if str(here) not in sys.path:
+        sys.path.insert(0, str(here))
+    try:
+        import delegation_hook
+        return delegation_hook.stop(payload)
+    except Exception as error:  # noqa: BLE001 - a delegation failure must not trap the session
+        return {'systemMessage': f'Delegation state unavailable: {error}'}
+
+
 def stop(payload):
-    """The one packaged Stop hook: a blocking acceptance verdict wins; otherwise the guard decides
-    and any acceptance note rides along."""
+    """The one packaged Stop hook: a blocking acceptance verdict wins, then a delegated task waiting on the
+    orchestrator; otherwise the guard decides. Notes from each ride along."""
     gate = acceptance(payload)
     if gate.get('decision') == 'block':
         return gate
+    waiting = delegation(payload)
+    notes = [note for note in (gate.get('systemMessage'), waiting.get('systemMessage')) if note]
+    if waiting.get('decision') == 'block':
+        return dict(waiting, systemMessage='\n'.join(notes)) if notes else waiting
     result = guard(payload)
-    if gate.get('systemMessage'):
-        result = dict(result, systemMessage=gate['systemMessage'])
-    return result
+    return dict(result, systemMessage='\n'.join(notes)) if notes else result
 
 
 def main():

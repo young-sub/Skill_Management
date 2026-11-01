@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 
 SCRIPT = Path(__file__).resolve().parents[2] / 'authoring/scripts/acceptance_gate.py'
@@ -117,6 +118,95 @@ class AcceptanceGateTests(unittest.TestCase):
         self.assertEqual(result['hunks'], 2, 'documents and test files are not ablated')
         self.assertIn('1 untested change(s)', output)
 
+    def test_an_untested_function_written_next_to_a_tested_line_is_found(self):
+        self.seal()
+        # One -U0 hunk: reverting it also reverts the tested line, so only deleting each block finds refund().
+        self.write('rule.py', RULE.replace('>= 10', '>= 20') +
+                   '\n\ndef refund(amount):\n    kept = amount\n    return kept * 2\n')
+        self.cli('check')
+        result = self.history()[-1]
+        self.assertEqual(result['verdict'], 'PASS')
+        self.assertEqual(result['hunks'], 1)
+        self.assertEqual([u['file'] for u in result['untested']], ['rule.py'], result)
+        self.assertIn('lines 5-7', result['untested'][0]['hunk'])
+
+    def test_every_added_block_is_judged_or_reported(self):
+        # The tested line plus seven blocks: six are deleted one by one (the tested line's deletion empties the
+        # function, an error, not judged), and the two beyond the limit are reported, never dropped.
+        extra = ''.join(f'\n\nVALUE_{i} = {i}\n' for i in range(7))
+        body = ['@@ -2 +2,22 @@'] + ['+x'] * 22
+        self.assertEqual(len(gate.added_blocks(['@@ -1 +1,3 @@', '+a', '+', '+b'])), 2)
+        self.assertEqual(len(gate.added_blocks(body)), 0, 'one block is the hunk itself')
+        self.seal()
+        self.write('rule.py', RULE.replace('>= 10', '>= 20') + extra)
+        self.cli('check')
+        result = self.history()[-1]
+        self.assertEqual(len(result['untested']), 5, result)
+        reasons = [u['reason'] for u in result['unknown']]
+        self.assertEqual(reasons.count('beyond the block limit or the deadline'), 2, reasons)
+        self.assertEqual(sum('deleting it gave error' in r for r in reasons), 1, reasons)
+
+    def test_a_block_whose_deletion_breaks_the_run_is_not_judged(self):
+        self.seal()
+        self.write('rule.py', 'import json\n\ndef allowed(amount):\n    return amount >= 20\n\n\nDUMPS = json.dumps\n')
+        self.cli('check')
+        result = self.history()[-1]
+        reasons = [u.get('reason', '') for u in result['unknown']]
+        self.assertTrue(any('deleting it gave error' in r for r in reasons), result)
+
+    def test_a_reversal_that_breaks_the_import_is_not_judged_as_detected(self):
+        self.seal()
+        self.write('limits.py', 'MINIMUM = 20\n')
+        self.write('rule.py', 'from limits import MINIMUM\n\n\ndef allowed(amount):\n    return amount >= MINIMUM\n')
+        self.cli('check')
+        result = self.history()[-1]
+        self.assertEqual(result['verdict'], 'PASS')
+        self.assertEqual(result['untested'], [])
+        reasons = ' '.join(u['reason'] for u in result['unknown'])
+        self.assertIn('not a failed assertion', reasons, result)
+        self.assertGreaterEqual(len(result['unknown']), 1)
+
+    def test_changes_without_a_text_hunk_are_not_judged(self):
+        self.write('pkg/__init__.py', '')
+        self.write('run.sh', 'echo run\n')
+        self.git('add', '-A')
+        self.git('commit', '-qm', 'package and script')
+        self.seal()
+        self.write('rule.py', RULE.replace('>= 10', '>= 20'))
+        (self.root / 'pkg/__init__.py').unlink()
+        os.chmod(self.root / 'run.sh', 0o755)  # the work tree carries the mode where core.filemode is true
+        self.git('update-index', '--chmod=+x', 'run.sh')
+        self.git('commit', '-qm', 'executable')  # only the staged mode: committed, so filemode=false checkouts carry it
+        self.cli('check')
+        result = self.history()[-1]
+        self.assertEqual(result['verdict'], 'PASS', result)
+        self.assertEqual(sorted(u['file'] for u in result['unknown'] if u['hunk'] == 'no text hunk'),
+                         ['pkg/__init__.py', 'run.sh'], result)
+
+    def test_seal_writes_its_state_in_one_step_and_records_the_integration_ref(self):
+        self.git('update-ref', 'refs/remotes/origin/main', 'HEAD')
+        weak = self.sealed.read_text(encoding='utf-8')
+        self.sealed.write_text(weak.replace('assertFalse(allowed(10))', 'assertTrue(allowed(10))'), encoding='utf-8')
+        self.seal(expected=1)
+        self.assertFalse(gate.state_dir(self.root).exists(), 'a refused seal leaves nothing behind')
+        self.assertEqual(list(gate.state_dir(self.root).parent.glob(gate.STATE + '-*')), [])
+        self.sealed.write_text(weak, encoding='utf-8')
+        sealed = json.loads(self.seal())
+        contract = json.loads((Path(sealed['state']) / 'contract.json').read_text(encoding='utf-8'))
+        self.assertEqual(contract['integration'], 'refs/remotes/origin/main')
+
+    def test_the_deadline_bounds_git_and_cleanup_gets_a_grace_period(self):
+        previous = gate.probe_check.DEADLINE
+        try:
+            gate.probe_check.DEADLINE = time.monotonic() + 3
+            self.assertLessEqual(gate.probe_check.git_timeout(), 3)
+            self.assertEqual(gate.probe_check.git_timeout(cleanup=True), gate.probe_check.GRACE)
+            gate.probe_check.DEADLINE = time.monotonic() - 10
+            self.assertEqual(gate.probe_check.git_timeout(), 1.0)
+        finally:
+            gate.probe_check.DEADLINE = previous
+        self.assertIsNone(gate.probe_check.git_timeout())
+
     def test_uncovered_scenarios_are_reported(self):
         scenarios = Path(self.sealed.parent / 'scenarios.json')
         scenarios.write_text(json.dumps([
@@ -220,7 +310,10 @@ class AcceptanceGateTests(unittest.TestCase):
         self.write('local_rule.py', 'THRESHOLD = 20\n')
         self.git('add', '-f', 'local_rule.py')
         self.write('rule.py', 'from local_rule import THRESHOLD\n\n\ndef allowed(amount):\n    return amount >= THRESHOLD\n')
-        self.assertEqual(self.hook(), {})
+        passed = self.hook()
+        self.assertNotIn('decision', passed)
+        # Reverting the new module or its import breaks the import: load-bearing, not checked by an assertion.
+        self.assertIn('2 change(s) not judged', passed['systemMessage'])
         self.write('local_rule.py', 'THRESHOLD = 10\n')
         self.assertEqual(self.hook()['decision'], 'block', 'the edited force-added file changes the tree')
 
