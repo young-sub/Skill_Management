@@ -174,6 +174,7 @@ class AcceptanceGateTests(unittest.TestCase):
         self.seal()
         self.write('rule.py', RULE.replace('>= 10', '>= 20'))
         (self.root / 'pkg/__init__.py').unlink()
+        os.chmod(self.root / 'run.sh', 0o755)  # the work tree carries the mode where core.filemode is true
         self.git('update-index', '--chmod=+x', 'run.sh')
         self.git('commit', '-qm', 'executable')  # only the staged mode: committed, so filemode=false checkouts carry it
         self.cli('check')
