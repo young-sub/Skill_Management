@@ -57,7 +57,7 @@ class CheckCaptureTests(unittest.TestCase):
             self.assertEqual(result.returncode, 7)
             value = lookup('CURRENT', 1)
             self.assertEqual(value['exit_code'], 7, 'Current source must not hide a failed check')
-            record = json.loads(path.read_text())
+            record = json.loads(path.read_text(encoding='utf-8'))
             record['after'] = None
             path.write_text(json.dumps(record))
             lookup('UNKNOWN', 2)
@@ -97,7 +97,7 @@ class CheckCaptureTests(unittest.TestCase):
             calls = []
             def measure(_cwd):
                 self.assertTrue(record.read_text().strip(), 'Progress must precede source measurement')
-                calls.append(json.loads(record.read_text()))
+                calls.append(json.loads(record.read_text(encoding='utf-8')))
                 return {}
             argv = [str(RUNNER), '--cwd', temporary, '--output', str(record),
                     '--', sys.executable, '-c', "print('done')"]
@@ -119,7 +119,7 @@ class CheckCaptureTests(unittest.TestCase):
                     time.sleep(.02)
                 self.assertTrue((root / 'started').exists())
                 self.assertTrue(record.read_text().strip(), 'Running capture must not look like an empty completed result')
-                running = json.loads(record.read_text())
+                running = json.loads(record.read_text(encoding='utf-8'))
                 self.assertEqual(running['execution'], 'running')
                 self.assertIsNone(running['exit_code'])
                 self.assertGreater(running['timeout_seconds'], 0)
@@ -132,7 +132,7 @@ class CheckCaptureTests(unittest.TestCase):
                 (root / 'release').touch()
                 stdout, stderr = process.communicate(timeout=10)
                 self.assertEqual(process.returncode, 0, stderr)
-                complete = json.loads(record.read_text())
+                complete = json.loads(record.read_text(encoding='utf-8'))
                 self.assertEqual(complete['run_id'], running['run_id'])
                 self.assertEqual(complete['execution'], 'exited')
                 self.assertEqual(complete['stdout'], 'complete\n')
@@ -183,7 +183,7 @@ class CheckCaptureTests(unittest.TestCase):
                                          '--output', str(record), '--json-report', str(root / 'native.json'),
                                          '--', sys.executable, '-c', command], capture_output=True)
                 self.assertTrue(record.exists(), result.stderr)
-                data = json.loads(record.read_text())
+                data = json.loads(record.read_text(encoding='utf-8'))
                 self.assertEqual((result.returncode, data['exit_code']), (0, 0))
                 self.assertTrue(data['json_report']['error'])
                 self.assertIsNone(data['json_report']['data'])
@@ -197,7 +197,7 @@ class CheckCaptureTests(unittest.TestCase):
                                      '--check', 'fixture', '--', sys.executable, '-c', "print('observed')"],
                                     capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
-            data = json.loads(record.read_text())
+            data = json.loads(record.read_text(encoding='utf-8'))
             self.assertEqual(data['run_id'], json.loads(result.stdout)['run_id'])
             self.assertEqual((data['feature'], data['check']), ('native-verification', 'fixture'))
 
@@ -347,7 +347,7 @@ class CheckCaptureTests(unittest.TestCase):
                                          'from pathlib import Path; Path("child-pid").write_text(str(p.pid)); '
                                          'print(p.pid,flush=True); time.sleep(30)'],
                                         capture_output=True, timeout=12)
-                data = json.loads(record.read_text())
+                data = json.loads(record.read_text(encoding='utf-8'))
                 child_pid = int((root / 'child-pid').read_text())
                 self.assertEqual(result.returncode, 124)
                 self.assertEqual(data['timeout_tree_cleanup_exit'], 0)

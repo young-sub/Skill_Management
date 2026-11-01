@@ -51,7 +51,7 @@ class VerifyProductTests(unittest.TestCase):
     def run_check(self):
         code, verdict = self.verify('--output', str(self.output))
         self.assertEqual((code, verdict['status']), (0, 'PASS'), verdict)
-        record = json.loads(self.output.read_text())
+        record = json.loads(self.output.read_text(encoding='utf-8'))
         self.assertIsNone(record['behavior_verdict'])
         self.assertEqual(record['check'], 'fixture')
         self.assertEqual(record['feature'], 'native-verification')
@@ -61,7 +61,7 @@ class VerifyProductTests(unittest.TestCase):
 
     def enable_scoped_check(self):
         project_path = self.root / '.harness/project.yaml'
-        project = json.loads(project_path.read_text())
+        project = json.loads(project_path.read_text(encoding='utf-8'))
         project['commands']['fixture']['evidence_inputs'] = ['deps/*.py']
         project['extensions'] = {'workflow': {'roots': ['logic.py'], 'features': [{
             'id': 'native-verification', 'partition': 'verification', 'sources': ['logic.py'],
@@ -104,7 +104,7 @@ class VerifyProductTests(unittest.TestCase):
 
     def test_workflow_bundle_reuses_native_capture_without_running_tests(self):
         runtime = runpy.run_path(str(ROOT / 'authoring/scripts/project_workflow.py'))
-        project = json.loads((self.root / '.harness/project.yaml').read_text())
+        project = json.loads((self.root / '.harness/project.yaml').read_text(encoding='utf-8'))
         project['extensions'] = {'workflow': {'roots': ['suite.py'], 'features': [{
             'id': 'native-verification', 'partition': 'verification', 'sources': ['suite.py'],
             'map': ['docs/feature-map.md'], 'criteria': ['docs/feature-map.md'], 'checks': ['fixture']}]}}
@@ -137,10 +137,10 @@ class VerifyProductTests(unittest.TestCase):
                          'evidence/bundle.json')['status'], 'BLOCKED')
 
         feature['checks'].pop()
-        forged = json.loads(bundle.read_text())
+        forged = json.loads(bundle.read_text(encoding='utf-8'))
         forged['status'] = 'PASS'
         bundle.write_text(json.dumps(forged))
-        record = json.loads(self.output.read_text())
+        record = json.loads(self.output.read_text(encoding='utf-8'))
         record['exit_code'] = 1
         self.output.write_text(json.dumps(record))
         self.assertEqual(runtime['inspect_evidence'](self.root, feature, commands,
@@ -153,7 +153,7 @@ class VerifyProductTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
         verdict = json.loads(result.stdout)
         bundle = Path(verdict['bundle'])
-        self.assertEqual(len(json.loads(bundle.read_text())['records']), 1)
+        self.assertEqual(len(json.loads(bundle.read_text(encoding='utf-8'))['records']), 1)
         runtime = runpy.run_path(str(ROOT / 'authoring/scripts/project_workflow.py'))
         observed = runtime['inspect_evidence'](self.root,
             {'id': 'native-verification', 'checks': ['fixture']}, {'fixture': self.argv},
@@ -181,7 +181,7 @@ class VerifyProductTests(unittest.TestCase):
 
     def test_shared_native_check_runs_once_for_selected_features(self):
         project_path = self.root / '.harness/project.yaml'
-        project = json.loads(project_path.read_text())
+        project = json.loads(project_path.read_text(encoding='utf-8'))
         project['commands']['separate'] = dict(project['commands']['fixture'], id='separate')
         project_path.write_text(json.dumps(project))
         mapping = self.root / 'docs/feature-map.md'
@@ -197,7 +197,7 @@ class VerifyProductTests(unittest.TestCase):
         self.assertEqual(ran.returncode, 0, ran.stderr + ran.stdout)
         outcome = json.loads(ran.stdout)
         self.assertEqual((self.root / 'evidence/count').read_text(), '2')
-        bundles = {key: json.loads(Path(path).read_text()) for key, path in outcome['bundles'].items()}
+        bundles = {key: json.loads(Path(path).read_text(encoding='utf-8')) for key, path in outcome['bundles'].items()}
         self.assertEqual(bundles['native-verification']['records'][0], bundles['second']['records'][0])
         runtime = runpy.run_path(str(ROOT / 'authoring/scripts/project_workflow.py'))
         for feature, checks in [('native-verification', ['fixture']), ('second', ['fixture', 'separate'])]:
@@ -223,7 +223,7 @@ class VerifyProductTests(unittest.TestCase):
     def test_scoped_shared_check_unions_distinct_feature_sources(self):
         self.enable_scoped_check()
         project_path = self.root / '.harness/project.yaml'
-        project = json.loads(project_path.read_text())
+        project = json.loads(project_path.read_text(encoding='utf-8'))
         project['extensions']['workflow']['features'].append({
             'id': 'second', 'partition': 'verification', 'sources': ['other.py'],
             'map': ['docs/feature-map.md'], 'criteria': ['docs/criteria.md'], 'checks': ['fixture']})
@@ -247,7 +247,7 @@ class VerifyProductTests(unittest.TestCase):
         outcome = json.loads(ran.stdout)
         self.assertEqual((self.root / 'evidence/count').read_text(), '1',
                          'The shared native check must execute exactly once')
-        bundles = {key: json.loads(Path(path).read_text())
+        bundles = {key: json.loads(Path(path).read_text(encoding='utf-8'))
                    for key, path in outcome['bundles'].items()}
         first = bundles['native-verification']['records'][0]
         second = bundles['second']['records'][0]
@@ -266,7 +266,7 @@ class VerifyProductTests(unittest.TestCase):
         self.root.joinpath('.gitignore').write_text('evidence/\n.work/\n__pycache__/\n')
         self.root.joinpath('.work').mkdir()
         project_path = self.root / '.harness/project.yaml'
-        project = json.loads(project_path.read_text())
+        project = json.loads(project_path.read_text(encoding='utf-8'))
         project['extensions'] = {'workflow': {'roots': ['suite.py'], 'features': [{
             'id': 'native-verification', 'partition': 'verification', 'sources': ['suite.py'],
             'map': ['docs/feature-map.md'], 'criteria': ['docs/feature-map.md'], 'checks': ['fixture']}]}}
@@ -348,7 +348,7 @@ class VerifyProductTests(unittest.TestCase):
         path = self.root / 'evidence/scoped.json'
         code, verdict = self.verify('--output', str(path))
         self.assertEqual((code, verdict['status']), (0, 'PASS'), verdict)
-        record = json.loads(path.read_text())
+        record = json.loads(path.read_text(encoding='utf-8'))
         self.assertTrue({'logic.py', 'suite.py', 'deps/helper.py', 'docs/criteria.md',
                          'docs/feature-map.md', '.harness/project.yaml'}.issubset(record['input_scope']))
         (self.root / 'docs/unrelated.md').write_text('A report outside this check.\n')
@@ -371,13 +371,13 @@ class VerifyProductTests(unittest.TestCase):
                 if name == 'docs/feature-map.md':
                     target.write_text(target.read_text().replace('| Check |', '| Changed label |'))
                 elif name == '.harness/project.yaml':
-                    project = json.loads(target.read_text())
+                    project = json.loads(target.read_text(encoding='utf-8'))
                     project['commands']['fixture']['timeout_seconds'] = 321
                     target.write_text(json.dumps(project), encoding='utf-8')
                 else:
                     target.write_bytes(target.read_bytes() + b'\n# changed\n')
                 code, verdict = self.verify('--evidence', str(evidence),
-                                            '--run-id', json.loads(evidence.read_text())['run_id'])
+                                            '--run-id', json.loads(evidence.read_text(encoding='utf-8'))['run_id'])
                 self.assertEqual(verdict['status'], 'BLOCKED', verdict)
         for path, value in original.items():
             (self.root / path).write_bytes(value)
@@ -386,14 +386,14 @@ class VerifyProductTests(unittest.TestCase):
         self.assertEqual((code, verdict['status']), (0, 'PASS'), verdict)
         (self.root / 'deps/extra.py').write_text('EXTRA = True\n')
         code, verdict = self.verify('--evidence', str(evidence),
-                                    '--run-id', json.loads(evidence.read_text())['run_id'])
+                                    '--run-id', json.loads(evidence.read_text(encoding='utf-8'))['run_id'])
         self.assertEqual(verdict['status'], 'BLOCKED', verdict)
 
     def test_scoped_capture_cannot_omit_registered_inputs(self):
         self.enable_scoped_check()
         code, verdict = self.verify('--output', str(self.output))
         self.assertEqual((code, verdict['status']), (0, 'PASS'), verdict)
-        record = json.loads(self.output.read_text())
+        record = json.loads(self.output.read_text(encoding='utf-8'))
         record['input_scope'].remove('suite.py')
         self.output.write_text(json.dumps(record))
         code, verdict = self.verify('--evidence', str(self.output), '--run-id', record['run_id'])
@@ -401,7 +401,7 @@ class VerifyProductTests(unittest.TestCase):
 
     def test_registered_timeout_and_explicit_override_are_applied(self):
         project_path = self.root / '.harness/project.yaml'
-        project = json.loads(project_path.read_text())
+        project = json.loads(project_path.read_text(encoding='utf-8'))
         project['commands']['fixture']['timeout_seconds'] = 0.15
         project_path.write_text(json.dumps(project), encoding='utf-8')
         self.suite.write_text('import time; time.sleep(0.6)\nimport unittest\n'
@@ -410,14 +410,14 @@ class VerifyProductTests(unittest.TestCase):
         code, verdict = self.verify('--output', str(short))
         self.assertNotEqual(code, 0)
         self.assertEqual(verdict['status'], 'BLOCKED', verdict)
-        record = json.loads(short.read_text())
+        record = json.loads(short.read_text(encoding='utf-8'))
         self.assertEqual(record['timeout_seconds'], 0.15)
         self.assertEqual(record['execution'], 'timeout')
 
         long = self.root / 'evidence/explicit-override.json'
         code, verdict = self.verify('--output', str(long), '--timeout', '3')
         self.assertEqual((code, verdict['status']), (0, 'PASS'), verdict)
-        record = json.loads(long.read_text())
+        record = json.loads(long.read_text(encoding='utf-8'))
         self.assertEqual(record['timeout_seconds'], 3.0)
 
     def test_unlinked_missing_or_wrong_target_evidence_never_passes(self):
