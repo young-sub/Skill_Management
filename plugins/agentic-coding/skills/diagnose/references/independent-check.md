@@ -1,10 +1,10 @@
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/references/independent-check.md -->
-<!-- Source-SHA256: 8769484cc4c3f30c736924cd659d5b7b850cacc664c901ab9067d91efdc10670 -->
+<!-- Source-SHA256: f545e1ecd0a89e23cb785efd269c8d02f529a5ba40d069874b3963d640474dfc -->
 
 # Independent check
 
-The implementer and its own tests share one list of paths to consider, so its checks
+The implementing agent and its own tests share one list of paths to consider, so its checks
 confirm the paths it chose. A fresh verifier that sees only the request and the diff
 does not share that list: in the offline record it named the missing path in 10 of 10
 incomplete implementations that passed the existing regression suite. On 12 references
@@ -14,12 +14,10 @@ a verdict to obey.
 
 ## When
 
-After the affected checks pass, for every HIGH-risk change (`risk_gate.py classify`), and
-for every change to behavior (code, schema, query or configuration that changes what users
-get) that has no sealed acceptance contract. With a contract, LOW and MED work is judged by
-the sealed check, untested-change report and risk tier instead; the Claude Code Stop guard
-asks for the verifier only for HIGH there. Skip only trivial edits (copy, typo, one config
-value) and say so on the card.
+After the affected checks pass, for every change to behavior (code, schema, query or
+configuration that changes what users get). Nothing enforces it; the person or the calling
+Skill asks for it. Skip only trivial edits (copy, typo, one config value) and say so on the
+card.
 
 ## Dispatch
 
@@ -85,8 +83,7 @@ End with one JSON line:
    original), with `command` running the kept test and `origin`
    `"independent-check <date>"`. Run `probe_check.py probes --root <project>`; the probe
    must be killed. The next change that reopens the same path then fails an existing
-   check instead of waiting for another verifier. The Claude Code Stop guard counts the
-   verifier only once its final JSON line arrives.
+   check instead of waiting for another verifier.
 5. Do not relaunch the verifier after fixing; its failing tests are the check. Relaunch
    only when a fix changed a different path than the one reported.
 
@@ -109,7 +106,7 @@ answer to the same question replaces the line instead of adding one. Then:
   point) and its probe.
 - If the answer rejects it, the line alone stops the next verifier from asking again.
 
-Preference questions an acceptance author resolved with a default go under a `## Pending`
+Preference questions resolved with a default go under a `## Pending`
 heading in the same file, one line each with the default taken. The person answers them in a
 batch; an answer moves the line out of Pending, and an answer that overturns the default is a
 new task, not an edit to finished work.
