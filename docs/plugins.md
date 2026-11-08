@@ -248,7 +248,7 @@ worker's reach ([design step 2](research/direction-research-20261031.md#단계-2
 `agent-workflow` is now explicit-only (`/agentic-coding:agent-workflow`; Codex
 `allow_implicit_invocation: false`), so no Skill description is loaded into ordinary sessions.
 Its loop is: a fresh sub-agent writes acceptance tests, scenarios, questions and the write
-paths a rule applies to from the verbatim request alone ([author template](../authoring/references/acceptance-author.md));
+paths a rule applies to from the verbatim request alone (author template `authoring/references/acceptance-author.md`, removed in 0.3.0);
 correctness questions are answered before sealing and preference questions take their
 default into the `## Pending` section of `.harness/decisions.md`; `acceptance_gate.py seal`
 refuses tests that do not fail on the base by assertion (`--preserve`: that do not pass)
