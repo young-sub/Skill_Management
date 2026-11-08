@@ -1,6 +1,6 @@
 # Agentic Coding Plugin
 
-이 저장소는 기존 Skill을 `agentic-coding` 플러그인으로 묶어 업무 위임 → 실제 검증 → 결과 조회 → 피드백 수리와 기준 재사용을 연결합니다. `agent-workflow`가 단일 진입점이며, 프로젝트의 요구사항·코드·검증 명령을 사용합니다. 공개 Skill과 canonical source도 계속 관리합니다.
+이 저장소는 기존 Skill을 `agentic-coding` 플러그인으로 묶어 변경 검증 → 결과 조회 → 피드백 수리와 기준 재사용을 연결합니다. `agent-workflow`가 단일 진입점이며, 프로젝트의 요구사항·코드·검증 명령을 사용합니다. 공개 Skill과 canonical source도 계속 관리합니다.
 
 ## Marketplace 설치
 
@@ -40,7 +40,7 @@ claude plugin install agentic-coding@agentic-coding
 
 GitHub SSH 키가 필요합니다. SSH에 `ys` 별칭을 설정했다면 주소의 `git@github.com:`을 `git@ys:`로 바꿀 수 있습니다. 이미 같은 marketplace를 등록했다면 중복 등록할 필요는 없습니다.
 
-설치 후 새 세션을 시작합니다. Codex에서는 `agentic-coding:agent-workflow`를 선택하고, Claude Code에서는 `/agentic-coding:agent-workflow`로 요청합니다. hook 신뢰 검토가 필요한 호스트에서는 별도로 내용을 확인합니다. 설치 성공과 실제 업무 성공은 별도로 확인합니다.
+설치 후 새 세션을 시작합니다. Codex에서는 `agentic-coding:agent-workflow`를 선택하고, Claude Code에서는 `/agentic-coding:agent-workflow`로 요청합니다. 0.3.0부터 플러그인에는 hook과 하위 에이전트 정의가 없습니다. 설치 성공과 실제 업무 성공은 별도로 확인합니다.
 
 Codex가 `plugin add`를 지원하지 않으면 등록 후 데스크톱 앱의 Plugins Directory에서 `agentic-coding` 소스를 선택해 설치합니다. 기존 `agentic-coding-local` 개발 설치나 개별 스킬은 자동 삭제하지 않습니다. 중복 설치가 있으면 사용할 플러그인을 선택하고 실제 로드 경로를 확인합니다.
 
@@ -110,7 +110,7 @@ python scripts/install_global_guidance.py --host claude --apply
 - 로컬 플러그인 생성·검증: [`docs/plugins.md`](docs/plugins.md)
 - canonical source와 생성 매핑: `authoring/`
 
-독립 구현의 병렬 분담·재개·통합은 [`swarm`](skills/swarm/SKILL.md)이 담당합니다. 독립 검토는 `multi-agent-review`에 남기며, 각 Agent의 완료 보고 뒤 통합된 실제 동작을 확인합니다.
+독립 검토는 `multi-agent-review`가 담당합니다. 0.3.0에서 위임 상태 기계와 `swarm`은 제거됐습니다([근거](docs/plugins.md#version-030)).
 
 설계 판단은 [`architect`](skills/architect/SKILL.md)가 호출자·타입·상태·데이터 소유권·모듈 경계를 따라 담당합니다. 작업 계약은 `design-goal`이 관리하며 작은 수정에는 설계 문서나 계약을 강제하지 않습니다.
 

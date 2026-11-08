@@ -1,5 +1,7 @@
 # Agent Documentation Index
 
+- [0.3.0 removal of hooks and the delegation flow](plugins.md#version-030): no PreToolUse/SubagentStop/Stop hooks, no acceptance-author/implementer agents, no `delegate.py`/`acceptance_gate.py`/`risk_gate.py`, no `swarm`. No version beat plugin-OFF on outcome (0.1.88/0.1.89 19 vs 18 and 21 vs 22 of 24 at 1.17–1.22x tokens per success; 0.2.x sealed flow 0/3 vs OFF 1/3, light loop 1/3 vs 1/3 at 2.3x cost), and the Stop guard counted any verifier reply as verification. The 21 explicit-only Skills and shared scripts are unchanged; `agent-workflow` is a plain current-tree loop.
+
 - [0.2.2 delegation state machine and review fixes](plugins.md#version-022): `delegate.py` orders delegated work without model calls and plugin agents plus `PreToolUse`/`SubagentStop` hooks hold the stages; the verifier waiver needs a clean sealed pass under the integration ref's table (built-in HIGH list without one); ablation counts only failed assertions and splits added blocks; MED is never `recheck` PASS; package bytes keep Git's line endings.
 - [0.2.1 lighter hooks](plugins.md#version-021): no prompt hook (its shell-scoped selector never reached the host), one Stop process that runs the sealed acceptance gate before the independent-check rule, no repeated check for a contract whose base left `HEAD` or whose work is already in `origin/HEAD`, and Windows hooks that skip the `python3` Store stub.
 

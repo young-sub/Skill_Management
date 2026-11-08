@@ -11,8 +11,6 @@ ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / 'authoring/scripts/project_workflow.py'
 HOOK = ROOT / 'authoring/scripts/workflow_context.py'
 
-
-GUARD = ROOT / 'authoring/scripts/completion_guard.py'
 OUTCOME = '저장한 가격을 다시 읽으면 10원이다'
 
 
@@ -120,18 +118,6 @@ class WorkflowRobustnessTests(unittest.TestCase):
                 read_payload = runpy.run_path(str(HOOK))['read_payload']
                 for raw in (payload, b'\xef\xbb\xbf' + payload):
                     self.assertEqual(read_payload(io.BytesIO(raw))['prompt'], prompt)
-        korean = Path(self.temp.name) / '한글 프로젝트'
-        korean.mkdir()
-        transcript = korean / 't.jsonl'
-        transcript.write_text('\n'.join(json.dumps(e, ensure_ascii=False) for e in (
-            {'type': 'user', 'message': {'content': '고쳐줘'}},
-            {'type': 'assistant', 'message': {'content': [{'type': 'tool_use', 'name': 'Edit',
-                'input': {'file_path': str(korean / 'app.py'), 'new_string': '가\n' * 5}}]}})), encoding='utf-8')
-        payload = json.dumps({'cwd': str(korean), 'transcript_path': str(transcript), 'stop_hook_active': False},
-                             ensure_ascii=False).encode('utf-8')
-        process = subprocess.run([sys.executable, str(GUARD)], input=payload, capture_output=True,
-                                 env=environment(), timeout=60)
-        self.assertEqual(json.loads(process.stdout).get('decision'), 'block', process.stdout)
 
 
 if __name__ == '__main__':

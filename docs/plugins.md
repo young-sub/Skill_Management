@@ -19,6 +19,34 @@ execution selection, freshness checks or task acceptance. There is no fixed byte
 ceiling: capture a detailed lookup and select relevant fields instead of printing
 an entire report into the model context.
 
+## Version 0.3.0
+
+**The plugin ships no hooks and no delegation flow.** Removed: the `PreToolUse`, `SubagentStop`
+and `Stop` hooks (`delegation_hook.py`, `completion_guard.py`, `run-hook.sh`), the
+`acceptance-author` and `implementer` agents, `delegate.py`, `acceptance_gate.py`, `risk_gate.py`,
+the acceptance-author reference, the agent-workflow risk template copy and the `swarm` Skill, which
+only drove the same queue. The Codex compatibility manifest no longer names a hooks file.
+
+Why, from the measured record: no plugin version beat plugin-OFF on outcome. 0.1.88/0.1.89
+(agent-workflow model-invocable and called in every ON cell) scored 19 vs 18 and 21 vs 22 of 24 at
+1.17x/1.22x tokens per success ([lean delegation](research/lean-delegation-0.1.88.md)); the
+0.2.x sealed flow scored 0/3 against OFF 1/3 with two timeouts and one stop for a person, and the
+light loop 1/3 vs 1/3 at $21.4 vs $9.3 (`evals/onoff-v3/README.md` on `young-sub/automation-0.2.3`).
+The Stop guard counted an `incomplete` verdict as verification and never reset it after later
+edits, so it checked that a verifier answered, not that a defect was fixed; the earlier final-edit
+Stop rule blocked 0/112 eval cells and 1/280 real runs ([lean audit](research/lean-audit-20261030.md)).
+The 0.2.2 acceptance check could pass with skipped or missing required tests.
+
+Kept unchanged: the 21 remaining Skills (all explicit-only, zero always-on context), the shared
+scripts (`probe_check.py`, `run_check.py`, `unittest_evidence.py`, `project_workflow.py`,
+`verification_results.py`, `task_store.py`, `update_plugin.py`) and the independent-check
+template. `agent-workflow` now runs a plain loop in the current tree: assumptions as examples,
+playbook, `probe_check.py prove`, the project's checks after the final edit, the independent
+verifier on request, and a shorter result card. Nothing blocks a tool call or a stop.
+
+Limits: the explicit-only Skills were never reachable by the model, so their individual value is
+unmeasured rather than absent. This version is a removal; it claims no outcome gain over OFF.
+
 ## Version 0.2.2
 
 A review of 0.1.97–0.2.1 against the [design](research/direction-research-20261031.md) (Claude

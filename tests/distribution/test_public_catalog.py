@@ -26,7 +26,6 @@ class PublicCatalogTests(unittest.TestCase):
             "multi-agent-review",
             "prototype",
             "recall",
-            "swarm",
             "setup-agent-harness",
             "teach",
             "vercel-react-best-practices",

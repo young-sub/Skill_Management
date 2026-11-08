@@ -1,6 +1,6 @@
 """Build the current public Skill cohort as a local plugin, without installing it.
 
-Public Skill files, shared execution tools and the read-only prompt hook enter the package.
+Public Skill files and shared execution tools enter the package; it ships no hooks or agents.
 Generated-resource drift is rejected before writing. A destination is immutable:
 build a new directory for an update; host installation owns cache/version handling.
 """
@@ -78,14 +78,6 @@ def build(output):
     selected['scripts/probe_check.py'] = 'authoring/scripts/probe_check.py'
     selected['scripts/update_plugin.py'] = 'scripts/update_plugin.py'
     selected['scripts/unittest_evidence.py'] = 'authoring/scripts/unittest_evidence.py'
-    selected['hooks/hooks.json'] = 'distribution/hooks.json'
-    selected['hooks/run-hook.sh'] = 'distribution/run-hook.sh'
-    # One Stop hook; it loads the acceptance and risk gates from the agent-workflow Skill.
-    selected['hooks/completion_guard.py'] = 'authoring/scripts/completion_guard.py'
-    # PreToolUse and SubagentStop hold delegated work to its stages; delegate.py lives in the Skill.
-    selected['hooks/delegation_hook.py'] = 'authoring/scripts/delegation_hook.py'
-    selected['agents/acceptance-author.md'] = 'distribution/agents/acceptance-author.md'
-    selected['agents/implementer.md'] = 'distribution/agents/implementer.md'
     selected['README.md'] = 'distribution/README.md'
     files = {}
     staged = index_blobs(sorted(set(selected.values())))
@@ -106,13 +98,12 @@ def build(output):
         return (json.dumps(value, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
 
     files['plugin.json'] = encoded(manifest)
-    # Claude uses default component directories; declaring hooks again duplicates them.
     files['.claude-plugin/plugin.json'] = encoded(manifest)
     files['build-origin.json'] = encoded(dict(origin, version=manifest['version']))
     # Older Codex CLI hosts consume this overlay; identity has one source above.
     files['.codex-plugin/plugin.json'] = encoded({
         key: manifest[key] for key in ('name', 'version', 'description')
-    } | {'skills': './skills/', 'hooks': './hooks/hooks.json'})
+    } | {'skills': './skills/'})
     files['package-files.json'] = encoded({
         'files': {name: hashlib.sha256(data).hexdigest() for name, data in sorted(files.items())},
         'limit': 'Content inventory, not a signature or evidence of Agent task success.',

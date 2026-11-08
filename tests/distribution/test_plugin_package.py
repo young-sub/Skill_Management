@@ -1,9 +1,7 @@
 """Exercise the distributable tree, including its installed command consumer."""
 import json
 import hashlib
-import os
 import re
-import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -12,99 +10,9 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[2]
-SH = shutil.which('sh')
 
 
 class PluginPackageTests(unittest.TestCase):
-    @unittest.skipUnless(SH, 'POSIX shell required for hook commands')
-    def test_hook_commands_with_only_one_python_name(self):
-        hooks = json.loads((ROOT / 'distribution/hooks.json').read_text())['hooks']
-        with tempfile.TemporaryDirectory(prefix='hook runtime ') as temporary:
-            root = Path(temporary)
-            package = root / 'plugin with spaces'
-            (package / 'hooks').mkdir(parents=True)
-            shutil.copyfile(ROOT / 'authoring/scripts/completion_guard.py', package / 'hooks/completion_guard.py')
-            shutil.copyfile(ROOT / 'authoring/scripts/delegation_hook.py', package / 'hooks/delegation_hook.py')
-            self.assertEqual(set(hooks), {'Stop', 'PreToolUse', 'SubagentStop'},
-                             'no prompt hook: a shell-scoped task selector never reaches one')
-            launcher = ROOT / 'distribution/run-hook.sh'
-            if launcher.exists():
-                shutil.copyfile(launcher, package / 'hooks/run-hook.sh')
-            transcript = root / 'turn.jsonl'
-            transcript.write_text(json.dumps({'type': 'assistant', 'message': {'content': [
-                {'type': 'tool_use', 'name': 'Edit', 'input': {'file_path': str(root / 'app.py'), 'new_string': 'x' + chr(10) * 5}}]}}))
-            for runtime in ('python3', 'python', 'broken-python3', 'missing'):
-                bin_dir = root / runtime
-                bin_dir.mkdir()
-                shutil.copy2(SH, bin_dir / ('sh.exe' if os.name == 'nt' else 'sh'))
-                if os.name == 'nt':
-                    for dll in Path(SH).parent.glob('msys-*.dll'):
-                        shutil.copyfile(dll, bin_dir / dll.name)
-                if runtime != 'missing':
-                    shim = bin_dir / ('python' if runtime == 'broken-python3' else runtime)
-                    shim.write_text('#!/bin/sh\nexec "' + Path(sys.executable).as_posix() + '" "$@"\n', newline='')
-                    shim.chmod(0o755)
-                    if runtime == 'broken-python3':
-                        broken = bin_dir / 'python3'
-                        broken.write_text('#!/bin/sh\nexit 1\n', newline='')
-                        broken.chmod(0o755)
-                for variable in ('PLUGIN_ROOT', 'CLAUDE_PLUGIN_ROOT'):
-                    env = {k: v for k, v in os.environ.items()
-                           if k not in ('PLUGIN_ROOT', 'CLAUDE_PLUGIN_ROOT', 'AGENT_WORKFLOW_CONTEXT')}
-                    env.update(PATH=str(bin_dir), **{variable: str(package)})
-                    for event, entries in hooks.items():
-                        with self.subTest(runtime=runtime, variable=variable, event=event):
-                            result = subprocess.run([SH, '-c', entries[0]['hooks'][0]['command']],
-                                env=env, input=json.dumps({'hook_event_name': event, 'cwd': str(root),
-                                    'prompt': 'The output is broken, fix it', 'transcript_path': str(transcript)}),
-                                capture_output=True, text=True, timeout=30)
-                            if runtime == 'missing':
-                                self.assertEqual(result.returncode, 127)
-                                self.assertIn('Python 3', result.stderr)
-                            else:
-                                self.assertEqual(result.returncode, 0, result.stderr)
-                                output = json.loads(result.stdout)
-                                # Stop blocks the unverified edit; without an active delegated task the
-                                # delegation hooks return at once.
-                                self.assertEqual(output.get('decision'), 'block' if event == 'Stop' else None, output)
-                    if runtime != 'missing':
-                        (package / 'hooks/failure.py').write_text('raise SystemExit(23)\n')
-                        failed = subprocess.run([SH, str(package / 'hooks/run-hook.sh'), 'failure.py'],
-                            env=env, capture_output=True, timeout=30)
-                        self.assertEqual(failed.returncode, 23, 'Keep the hook failure, never retry it')
-
-    @unittest.skipUnless(SH, 'POSIX shell required for hook commands')
-    def test_windows_launcher_skips_the_python3_store_stub(self):
-        with tempfile.TemporaryDirectory(prefix='hook order ') as temporary:
-            root = Path(temporary)
-            package = root / 'plugin'
-            (package / 'hooks').mkdir(parents=True)
-            shutil.copyfile(ROOT / 'distribution/run-hook.sh', package / 'hooks/run-hook.sh')
-            (package / 'hooks/probe.py').write_text('print("ran")\n')
-            bin_dir = root / 'bin'
-            bin_dir.mkdir()
-            shutil.copy2(SH, bin_dir / ('sh.exe' if os.name == 'nt' else 'sh'))
-            if os.name == 'nt':
-                for dll in Path(SH).parent.glob('msys-*.dll'):
-                    shutil.copyfile(dll, bin_dir / dll.name)
-            marker = root / 'stub-called'
-            (bin_dir / 'python3').write_text('#!/bin/sh\necho x >> "' + marker.as_posix() + '"\nexit 49\n', newline='')
-            (bin_dir / 'python').write_text('#!/bin/sh\nexec "' + Path(sys.executable).as_posix() + '" "$@"\n', newline='')
-            for shim in ('python3', 'python'):
-                (bin_dir / shim).chmod(0o755)
-            for system, stub_calls in (('Windows_NT', 0), ('', 1)):
-                with self.subTest(OS=system):
-                    marker.unlink(missing_ok=True)
-                    env = {k: v for k, v in os.environ.items() if k not in ('PLUGIN_ROOT', 'OS')}
-                    env.update(PATH=str(bin_dir), CLAUDE_PLUGIN_ROOT=str(package))
-                    if system:
-                        env['OS'] = system
-                    result = subprocess.run([SH, str(package / 'hooks/run-hook.sh'), 'probe.py'],
-                                            env=env, capture_output=True, text=True, timeout=30)
-                    self.assertEqual((result.returncode, result.stdout.strip()), (0, 'ran'), result.stderr)
-                    calls = marker.read_text().count('x') if marker.exists() else 0
-                    self.assertEqual(calls, stub_calls)
-
     def test_package_runs_without_checkout_and_refuses_overwrite(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -139,10 +47,13 @@ class PluginPackageTests(unittest.TestCase):
             claude_manifest = package / '.claude-plugin/plugin.json'
             self.assertTrue(claude_manifest.is_file(), 'Claude must retain plugin identity independently of its directory name')
             self.assertEqual(json.loads(claude_manifest.read_text()), manifest)
-            # Codex 0.160.0 ignores bundled hooks with the portable $schema marker.
-            # Keep the working compatibility manifest until that host path is fixed.
             self.assertNotIn('$schema', manifest)
-            self.assertEqual(compatibility.get('hooks'), './hooks/hooks.json')
+            # The package ships no hooks or agent definitions; neither manifest points at any.
+            self.assertNotIn('hooks', compatibility)
+            self.assertFalse((package / 'hooks').exists())
+            self.assertFalse((package / 'agents').exists())
+            for removed in ('completion_guard.py', 'delegation_hook.py', 'acceptance_gate.py', 'risk_gate.py', 'delegate.py'):
+                self.assertEqual(list(package.rglob(removed)), [], removed)
             catalog = json.loads((ROOT / 'distribution/catalog.json').read_text())
             self.assertEqual({p.parent.name for p in (package / 'skills').glob('*/SKILL.md')},
                              set(catalog['public_skills']))
@@ -155,41 +66,6 @@ class PluginPackageTests(unittest.TestCase):
             self.assertEqual(observed['stdout'].strip(), '42')
             self.assertEqual(observed['exit_code'], 0)
             self.assertIsNone(observed['behavior_verdict'])
-            hook = json.loads((package / 'hooks/hooks.json').read_text())['hooks']
-            self.assertEqual(set(hook), {'Stop', 'PreToolUse', 'SubagentStop'})
-            self.assertEqual(len(hook['Stop'][0]['hooks']), 1, 'one Stop process runs the acceptance gate and the guard')
-            for event in ('PreToolUse', 'SubagentStop'):
-                self.assertIn('delegation_hook.py', hook[event][0]['hooks'][0]['command'])
-            self.assertTrue((package / 'hooks/delegation_hook.py').is_file())
-            for agent in ('acceptance-author', 'implementer'):
-                text = (package / f'agents/{agent}.md').read_text(encoding='utf-8')
-                self.assertTrue(text.startswith(f'---\nname: {agent}\n'), agent)
-            for removed in ('workflow_context.py', 'acceptance_gate.py', 'risk_gate.py', 'delegate.py'):
-                self.assertFalse((package / 'hooks' / removed).exists(), removed)
-            for gate_script in ('acceptance_gate.py', 'risk_gate.py', 'delegate.py'):
-                self.assertEqual([p.relative_to(package).as_posix() for p in package.rglob(gate_script)],
-                                 ['skills/agent-workflow/scripts/' + gate_script], 'one copy, loaded by the Stop hook')
-            transcript = root / 'transcript.jsonl'
-            transcript.write_text('\n'.join(json.dumps(entry) for entry in (
-                {'type': 'user', 'message': {'content': 'fix'}},
-                {'type': 'assistant', 'message': {'content': [{'type': 'tool_use', 'name': 'Edit',
-                    'input': {'file_path': str(root / 'app.py'), 'new_string': 'x' + chr(10) * 5}}]}})), encoding='utf-8')
-            stop_command = hook['Stop'][0]['hooks'][0]['commandWindows']
-            stop_environment = {k: v for k, v in os.environ.items() if k != 'PLUGIN_ROOT'}
-            stop_environment['CLAUDE_PLUGIN_ROOT'] = str(package)
-            for active, expected in ((False, 'block'), (True, None)):
-                stopped = subprocess.run(['powershell', '-NoProfile', '-Command', stop_command],
-                    input=json.dumps({'hook_event_name': 'Stop', 'cwd': str(root), 'stop_hook_active': active,
-                                      'transcript_path': str(transcript)}),
-                    env=stop_environment, capture_output=True, text=True, timeout=30)
-                self.assertEqual(stopped.returncode, 0, stopped.stderr)
-                self.assertEqual(json.loads(stopped.stdout).get('decision'), expected)
-            # The packaged Stop hook finds the gates in the package's scripts/ and is silent in a checkout
-            # without a sealed contract or a changed turn.
-            gated = subprocess.run(['powershell', '-NoProfile', '-Command', stop_command],
-                input=json.dumps({'hook_event_name': 'Stop', 'cwd': str(ROOT)}),
-                env=stop_environment, capture_output=True, text=True, timeout=60)
-            self.assertEqual((gated.returncode, json.loads(gated.stdout)), (0, {}), gated.stderr)
             for script in ('project_workflow.py', 'verification_results.py'):
                 help_result = subprocess.run([
                     sys.executable, str(package / 'skills/agent-workflow/scripts' / script),
@@ -207,18 +83,6 @@ class PluginPackageTests(unittest.TestCase):
             for argv in (['git', 'init', '-q'], ['git', 'add', '.'],
                          ['git', '-c', 'user.name=Fixture', '-c', 'user.email=f@invalid', 'commit', '-qm', 'base']):
                 subprocess.run(argv, cwd=consumer, check=True, capture_output=True)
-            before_hook = {str(p): p.read_bytes() for p in consumer.rglob('*') if p.is_file()}
-            for root_variable in ('PLUGIN_ROOT', 'CLAUDE_PLUGIN_ROOT'):
-                environment = {k: v for k, v in os.environ.items()
-                               if k not in ('PLUGIN_ROOT', 'CLAUDE_PLUGIN_ROOT', 'AGENT_WORKFLOW_CONTEXT')}
-                environment[root_variable] = str(package)
-                # The packaged Stop hook runs under either host root variable and writes nothing.
-                delivered = subprocess.run(['powershell', '-NoProfile', '-Command', stop_command],
-                    input=json.dumps({'hook_event_name': 'Stop', 'cwd': str(consumer)}),
-                    env=environment, capture_output=True, text=True, timeout=30)
-                self.assertEqual(delivered.returncode, 0, delivered.stderr)
-                self.assertEqual(json.loads(delivered.stdout), {})
-            self.assertEqual(before_hook, {str(p): p.read_bytes() for p in consumer.rglob('*') if p.is_file()})
             revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=consumer, text=True).strip()
             viewer = package / 'skills/agent-workflow/scripts/verification_results.py'
             def execute(label, *extra):

@@ -1,77 +1,40 @@
 ---
 name: agent-workflow
-description: Delegate a coding task so it can be accepted without reading the diff. A deterministic state machine orders the work and hooks enforce it; acceptance tests are written apart from the implementation and sealed before it; a check outside the session runs them, reverts each changed hunk and reports untested changes and uncovered requirements; risk tiers decide what a person reviews. Also shows what is verified, reuses UI standards, builds guardrails and opens explicit-only capabilities.
+description: Verify a behavior change in the current tree with the project's own checks, then report what is verified. Follows the feature, bug-fix or refactoring playbook, proves new checks against a known fault, sends the verbatim request and diff to an independent verifier, and opens explicit-only capabilities. No hooks, sub-agent stages or task queue.
 disable-model-invocation: true
 ---
 
 # Agent Workflow
 
-For delegated behavior changes. Trivial edits and conversational work stay direct:
-the person is there to judge them.
+For behavior changes the person wants verified. Trivial edits and conversational work stay
+direct: the person is there to judge them.
 
-## Delegation loop
+## Change loop
 
-[`scripts/delegate.py`](scripts/delegate.py) holds the order; it calls no model. You launch
-the sub-agents it prints prompts for, and the plugin's hooks advance it when they stop and
-refuse tool calls the current stage does not allow. `D` below is
-`python <this Skill's directory>/scripts/delegate.py`, always with `--root <repository>`.
+Work in the current tree; nothing here holds the order or blocks a tool call.
 
-1. **Queue.** `D queue add --id <task> --request-file <verbatim request> [--feature F]
-   [--paths <globs>] [--link node_modules] [--preserve]` (`--preserve` for refactoring).
-2. **Start.** `D next [--onto <integration ref>]` starts the first task that capacity allows
-   (open correctness questions and unreviewed HIGH/MED below their limits, no running task on
-   the same Feature or overlapping paths) in its own worktree, and prints the author's prompt.
-3. **Author.** Launch it verbatim: Claude Code `Agent` with `subagent_type`
-   `agentic-coding:acceptance-author`; Codex a sub-agent given the prompt, not a fork. The
-   author writes tests and `result.json` where you cannot read them and replies `done`
-   ([why](references/acceptance-author.md)). Its stop seals the tests; a test that does not
-   fail on the base by assertion goes back to it.
-4. **Questions.** Correctness questions wait for the person (`D status`, `D digest`); record
-   each answer with `D answer --id <task> --question Q1 --text "..."` and relaunch the author
-   with the prompt it prints. Preference questions take their default and appear in `D digest`.
-5. **Implement.** `D implement --id <task>` prints the implementer's prompt (request and
-   scenario text, never the tests or write paths); launch `agentic-coding:implementer` (Codex:
-   a sub-agent). Its stop runs the sealed check; a failure goes back to it, and three failures
-   stop the task for a person.
-6. **Tier.** A passing check is classified under the integration ref's `.harness/risk.yaml`
-   (none: the built-in HIGH list and nothing LOW; copy [the template](templates/risk.yaml) for
-   the person to commit) and committed with `Agent-Task`, `Risk` and `Acceptance` trailers.
-   - LOW: `D integrate --id <task> [--into <checked-out branch>] [--regression "<check>"]`
-     rechecks on the integration tip and merges locally; nothing is pushed. No card unless asked.
-   - MED: the person reviews the cards in `D digest` as a daily batch.
-   - HIGH: dispatch the [verifier](references/independent-check.md) with only the verbatim
-     request and diff; the person approves before integration.
-7. **Report** the card from `D status --id <task>` for MED, HIGH or on request.
-
-Where the host does not run the plugin hooks (an untrusted Codex hook, a host without
-SubagentStop), run the step the hook would have: `D author-done --id <task>` after the author
-replies, `D finish --id <task>` after the implementer stops. Reviewed MED or HIGH work leaves the
-queue when the person merges it and runs `D close --id <task>`; work that changed after its check
-reopens with `D implement --id <task>` and is checked again by `finish`.
-
-Failure events enter the same queue: `D event scan --base <integration ref>` (reverts),
-`D event add --kind check-failure|correction --detail "..."`, and `D event finding --key <k>`
-(a third occurrence queues a task to turn the finding into an executable check). Stopped
-tasks wait for the person's `D resume`.
-
-Without sub-agents or a runnable test command, say so on the card and fall back to the
-[playbooks](playbooks/feature.md) ([bug fix](playbooks/bug-fix.md),
-[refactoring](playbooks/refactoring.md)) with `probe_check.py prove`; sealing by hand is
-`scripts/acceptance_gate.py seal`/`check`. Without a sealed contract, every behavior change
-gets the verifier.
+1. **Request.** Restate the requested behavior. State assumptions about ambiguous rules as
+   input → expected-result examples; ask only when a wrong guess is hard to undo.
+2. **Playbook.** Follow the [feature](playbooks/feature.md), [bug fix](playbooks/bug-fix.md)
+   or [refactoring](playbooks/refactoring.md) playbook: the check comes first and fails for the
+   reason the request names.
+3. **Prove the check.** `python <this Skill's directory>/scripts/probe_check.py prove` shows the
+   new check rejects a known fault while the base passes.
+4. **Run the project's checks** after the final edit; keep the command and raw location.
+5. **Independent check** for behavior changes: dispatch the [verifier](references/independent-check.md)
+   with only the verbatim request and diff. A finding counts when it comes with a reproducible
+   failing case; fix it or turn it into a user decision.
+6. **Report** the card below.
 
 ## Result card
 
-Separate facts, inference and unverified claims (about 15 lines).
+Separate facts, inference and unverified claims (about 12 lines).
 
 ```
 가정/Assumptions: <answered questions, defaults taken, or none>
 Request → changed behavior: <one line>
-Acceptance: <PASS (stated checks, contract hash) | FAIL | TAMPERED | STOPPED: reason | not sealed: reason>
-Risk: <LOW | MED | HIGH: reasons from risk_gate.py>
-Untested changes: <file hunk ... | none>
-Uncovered requirements: <scenario ... | none>
 Checks after the final edit: <check> ✓/✗ (command, raw location)
+Proved against a fault: <check: probe killed | not proved: reason>
 Paths covered: <boundary: bypass search empty | each writer's status>
 Independent check: <complete | N violations → M fixed, K for user decision | not run: reason>
 Unverified: <what and why>
@@ -94,7 +57,7 @@ User decisions: <decision, recommendation, default> or none
 
 Explicit-only: read the sibling Skill's `SKILL.md` when needed; if absent, continue here:
 `diagnose` (reported incorrect behavior), `recall` (resume prior work),
-`setup-project-verification`, `fixing-accessibility`, `architect`, `swarm`, `multi-agent-review`, `maintain-project-verification`, `impeccable`,
+`setup-project-verification`, `fixing-accessibility`, `architect`, `multi-agent-review`, `maintain-project-verification`, `impeccable`,
 `vercel-react-best-practices`, `prototype`, `zoom-out`, `explore-idea`,
 `design-goal`/`execute-codex-goal`/`close-goal`, `setup-agent-harness`/`maintain-agent-harness`.
 Installed resources, global settings, providers and publishing need their own authority.
