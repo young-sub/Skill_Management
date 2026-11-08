@@ -179,10 +179,8 @@ read-only recovery Skill; authorized resume uses existing execution. `zoom-out`
 selects current-flow or historical-rationale perspectives. Review counterexamples
 and prototype candidate comparisons inform architect without new runtime/state.
 
-`swarm` is a mapped standalone instruction skill for parallel implementation. It
-reuses host delegation, project worktrees, task/context and checkpoint-aware runners;
-shared records have one writer and the main agent owns integrated verification.
-It adds no runtime, state schema or review engine.
+`swarm`, the parallel-implementation skill, was removed in 0.3.0 together with the
+delegation state machine it drove.
 
 
 ## Verification reliability
