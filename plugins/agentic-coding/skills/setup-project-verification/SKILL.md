@@ -5,7 +5,7 @@ disable-model-invocation: true
 ---
 <!-- Generated file. Do not edit directly. -->
 <!-- Source: authoring/skills/setup-project-verification/SKILL.md -->
-<!-- Source-SHA256: 8fce9f748de108b586d3a6eeff8bb63fb40e24ddb554955689353dfe9803e13e -->
+<!-- Source-SHA256: be9755766d982da6717800bee44c87b4d949d8871933df1c767e2d3b15ca37b4 -->
 
 
 # Setup Project Verification
@@ -35,10 +35,9 @@ plugin-side adapter is evidence, not a connection. Example: labeler
 
 The drive script's result is `{"checks": [{"name": "...", "status": "passed|failed|error|skipped",
 "message": "..."}]}`: `failed` means an expectation about the running product did not hold, `error`
-that the app or the script broke before one could be checked. The acceptance gate reads this file
-as a report (`--report <report dir>/live.json`), so acceptance authors (`agent-workflow`) write UI
-and API acceptance tests as drive scripts for this command and seal them like unit tests: they must
-fail on the base by a `failed` check, never an `error`. Keeping the command working when the
+that the app or the script broke before one could be checked. `probe_check.py` reads this file
+as a report (`--report <report dir>/live.json`), so UI and API checks are drive scripts for this
+command: a new one must fail on the base by a `failed` check, never an `error`. Keeping the command working when the
 environment changes is the remaining human cost.
 
 The `.harness/project.yaml` template keeps `commands.live` disabled until this command exists and

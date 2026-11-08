@@ -1,6 +1,6 @@
 # Generated file. Do not edit directly.
 # Source: authoring/scripts/probe_check.py
-# Source-SHA256: 7ac71f388308bf11d5cb3637afbcc32f6dee241be0b9063a3486ad76bcca90d6
+# Source-SHA256: fb26a4e73e5bbec31968f5c2fda55291f97b432cf860c683cd1a8b11d7bbd452
 
 """Exercise checks against synthetic faults in disposable Git worktrees.
 
@@ -46,7 +46,7 @@ CRASH = re.compile(r'^(?:E\s+)?(?:SyntaxError|IndentationError|TabError|ModuleNo
                    re.M)
 
 
-# A caller with a whole-run budget (acceptance_gate check) sets this monotonic deadline; Git
+# A caller with a whole-run budget sets this monotonic deadline; Git
 # commands then time out with it instead of outliving the budget. Cleanup gets GRACE seconds.
 DEADLINE = None
 GRACE = 60
