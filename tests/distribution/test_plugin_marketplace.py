@@ -53,25 +53,10 @@ class PluginMarketplaceTests(unittest.TestCase):
         for line in commands:
             self.assertRegex(line, r'@plugin$|#plugin$|--ref plugin$', line)
 
-    def test_optional_upstream_entries_track_latest(self):
-        # Opt-in upstream plugins: separate installs, never pinned, so upstream releases need no catalog edit.
-        codex = json.loads((ROOT / '.agents/plugins/marketplace.json').read_text())
-        claude = json.loads((ROOT / '.claude-plugin/marketplace.json').read_text())
-        expected = {
-            'claude': {'diagram-design': ('github', 'cathrynlavery/diagram-design'),
-                       'humanize-korean': ('github', 'epoko77-ai/im-not-ai')},
-            # im-not-ai's codex/ folder resolves scripts and references outside itself, so Codex
-            # installs a local launcher that keeps a full upstream checkout (test_humanize_korean_codex).
-            'codex': {'diagram-design': ('url', 'https://github.com/cathrynlavery/diagram-design.git'),
-                      'humanize-korean': ('local', './plugins/humanize-korean-codex')},
-        }
-        for host, catalog in (('claude', claude), ('codex', codex)):
-            optional = {entry['name']: entry['source'] for entry in catalog['plugins'][1:]}
-            self.assertEqual(set(optional), set(expected[host]), host)
-            for name, source in optional.items():
-                kind, location = expected[host][name]
-                self.assertEqual(source['source'], kind, name)
-                self.assertEqual(source.get('repo', source.get('url', source.get('path'))), location, name)
-                self.assertNotIn('ref', source, name)
-                self.assertNotIn('sha', source, name)
-            self.assertNotIn('dependencies', catalog['plugins'][0], host)
+    def test_catalogs_list_only_agentic_coding(self):
+        # Upstream plugins are installed from their own repositories; the README only links them.
+        for path in ('.agents/plugins/marketplace.json', '.claude-plugin/marketplace.json'):
+            catalog = json.loads((ROOT / path).read_text())
+            self.assertEqual([entry['name'] for entry in catalog['plugins']], ['agentic-coding'], path)
+            self.assertNotIn('dependencies', catalog['plugins'][0], path)
+        self.assertEqual([p.name for p in (ROOT / 'plugins').iterdir() if p.is_dir()], ['agentic-coding'])
